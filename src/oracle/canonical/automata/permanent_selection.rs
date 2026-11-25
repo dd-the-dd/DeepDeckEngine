@@ -1,17 +1,29 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CardMoveOwnerNode, CardZoneName, CollectionOperandAttempt, ExpressedTargetCardinality,
-    ObjectQueryNode, RecognizedEffectFragment, recognize_expressed_target_cardinality,
-    recognize_object_query, try_recognize_card_move_destination,
+    CardMoveOwnerNode, CardZoneName, CollectionOperandAttempt, NumericAtom, NumericExpression,
+    ObjectQueryNode, RecognizedEffectFragment, TargetCount, recognize_object_query,
+    recognize_target_count, try_recognize_card_move_destination,
 };
 
 /// A resolution choice is not a target declaration. Its bounds and query are
 /// independent of the ordinary action that subsequently consumes the objects.
 /// `bounds: None` is `all QUERY`: every matching permanent, without a choice.
+/// The bounds are the one count node shared with target declarations
+/// (`N`, `up to N`, `X`, `any number of`, `one or more`); the choice is made
+/// on resolution (CR 608.2d) and chooses as many as possible when fewer
+/// permanents qualify (CR 609.3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct PermanentSelectionOperandNode {
-    pub bounds: Option<ExpressedTargetCardinality>,
+    pub bounds: Option<TargetCount>,
     pub query: ObjectQueryNode,
+}
+
+impl PermanentSelectionOperandNode {
+    /// Whether more than one permanent may be chosen (or every member of a
+    /// collection is affected): possessive agreement follows it.
+    pub(in crate::oracle::canonical) fn is_plural(&self) -> bool {
+        self.bounds.as_ref().is_none_or(TargetCount::is_plural)
+    }
 }
 
 /// The ordinary action applied to every selected permanent. The selection
@@ -20,6 +32,9 @@ pub(in crate::oracle::canonical) struct PermanentSelectionOperandNode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum SelectedPermanentAction {
     Untap,
+    /// Each selected permanent becomes tapped (CR 701.26a); an already
+    /// tapped permanent is not tapped again.
+    Tap,
     /// Each selected permanent moves to its owner's hand (CR 400.3).
     ReturnToOwnerHand,
     /// Each selected permanent moves to exile (CR 406.2).
@@ -45,8 +60,41 @@ enum State {
 
 #[derive(Default)]
 struct AttemptFrame {
-    bounds: Option<ExpressedTargetCardinality>,
+    bounds: Option<TargetCount>,
     query: Option<ObjectQueryNode>,
+}
+
+/// Lexical lookahead for a resolution count that does not head a target
+/// (`any number of untapped creatures`, `one or more lands`, `up to two
+/// lands`, `X creatures`): the count is the shared declared-count child, and
+/// the noun after it is not `[other] target`. A `target` head after the same
+/// count belongs to the target-list child (CR 115.1). Dispatch hint only.
+pub(in crate::oracle::canonical) fn resolution_selection_count_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let counted = super::expressed_target_count_starts(cursor)
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("up"))
+        || cursor
+            .peek_token()
+            .is_some_and(|token| token.token_type == "quantity");
+    if !counted {
+        return false;
+    }
+    let mut probe = cursor.clone();
+    if probe.attempt(recognize_target_count).is_err() {
+        return false;
+    }
+    if probe
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("other"))
+    {
+        let _ = probe.consume("other");
+    }
+    !probe.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("target") || raw.eq_ignore_ascii_case("targets")
+    })
 }
 
 pub(in crate::oracle::canonical) fn recognize_permanent_selection_operand(
@@ -58,9 +106,9 @@ pub(in crate::oracle::canonical) fn recognize_permanent_selection_operand(
         state = match state {
             State::Bounds => {
                 cursor.enter("permanent.selection.bounds");
-                // The shared reader consumes only number/up-to-number, never
-                // a target head or a target slot; positive literals/X only.
-                // `all` quantifies over every matching permanent instead.
+                // The shared count child consumes only the count, never a
+                // target head or a target slot. `all` quantifies over every
+                // matching permanent instead.
                 frame.bounds = if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("all"))
@@ -68,8 +116,19 @@ pub(in crate::oracle::canonical) fn recognize_permanent_selection_operand(
                     cursor.consume("all")?;
                     None
                 } else {
-                    Some(recognize_expressed_target_cardinality(cursor)?)
+                    Some(recognize_target_count(cursor)?)
                 };
+                cursor.enter("permanent.selection.non-target");
+                let other = cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("other"));
+                let head = cursor.peek_ahead(usize::from(other));
+                cursor.require(
+                    !head.is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("target") || raw.eq_ignore_ascii_case("targets")
+                    }),
+                    "a resolution choice; a `target` head is a declaration of the target-list child",
+                )?;
                 State::Query
             }
             State::Query => {
@@ -112,14 +171,63 @@ pub(in crate::oracle::canonical) fn recognize_untap_permanents_effect(
     let operand = recognize_permanent_selection_operand(cursor)?;
     cursor.enter("effect.untap-permanents.quantity-policy");
     cursor.require(
-        operand
-            .bounds
-            .is_some_and(|bounds| bounds.minimum == super::NumericAtom::Integer(0)),
+        operand.bounds.as_ref().is_some_and(|bounds| {
+            bounds.minimum == NumericExpression::Atom(NumericAtom::Integer(0))
+        }),
         "an up-to resolution quantity; exact-count best-effort selection is not implemented",
     )?;
     Ok(RecognizedEffectFragment {
         node: SelectedPermanentsEffectNode {
             action: SelectedPermanentAction::Untap,
+            operand,
+            until: None,
+        },
+        end_position: cursor.position(),
+    })
+}
+
+/// Whether the operand after `untap` (the cursor at the verb) opens the
+/// untap choice's own grammar: `all QUERY` or a resolution count heading no
+/// target. Any other head (a reference such as `them`, a declared target)
+/// belongs to the shared permanent operand, whose diagnostic is then the
+/// authoritative one.
+pub(in crate::oracle::canonical) fn untap_selection_head(cursor: &OracleTokenCursor<'_>) -> bool {
+    if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("all"))
+    {
+        return true;
+    }
+    let mut operand = cursor.clone();
+    operand.advance_to(cursor.position() + 1).is_ok() && resolution_selection_count_starts(&operand)
+}
+
+/// `tap N|up to N|X|any number of|one or more PERMANENTS`: the same
+/// resolution choice as the untap action (CR 608.2d), consumed by the tap
+/// action. If fewer permanents qualify, all of them are chosen (CR 609.3);
+/// the tapped set is the action's result (`for each creature tapped this
+/// way`, CR 608.2c). `tap all|each ...` and declared targets stay with the
+/// shared permanent operand of the tap frame.
+pub(in crate::oracle::canonical) fn recognize_tap_selected_permanents_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<RecognizedEffectFragment<SelectedPermanentsEffectNode>> {
+    cursor.enter("effect.tap-selected.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Tap,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.tap-selected.count");
+    cursor.require(
+        resolution_selection_count_starts(cursor),
+        "a resolution count that heads no target",
+    )?;
+    let operand = recognize_permanent_selection_operand(cursor)?;
+    cursor.enter("effect.tap-selected.tail");
+    super::refuse_unread_relative_tail(cursor)?;
+    Ok(RecognizedEffectFragment {
+        node: SelectedPermanentsEffectNode {
+            action: SelectedPermanentAction::Tap,
             operand,
             until: None,
         },

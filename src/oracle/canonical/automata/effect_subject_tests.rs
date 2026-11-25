@@ -466,7 +466,8 @@ fn a_spell_sentence_opens_a_reflexive_frame() {
 }
 
 /// Near miss: an instruction the runtime cannot measure as one performance
-/// fails at the reflexive lowering instead of being approximated.
+/// fails as the explicit measured-performance engine gap (scry looks at and
+/// orders cards; CR 701.22) instead of being approximated.
 #[test]
 fn a_reflexive_frame_needs_one_measured_instruction() {
     let (status, _, states) = parse(SORCERY, "Scry 1. When you do, draw a card.");
@@ -474,7 +475,7 @@ fn a_reflexive_frame_needs_one_measured_instruction() {
     assert!(
         states
             .iter()
-            .any(|state| state == "lower.program.reflexive-action.action"),
+            .any(|state| state == "engine.gap.measured-performance"),
         "{states:?}"
     );
 }

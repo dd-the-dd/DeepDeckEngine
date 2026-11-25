@@ -43,10 +43,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         }
         Some("optionalAction") => {
             player_reference_supported(&effect["player"])
-                && effect_supported(&effect["action"])
-                && super::super::optional_action::optional_action_witness_supported(
-                    &effect["action"],
-                )
+                && super::super::optional_action::measured_instruction_supported(effect)
                 && effect["onPerformed"]
                     .as_array()
                     .is_some_and(|effects| effects.iter().all(effect_supported))
@@ -58,15 +55,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         }
         // A mandatory instruction whose measured performance gates its
         // outcome (CR 603.12 reflexive `When you do`).
-        Some("performAction") => {
-            effect_supported(&effect["action"])
-                && super::super::optional_action::optional_action_witness_supported(
-                    &effect["action"],
-                )
-                && effect["onPerformed"].as_array().is_some_and(|effects| {
-                    !effects.is_empty() && effects.iter().all(effect_supported)
-                })
-        }
+        Some("performAction") => super::super::optional_action::performed_action_supported(effect),
         Some("optionalEffects") => {
             player_reference_supported(&effect["player"])
                 && effect.get("revealSource").is_none_or(Value::is_boolean)

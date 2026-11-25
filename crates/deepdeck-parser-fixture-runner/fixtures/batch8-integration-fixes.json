@@ -1,0 +1,424 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch8/integration-fixes",
+  "cases": [
+    {
+      "id": "exact-stormscale-anarch-restated-damage-recipient",
+      "request": {
+        "cardName": "Stormscale Anarch",
+        "typeLine": "Creature — Viashino Shaman",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "{2}{R}, Discard a card at random: This creature deals 2 damage to any target. If the discarded card was multicolored, this creature deals 4 damage instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/recipient",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetDamageable"
+                }
+              },
+              {
+                "pointer": "/effects/0/else/0/recipient",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetDamageable"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "targetDamageable"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-restated-player-set-recipient",
+      "request": {
+        "cardName": "Restated Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Restated Probe deals 2 damage to each opponent. If you control a Dragon, Restated Probe deals 4 damage instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/then/0/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              },
+              {
+                "pointer": "/effects/0/then/0/recipient",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-restated-recipient-without-replaced-damage",
+      "request": {
+        "cardName": "Restated Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Draw a card. If you control a Dragon, Restated Probe deals 4 damage instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.damage.destination"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-turn-to-slag-name-is-the-subject-not-a-verb",
+      "request": {
+        "cardName": "Turn to Slag",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Turn to Slag deals 5 damage to target creature. Destroy all Equipment attached to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-felidar-sovereign-you-win-the-game",
+      "request": {
+        "cardName": "Felidar Sovereign",
+        "typeLine": "Creature — Cat Beast",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Vigilance, lifelink\nAt the beginning of your upkeep, if you have 40 or more life, you win the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "winGame",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-target-player-wins-the-game",
+      "request": {
+        "cardName": "Win Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}",
+        "oracleText": "Target player wins the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "winGame"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-win-without-the-game",
+      "request": {
+        "cardName": "Win Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}",
+        "oracleText": "You win the turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "clause.verb.unsupported"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-those-creatures-to-hand",
+      "request": {
+        "cardName": "Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose two target creatures. Return those creatures to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards",
+                "equals": {
+                  "kind": "chosenTargets",
+                  "id": "targetPermanent"
+                }
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-those-nominal-not-implied-by-the-targets",
+      "request": {
+        "cardName": "Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose two target creatures. Return those lands to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-look-two-branches-keep-the-looked-card",
+      "request": {
+        "cardName": "Branch Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}: Look at the top card of your library. If it's a land card, put it into your hand. If it's a creature card, put it into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/then/0/cards",
+                "equals": {
+                  "kind": "boundObjects",
+                  "binding": "lookedCards"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-galvanic-blast-ability-word-line-amends-the-spell",
+      "request": {
+        "cardName": "Galvanic Blast",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Galvanic Blast deals 2 damage to any target.\nMetalcraft — Galvanic Blast deals 4 damage instead if you control three or more artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              },
+              {
+                "pointer": "/effects/0/then/0/recipient",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetDamageable"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unholy-heat-delirium-amends-a-permanent-target",
+      "request": {
+        "cardName": "Unholy Heat",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Unholy Heat deals 2 damage to target creature or planeswalker.\nDelirium — Unholy Heat deals 6 damage instead if there are four or more card types among cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-ability-word-instead-without-replaced-damage",
+      "request": {
+        "cardName": "Amend Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Draw a card.\nMetalcraft — Amend Probe deals 4 damage instead if you control three or more artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-manifest-dread-name-that-is-the-keyword-action-stays-the-action",
+      "request": {
+        "cardName": "Manifest Dread",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Manifest dread. (Look at the top two cards of your library. Put one onto the battlefield face down as a 2/2 creature and the other into your graveyard. Turn it face up any time for its mana cost if it's a creature card.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-flood-of-mars-flavor-label-with-an-outcome-verb",
+      "request": {
+        "cardName": "The Flood of Mars",
+        "typeLine": "Creature — Alien Zombie Horror",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Islandwalk (This creature can't be blocked as long as defending player controls an Island.)\nWater Always Wins — Whenever this creature attacks, put a flood counter on another target creature or land. If it's a creature, it becomes a copy of this creature. If it's a land, it becomes an Island in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    }
+  ]
+}

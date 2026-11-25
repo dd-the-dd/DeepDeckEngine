@@ -76,6 +76,11 @@ impl ConditionScope {
         if atom.reads_action_result() {
             return self == Self::Program;
         }
+        // A spell's turn ordinal is read on the spell a cast event observed;
+        // only a parent that binds that event can resolve it.
+        if matches!(atom, ConditionAtom::SpellCastOrdinal(_)) {
+            return matches!(self, Self::Program | Self::TriggerGuard);
+        }
         self.allows(atom.family())
             || (matches!(self, Self::Static | Self::Unless) && atom.is_source_cast_record())
     }
@@ -134,6 +139,22 @@ pub(in crate::oracle::canonical) enum ConditionAtom {
     /// the referenced object's controller is the ability's controller (CR
     /// 108.4), read as last known information once it left (CR 608.2h).
     ObjectControl(ObjectControlConditionNode),
+    /// A choice the caster made for the ability's own source as it was cast
+    /// (`the gift was promised`, `its surge cost was paid`, `this spell was
+    /// cast using teamwork`), kept by the permanent it became.
+    CastChoice(CastChoiceNode),
+    /// `it's the second creature spell you cast this turn`: the position of
+    /// the spell a cast event observed among its caster's spells of a query
+    /// this turn (CR 601.2i), fixed when it was cast.
+    SpellCastOrdinal(SpellCastOrdinalNode),
+    /// `the top card of your library is a Goblin card` (CR 401.1, 404.1):
+    /// the shared card predicate over the top card of one player's ordered
+    /// zone. An empty zone has no top card, so the atom is false.
+    TopCard(TopCardConditionNode),
+    /// `red is the most common color among all permanents or is tied for
+    /// most common`: a color's rank among the colors of a permanent query
+    /// (CR 105.1), compared with every other color.
+    MostCommonColor(MostCommonColorNode),
 }
 
 impl ConditionAtom {
@@ -143,8 +164,10 @@ impl ConditionAtom {
             Self::ObjectSatisfies(_) | Self::ObjectZone(_) | Self::ObjectControl(_) => {
                 ConditionFamily::ObjectSatisfies
             }
-            Self::EventHistory(_) => ConditionFamily::EventHistory,
-            Self::CastFact(_) => ConditionFamily::CastFact,
+            Self::EventHistory(_) | Self::SpellCastOrdinal(_) => ConditionFamily::EventHistory,
+            Self::CastFact(_) | Self::CastChoice(_) => ConditionFamily::CastFact,
+            Self::TopCard(_) => ConditionFamily::ObjectSatisfies,
+            Self::MostCommonColor(_) => ConditionFamily::Compare,
             Self::ActionOutcome(_) => ConditionFamily::ActionOutcome,
             Self::TurnOwnership(_) | Self::PlayerTurn(_) => ConditionFamily::TurnOwnership,
             Self::PlayerDesignation(_) => ConditionFamily::PlayerDesignation,
@@ -154,12 +177,14 @@ impl ConditionAtom {
     /// Kicker status is chosen as the spell is cast (CR 702.33d); targets in
     /// a branch it governs are required only if the spell was kicked.
     pub(in crate::oracle::canonical) fn depends_on_cast_choice(&self) -> bool {
+        // A promised gift, a paid teamwork or alternative cost is chosen as
+        // the spell is cast (CR 601.2b-f) like kicker.
         matches!(
             self,
             Self::CastFact(CastFactNode {
                 fact: CastFact::Kicked,
                 ..
-            })
+            }) | Self::CastChoice(_)
         )
     }
 
@@ -184,12 +209,21 @@ impl ConditionAtom {
     /// A cast fact the source keeps after it resolved: the mana spent to
     /// cast the ability's own source.
     pub(in crate::oracle::canonical) fn is_source_cast_record(&self) -> bool {
+        // The permanent a spell became keeps whether it was cast, whether
+        // from a hand, the mana spent and the choices made as it was cast
+        // (CR 601.2a, 601.2h): an entry replacement (`enters with a counter
+        // if you cast it from your hand`) and a continuous condition read
+        // that record of the source itself.
         matches!(
             self,
             Self::CastFact(CastFactNode {
                 spell: CastSpellReference::Source(_),
-                fact: CastFact::ManaSpent { .. },
-            })
+                fact: CastFact::ManaSpent { .. }
+                    | CastFact::Cast {
+                        zone: None | Some(SourceCastZone::Hand),
+                        ..
+                    },
+            }) | Self::CastChoice(_)
         )
     }
 
@@ -338,6 +372,9 @@ pub(in crate::oracle::canonical) enum HistoryEvent {
     /// Cards put into a graveyard from anywhere (one arrival record per
     /// move, with each card's type line). Descending reads this record.
     CardsPutIntoGraveyard,
+    /// CR 506.1: a combat phase began (`the first combat phase of the turn`
+    /// is the turn's first such record).
+    CombatPhaseStarted,
 }
 
 /// The casting mode a cast record keeps (`a spell was warped`).
@@ -370,6 +407,12 @@ pub(in crate::oracle::canonical) struct HistoryQualifiers {
     pub zone_owner: bool,
     /// The recorded destination of a departure.
     pub destination: Option<HistoryDestination>,
+    /// The zone a recorded spell was cast from (`cast a spell from your
+    /// hand`, CR 601.2a).
+    pub cast_zone: Option<SourceCastZone>,
+    /// Whether recorded damage was combat damage (`dealt noncombat damage`,
+    /// CR 510.2 combat damage).
+    pub combat_damage: Option<bool>,
 }
 
 /// The player relation of the event's player (the actor, the recipient of
@@ -390,6 +433,9 @@ pub(in crate::oracle::canonical) enum HistoryMeasure {
     Amount,
     /// The cards of one arrival record that satisfy the object predicate.
     Cards,
+    /// The power an attacker had as it was declared (`attacked with
+    /// creatures with total power 6 or greater`, CR 508.1).
+    Power,
 }
 
 /// The turn a history pattern reads.
@@ -398,6 +444,9 @@ pub(in crate::oracle::canonical) enum HistoryScope {
     ThisTurn,
     /// The turn immediately before the current one (`last turn`).
     LastTurn,
+    /// The current combat phase (`this combat`, CR 506.1): the records since
+    /// the latest combat phase of this turn began.
+    ThisCombat,
 }
 
 /// How the per-event measure is aggregated.
@@ -503,6 +552,114 @@ pub(in crate::oracle::canonical) enum CastFact {
 pub(in crate::oracle::canonical) struct CastFactNode {
     pub spell: CastSpellReference,
     pub fact: CastFact,
+}
+
+/// The casting mode of an alternative cost a casting keyword grants (CR
+/// 118.9): the runtime records the mode it was cast with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AlternativeCastMode {
+    /// CR 702.117a.
+    Surge,
+    /// CR 702.137a.
+    Spectacle,
+    /// CR 702.119a.
+    Emerge,
+    /// Sneak.
+    Sneak,
+    /// CR 702.188a.
+    WebSlinging,
+}
+
+impl AlternativeCastMode {
+    /// The keyword word (`surge`, `web-slinging`) that names the mode.
+    pub(in crate::oracle::canonical) fn from_word(raw: &str) -> Option<Self> {
+        let raw = raw.to_ascii_lowercase();
+        Some(match raw.as_str() {
+            "surge" => Self::Surge,
+            "spectacle" => Self::Spectacle,
+            "emerge" => Self::Emerge,
+            "sneak" => Self::Sneak,
+            "web-slinging" => Self::WebSlinging,
+            _ => return None,
+        })
+    }
+
+    /// The `alternativeCostMode` the casting keyword lowering declares.
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Surge => "surge",
+            Self::Spectacle => "spectacle",
+            Self::Emerge => "emerge",
+            Self::Sneak => "sneak",
+            Self::WebSlinging => "webSlinging",
+        }
+    }
+}
+
+/// One choice made for a spell as it was cast (CR 601.2b-f).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CastChoice {
+    /// CR 702.174a: an opponent was promised the gift.
+    GiftPromised,
+    /// CR 702.194: the teamwork cost was paid.
+    Teamwork,
+    /// The alternative cost of a casting keyword was paid.
+    AlternativeMode(AlternativeCastMode),
+    /// A printed alternative mana cost was paid (`the {1}{B} cost was
+    /// paid`): the exact symbols the shared mana-cost reader preserves.
+    AlternativeManaCost(String),
+}
+
+/// `CastChoice(choice)` of the ability's own source; `negated` reads
+/// `wasn't promised`, `wasn't paid`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CastChoiceNode {
+    pub choice: CastChoice,
+    pub negated: bool,
+}
+
+/// The spell's position among the spells of one query its caster cast this
+/// turn (`the second creature spell you cast this turn`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SpellCastOrdinalNode {
+    pub spell: CastSpellReference,
+    pub ordinal: i64,
+    /// The spell query; `None` counts every spell.
+    pub predicate: Option<ObjectPredicate>,
+}
+
+/// An ordered zone whose top card a condition reads (CR 401.1, 404.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum TopCardZone {
+    Library,
+    Graveyard,
+}
+
+impl TopCardZone {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Library => "library",
+            Self::Graveyard => "graveyard",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TopCardConditionNode {
+    /// The player whose zone it is.
+    pub player: ConditionPlayerSubject,
+    pub zone: TopCardZone,
+    /// The shared card predicate the top card satisfies.
+    pub predicate: ObjectPredicate,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct MostCommonColorNode {
+    pub color: super::CardColor,
+    /// The permanents whose colors are counted.
+    pub predicate: ObjectPredicate,
+    /// `or is tied for most common`: a tie with another color still holds.
+    pub tie_allowed: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

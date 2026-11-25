@@ -15,7 +15,12 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
     /// resolution cost or an ordinary instruction; the connector resolves
     /// against its ActionResult antecedent (`binding_environment.rs`) and
     /// observes whether it was actually performed (CR 608.2c, 603.12), not
-    /// merely chosen. Producer and body are each bounded to one sentence.
+    /// merely chosen. The producing sentence is one measured instruction
+    /// group; a producer that reads the antecedents of earlier sentences
+    /// reads them in the same sequence (`ProducerScope::FinalInstruction`).
+    /// The connector may restate the instruction (`If you don't put it into
+    /// your hand,`) or name the objects its action affected (`When you
+    /// discard a nonland card this way,`). The body is its own sentence.
     Outcome {
         /// `PLAYER may`: the producer is optional. `None`: a mandatory
         /// instruction whose measured performance gates the body.
@@ -27,6 +32,12 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         /// sentence, which resolves exactly when `body` does not (CR 608.2c).
         /// Only an optional producer has one; a reflexive outcome never does.
         otherwise: Option<Box<EffectProgramNode>>,
+        /// Which part of an instruction producer the outcome observes.
+        scope: ProducerScope,
+        /// `When you discard a nonland card this way,`: the reflexive
+        /// ability triggers on the objects the producer affected that the
+        /// noun names, instead of on its performance (CR 603.12).
+        result: Option<ReflexiveResultNode>,
     },
     /// Independent sentence groups in written order. An outcome continuation
     /// conditions its own sentence only (CR 608.2c); later sentences are
@@ -58,6 +69,20 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         /// `If no one does, ...` / `If no player does, ...`.
         declined: Option<EffectSequenceNode>,
     },
+}
+
+/// The part of an instruction producer an outcome connector observes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ProducerScope {
+    /// The producing sentence, as one instruction group (`discard your hand
+    /// and draw two cards. If you do, ...`).
+    Sentence,
+    /// The producer also reads the earlier sentences whose antecedents its
+    /// own sentence names (`Exile the top card of that player's library. If
+    /// it's a permanent card, you may put it onto the battlefield. If you
+    /// don't, ...`): they run first, unmeasured, and the outcome observes the
+    /// final instruction only.
+    FinalInstruction,
 }
 
 /// What an outcome block's connector observes.
@@ -282,16 +307,44 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         cursor.enter("program.steps.leading");
         // The leading sentences are a program of their own: a replacing
         // sentence among them is read with the sentence it replaces.
-        let leading = cursor.bounded(block_start, |cursor| {
-            recognize_effect_program_with_context(cursor, name_links, name_failure, context)
-        })?;
-        let mut steps = Vec::new();
-        push_program_steps(&mut steps, leading);
-        push_program_steps(
-            &mut steps,
-            recognize_effect_program_with_context(cursor, name_links, name_failure, context)?,
-        );
-        return Ok(EffectProgramNode::Steps(steps));
+        let split = cursor.attempt(|cursor| {
+            let leading = cursor.bounded(block_start, |cursor| {
+                recognize_effect_program_with_context(cursor, name_links, name_failure, context)
+            })?;
+            let mut steps = Vec::new();
+            push_program_steps(&mut steps, leading);
+            push_program_steps(
+                &mut steps,
+                recognize_effect_program_with_context(cursor, name_links, name_failure, context)?,
+            );
+            Ok(EffectProgramNode::Steps(steps))
+        });
+        let split_failure = match split {
+            Ok(program) => return Ok(program),
+            Err(failure) => failure,
+        };
+        // The producing sentence may read an antecedent a leading sentence
+        // bound (`Exile the top card of that player's library. If it's a
+        // permanent card, you may put it onto the battlefield. If you don't,
+        // ...`): the leading sentences and the producer are then one
+        // sequence, whose final instruction the outcome observes.
+        cursor.enter("program.steps.extended-producer");
+        let extended = cursor.attempt(|attempt| {
+            recognize_instruction_outcome_block(
+                attempt,
+                block_start,
+                ProducerScope::FinalInstruction,
+                name_links,
+                name_failure,
+                context,
+            )
+        });
+        return match extended {
+            Ok(block) => complete_outcome_block(cursor, block, name_links, name_failure, context),
+            // Report the reading that progressed furthest.
+            Err(extended) if extended.token_index > split_failure.token_index => Err(extended),
+            Err(_) => Err(split_failure),
+        };
     }
     // Preserve already supported action-local permissions (such as optional
     // draw followed by another sentence) and their exact historical IR.
@@ -498,7 +551,7 @@ fn recognize_permission_program(
         }
         return complete_outcome_block(cursor, program, name_links, name_failure, context);
     }
-    if outcome_connector_follows_first_sentence(cursor) {
+    if connector_follows_first_sentence(cursor) {
         // A payment head is first read as a resolution cost. Only when that
         // typed cost child rejects the sentence (for example a target or an
         // anaphor, which a cost cannot name) is it read as an instruction.
@@ -686,6 +739,7 @@ fn recognize_optional_cost_block(
         cursor,
         permission_performer(player),
         outcome,
+        None,
         name_links,
         name_failure,
         context,
@@ -696,6 +750,8 @@ fn recognize_optional_cost_block(
         outcome,
         body: Box::new(body),
         otherwise,
+        scope: ProducerScope::Sentence,
+        result: None,
     })
 }
 
@@ -706,6 +762,7 @@ fn recognize_complementary_outcome(
     cursor: &mut OracleTokenCursor<'_>,
     slot: ActionResultSlot,
     outcome: PerformanceOutcome,
+    producer: Option<(usize, usize)>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
@@ -715,12 +772,15 @@ fn recognize_complementary_outcome(
         PerformanceOutcome::Declined => PerformanceOutcome::Performed,
         PerformanceOutcome::Reflexive => return Ok(None),
     };
-    if !outcome_connector_at(cursor, 0).is_some_and(|(next, _)| next == complement) {
+    if !producer_connector_at(cursor, 0, producer).is_some_and(|(next, _)| next == complement) {
         return Ok(None);
     }
     cursor.enter("program.outcome.complement");
-    let read = recognize_outcome_connector_after(cursor, slot)?;
-    cursor.require(read == complement, "the complementary outcome connector")?;
+    let read = read_outcome_connector(cursor, slot, producer)?;
+    cursor.require(
+        read.outcome == complement && read.result.is_none(),
+        "the complementary outcome connector",
+    )?;
     let body = recognize_outcome_body(
         cursor,
         "program.outcome.complement.body",
@@ -742,25 +802,35 @@ fn recognize_optional_action_block(
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
     cursor.enter("program.optional-action.action");
+    let action_start = cursor.position();
     let action_end = top_level_sentence_end(cursor)
         .ok_or_else(|| cursor.fail("one complete optional action sentence"))?;
     let action = cursor.bounded(action_end, |cursor| {
         recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
     })?;
     cursor.enter("program.optional-action.outcome");
-    let outcome = recognize_outcome_connector_after(cursor, permission_performer(player))?;
+    let producer = Some((action_start, action_end));
+    let reading = read_outcome_connector(cursor, permission_performer(player), producer)?;
+    let outcome = reading.outcome;
     let body = recognize_outcome_body(
         cursor,
         "program.optional-action.body",
         outcome,
         name_links,
         name_failure,
-        context,
+        // A reflexive ability resolves on its own (CR 603.12): only an
+        // `If you do` body shares its producer's resolution bindings.
+        &if outcome == PerformanceOutcome::Reflexive {
+            reflexive_body_context(context, reading.result.as_ref())
+        } else {
+            inherit_sequence_antecedents(context, &action)
+        },
     )?;
     let otherwise = recognize_complementary_outcome(
         cursor,
         permission_performer(player),
         outcome,
+        producer,
         name_links,
         name_failure,
         context,
@@ -771,18 +841,41 @@ fn recognize_optional_action_block(
         outcome,
         body: Box::new(body),
         otherwise,
+        scope: ProducerScope::Sentence,
+        result: reading.result,
     })
 }
 
-/// The outcomes a mandatory instruction can produce: `If you do,` gates the
-/// body on its measured performance, `When you do,` creates a reflexive
-/// ability (CR 608.2c, 603.12). `If you don't` after a mandatory instruction
-/// has no runtime witness yet and stays an explicit failure.
-fn mandatory_outcome(outcome: PerformanceOutcome) -> bool {
-    matches!(
-        outcome,
-        PerformanceOutcome::Performed | PerformanceOutcome::Reflexive
-    )
+/// The outcomes a sentence without a leading permission can produce: `If you
+/// do,` gates the body on its measured performance, `When you do,` creates a
+/// reflexive ability (CR 608.2c, 603.12). `If you don't` names a declined
+/// permission, so it follows only a sentence that writes its own `may`
+/// (`If it's a land card, you may put it onto the battlefield.`); after any
+/// other mandatory instruction it stays an explicit failure.
+fn mandatory_outcome(outcome: PerformanceOutcome, permits: bool) -> bool {
+    match outcome {
+        PerformanceOutcome::Performed | PerformanceOutcome::Reflexive => true,
+        PerformanceOutcome::Declined => permits,
+    }
+}
+
+/// Lexical: a top-level `may` between the absolute positions `start` and
+/// `end`, outside reminders and quoted abilities (their own scopes).
+fn sentence_permits(cursor: &OracleTokenCursor<'_>, start: usize, end: usize) -> bool {
+    let mut depth = 0usize;
+    let mut quoted = false;
+    (start..end).any(|position| {
+        let Some(raw) = cursor.peek_ahead(position.saturating_sub(cursor.position())) else {
+            return false;
+        };
+        match raw {
+            "\"" => quoted = !quoted,
+            "(" if !quoted => depth += 1,
+            ")" if !quoted => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        depth == 0 && !quoted && raw.eq_ignore_ascii_case("may")
+    })
 }
 
 /// True when the current top-level sentence is followed by an outcome
@@ -792,16 +885,24 @@ fn mandatory_outcome_follows_first_sentence(cursor: &OracleTokenCursor<'_>) -> b
     let Some(end) = top_level_sentence_end(cursor) else {
         return false;
     };
-    outcome_connector_at(cursor, end - cursor.position())
-        .is_some_and(|(outcome, _)| mandatory_outcome(outcome))
+    let permits = sentence_permits(cursor, cursor.position(), end);
+    let producer = Some((cursor.position(), end));
+    match producer_connector_at(cursor, end - cursor.position(), producer) {
+        Some((outcome, _)) => {
+            mandatory_outcome(outcome, permits)
+                || restated_connector_at(cursor, end - cursor.position(), producer)
+        }
+        None => false,
+    }
 }
 
 /// The absolute start of a later top-level sentence followed by a connector
-/// that `accepts`: the program reads the sentences before it as an ordinary
-/// step and the outcome block from there.
+/// that `accepts` (given whether that sentence writes its own permission):
+/// the program reads the sentences before it as an ordinary step and the
+/// outcome block from there.
 fn later_outcome_block(
     cursor: &OracleTokenCursor<'_>,
-    accepts: impl Fn(PerformanceOutcome) -> bool,
+    accepts: impl Fn(PerformanceOutcome, bool) -> bool,
 ) -> Option<usize> {
     let mut depth = 0usize;
     let mut offset = 0;
@@ -811,9 +912,19 @@ fn later_outcome_block(
             "(" => depth += 1,
             ")" => depth = depth.saturating_sub(1),
             "." if depth == 0 => {
-                if outcome_connector_at(cursor, offset + 1)
-                    .is_some_and(|(outcome, _)| accepts(outcome))
-                {
+                let sentence_end = cursor.position() + offset;
+                let producer = Some((sentence_start, sentence_end));
+                // A restated `If you don't VERB ...` names the instruction
+                // itself, whatever permission the sentence writes.
+                if producer_connector_at(cursor, offset + 1, producer).is_some_and(
+                    |(outcome, _)| {
+                        accepts(
+                            outcome,
+                            sentence_permits(cursor, sentence_start, sentence_end)
+                                || restated_connector_at(cursor, offset + 1, producer),
+                        )
+                    },
+                ) {
                     return (sentence_start > cursor.position()).then_some(sentence_start);
                 }
                 sentence_start = cursor.position() + offset + 1;
@@ -835,7 +946,9 @@ fn later_mandatory_outcome_block(cursor: &OracleTokenCursor<'_>) -> Option<usize
 pub(in crate::oracle::canonical) fn later_reflexive_action_block(
     cursor: &OracleTokenCursor<'_>,
 ) -> Option<usize> {
-    later_outcome_block(cursor, |outcome| outcome == PerformanceOutcome::Reflexive)
+    later_outcome_block(cursor, |outcome, _| {
+        outcome == PerformanceOutcome::Reflexive
+    })
 }
 
 /// True when any top-level sentence of the body is followed by a reflexive
@@ -844,8 +957,12 @@ pub(in crate::oracle::canonical) fn reflexive_action_block_follows(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     top_level_sentence_end(cursor).is_some_and(|end| {
-        outcome_connector_at(cursor, end - cursor.position())
-            .is_some_and(|(outcome, _)| outcome == PerformanceOutcome::Reflexive)
+        producer_connector_at(
+            cursor,
+            end - cursor.position(),
+            Some((cursor.position(), end)),
+        )
+        .is_some_and(|(outcome, _)| outcome == PerformanceOutcome::Reflexive)
     }) || later_reflexive_action_block(cursor).is_some()
 }
 
@@ -858,22 +975,52 @@ fn recognize_mandatory_outcome_block(
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
+    let start = cursor.position();
+    recognize_instruction_outcome_block(
+        cursor,
+        start,
+        ProducerScope::Sentence,
+        name_links,
+        name_failure,
+        context,
+    )
+}
+
+/// `[LEADING.] PRODUCER. OUTCOME, BODY. [COMPLEMENT, BODY.]` without a
+/// leading permission. The producer is the shared effect sequence from the
+/// cursor through the sentence that starts at `final_sentence` (absolute):
+/// with `ProducerScope::FinalInstruction` the earlier sentences are read in
+/// the same sequence, so the final sentence reads their antecedents (`Look at
+/// the top card of your library. If it's a land card, you may put it onto the
+/// battlefield.`). A permission written inside the final sentence (`If COND,
+/// you may ACTION.`) admits `If you don't` and its complement.
+fn recognize_instruction_outcome_block(
+    cursor: &mut OracleTokenCursor<'_>,
+    final_sentence: usize,
+    scope: ProducerScope,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
     cursor.enter("program.reflexive-action.action");
-    let action_end = top_level_sentence_end(cursor)
+    let mut sentence = cursor.clone();
+    sentence.advance_to(final_sentence)?;
+    let action_end = top_level_sentence_end(&sentence)
         .ok_or_else(|| cursor.fail("one complete instruction sentence"))?;
+    let permits = sentence_permits(cursor, final_sentence, action_end);
     let action = cursor.bounded(action_end, |cursor| {
         recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
     })?;
     cursor.enter("program.reflexive-action.outcome");
-    let outcome = recognize_outcome_connector_after(
-        cursor,
-        ActionResultSlot {
-            performer: OutcomePerformer::Instruction,
-        },
-    )?;
+    let slot = ActionResultSlot {
+        performer: OutcomePerformer::Instruction,
+    };
+    let producer = Some((final_sentence, action_end));
+    let reading = read_outcome_connector(cursor, slot, producer)?;
+    let outcome = reading.outcome;
     cursor.require(
-        mandatory_outcome(outcome),
-        "an `If you do,` or reflexive `When you do,` outcome after a mandatory instruction",
+        mandatory_outcome(outcome, permits || reading.restated),
+        "an `If you do,` or reflexive `When you do,` outcome after a mandatory instruction, or `If you don't,` after the sentence's own permission",
     )?;
     let body = recognize_outcome_body(
         cursor,
@@ -881,14 +1028,36 @@ fn recognize_mandatory_outcome_block(
         outcome,
         name_links,
         name_failure,
-        context,
+        // As for a permission's outcome: only an `If you do` body shares its
+        // producer's resolution bindings (CR 603.12, 608.2c).
+        &if outcome == PerformanceOutcome::Reflexive {
+            reflexive_body_context(context, reading.result.as_ref())
+        } else {
+            inherit_sequence_antecedents(context, &action)
+        },
     )?;
+    // Only a permission has a declined branch to complement.
+    let otherwise = if permits {
+        recognize_complementary_outcome(
+            cursor,
+            slot,
+            outcome,
+            producer,
+            name_links,
+            name_failure,
+            context,
+        )?
+    } else {
+        None
+    };
     Ok(EffectProgramNode::Outcome {
         permission: None,
         producer: OutcomeProducer::Action(Box::new(EffectProgramNode::Sequence(action))),
         outcome,
         body: Box::new(body),
-        otherwise: None,
+        otherwise,
+        scope,
+        result: reading.result,
     })
 }
 
@@ -1030,12 +1199,135 @@ fn complete_outcome_block(
         cursor.enter("program.steps.then");
         cursor.consume("then")?;
     }
+    let context = &inherit_program_step_antecedents(context, &block);
     let mut steps = vec![block];
     push_program_steps(
         &mut steps,
         recognize_effect_program_with_context(cursor, name_links, name_failure, context)?,
     );
     Ok(EffectProgramNode::Steps(steps))
+}
+
+/// The outcome connector at `offset` after a producer written between the
+/// absolute positions of `producer`: a written connector (`If you do,`,
+/// `When you do,`) or a declined one that restates the producer's
+/// instruction (`If you don't put it onto the battlefield,`).
+fn producer_connector_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+    producer: Option<(usize, usize)>,
+) -> Option<(PerformanceOutcome, usize)> {
+    outcome_connector_at(cursor, offset)
+        .or_else(|| {
+            reflexive_result_connector_at(cursor, offset)
+                .map(|width| (PerformanceOutcome::Reflexive, width))
+        })
+        .or_else(|| {
+            let (start, end) = producer?;
+            restated_declined_connector_at(cursor, offset, start, end)
+                .map(|width| (PerformanceOutcome::Declined, width))
+        })
+}
+
+/// True when the connector at `offset` restates the producer's instruction.
+fn restated_connector_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+    producer: Option<(usize, usize)>,
+) -> bool {
+    outcome_connector_at(cursor, offset).is_none()
+        && reflexive_result_connector_at(cursor, offset).is_none()
+        && producer.is_some_and(|(start, end)| {
+            restated_declined_connector_at(cursor, offset, start, end).is_some()
+        })
+}
+
+/// True when the first sentence after the cursor is followed by an outcome
+/// connector, written or restated. Lexical lookahead only.
+fn connector_follows_first_sentence(cursor: &OracleTokenCursor<'_>) -> bool {
+    if outcome_connector_follows_first_sentence(cursor) {
+        return true;
+    }
+    let Some(end) = top_level_sentence_end(cursor) else {
+        return false;
+    };
+    producer_connector_at(
+        cursor,
+        end - cursor.position(),
+        Some((cursor.position(), end)),
+    )
+    .is_some()
+}
+
+/// Reads the outcome connector of a producer: a restated declined connector
+/// (whose performer is the controller, `you`), else a written connector
+/// resolved against `slot`. Returns the outcome and whether it was restated.
+fn read_outcome_connector(
+    cursor: &mut OracleTokenCursor<'_>,
+    slot: ActionResultSlot,
+    producer: Option<(usize, usize)>,
+) -> MachineResult<ConnectorReading> {
+    if outcome_connector_at(cursor, 0).is_none()
+        && reflexive_result_connector_at(cursor, 0).is_some()
+    {
+        cursor.enter("program.outcome.reflexive-result");
+        cursor.require(
+            slot.performer != OutcomePerformer::OtherPlayer,
+            "a reflexive `When you VERB ... this way` after an instruction the controller performs",
+        )?;
+        let result = recognize_reflexive_result_connector(cursor)?;
+        return Ok(ConnectorReading {
+            outcome: PerformanceOutcome::Reflexive,
+            restated: false,
+            result: Some(result),
+        });
+    }
+    if let Some((start, end)) = producer
+        && restated_connector_at(cursor, 0, producer)
+        && let Some(width) = restated_declined_connector_at(cursor, 0, start, end)
+    {
+        cursor.enter("program.outcome.restated-connector");
+        cursor.require(
+            slot.performer != OutcomePerformer::OtherPlayer,
+            "a restated `If you don't` after an instruction the controller performs",
+        )?;
+        cursor.advance_to(cursor.position() + width)?;
+        return Ok(ConnectorReading {
+            outcome: PerformanceOutcome::Declined,
+            restated: true,
+            result: None,
+        });
+    }
+    Ok(ConnectorReading {
+        outcome: recognize_outcome_connector_after(cursor, slot)?,
+        restated: false,
+        result: None,
+    })
+}
+
+/// The context of a reflexive ability's body. A `When you VERB NOUN this
+/// way` event restates the affected objects (CR 603.12, 608.2c): a pronoun
+/// of its body names them, never the enclosing ability's source, so the
+/// source is no default antecedent there. The restated objects have no
+/// pronoun binding yet, so such a pronoun fails explicitly.
+fn reflexive_body_context(
+    context: &EffectRecognitionContext,
+    result: Option<&ReflexiveResultNode>,
+) -> EffectRecognitionContext {
+    let mut body = context.clone();
+    if result.is_some() {
+        body.permanent_subject_scope = super::PermanentSubjectScope::Local(None);
+    }
+    body
+}
+
+/// One read outcome connector.
+struct ConnectorReading {
+    outcome: PerformanceOutcome,
+    /// `If you don't VERB ...`: the connector restated the instruction.
+    restated: bool,
+    /// `When you VERB NOUN this way`: the reflexive event's restated objects.
+    result: Option<ReflexiveResultNode>,
 }
 
 /// End (exclusive, absolute) of the current top-level sentence, including
@@ -1163,7 +1455,7 @@ pub(in crate::oracle::canonical) fn later_optional_outcome_block(
                     if head
                         .advance_to(start + sentence_then_width(&probe) + 2)
                         .is_ok()
-                        && outcome_connector_follows_first_sentence(&head)
+                        && connector_follows_first_sentence(&head)
                     {
                         return Some(start);
                     }

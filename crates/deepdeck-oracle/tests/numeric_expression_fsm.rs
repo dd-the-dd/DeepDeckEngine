@@ -43,7 +43,17 @@ fn devotion_and_halves_are_operands_of_the_shared_arithmetic_grammar() {
     );
     assert_eq!(
         merchant["effects"][0]["value"],
-        json!({ "kind": "devotion", "player": controller(), "color": "Black" })
+        json!({ "kind": "devotion", "player": controller(), "colors": ["Black"] })
+    );
+    // Sibling: a devotion to two colors is one count (CR 700.5a), the same
+    // operand in an `equal to` amount.
+    let two = rule(
+        "Sorcery",
+        "Draw cards equal to your devotion to black and red.",
+    );
+    assert_eq!(
+        two["effects"][0]["count"],
+        json!({ "kind": "devotion", "player": controller(), "colors": ["Black", "Red"] })
     );
     // Sibling: devotion as an `equal to` amount of another action.
     let draw = rule("Sorcery", "Draw cards equal to your devotion to blue.");
@@ -62,11 +72,11 @@ fn devotion_and_halves_are_operands_of_the_shared_arithmetic_grammar() {
             "round": "down",
         })
     );
-    // Near misses: a half without its stated rounding, and a devotion to
-    // two colors (hybrid symbols count once, CR 700.5a).
+    // Near misses: a half without its stated rounding, and a devotion that
+    // repeats its color.
     for text in [
         "You gain life equal to half your life total.",
-        "Draw cards equal to your devotion to black and red.",
+        "Draw cards equal to your devotion to black and black.",
     ] {
         assert_eq!(parse("Sorcery", text).status, "unsupported", "{text}");
     }

@@ -74,15 +74,26 @@ fn domain_only_spell_set_lowers_to_null_runtime_filter() {
 
 #[test]
 fn parse_once_boundary_preserves_other_families_before_cost_and_commits_after_it() {
-    for text in [
-        "During turns other than yours, spells you cast cost {1} less to cast.",
+    assert!(matches!(
+        attempt(
+            "During turns other than yours, spells you cast cost {1} less to cast.",
+            "Enchantment"
+        ),
+        StaticSpellReductionParseAttempt::NotClaimed
+    ));
+    // A cast origin is part of the shared spell-set query (CR 601.2a): the
+    // reduction claims it and keeps the origin on its modifier.
+    let StaticSpellReductionParseAttempt::Parsed(origin) = attempt(
         "Spells you cast from your graveyard cost {1} less to cast.",
-    ] {
-        assert!(matches!(
-            attempt(text, "Enchantment"),
-            StaticSpellReductionParseAttempt::NotClaimed
-        ));
-    }
+        "Enchantment",
+    ) else {
+        panic!("a cast-origin spell set is a reduction");
+    };
+    assert_eq!(
+        origin.rule["modifiers"][0]["sourceZone"], "graveyard",
+        "{}",
+        origin.rule
+    );
     assert!(matches!(
         attempt("Red spells you cast cost {1} less to cast.", "Emblem"),
         StaticSpellReductionParseAttempt::NotClaimed

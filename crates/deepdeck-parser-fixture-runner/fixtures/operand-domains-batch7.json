@@ -171,7 +171,7 @@
       }
     },
     {
-      "id": "known-gap-mission-briefing-exact-graveyard-card-choice",
+      "id": "exact-mission-briefing-graveyard-card-choice",
       "request": {
         "cardName": "Mission Briefing",
         "typeLine": "Instant",
@@ -181,14 +181,8 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure",
-            "state": "engine.gap.permission-window"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical"
       }
     },
     {

@@ -590,11 +590,43 @@
       }
     },
     {
-      "id": "unsupported-library-collection",
+      "id": "whole-library-exile-collection",
       "request": {
         "cardName": "Shared Zone Negative",
         "typeLine": "Sorcery",
         "oracleText": "Exile your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/zone/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-library-collection-without-an-owner",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Exile the library.",
         "layout": "normal",
         "faces": []
       },
@@ -605,7 +637,9 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.start",
+            "found": "the"
           }
         ]
       }

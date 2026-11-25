@@ -11,7 +11,13 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
             player_reference_supported(&effect["player"])
                 && matches!(
                     effect["part"].as_str(),
-                    Some("turn" | "untapStep" | "drawStep" | "combatPhase")
+                    Some(
+                        "turn"
+                            | "untapStep"
+                            | "drawStep"
+                            | "combatPhase"
+                            | "allCombatPhasesOfNextTurn"
+                    )
                 )
                 && effect["count"].as_u64().is_some_and(|count| count > 0)
                 && effect["thisTurn"].is_boolean()

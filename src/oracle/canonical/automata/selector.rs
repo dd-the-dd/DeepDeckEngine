@@ -194,6 +194,19 @@ pub(in crate::oracle::canonical) struct QueryRelations {
     /// `except for LIST` after the set: kept with the relations for the
     /// same reason, and folded into the predicate by every projection.
     exclusion: Option<ReadExclusion>,
+    /// `from your graveyard` after a cast relation (CR 601.2a): the zone the
+    /// spells were cast from. Only a parent that records the cast zone takes
+    /// it (`take_cast_origin`); every projection refuses one left in place.
+    cast_origin: Option<ReadCastOrigin>,
+}
+
+/// The cast origin a cast relation states, composed as the shared spell
+/// predicate it means (`CastFrom`, its negation, or their union), and where
+/// it was read.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ReadCastOrigin {
+    predicate: SelectorPredicate,
+    site: RelationSite,
 }
 
 impl QueryRelations {
@@ -214,6 +227,7 @@ impl QueryRelations {
             && self.departure.is_none()
             && self.source_exclusion.is_none()
             && self.exclusion.is_none()
+            && self.cast_origin.is_none()
     }
 
     /// The departure history the phrase states, if any.
@@ -417,14 +431,32 @@ impl RecognizedObjectQuery {
         }
     }
 
-    /// The projections' shared refusals: a departure history or a
-    /// postnominal exclusion the projection cannot carry.
+    /// Takes over the cast origin of a cast relation (`spells you cast from
+    /// your graveyard`), as its spell predicate. A parent that records the
+    /// zone a spell is cast from calls this before projecting.
+    pub(in crate::oracle::canonical) fn take_cast_origin(&mut self) -> Option<SelectorPredicate> {
+        self.relations.cast_origin.take().map(|read| read.predicate)
+    }
+
+    /// The projections' shared refusals: a departure history, a postnominal
+    /// exclusion or a cast origin the projection cannot carry.
     fn refuse_unprojected(&self, cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
         if let Some(departure) = &self.relations.departure {
             return Err(refuse_departure(cursor, departure));
         }
         if let Some(site) = &self.relations.source_exclusion {
             return Err(refuse_source_exclusion(cursor, site));
+        }
+        if let Some(origin) = &self.relations.cast_origin {
+            let site = &origin.site;
+            cursor.enter("selector.cast-origin.consumer");
+            return Err(cursor.fail_with_span(
+                "a parent that records the zone its spells are cast from",
+                site.token_index,
+                site.span_start,
+                site.span_end,
+                site.raw.clone(),
+            ));
         }
         Ok(())
     }
@@ -955,6 +987,18 @@ fn recognize_object_query_frame(
                     cursor.enter("selector.player-relation");
                     let (verb, relation) = recognize_player_relation(cursor, None)?;
                     retain_player_relation(cursor, &mut frame, verb, relation)?;
+                    ObjectQueryState::ReadPostnominalQualifier
+                } else if frame.relations.caster.is_some()
+                    && frame.relations.cast_origin.is_none()
+                    && cast_origin_starts(cursor)
+                {
+                    // `spells you cast from your graveyard`, `from anywhere
+                    // other than your hand` (CR 601.2a): where the related
+                    // caster cast them. Any other `from` is the parent's.
+                    cursor.enter("selector.cast-origin");
+                    let site = relation_site_at(cursor, 0)?;
+                    let predicate = recognize_cast_origin(cursor)?;
+                    frame.relations.cast_origin = Some(ReadCastOrigin { predicate, site });
                     ObjectQueryState::ReadPostnominalQualifier
                 } else if let Some(inherited) = inherited_relation_after_but(cursor, &frame) {
                     // `you control but don't own`: a second relation of the
@@ -2185,6 +2229,95 @@ fn relation_site_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> MachineRes
     })
 }
 
+/// `from ORIGIN [or from ORIGIN]` after a cast relation, when the whole
+/// origin reads. Pure lookahead: a `from` the origin grammar does not read
+/// (`from among them`) stays with the parent.
+fn cast_origin_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("from"))
+    {
+        return false;
+    }
+    let mut trial = cursor.clone();
+    recognize_cast_origin(&mut trial).is_ok()
+}
+
+/// `from ORIGIN ("or" "from" ORIGIN)*` (CR 601.2a), where
+///
+/// ```text
+/// ORIGIN := "your" ("hand" | "graveyard" | "library")   the caster's zone
+///         | "exile"                                     the shared zone
+///         | "anywhere" "other" "than" "your" ZONE        its negation
+/// ```
+///
+/// Alternatives form a union of the same atom; the negated form is the
+/// negation of the caster-owned zone (`anywhere other than your hand`).
+fn recognize_cast_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SelectorPredicate> {
+    fn word(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    }
+    let mut alternatives = Vec::new();
+    loop {
+        cursor.enter("selector.cast-origin.from");
+        cursor.consume("from")?;
+        cursor.enter("selector.cast-origin.zone");
+        let negated = word(cursor, 0, "anywhere");
+        if negated {
+            cursor.consume_phrase(&["anywhere", "other", "than"])?;
+        }
+        let caster_owned = word(cursor, 0, "your");
+        if caster_owned {
+            cursor.consume("your")?;
+        }
+        let raw = cursor
+            .peek()
+            .ok_or_else(|| cursor.fail("a zone a spell is cast from"))?
+            .to_string();
+        let zone = cursor.require_value(
+            super::CastOriginZone::from_word(&raw),
+            "`your hand`, `your graveyard`, `your library` or `exile`",
+        )?;
+        // Exile is one shared zone (CR 406.1); a personal zone names its
+        // holder, here the caster (`your`).
+        cursor.require(
+            caster_owned == (zone != super::CastOriginZone::Exile),
+            "`your` before a personal zone and a bare `exile`",
+        )?;
+        cursor.advance_to(cursor.position() + 1)?;
+        let atom =
+            SelectorPredicate::Relation(super::ObjectRelation::CastFrom(super::CastOrigin {
+                zone,
+                caster_owned,
+            }));
+        alternatives.push(if negated {
+            SelectorPredicate::Not(Box::new(atom))
+        } else {
+            atom
+        });
+        if word(cursor, 0, "or") && word(cursor, 1, "from") {
+            cursor.enter("selector.cast-origin.alternative");
+            cursor.consume("or")?;
+            continue;
+        }
+        break;
+    }
+    cursor.enter("selector.cast-origin.complete");
+    cursor.require(
+        alternatives.len() == 1
+            || alternatives
+                .iter()
+                .all(|alternative| !matches!(alternative, SelectorPredicate::Not(_))),
+        "positive alternatives of a cast origin",
+    )?;
+    Ok(match alternatives.len() {
+        1 => alternatives.pop().expect("one cast origin"),
+        _ => SelectorPredicate::Union(alternatives),
+    })
+}
+
 /// `other than this creature` / `other than NAME` when the name links to
 /// the source. Pure lookahead: another reference is not claimed.
 fn source_exclusion_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
@@ -3078,6 +3211,10 @@ mod state_qualifier_tests;
 #[cfg(test)]
 #[path = "selector_comparative_tests.rs"]
 mod comparative_tests;
+
+#[cfg(test)]
+#[path = "selector_cast_relation_tests.rs"]
+mod cast_relation_tests;
 
 fn player_predicate(raw: &str) -> Option<PlayerPredicate> {
     match lookup_player_role_any_number(raw)? {

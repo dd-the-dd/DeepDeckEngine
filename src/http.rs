@@ -3027,6 +3027,7 @@ mod tests {
             starting_deck_size: 0,
             land_plays_remaining: 1,
             max_hand_size: 7,
+            starting_life: 20,
         }
     }
 

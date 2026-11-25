@@ -11,11 +11,22 @@ fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
         Some("grantExtraTurn") => player_reference_supported(&effect["player"]),
         Some("grantNoMaximumHandSize") => player_reference_supported(&effect["player"]),
-        Some("loseGame") => player_reference_supported(&effect["player"]),
+        Some("loseGame" | "winGame") => player_reference_supported(&effect["player"]),
 
         Some("ventureDungeon") => {
             player_reference_supported(&effect["player"])
                 && effect.get("procedure").is_none_or(Value::is_string)
+        }
+        Some("grantPlayerKeyword") => {
+            player_reference_supported(&effect["player"])
+                && matches!(effect["keyword"].as_str(), Some("hexproof" | "shroud"))
+                && match value_kind(&effect["duration"]) {
+                    Some("untilEndOfCurrentTurn") => true,
+                    Some("untilNextTurn") => {
+                        player_reference_supported(&effect["duration"]["player"])
+                    }
+                    _ => false,
+                }
         }
         Some("restrictPlayerActions") => {
             player_reference_supported(&effect["player"])
@@ -27,7 +38,31 @@ fn supports_known_effect(effect: &Value) -> bool {
     }
 }
 
+/// The rules-state kind of a keyword granted to a player by a one-shot
+/// effect (`you gain hexproof until end of turn`). `keyword` is the player
+/// keyword kind the static modifiers use (`playerHexproof`, `playerShroud`).
+pub(in crate::engine) const GRANTED_PLAYER_KEYWORD: &str = "grantedPlayerKeyword";
+
 impl GameEngine {
+    /// Whether a one-shot effect granted the player keyword `kind`
+    /// (`playerHexproof`, `playerShroud`) and its duration has not ended.
+    /// An `until end of turn` grant ends with its turn; an `until your next
+    /// turn` grant is removed when that turn begins.
+    pub(in crate::engine) fn player_has_granted_keyword(
+        &self,
+        player_id: &str,
+        kind: &str,
+    ) -> bool {
+        self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some(GRANTED_PLAYER_KEYWORD)
+                && modifier["playerId"].as_str() == Some(player_id)
+                && modifier["keyword"].as_str() == Some(kind)
+                && modifier["expiresAfterTurn"]
+                    .as_u64()
+                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
+        })
+    }
+
     pub(super) fn execute_player_status_domain<P: DecisionProvider>(
         &mut self,
         effect: &Value,
@@ -87,6 +122,36 @@ impl GameEngine {
                 }
             }
 
+            // CR 104.2b: an effect states that a player wins the game. The
+            // game ends with that player as the winner: every other player
+            // still in the game leaves it. A player who can't win the game
+            // (CR 104.2a, `cantWinGame`) doesn't, and nothing happens.
+            Some("winGame") => {
+                if let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                    && self
+                        .state
+                        .players
+                        .iter()
+                        .any(|player| player.id == player_id && !player.has_lost)
+                    && self.player_can_win(&player_id)
+                {
+                    let others = self
+                        .state
+                        .players
+                        .iter()
+                        .filter(|player| player.id != player_id && !player.has_lost)
+                        .map(|player| player.id.clone())
+                        .collect::<Vec<_>>();
+                    self.record_event(
+                        "playerWonGame",
+                        Some(player_id.clone()),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "reason": "effect" }),
+                    );
+                    self.eliminate_players(GameEndReason::SpellOrAbility, others);
+                }
+            }
             Some("grantExtraTurn") => {
                 if let Some(player_id) =
                     self.resolve_player(&effect["player"], stack_object, bindings)
@@ -106,6 +171,44 @@ impl GameEngine {
                     let procedure = effect["procedure"].as_str();
                     self.venture_into_dungeon(stack_object, provider, &player_id, procedure)?;
                 }
+            }
+            // CR 702.11d, 702.18d: the player has the keyword for the
+            // stated duration; targeting reads it through the player's
+            // keyword query (`player_has_granted_keyword`).
+            Some("grantPlayerKeyword") => {
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let keyword = match effect["keyword"].as_str() {
+                    Some("hexproof") => "playerHexproof",
+                    Some("shroud") => "playerShroud",
+                    _ => {
+                        return Err(EngineError::new(
+                            "a granted player keyword requires hexproof or shroud",
+                        ));
+                    }
+                };
+                let mut modifier = json!({
+                    "kind": GRANTED_PLAYER_KEYWORD,
+                    "playerId": player_id,
+                    "keyword": keyword,
+                    "sourceCardInstanceId": stack_object.card.instance_id,
+                });
+                if value_kind(&effect["duration"]) == Some("untilNextTurn") {
+                    let Some(expiry_player_id) =
+                        self.resolve_player(&effect["duration"]["player"], stack_object, bindings)
+                    else {
+                        return Err(EngineError::new(
+                            "a player keyword until a next turn requires that turn's player",
+                        ));
+                    };
+                    modifier["expiresAtTurnStart"] = Value::String(expiry_player_id);
+                } else {
+                    modifier["expiresAfterTurn"] = Value::from(self.state.turn_number);
+                }
+                self.state.rule_modifiers.push(modifier);
             }
             Some("restrictPlayerActions") => {
                 let player_ids = if value_kind(&effect["player"]) == Some("eachPlayer") {

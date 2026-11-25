@@ -327,6 +327,15 @@ pub(in crate::oracle::canonical) fn event_card_zone(
             _ => None,
         };
     }
+    // `one or more cards are put into your graveyard from your library`:
+    // the cards the event put there, read where they are (CR 400.7).
+    if let GenericTriggerEventNode::Object(ObjectEventNode {
+        verb: ObjectEventVerb::PutIntoGraveyard(..),
+        ..
+    }) = event
+    {
+        return Some(CardZoneName::Graveyard);
+    }
     let died = match event {
         GenericTriggerEventNode::SourceTransition(node) => {
             node.event == SourceTriggerEventKind::Died && !node.is_union()
@@ -414,7 +423,9 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 })
             };
             match verb {
-                ObjectEventVerb::Die => subject_slot(true),
+                ObjectEventVerb::Die | ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
+                    subject_slot(true)
+                }
                 ObjectEventVerb::Attack
                 | ObjectEventVerb::BecomeBlocked
                 | ObjectEventVerb::BeDealtDamage(_)
@@ -650,6 +661,8 @@ pub(in crate::oracle::canonical) fn event_frame(
         event_object: event_object_slot(event),
         event_card: event_card_zone(event),
         combat_defending_player: false,
+        inherited_moved_selector: None,
+        replacing_instead_at: None,
         // A cast record binds its spell; a copy has no cast record.
         event_spell: matches!(
             event,

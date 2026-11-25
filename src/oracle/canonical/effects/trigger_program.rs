@@ -18,6 +18,10 @@ pub(in crate::oracle::canonical) fn try_parse_generic_trigger_program(
     input: &AbilityInput<'_>,
 ) -> GenericTriggerProgramAttempt {
     let mut cursor = OracleTokenCursor::new("generic-trigger-program", input.tokens);
+    // The ability's resolved source names are readable everywhere in the
+    // ability, its event and intervening condition included (`if it has
+    // greater power than NAME`), not only inside the effect sequence.
+    cursor.replace_source_names(Some(input.name_links.into()));
     let envelope = match try_recognize_generic_trigger_envelope(
         &mut cursor,
         input.name_links,

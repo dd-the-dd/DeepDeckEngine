@@ -151,20 +151,31 @@ fn a_typed_resolution_cost_keeps_the_cost_program() {
 }
 
 #[test]
-fn unmeasured_or_compound_instructions_fail_explicitly() {
-    for text in [
-        // Scry is a look/choose/move program, not one measured instruction.
+fn unmeasured_instructions_fail_explicitly() {
+    // Scry looks at and orders cards: its members have no measured
+    // performance, so the group is an explicit engine gap.
+    let failure = parse(
         "When this creature enters, you may scry 2. If you do, draw a card.",
-        // Two instructions: which one must be performed is not one primitive.
+        "Creature — Wall",
+        "triggeredAbility",
+    )
+    .unwrap_err();
+    assert_eq!(failure.state, "engine.gap.measured-performance");
+}
+
+#[test]
+fn a_compound_instruction_is_one_measured_group() {
+    // Two instructions of one sentence are performed together: the outcome
+    // observes the group (`discard your hand and draw two cards. If you do`).
+    let rule = trigger(
         "When this creature enters, you may draw a card and gain 1 life. If you do, \
          discard a card.",
-    ] {
-        let failure = parse(text, "Creature — Wall", "triggeredAbility").unwrap_err();
-        assert_eq!(
-            failure.state, "lower.program.optional-action.action",
-            "{text}"
-        );
-    }
+    );
+    let block = &rule["effects"][0];
+    assert_eq!(block["kind"], "optionalAction");
+    assert!(block.get("action").is_none(), "{block}");
+    assert_eq!(kinds(&block["actions"]), ["drawCards", "gainLife"]);
+    assert_eq!(kinds(&block["onPerformed"]), ["discardCards"]);
 }
 
 #[test]

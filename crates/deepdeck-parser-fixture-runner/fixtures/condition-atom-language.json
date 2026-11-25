@@ -811,7 +811,9 @@
                 "equals": {
                   "kind": "compare",
                   "left": {
-                    "color": "White",
+                    "colors": [
+                      "White"
+                    ],
                     "kind": "devotion",
                     "player": {
                       "kind": "controllerOf",
@@ -913,7 +915,7 @@
       }
     },
     {
-      "id": "near-miss-two-color-devotion-is-not-one-color",
+      "id": "sibling-two-color-devotion-is-one-count",
       "request": {
         "cardName": "Compare Probe",
         "typeLine": "Legendary Enchantment Creature — God",
@@ -923,19 +925,90 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition/left",
+                "equals": {
+                  "kind": "devotion",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "colors": [
+                    "White",
+                    "Blue"
+                  ]
+                }
+              }
+            ]
           }
-        ],
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-two-color-devotion-numeric-operand",
+      "request": {
+        "cardName": "Devotion Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{R}",
+        "oracleText": "Each opponent loses X life, where X is your devotion to black and red.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/value",
+                "equals": {
+                  "kind": "devotion",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "colors": [
+                    "Black",
+                    "Red"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-devotion-repeats-its-color",
+      "request": {
+        "cardName": "Compare Probe",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{2}",
+        "oracleText": "As long as your devotion to white and white is less than seven, Compare Probe isn't a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "condition.static.atom-kind"
+            "code": "oracle_machine_failure"
           }
         ]
       }

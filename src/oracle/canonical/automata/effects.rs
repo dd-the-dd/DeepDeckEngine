@@ -350,8 +350,23 @@ fn recognize_damage_frame(
             }
             DamageState::Destination => {
                 cursor.enter("effect.damage.destination");
-                cursor.consume("to")?;
-                DamageState::Selector
+                let environment = super::installed_binding_environment(cursor);
+                if environment.frame.replacing_instead_at == Some(cursor.position()) {
+                    // `If COND, NAME deals 4 damage instead.`: the replacing
+                    // sentence restates the replaced damage's recipient
+                    // (CR 608.2c); the replacing parent owns `instead`.
+                    cursor.enter("effect.damage.restated-recipient");
+                    let recipient = environment.restated_damage_recipient.ok_or_else(|| {
+                        cursor.fail(
+                            "a replaced damage action with one recipient that `instead` restates",
+                        )
+                    })?;
+                    memory.recipients.push(recipient);
+                    DamageState::Complete
+                } else {
+                    cursor.consume("to")?;
+                    DamageState::Selector
+                }
             }
             DamageState::Selector => {
                 cursor.enter("effect.damage.selector");
@@ -465,6 +480,12 @@ fn recognize_damage_recipient_group(
         let environment = super::installed_binding_environment(cursor);
         return super::recognize_bound_object_reference(cursor, &environment)
             .map(DamageRecipientNode::BoundObject);
+    }
+    // `each other opponent`: the opponents but the one the event names.
+    if super::other_opponents_starts(cursor) {
+        return Ok(DamageRecipientNode::PlayerSet(
+            super::recognize_other_opponents_of_event_player(cursor)?,
+        ));
     }
     if cursor.peek().is_some_and(|token| {
         token.eq_ignore_ascii_case("each")

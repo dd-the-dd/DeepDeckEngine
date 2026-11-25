@@ -111,7 +111,79 @@ fn lower_condition_atom(
         ConditionAtom::PlayerDesignation(node) => lower_player_designation(node),
         ConditionAtom::ObjectZone(node) => lower_object_zone(node, bindings),
         ConditionAtom::ObjectControl(node) => lower_object_control(node, bindings),
+        ConditionAtom::CastChoice(node) => Ok(lower_cast_choice(node)),
+        ConditionAtom::SpellCastOrdinal(node) => lower_spell_cast_ordinal(node),
+        ConditionAtom::TopCard(node) => lower_top_card(node),
+        ConditionAtom::MostCommonColor(node) => lower_most_common_color(node),
     }
+}
+
+/// `castChoiceMade { spell: self, choice, mode?, manaCost? }`: a choice made
+/// for the ability's own source as it was cast (CR 601.2b-f), read on the
+/// resolving spell's decisions or on the record of the permanent it became.
+fn lower_cast_choice(node: &CastChoiceNode) -> Value {
+    let mut atom = json!({ "kind": "castChoiceMade", "spell": self_ref() });
+    match &node.choice {
+        CastChoice::GiftPromised => atom["choice"] = json!("gift"),
+        CastChoice::Teamwork => atom["choice"] = json!("teamwork"),
+        CastChoice::AlternativeMode(mode) => {
+            atom["choice"] = json!("alternativeCost");
+            atom["mode"] = json!(mode.ir_name());
+        }
+        CastChoice::AlternativeManaCost(cost) => {
+            atom["choice"] = json!("alternativeCost");
+            atom["manaCost"] = json!(cost);
+        }
+    }
+    if node.negated { not(atom) } else { atom }
+}
+
+/// `spellCastOrdinal { spell, ordinal, where? }`: the observed spell is its
+/// caster's ORDINAL spell of the query this turn (CR 601.2i), counted up to
+/// its own cast record.
+fn lower_spell_cast_ordinal(node: &SpellCastOrdinalNode) -> Lowered {
+    if node.spell != CastSpellReference::EventSpell {
+        return Err("the spell a cast event observed");
+    }
+    let mut atom = json!({
+        "kind": "spellCastOrdinal",
+        "spell": { "kind": "triggeringSpell" },
+        "ordinal": node.ordinal,
+    });
+    if let Some(predicate) = &node.predicate {
+        atom["where"] = lower_spell_object_predicate(predicate)
+            .ok_or("a spell predicate the cast record can evaluate")?;
+    }
+    Ok(atom)
+}
+
+/// `topCardMatches { player, zone, where }` (CR 401.1, 404.1).
+fn lower_top_card(node: &TopCardConditionNode) -> Lowered {
+    if node.player != ConditionPlayerSubject::Controller {
+        return Err("the top card of the ability controller's own zone");
+    }
+    let filter = lower_card_object_predicate(&node.predicate);
+    if filter.is_null() {
+        return Err("a card characteristic that lowers to a nonempty filter");
+    }
+    Ok(json!({
+        "kind": "topCardMatches",
+        "player": controller(),
+        "zone": node.zone.ir_name(),
+        "where": filter,
+    }))
+}
+
+/// `colorIsMostCommon { color, where, tieAllowed }` (CR 105.1): the color's
+/// count among the permanents of `where` is at least every other color's
+/// (strictly greater without `tieAllowed`).
+fn lower_most_common_color(node: &MostCommonColorNode) -> Lowered {
+    Ok(json!({
+        "kind": "colorIsMostCommon",
+        "color": canonical_color_name(node.color),
+        "where": lower_permanent_object_predicate(&node.predicate),
+        "tieAllowed": node.tie_allowed,
+    }))
 }
 
 /// `you [didn't] control[led] OBJECT`: the shared player equality of the
@@ -483,6 +555,7 @@ fn history_event_kind(event: HistoryEvent) -> Value {
         HistoryEvent::CountersPlaced => "countersPlaced",
         HistoryEvent::LandPlayed => "landPlayed",
         HistoryEvent::CardsPutIntoGraveyard => "cardsEnteredGraveyard",
+        HistoryEvent::CombatPhaseStarted => "combatPhaseStarted",
     };
     json!(kind)
 }
@@ -545,7 +618,7 @@ pub(in crate::oracle::canonical) fn lower_event_history_count(
 ) -> Value {
     let mut count = json!({
         "kind": match scope {
-            HistoryScope::ThisTurn => "countEventsThisTurn",
+            HistoryScope::ThisTurn | HistoryScope::ThisCombat => "countEventsThisTurn",
             HistoryScope::LastTurn => "countEventsPreviousTurn",
         },
         "event": history_event_kind(pattern.event),
@@ -586,12 +659,26 @@ pub(in crate::oracle::canonical) fn lower_event_history_count(
             _ => lower_permanent_object_predicate(predicate),
         });
     match scope {
-        HistoryScope::ThisTurn => count["where"] = filter.unwrap_or(Value::Null),
+        HistoryScope::ThisTurn | HistoryScope::ThisCombat => {
+            count["where"] = filter.unwrap_or(Value::Null);
+        }
         HistoryScope::LastTurn => {
             if let Some(filter) = filter {
                 count["where"] = filter;
             }
         }
+    }
+    if scope == HistoryScope::ThisCombat {
+        // CR 506.1: the records since the current combat phase began.
+        count["since"] = history_event_kind(HistoryEvent::CombatPhaseStarted);
+    }
+    if let Some(zone) = qualifiers.cast_zone {
+        // CR 601.2a: the zone the spell-cast record keeps.
+        count["fromZone"] = json!(match zone {
+            SourceCastZone::Hand => "hand",
+            SourceCastZone::Graveyard => "graveyard",
+            SourceCastZone::Exile => "exile",
+        });
     }
     let mut detail = serde_json::Map::new();
     if let Some(counter) = &qualifiers.counter {
@@ -599,6 +686,9 @@ pub(in crate::oracle::canonical) fn lower_event_history_count(
     }
     if let Some(HistoryDestination::Hand) = qualifiers.destination {
         detail.insert("destination".to_string(), json!("hand"));
+    }
+    if let Some(combat) = qualifiers.combat_damage {
+        detail.insert("combat".to_string(), json!(combat));
     }
     if let Some(HistoryCastMode::Warp) = qualifiers.cast_mode {
         // A JSON pointer into the cast record's decisions.
@@ -614,6 +704,7 @@ pub(in crate::oracle::canonical) fn lower_event_history_count(
         HistoryMeasure::Occurrences => {}
         HistoryMeasure::Amount => count["measure"] = json!("amount"),
         HistoryMeasure::Cards => count["measure"] = json!("cards"),
+        HistoryMeasure::Power => count["measure"] = json!("power"),
     }
     if scope == HistoryScope::LastTurn || aggregate == HistoryAggregate::GreatestPerPlayer {
         count["aggregate"] = json!(match aggregate {
@@ -742,6 +833,15 @@ fn lower_object_condition(
                 .clone()
                 .ok_or("a singular card result in the current card-collection scope")?,
             lower_card_object_predicate(&node.predicate),
+        ),
+        // The object a cost paid with, recorded by its unique producing cost
+        // (`contextual_binding.rs` proves and installs it, CR 608.2h).
+        ConditionObjectReference::CostPaid(object) => (
+            json!({ "kind": "decisionResult", "decisionId": object.decision_id() }),
+            match object.domain() {
+                ObjectKind::Card => lower_card_object_predicate(&node.predicate),
+                _ => lower_permanent_object_predicate(&node.predicate),
+            },
         ),
     };
     if filter.is_null() {

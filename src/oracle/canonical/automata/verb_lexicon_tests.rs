@@ -69,7 +69,12 @@ fn a_lemma_holds_a_set_of_frames_and_its_voices() {
     );
     assert_eq!(
         verb_entry(VerbLemma::Lose).frames,
-        [ArgumentFrame::LifeTotalChange, ArgumentFrame::Abilities]
+        [
+            ArgumentFrame::LifeTotalChange,
+            ArgumentFrame::Abilities,
+            // `lose the game` (CR 104.3a), the player status cell.
+            ArgumentFrame::GameOutcome
+        ]
     );
     let deal = verb_entry(VerbLemma::Deal);
     assert_eq!(deal.frames, [ArgumentFrame::DamageDealt]);

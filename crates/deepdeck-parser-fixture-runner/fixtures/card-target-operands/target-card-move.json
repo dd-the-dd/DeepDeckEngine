@@ -413,7 +413,7 @@
       }
     },
     {
-      "id": "unproved-card-colors-keep-common-syntax",
+      "id": "printed-card-color-filters-the-target-card",
       "request": {
         "cardName": "Synthetic targeted card movement",
         "typeLine": "Instant",
@@ -423,17 +423,51 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/0",
+                "equals": {
+                  "kind": "colorContains",
+                  "value": "Red"
+                }
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "unproved-card-power-keeps-common-syntax",
+      "id": "near-miss-unknown-color-word-on-a-target-card",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Put target plaid enchantment card from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.start",
+            "found": "plaid"
+          }
+        ]
+      }
+    },
+    {
+      "id": "printed-card-power-filters-the-target-card",
       "request": {
         "cardName": "Synthetic targeted card movement",
         "typeLine": "Instant",
@@ -443,10 +477,44 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left",
+                "equals": {
+                  "kind": "powerOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-card-power-with-a-count-comparator",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Put target creature card with power 2 or fewer from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
+        "abilityCount": 1,
         "diagnostics": [
           {
+            "abilityIndex": 0,
             "code": "oracle_machine_failure"
           }
         ]

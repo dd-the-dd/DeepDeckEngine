@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "operand-tails/card-target-printed-characteristics",
+  "seed": 80803,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetCardOperand",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+                  "right": { "kind": "powerOf", "object": { "kind": "self" } }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetCardOperand" },
+        "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Activating player",
+        "battlefield": [
+          {
+            "id": "recurring-source",
+            "name": "Recurring Source",
+            "typeLine": "Creature - Test",
+            "manaCost": "{2}{G}",
+            "power": "3",
+            "toughness": "3",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [
+                  { "kind": "tap", "object": { "kind": "self" } }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetCardOperand",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            { "kind": "cardTypeContains", "value": "Creature" },
+                            {
+                              "kind": "compare",
+                              "operator": "<=",
+                              "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+                              "right": { "kind": "powerOf", "object": { "kind": "self" } }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": { "kind": "chosenTargets", "id": "targetCardOperand" },
+                    "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+                  }
+                ]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [
+                  { "kind": "tap", "object": { "kind": "self" } }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetCardOperand",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+                        "where": { "kind": "colorContains", "value": "green" }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": { "kind": "chosenTargets", "id": "targetCardOperand" },
+                    "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          { "id": "small-green", "name": "Small Green", "typeLine": "Creature - Test", "manaCost": "{G}", "power": "2", "toughness": "2", "rules": [] },
+          { "id": "large-red", "name": "Large Red", "typeLine": "Creature - Test", "manaCost": "{R}", "power": "4", "toughness": "4", "rules": [] }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "recurring-source",
+      "abilityRuleIndex": 0,
+      "targets": { "targetCardOperand": { "kind": "cardDefinition", "definitionId": "small-green" } },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "recurring-source",
+      "abilityRuleIndex": 0,
+      "targets": { "targetCardOperand": { "kind": "cardDefinition", "definitionId": "large-red" } },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "recurring-source",
+      "abilityRuleIndex": 1,
+      "targets": { "targetCardOperand": { "kind": "cardDefinition", "definitionId": "small-green" } },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "recurring-source",
+      "abilityRuleIndex": 1,
+      "targets": { "targetCardOperand": { "kind": "cardDefinition", "definitionId": "large-red" } },
+      "equals": false
+    }
+  ]
+}

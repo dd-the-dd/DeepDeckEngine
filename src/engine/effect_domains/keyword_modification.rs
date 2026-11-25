@@ -499,9 +499,17 @@ impl GameEngine {
                     return Ok(());
                 };
                 let qualities = effect["from"].as_array().cloned().unwrap_or_default();
+                // Bound to the incarnation it was granted to (CR 400.7).
+                let incarnation = self
+                    .permanent_position(&instance_id)
+                    .map(|(player, card)| {
+                        Self::incarnation_binding(&self.state.players[player].battlefield[card])
+                    })
+                    .unwrap_or(Value::Null);
                 let mut modifier = json!({
                     "kind": "temporaryProtection",
                     "cardInstanceId": instance_id,
+                    "zoneIdentity": incarnation,
                     "from": qualities,
                 });
                 if value_kind(&effect["duration"]) == Some("untilNextTurn") {

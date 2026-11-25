@@ -315,6 +315,24 @@ impl GameEngine {
         Ok(())
     }
 
+    /// Whether a modifier bound to an object's incarnation (`zoneIdentity`,
+    /// recorded when the effect began) still applies to `card`: a permanent
+    /// that left the battlefield and returned is a new object the effect
+    /// never applied to (CR 400.7, 611.2c). A modifier without the field is
+    /// not incarnation-bound.
+    pub(super) fn modifier_incarnation_current(modifier: &Value, card: &CardInstance) -> bool {
+        modifier
+            .get("zoneIdentity")
+            .is_none_or(|bound| bound.as_str() == Self::tracked_zone_identity(card))
+    }
+
+    /// The incarnation to record on a modifier bound to `card` (`null` for
+    /// an object without a tracked incarnation, which then matches only
+    /// while it still has none).
+    pub(super) fn incarnation_binding(card: &CardInstance) -> Value {
+        Self::tracked_zone_identity(card).map_or(Value::Null, |identity| Value::from(identity))
+    }
+
     pub(super) fn tracked_zone_identity(card: &CardInstance) -> Option<&str> {
         card.flags.iter().find_map(|(flag, active)| {
             active

@@ -260,15 +260,23 @@ fn lower_local_effect_sequence(
         ),
         LocalEffectNode::PermanentKeywordAction(PermanentKeywordActionNode {
             quantity, ..
-        })
-        | LocalEffectNode::ControllerKeywordAction(ControllerKeywordActionNode {
-            quantity, ..
         }) => {
             matches!(
                 quantity,
                 Some(NumericExpression::Atom(NumericAtom::VariableX))
             )
         }
+        // `incubate 3 X times`: the repetition count reads X too.
+        LocalEffectNode::ControllerKeywordAction(ControllerKeywordActionNode {
+            quantity,
+            times,
+            ..
+        }) => [quantity, times].into_iter().any(|amount| {
+            matches!(
+                amount,
+                Some(NumericExpression::Atom(NumericAtom::VariableX))
+            )
+        }),
         LocalEffectNode::PutCounters(_)
         | LocalEffectNode::MoveCounters(_)
         | LocalEffectNode::Investigate(_)

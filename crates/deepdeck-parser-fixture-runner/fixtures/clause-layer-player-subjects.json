@@ -1059,7 +1059,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "messageContains": "is not read for a source or anaphor object subject"
+            "state": "duration.until-end-of-turn.unit",
+            "found": "combat"
           }
         ]
       }

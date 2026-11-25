@@ -349,6 +349,7 @@ fn lower_zone_permission(
         CastingPermissionActorNode::Set(PlayerSetReferenceNode::OpponentsOfAbilityController) => {
             json!({"kind":"opponentsOf","player":controller()})
         }
+        CastingPermissionActorNode::Set(players) => lower_player_set_reference(players),
     };
     let mut modifiers = Vec::new();
     for action in &node.actions {

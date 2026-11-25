@@ -16,9 +16,18 @@
 //!                                         FIELD starting with `/` is a JSON
 //!                                         pointer into the detail
 //!   relatedPlayers?: { FIELD: PlayerRelation }  detail fields naming players
-//!   measure?: events | amount | count | cards
-//!   aggregate?: total | greatestPerPlayer }
+//!   measure?: events | amount | count | cards | power
+//!   aggregate?: total | greatestPerPlayer
+//!   since?:   KIND                        this turn's records after the
+//!                                         latest record of KIND (`this
+//!                                         combat`: `combatPhaseStarted`) }
 //! ```
+//!
+//! `measure: power` sums the power an attacker had as it was declared.
+//!
+//! `spellCastOrdinal { spell: triggeringSpell, ordinal, where? }` is the
+//! position of the observed spell among its caster's spells of `where`
+//! this turn, counted on the cast records up to its own (CR 601.2i).
 //!
 //! Soundness (no silent match): an unknown field value, an unevaluable
 //! filter or an unresolvable player makes the count `None` (the condition is
@@ -68,6 +77,8 @@ enum HistoryMeasure {
     Amount,
     Count,
     Cards,
+    /// The power an attacker had as it was declared (CR 508.1).
+    Power,
 }
 
 fn history_measure(expression: &Value) -> Option<HistoryMeasure> {
@@ -78,6 +89,7 @@ fn history_measure(expression: &Value) -> Option<HistoryMeasure> {
             "amount" => Some(HistoryMeasure::Amount),
             "count" => Some(HistoryMeasure::Count),
             "cards" => Some(HistoryMeasure::Cards),
+            "power" => Some(HistoryMeasure::Power),
             _ => None,
         },
     }
@@ -198,7 +210,9 @@ fn event_filter_supported(filter: &Value) -> bool {
 pub(super) fn event_history_supported(expression: &Value) -> bool {
     history_scope(expression).is_some()
         && event_kinds(expression).is_some_and(|kinds| relation_supported(expression, &kinds))
-        && history_measure(expression).is_some()
+        && history_measure(expression).is_some_and(|measure| {
+            event_kinds(expression).is_some_and(|kinds| measure_recorded(measure, &kinds))
+        })
         && history_aggregate(expression).is_some()
         && expression
             .get("player")
@@ -212,6 +226,9 @@ pub(super) fn event_history_supported(expression: &Value) -> bool {
             .get("excludeObject")
             .is_none_or(|object| matches!(value_kind(object), Some("self" | "abilitySource")))
         && expression.get("detail").is_none_or(scalar_detail_supported)
+        && expression.get("since").is_none_or(|since| {
+            since.is_string() && history_scope(expression) == Some(HistoryScope::ThisTurn)
+        })
         && expression.get("relatedPlayers").is_none_or(|related| {
             related.as_object().is_some_and(|fields| {
                 fields
@@ -219,6 +236,21 @@ pub(super) fn event_history_supported(expression: &Value) -> bool {
                     .all(|relation| player_relation_supported(relation))
             })
         })
+}
+
+/// Events whose recorded detail keeps the power an object had then: an
+/// attacker's power as it was declared (CR 508.1).
+const POWER_RECORDING_EVENTS: &[&str] = &["attackerDeclared"];
+
+/// Whether every event of the pattern records what `measure` reads. A
+/// measure an event does not record is refused, never read as zero.
+fn measure_recorded(measure: HistoryMeasure, kinds: &[&str]) -> bool {
+    match measure {
+        HistoryMeasure::Power => kinds
+            .iter()
+            .all(|kind| POWER_RECORDING_EVENTS.contains(kind)),
+        _ => true,
+    }
 }
 
 /// The recorded detail value a pattern field names: a top-level field, or a
@@ -433,6 +465,9 @@ impl GameEngine {
             HistoryMeasure::Cards => event.detail["cardIds"]
                 .as_array()
                 .and_then(|cards| i32::try_from(cards.len()).ok()),
+            HistoryMeasure::Power => {
+                integer_value(&event.detail["power"]).map(|value| value.max(0))
+            }
         }
     }
 
@@ -484,11 +519,26 @@ impl GameEngine {
         let filter = expression.get("where").unwrap_or(&Value::Null);
         let detail = expression.get("detail").and_then(Value::as_object);
         let from_zone = expression.get("fromZone").and_then(Value::as_str);
+        // `since`: only the records after the latest record of that kind
+        // this turn; without one, no window has begun and nothing counts.
+        let since = match expression.get("since") {
+            None => None,
+            Some(kind) => {
+                let kind = kind.as_str()?;
+                match self.state.events.iter().rev().find(|event| {
+                    turn.is_none_or(|turn| event.turn_number == turn) && event.kind == kind
+                }) {
+                    Some(event) => Some(event.sequence),
+                    None => return Some(0),
+                }
+            }
+        };
 
         let mut total = 0_i32;
         let mut per_player = BTreeMap::<&str, i32>::new();
         for event in &self.state.events {
             if turn.is_some_and(|turn| event.turn_number != turn)
+                || since.is_some_and(|since| event.sequence <= since)
                 || !kinds.contains(&event.kind.as_str())
                 || players.as_ref().is_some_and(|players| {
                     !players.contains(if owned {
@@ -564,6 +614,59 @@ impl GameEngine {
             Some(stack_object.card.instance_id.as_str()),
             &|reference| self.resolve_player(reference, stack_object, bindings),
         )
+    }
+}
+
+/// `spellCastOrdinal { spell: triggeringSpell, ordinal, where? }`.
+pub(super) fn spell_cast_ordinal_supported(condition: &Value) -> bool {
+    value_kind(&condition["spell"]) == Some("triggeringSpell")
+        && integer_value(&condition["ordinal"]).is_some_and(|ordinal| ordinal >= 1)
+        && condition.get("where").is_none_or(event_filter_supported)
+}
+
+impl GameEngine {
+    /// Whether the spell a cast trigger observed (its stack id in the
+    /// trigger's decisions) is its caster's ORDINAL spell of `where` this
+    /// turn: the matching cast records of that player and turn up to its own
+    /// (CR 601.2i). The position is fixed when the spell becomes cast, so a
+    /// later spell does not change it. Without the observed record the atom
+    /// is false.
+    pub(super) fn spell_cast_ordinal_holds(
+        &self,
+        condition: &Value,
+        decisions: &BTreeMap<String, Value>,
+    ) -> bool {
+        let Some(stack_id) = decisions.get("triggeringStackId").and_then(Value::as_str) else {
+            return false;
+        };
+        let Some(record) = self.state.events.iter().rev().find(|event| {
+            event.kind == "spellCast" && event.detail["stackId"].as_str() == Some(stack_id)
+        }) else {
+            return false;
+        };
+        let Some(ordinal) = integer_value(&condition["ordinal"]) else {
+            return false;
+        };
+        let filter = condition.get("where").unwrap_or(&Value::Null);
+        if self.event_object_matches(record, filter) != Some(true) {
+            return false;
+        }
+        let mut position = 0_i32;
+        for event in &self.state.events {
+            if event.sequence > record.sequence
+                || event.kind != "spellCast"
+                || event.turn_number != record.turn_number
+                || event.player_id != record.player_id
+            {
+                continue;
+            }
+            match self.event_object_matches(event, filter) {
+                Some(true) => position = position.saturating_add(1),
+                Some(false) => {}
+                None => return false,
+            }
+        }
+        position == ordinal
     }
 }
 

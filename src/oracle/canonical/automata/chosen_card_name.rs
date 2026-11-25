@@ -266,9 +266,10 @@ pub(in crate::oracle::canonical) fn recognize_chosen_card_name_predicate(
 /// `with the chosen name` / `with that name`: the postnominal qualifier that
 /// reads the card name an earlier `choose a card name` of the same effect
 /// program recorded (CR 201.2, 608.2d). Lexical lookahead only; the rule
-/// validator proves the producer. Outside an effect program (a stored `As
-/// ... enters` choice) it is not claimed, so that reference keeps its own
-/// reader.
+/// validator proves the producer. Outside an effect program only `the
+/// chosen name` is claimed, as `the chosen color` is: the card-level entry
+/// binder links it to the face's `As ... enters, choose a card name`
+/// (`entry_choice_binding.rs`), and the validator refuses it otherwise.
 pub(in crate::oracle::canonical) fn chosen_card_name_qualifier_length(
     cursor: &OracleTokenCursor<'_>,
 ) -> Option<usize> {
@@ -277,12 +278,12 @@ pub(in crate::oracle::canonical) fn chosen_card_name_qualifier_length(
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     };
-    if !word(0, "with") || !super::resolution_choice_in_scope(cursor) {
+    if !word(0, "with") {
         return None;
     }
     if word(1, "the") && word(2, "chosen") && word(3, "name") {
         Some(4)
-    } else if word(1, "that") && word(2, "name") {
+    } else if super::resolution_choice_in_scope(cursor) && word(1, "that") && word(2, "name") {
         Some(3)
     } else {
         None

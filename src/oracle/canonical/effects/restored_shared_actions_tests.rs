@@ -123,11 +123,23 @@ fn drawn_cards_are_the_antecedent_of_a_resolution_free_cast() {
     );
     assert_eq!(rule["effects"][2]["sourceZone"], "hand");
     assert_eq!(rule["effects"][2]["maximum"]["value"], 1);
-    // A free cast needs a proved zone: revealed library cards have none here.
+    // Revealed library cards are observed in the caster's own library: the
+    // same resolution cast reads them there (`castFromObservedLibrary`).
+    let rule = last_rule(
+        "Sorcery",
+        "Reveal the top two cards of your library. You may cast one of them without paying its mana cost.",
+    );
+    assert_eq!(kinds(&rule), ["bind", "revealCards", "castAnyNumber"]);
+    assert_eq!(rule["effects"][2]["sourceZone"], "library");
+    assert_eq!(
+        rule["effects"][2]["cards"]["binding"],
+        rule["effects"][0]["id"]
+    );
+    // Near miss: a cast zone contradicting the observed library is refused.
     assert_ne!(
         parse(
             "Sorcery",
-            "Reveal the top two cards of your library. You may cast one of them without paying its mana cost."
+            "Reveal the top two cards of your library. You may cast one of them without paying its mana cost from your graveyard."
         )
         .status,
         "canonical"

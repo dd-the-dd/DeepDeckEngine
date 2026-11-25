@@ -1107,7 +1107,7 @@
       }
     },
     {
-      "id": "near-miss-window-permission-with-graveyard-exile",
+      "id": "sibling-window-permission-with-graveyard-exile",
       "request": {
         "cardName": "Frame Witness",
         "typeLine": "Sorcery",
@@ -1117,13 +1117,25 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "state": "engine.gap.permission-window",
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/1/action/exileInsteadOfGraveyard",
+                "equals": {
+                  "graveyard": "any"
+                }
+              }
+            ]
           }
         ]
       }

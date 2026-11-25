@@ -321,7 +321,10 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
                 )
             }) {
                 Ok(fragment) => fragment,
-                Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
+                // The subject and a verb with a complement this frame owns
+                // claimed the clause: the frame's own failure is the
+                // clause's diagnostic, never a generic unread verb.
+                Err(failure) => return PermanentActionAttempt::FailedCommitted(failure),
             };
             if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context)
             {
@@ -630,6 +633,101 @@ fn recognize_verb_chain_action(
         }
         Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
     }
+}
+
+/// `switch POSSESSED power and toughness` / `switch the power and toughness
+/// of OBJECTS` (CR 613.4d): the characteristic-change frame of the ability's
+/// controller. The objects are the shared permanent operand; the possessed
+/// form reads the same references through their genitive.
+pub(in crate::oracle::canonical) fn recognize_switch_power_toughness_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> Result<BecomeTypesNode<PermanentOperandNode>, MachineFailure> {
+    let mut trial = cursor.clone();
+    let fragment = super::become_types::recognize_switch_power_toughness(
+        &mut trial,
+        |cursor| recognize_possessed_permanent(cursor, context),
+        |cursor| recognize_contextual_permanent_operand(cursor, name_links, name_failure, context),
+        context.preposed_duration.as_ref(),
+    )?;
+    *cursor = trial;
+    Ok(fragment.node)
+}
+
+/// A permanent named in the genitive before a characteristic (`its`, `this
+/// creature's`, `target creature's`, `each creature's`): the same source,
+/// antecedent, declared target or collection the plain noun phrase names.
+/// The possessive nominal is the binding environment's shared reader.
+fn recognize_possessed_permanent(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> Result<PermanentOperandNode, MachineFailure> {
+    cursor.enter("effect.possessed-permanent");
+    let head = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| cursor.fail("a possessed permanent"))?;
+    if head == "its" {
+        cursor.consume("its")?;
+        cursor.enter("effect.possessed-permanent.antecedent");
+        let reference = super::permanent_subject::proven_permanent_antecedent(context)
+            .ok_or_else(|| cursor.fail("a proven permanent antecedent for `its`"))?;
+        return Ok(match reference {
+            PermanentEffectReference::Source(source) => PermanentOperandNode::Reference(source),
+            other => PermanentOperandNode::BoundReference(other),
+        });
+    }
+    cursor.require(
+        matches!(head.as_str(), "this" | "target" | "each"),
+        "`its`, `this NOUN's`, `target NOUN's` or `each NOUN's`",
+    )?;
+    let determiner = head;
+    cursor.consume(&determiner)?;
+    cursor.enter("effect.possessed-permanent.nominal");
+    let possessive = cursor.consume_type("possessiveTypeWord")?;
+    let nominal = super::possessive_nominal(&possessive.raw)
+        .ok_or_else(|| cursor.fail("a registered card type or object domain in the possessive"))?;
+    cursor.require(
+        match nominal {
+            super::TargetNominal::CardType(card_type) => card_type.may_appear_on_permanent(),
+            super::TargetNominal::Domain(domain) => domain == ObjectKind::Permanent,
+        },
+        "a permanent nominal in the possessive",
+    )?;
+    let predicate = nominal.as_predicate();
+    Ok(match determiner.as_str() {
+        "this" => {
+            cursor.require(
+                context.source.is_some()
+                    || context
+                        .activation_source_availability
+                        .names_battlefield_source(),
+                "a proven permanent-source context for a source subject",
+            )?;
+            PermanentOperandNode::Reference(LocalObjectReference::SourceSelf)
+        }
+        "target" => PermanentOperandNode::Targets(TargetListNode {
+            slots: vec![TargetSlot {
+                selector: TargetSelector::Object(predicate),
+                cardinality: TargetCardinality {
+                    minimum: 1,
+                    maximum: 1,
+                },
+                exclude_source: false,
+                count: None,
+            }],
+        }),
+        _ => PermanentOperandNode::Collection {
+            objects: ObjectQueryNode {
+                predicate,
+                controller: None,
+                exclude_source: false,
+            },
+            exclude_source: false,
+        },
+    })
 }
 
 /// The verb agreement and grammatical number a characteristic change takes

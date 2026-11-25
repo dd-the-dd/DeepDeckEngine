@@ -1,5 +1,6 @@
 //! Target lists, distributive subjects and permission scopes, proved from
 //! the shared target-list child up to the complete card IR.
+use super::super::ObjectQualifier;
 use super::*;
 use crate::oracle::syntax::recognize_entities;
 use crate::oracle::{OracleCardParseRequest, parse_oracle_card_native};
@@ -162,4 +163,118 @@ fn a_permission_owns_its_sentence_and_the_next_sentence_is_unconditional() {
     assert_eq!(effects[0]["kind"], "optionalEffects");
     assert_eq!(effects[0]["effects"].as_array().unwrap().len(), 1);
     assert!(effects.len() > 1, "the return is outside the permission");
+}
+
+fn target_list(text: &str) -> MachineResult<TargetListNode> {
+    let tokens = recognize_entities(text);
+    let mut cursor = OracleTokenCursor::new("target-list-tail", &tokens);
+    let list = recognize_target_list(&mut cursor)?;
+    cursor.finish()?;
+    Ok(list)
+}
+
+#[test]
+fn any_target_that_isnt_a_characteristic_is_a_player_or_permanent_union() {
+    // CR 115.4: players stay candidates; damageable permanents lose the
+    // excluded characteristic.
+    let list = target_list("any target that isn't a Dragon").unwrap();
+    let TargetSelector::Union(branches) = &list.slots[0].selector else {
+        panic!("a player/permanent union: {list:?}");
+    };
+    assert_eq!(branches[0], TargetSelector::Player(PlayerPredicate::Any));
+    let TargetSelector::Object(ObjectPredicate::Intersection(operands)) = &branches[1] else {
+        panic!("a damageable permanent branch: {branches:?}");
+    };
+    assert!(matches!(operands[1], ObjectPredicate::Not(_)));
+    // Sibling: the uncontracted copula reads the same exception.
+    assert_eq!(
+        target_list("any target that is not a Dragon").unwrap(),
+        list
+    );
+    // Near miss: another controller in the excluded characteristic.
+    assert!(target_list("any target that isn't a Dragon you control").is_err());
+}
+
+#[test]
+fn a_set_constraint_needs_a_slot_that_may_declare_several_objects() {
+    let list = target_list("two target creatures controlled by different players").unwrap();
+    let TargetSelector::Object(predicate) = &list.slots[0].selector else {
+        panic!("an object slot: {list:?}");
+    };
+    let (_, constraints) = predicate
+        .split_set_constraints()
+        .expect("a top-level set constraint");
+    assert_eq!(constraints, vec![ObjectQualifier::DistinctControllers]);
+    // Near miss: one declared object has no set to constrain.
+    let tokens = recognize_entities("target creature controlled by different players");
+    let mut cursor = OracleTokenCursor::new("target-list-set-near-miss", &tokens);
+    let failure = recognize_target_list(&mut cursor).unwrap_err();
+    assert_eq!(failure.state, "target-list.slot.set-constraint");
+}
+
+/// Every `kind` occurring anywhere under `value`, in document order.
+fn kinds(value: &Value, out: &mut Vec<String>) {
+    match value {
+        Value::Object(map) => {
+            if let Some(kind) = map.get("kind").and_then(Value::as_str) {
+                out.push(kind.to_string());
+            }
+            map.values().for_each(|child| kinds(child, out));
+        }
+        Value::Array(items) => items.iter().for_each(|child| kinds(child, out)),
+        _ => {}
+    }
+}
+
+#[test]
+fn a_tapped_set_is_chosen_on_resolution_and_counted_by_its_result() {
+    // Marshaling the Troops: the choice is not a declaration (CR 608.2d);
+    // `tapped this way` reads exactly the permanents the tap action tapped
+    // (CR 608.2c), never a characteristic re-read on another population.
+    let rule = canonical(
+        "Marshaling the Troops",
+        "Sorcery",
+        "Tap any number of untapped creatures you control. You gain 4 life for each creature tapped this way.",
+    );
+    assert!(
+        rule["declaration"]["decisions"]
+            .as_array()
+            .is_none_or(Vec::is_empty)
+    );
+    let effects = rule["effects"].as_array().expect("effects");
+    assert_eq!(effects[0]["kind"], "choosePermanents");
+    assert_eq!(
+        effects[0]["maximum"],
+        json!({"kind":"countPermanents", "allPlayers":true})
+    );
+    assert_eq!(effects[1]["kind"], "tapPermanent");
+    assert_eq!(effects[1]["permanent"]["kind"], "decisionResult");
+    let binding = effects[1]["bind"]
+        .as_str()
+        .expect("the tap records its result");
+    let mut read = Vec::new();
+    kinds(&effects[2], &mut read);
+    assert!(read.contains(&"countObjects".to_string()), "{effects:?}");
+    assert!(effects[2].to_string().contains(binding), "{effects:?}");
+}
+
+#[test]
+fn a_distinct_controller_pair_lifts_to_the_declaration_constraint() {
+    let rule = canonical(
+        "Run Away Together",
+        "Instant",
+        "Choose two target creatures controlled by different players. Return those creatures to their owners' hands.",
+    );
+    let decision = &rule["declaration"]["decisions"][0];
+    assert_eq!(decision["kind"], "chooseTargets");
+    assert_eq!(
+        decision["selectionConstraint"],
+        json!({"kind":"distinctPermanentControllers"})
+    );
+    // The candidate filter no longer carries the set constraint.
+    assert!(
+        !decision["candidates"]
+            .to_string()
+            .contains("distinctPermanentControllers")
+    );
 }

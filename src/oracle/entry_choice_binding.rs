@@ -18,7 +18,7 @@
 use serde_json::Value;
 
 use crate::oracle::contextual_binding::{
-    RESOLUTION_COLOR_DECISION, RESOLUTION_CREATURE_TYPE_DECISION,
+    RESOLUTION_CARD_NAME_DECISION, RESOLUTION_COLOR_DECISION, RESOLUTION_CREATURE_TYPE_DECISION,
 };
 use crate::oracle::model::{ParsedOracleAbility, ParserDiagnostic};
 
@@ -32,7 +32,7 @@ struct ChoiceReference {
 /// `of the chosen color` reads a color; `N mana of the chosen color`
 /// produces it; `of the chosen type` reads the subtype chosen as the
 /// permanent entered, a creature type or a basic land type (CR 205.3).
-const CHOICE_REFERENCES: [ChoiceReference; 3] = [
+const CHOICE_REFERENCES: [ChoiceReference; 4] = [
     ChoiceReference {
         reference_kind: "chosenColor",
         resolution_id: RESOLUTION_COLOR_DECISION,
@@ -47,6 +47,12 @@ const CHOICE_REFERENCES: [ChoiceReference; 3] = [
         reference_kind: "chosenCreatureType",
         resolution_id: RESOLUTION_CREATURE_TYPE_DECISION,
         producer_kinds: &["chooseCreatureType", "chooseBasicLandType"],
+    },
+    // `with the chosen name` reads the card name stored as it entered.
+    ChoiceReference {
+        reference_kind: "chosenCardName",
+        resolution_id: RESOLUTION_CARD_NAME_DECISION,
+        producer_kinds: &["chooseCardName"],
     },
 ];
 

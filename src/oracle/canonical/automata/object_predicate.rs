@@ -178,6 +178,50 @@ pub(in crate::oracle::canonical) enum ObjectRelation {
     /// `blocking it`, `that shares a creature type with it`), read by the
     /// relative slot (`relative_clause.rs`).
     Related(super::RelatedObject),
+    /// `spells you cast from your graveyard` (CR 601.2a): the zone the spell
+    /// was cast from. A fact of the spell's cast, never a characteristic;
+    /// only a consumer that records the cast zone evaluates it.
+    CastFrom(CastOrigin),
+}
+
+/// A zone a spell can be cast from (CR 601.2a), as a cast origin names it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CastOriginZone {
+    Hand,
+    Graveyard,
+    Library,
+    Exile,
+}
+
+impl CastOriginZone {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Hand => "hand",
+            Self::Graveyard => "graveyard",
+            Self::Library => "library",
+            Self::Exile => "exile",
+        }
+    }
+
+    /// A zone word after `your` (`your graveyard`) or alone (`exile`).
+    pub(in crate::oracle::canonical) fn from_word(raw: &str) -> Option<Self> {
+        Some(match raw.to_ascii_lowercase().as_str() {
+            "hand" => Self::Hand,
+            "graveyard" => Self::Graveyard,
+            "library" => Self::Library,
+            "exile" => Self::Exile,
+            _ => return None,
+        })
+    }
+}
+
+/// `from your graveyard`, `from exile` after a cast relation: the zone and
+/// whether the text names the caster's own zone (`your graveyard`, CR
+/// 400.3: a card is in its owner's graveyard) rather than the shared exile.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CastOrigin {
+    pub zone: CastOriginZone,
+    pub caster_owned: bool,
 }
 
 impl ObjectRelation {
@@ -189,6 +233,8 @@ impl ObjectRelation {
             Self::DealtDamageToPlayerThisTurn { .. } => domain == ObjectKind::Permanent,
             // The targets of an object on the stack (CR 115.1).
             Self::Targets(_) => domain == ObjectKind::Spell,
+            // The cast record of a spell (CR 601.2a).
+            Self::CastFrom(_) => domain == ObjectKind::Spell,
             Self::Related(related) => related.supports_domain(domain),
         }
     }
@@ -198,7 +244,10 @@ impl ObjectRelation {
     pub(in crate::oracle::canonical) fn reads_object_state(&self) -> bool {
         matches!(
             self,
-            Self::DealtDamageToPlayerThisTurn { .. } | Self::Targets(_) | Self::Related(_)
+            Self::DealtDamageToPlayerThisTurn { .. }
+                | Self::Targets(_)
+                | Self::Related(_)
+                | Self::CastFrom(_)
         )
     }
 }
@@ -217,6 +266,8 @@ pub(in crate::oracle::canonical) enum KeywordAbilityName {
     Kicker,
     /// CR 702.113: awaken.
     Awaken,
+    /// CR 702.164: toxic, whatever its count (`creatures with toxic`).
+    Toxic,
 }
 
 impl KeywordAbilityName {
@@ -227,6 +278,7 @@ impl KeywordAbilityName {
             "flashback" => Self::Flashback,
             "kicker" => Self::Kicker,
             "awaken" => Self::Awaken,
+            "toxic" => Self::Toxic,
             _ => return None,
         })
     }
@@ -239,6 +291,7 @@ impl KeywordAbilityName {
             Self::Flashback => &["flashback"],
             Self::Kicker => &["kicker"],
             Self::Awaken => &["awaken"],
+            Self::Toxic => &["toxic"],
         }
     }
 }
@@ -342,6 +395,9 @@ pub(in crate::oracle::canonical) enum ObjectQualifier {
     /// `that share a land type` after a plural chosen set (CR 205.3i): the
     /// chosen objects have one value of the characteristic in common.
     SharedValue(super::SharedCharacteristic),
+    /// `controlled by different players` after a plural chosen set: no two
+    /// chosen permanents have the same controller (CR 108.4).
+    DistinctControllers,
     /// `with the greatest power among creatures they control`.
     Extremum {
         property: SelectorNumericProperty,
@@ -360,7 +416,7 @@ impl ObjectQualifier {
             | Self::DistinctValues(_)
             | Self::TotalAtMost { .. }
             | Self::SharedValue(_) => true,
-            Self::DamagedBySourceThisTurn | Self::Extremum { .. } => {
+            Self::DamagedBySourceThisTurn | Self::Extremum { .. } | Self::DistinctControllers => {
                 domain == ObjectKind::Permanent
             }
         }
@@ -370,7 +426,10 @@ impl ObjectQualifier {
     pub(in crate::oracle::canonical) const fn is_set_constraint(&self) -> bool {
         matches!(
             self,
-            Self::DistinctValues(_) | Self::TotalAtMost { .. } | Self::SharedValue(_)
+            Self::DistinctValues(_)
+                | Self::TotalAtMost { .. }
+                | Self::SharedValue(_)
+                | Self::DistinctControllers
         )
     }
 

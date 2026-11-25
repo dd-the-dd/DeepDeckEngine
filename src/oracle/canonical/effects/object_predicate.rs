@@ -133,6 +133,14 @@ fn lower_object_predicate(
         ObjectPredicate::Relation(ObjectRelation::Related(related)) => {
             Some(lower_related_object(related))
         }
+        // CR 601.2a: the zone a spell was cast from. Only a consumer that
+        // splits it off (`split_cast_origin`) evaluates it; left in a filter
+        // it stays an atom the runtime validators refuse.
+        ObjectPredicate::Relation(ObjectRelation::CastFrom(origin)) => Some(json!({
+            "kind": "castFromZone",
+            "zone": origin.zone.ir_name(),
+            "casterOwned": origin.caster_owned,
+        })),
         // CR 115.1: a stack object one of whose targets is a listed player
         // or a permanent of the listed query. Players and controllers are
         // roles relative to the ability controller choosing the candidates.
@@ -244,6 +252,8 @@ fn lower_object_qualifier(qualifier: &ObjectQualifier, domain: ObjectPredicateDo
         ObjectQualifier::DistinctValues(property) => {
             json!({ "kind": "distinctValues", "property": property.ir_name() })
         }
+        // The engine's joint target-set constraint (CR 108.4, 601.2c).
+        ObjectQualifier::DistinctControllers => json!({ "kind": "distinctPermanentControllers" }),
         ObjectQualifier::SharedValue(characteristic) => json!({
             "kind": "sharedValue",
             "characteristic": characteristic.ir_name(),
@@ -312,7 +322,7 @@ pub(in crate::oracle::canonical) fn lower_controlled_permanent_count(
 fn is_set_constraint_atom(atom: &Value) -> bool {
     matches!(
         atom["kind"].as_str(),
-        Some("distinctValues" | "totalAtMost")
+        Some("distinctValues" | "totalAtMost" | "distinctPermanentControllers")
     )
 }
 
@@ -770,6 +780,63 @@ pub(in crate::oracle::canonical) fn lower_spell_object_predicate(
     predicate: &ObjectPredicate,
 ) -> Option<Value> {
     lower_object_predicate(predicate, ObjectPredicateDomain::Spell)
+}
+
+/// The cast origin of a spell query, for a consumer that records the zone a
+/// spell is cast from (CR 601.2a): `from your graveyard` is the origin,
+/// `from anywhere other than your hand` its negation. The origin must be one
+/// member of the top-level conjunction; nested under a union or a negation
+/// of something else it has no single zone, and `None` is returned. The
+/// remaining filter is the whole spell domain when only the origin was
+/// stated.
+pub(in crate::oracle::canonical) fn split_cast_origin(
+    predicate: &ObjectPredicate,
+) -> Option<(ObjectPredicate, Option<(CastOrigin, bool)>)> {
+    fn contains_origin(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::Relation(ObjectRelation::CastFrom(_)) => true,
+            ObjectPredicate::Not(child) => contains_origin(child),
+            ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+                children.iter().any(contains_origin)
+            }
+            _ => false,
+        }
+    }
+    fn origin_member(predicate: &ObjectPredicate) -> Option<(CastOrigin, bool)> {
+        match predicate {
+            ObjectPredicate::Relation(ObjectRelation::CastFrom(origin)) => Some((*origin, false)),
+            ObjectPredicate::Not(child) => match child.as_ref() {
+                ObjectPredicate::Relation(ObjectRelation::CastFrom(origin)) => {
+                    Some((*origin, true))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    if !contains_origin(predicate) {
+        return Some((predicate.clone(), None));
+    }
+    let members = match predicate {
+        ObjectPredicate::Intersection(members) => members.as_slice(),
+        single => std::slice::from_ref(single),
+    };
+    let mut origin = None;
+    let mut rest = Vec::new();
+    for member in members {
+        match origin_member(member) {
+            Some(read) if origin.is_none() => origin = Some(read),
+            Some(_) => return None,
+            None if contains_origin(member) => return None,
+            None => rest.push(member.clone()),
+        }
+    }
+    let rest = match rest.len() {
+        0 => ObjectPredicate::ObjectKind(ObjectKind::Spell),
+        1 => rest.remove(0),
+        _ => ObjectPredicate::Intersection(rest),
+    };
+    Some((rest, origin))
 }
 
 #[cfg(test)]

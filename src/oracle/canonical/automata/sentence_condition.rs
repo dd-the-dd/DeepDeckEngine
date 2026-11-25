@@ -27,6 +27,9 @@
 //! guessed.
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::*;
+use crate::oracle::characteristic_vocabulary::{
+    CharacteristicLexeme, lookup_object_selector_lexeme,
+};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 /// The object an object-state condition tests. Bindings stay symbolic until
@@ -49,6 +52,43 @@ pub(in crate::oracle::canonical) enum ConditionObjectReference {
     /// The spell a cast event's record binds (CR 601.2, 603.2): `it`, `its`
     /// or `that spell` in a cast trigger, read on the stack.
     EventSpell,
+    /// The object a cost of this ability (or of the same spell face) paid
+    /// with: `the sacrificed creature`, `the discarded card` (CR 601.2h,
+    /// 602.2b). Its paying cost records it as last known information when
+    /// paid (CR 608.2h); the producing cost is proven after card
+    /// composition, a missing or ambiguous producer is a binding failure.
+    CostPaid(CostPaidConditionObject),
+}
+
+/// The cost-paid object a condition names by the participle of its cost
+/// verb. Each kind is the symbolic binding its unique producing cost
+/// records (`contextual_binding.rs`, `bindObjectAs`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CostPaidConditionObject {
+    /// The permanent a `sacrificePermanent` cost sacrificed, read as it last
+    /// existed on the battlefield.
+    SacrificedPermanent,
+    /// The one card a discard cost (chosen or at random) discarded, read as
+    /// the card it is.
+    DiscardedCard,
+}
+
+impl CostPaidConditionObject {
+    /// The stack value the producing cost records.
+    pub(in crate::oracle::canonical) const fn decision_id(self) -> &'static str {
+        match self {
+            Self::SacrificedPermanent => "sacrificedPermanentObject",
+            Self::DiscardedCard => "discardedCardObject",
+        }
+    }
+
+    /// The object domain its recorded object is read in.
+    pub(in crate::oracle::canonical) const fn domain(self) -> ObjectKind {
+        match self {
+            Self::SacrificedPermanent => ObjectKind::Permanent,
+            Self::DiscardedCard => ObjectKind::Card,
+        }
+    }
 }
 
 impl ConditionObjectReference {
@@ -341,6 +381,9 @@ fn read_condition_atom(
     if let Some(atom) = super::try_recognize_random_outcome_condition(cursor, context.scope)? {
         return Ok(atom);
     }
+    if let Some(atom) = super::try_recognize_history_static_atom(cursor, context)? {
+        return Ok(atom);
+    }
     // ObjectControl: `you controlled it`, `you don't control that creature`.
     if let Some((width, negated)) = object_control_verb(cursor) {
         return recognize_object_control_atom(cursor, context, width, negated);
@@ -510,6 +553,15 @@ fn read_condition_atom(
         context.name_failure,
     ) {
         return recognize_source_condition_atom(cursor, context);
+    }
+    // ObjectSatisfies with an object an action or a cost VERBed as subject
+    // (`the sacrificed creature was legendary`, `the discarded card was
+    // multicolored`, `the exiled card is a God card`).
+    if participle_subject_starts(cursor) {
+        cursor.enter("condition.sentence.object.subject");
+        let object = recognize_participle_subject(cursor, context)?;
+        let phrase = recognize_object_verb_phrase(cursor, false)?;
+        return finish_object_verb_phrase(cursor, context, object, phrase);
     }
     // ObjectSatisfies with a referenced object as subject.
     if contraction_is(cursor, 0, "it", "s")
@@ -1596,7 +1648,11 @@ fn finish_object_verb_phrase(
             )?;
             cursor.enter("condition.sentence.object.zone-object");
             cursor.require(
-                !matches!(object, ConditionObjectReference::DepartedTarget(_)),
+                !matches!(
+                    object,
+                    ConditionObjectReference::DepartedTarget(_)
+                        | ConditionObjectReference::CostPaid(_)
+                ),
                 "an object whose current zone the condition can read",
             )?;
             Ok(ConditionAtom::ObjectZone(ObjectZoneConditionNode {
@@ -1993,9 +2049,27 @@ fn condition_binding_environment(
     environment
 }
 
+/// The width of a possession verb at the cursor (`has`, `had`, `have`,
+/// `doesn't have`, `didn't have`, `does not have`, `did not have`) and
+/// whether its auxiliary negates it.
+fn possession_verb_width(cursor: &OracleTokenCursor<'_>) -> Option<(usize, bool)> {
+    if word_is(cursor, 0, "has") || word_is(cursor, 0, "had") || word_is(cursor, 0, "have") {
+        return Some((1, false));
+    }
+    let auxiliary = contraction_is(cursor, 0, "doesn", "t")
+        || contraction_is(cursor, 0, "didn", "t")
+        || contraction_is(cursor, 0, "don", "t");
+    if auxiliary && word_is(cursor, 1, "have") {
+        return Some((2, true));
+    }
+    let full = word_is(cursor, 0, "does") || word_is(cursor, 0, "did") || word_is(cursor, 0, "do");
+    (full && word_is(cursor, 1, "not") && word_is(cursor, 2, "have")).then_some((3, true))
+}
+
 /// The verb phrase after a referenced object: a copula with a registered
-/// status list or a shared object query, or `has` with counters, a keyword
-/// or a numeric property comparison. `copula_read` is true after `it's`.
+/// status list or a shared object query, or a possession verb (negated by
+/// its auxiliary) with what the object has. `copula_read` is true after
+/// `it's`.
 fn recognize_object_state_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     copula_read: bool,
@@ -2003,6 +2077,18 @@ fn recognize_object_state_predicate(
     cursor.enter("condition.sentence.object.verb");
     let mut negated = false;
     if !copula_read {
+        if let Some((width, possession_negated)) = possession_verb_width(cursor) {
+            for _ in 0..width {
+                consume_current(cursor)?;
+            }
+            cursor.enter("condition.sentence.object.possession");
+            let predicate = recognize_possessed_characteristic(cursor)?;
+            return Ok(if possession_negated {
+                ObjectPredicate::Not(Box::new(predicate))
+            } else {
+                predicate
+            });
+        }
         let verb = cursor
             .peek()
             .map(|raw| raw.replace('\u{2019}', "'").to_ascii_lowercase())
@@ -2013,50 +2099,11 @@ fn recognize_object_state_predicate(
                 consume_current(cursor)?;
                 negated = true;
             }
-            "has" | "had" => {
-                consume_current(cursor)?;
-                cursor.enter("condition.sentence.object.possession");
-                // `has a +1/+1 counter on it`, `had no counters on it`,
-                // `has three or more quest counters on it` (CR 122.1): the
-                // shared counter qualifier of object queries.
-                if super::counter_qualifier_starts(cursor, 0) {
-                    return super::recognize_counter_qualifier(cursor);
-                }
-                // `has the chosen name`, `has that name` (CR 201.2, 608.2d):
-                // the shared chosen-name relation `with the chosen name`
-                // reads, with the same proof of an earlier `choose` of the
-                // program; outside a program it has no producer.
-                if word_is(cursor, 0, "the")
-                    && word_is(cursor, 1, "chosen")
-                    && word_is(cursor, 2, "name")
-                    || word_is(cursor, 0, "that") && word_is(cursor, 1, "name")
-                {
-                    cursor.enter("condition.sentence.object.chosen-name");
-                    cursor.require(
-                        super::resolution_choice_in_scope(cursor),
-                        "a card name an earlier `choose` instruction of this program records",
-                    )?;
-                    let width = if word_is(cursor, 0, "the") { 3 } else { 2 };
-                    for _ in 0..width {
-                        consume_current(cursor)?;
-                    }
-                    return Ok(ObjectPredicate::Relation(ObjectRelation::ChosenName));
-                }
-                if let Some(keyword) = cursor
-                    .peek()
-                    .and_then(parameterless_keyword_from_oracle_word)
-                    && !word_is(cursor, 0, "mana")
-                    && !word_is(cursor, 0, "power")
-                    && !word_is(cursor, 0, "toughness")
-                {
-                    consume_current(cursor)?;
-                    return Ok(ObjectPredicate::HasKeyword(keyword));
-                }
-                let property = recognize_selector_numeric_property(cursor)?;
-                cursor.enter("condition.sentence.object.comparison");
-                return recognize_numeric_property_comparison_tail(cursor, property);
+            _ => {
+                return Err(cursor.fail(
+                    "`is`, `was`, `isn't`, `wasn't`, `has`, `had`, `doesn't have` or `didn't have`",
+                ));
             }
-            _ => return Err(cursor.fail("`is`, `was`, `isn't`, `wasn't`, `has` or `had`")),
         }
     }
     if word_is(cursor, 0, "not") {
@@ -2082,6 +2129,156 @@ fn recognize_object_state_predicate(
         ObjectPredicate::Not(Box::new(predicate))
     } else {
         predicate
+    })
+}
+
+/// What an object has after a possession verb: the predicate a `with`
+/// qualifier of the shared object query states for the same object (`has a
+/// +1/+1 counter on it` is `with a +1/+1 counter on it`). In order:
+/// counters (CR 122.1), the chosen name (CR 201.2), a comparative property
+/// (`greater power than this creature`), a keyword ability without or with
+/// parameters (`flying`, `first strike`, `toxic`, `a cycling ability`), and
+/// a numeric property comparison (`mana value 2 or less`).
+fn recognize_possessed_characteristic(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    // `has a +1/+1 counter on it`, `had no counters on it`, `has three or
+    // more quest counters on it`: the shared counter qualifier.
+    if super::counter_qualifier_starts(cursor, 0) {
+        return super::recognize_counter_qualifier(cursor);
+    }
+    // `has the chosen name`, `has that name` (CR 201.2, 608.2d): the shared
+    // chosen-name relation `with the chosen name` reads, with the same proof
+    // of an earlier `choose` of the program; outside a program it has no
+    // producer.
+    if word_is(cursor, 0, "the") && word_is(cursor, 1, "chosen") && word_is(cursor, 2, "name")
+        || word_is(cursor, 0, "that") && word_is(cursor, 1, "name")
+    {
+        cursor.enter("condition.sentence.object.chosen-name");
+        cursor.require(
+            super::resolution_choice_in_scope(cursor),
+            "a card name an earlier `choose` instruction of this program records",
+        )?;
+        let width = if word_is(cursor, 0, "the") { 3 } else { 2 };
+        for _ in 0..width {
+            consume_current(cursor)?;
+        }
+        return Ok(ObjectPredicate::Relation(ObjectRelation::ChosenName));
+    }
+    if comparative_operator_at(cursor, 0).is_some() {
+        return recognize_possessed_comparative(cursor);
+    }
+    // `has flying`, `has first strike`: the shared parameterless keyword.
+    if cursor.peek().is_some_and(keyword_possession_word) {
+        cursor.enter("condition.sentence.object.keyword");
+        return recognize_parameterless_keyword(cursor).map(ObjectPredicate::HasKeyword);
+    }
+    // `has toxic`, `has a kicker ability` (CR 702): a keyword ability with
+    // parameters, the qualifier atom of `with toxic`.
+    let article = usize::from(word_is(cursor, 0, "a") || word_is(cursor, 0, "an"));
+    if let Some(keyword) = cursor
+        .peek_ahead(article)
+        .and_then(KeywordAbilityName::from_oracle_word)
+    {
+        cursor.enter("condition.sentence.object.keyword-ability");
+        for _ in 0..=article {
+            consume_current(cursor)?;
+        }
+        if article == 1 {
+            cursor.consume("ability")?;
+        }
+        return Ok(ObjectPredicate::Qualifier(ObjectQualifier::KeywordAbility(
+            keyword,
+        )));
+    }
+    cursor.enter("condition.sentence.object.property");
+    let property = recognize_selector_numeric_property(cursor)?;
+    cursor.enter("condition.sentence.object.comparison");
+    recognize_numeric_property_comparison_tail(cursor, property)
+}
+
+/// A word that begins a parameterless keyword (`flying`, `first strike`,
+/// `double strike`); a numeric property (`mana value`, `power`,
+/// `toughness`) never does.
+fn keyword_possession_word(raw: &str) -> bool {
+    let property = ["mana", "power", "toughness"]
+        .iter()
+        .any(|word| raw.eq_ignore_ascii_case(word));
+    !property
+        && (parameterless_keyword_from_oracle_word(raw).is_some()
+            || raw.eq_ignore_ascii_case("first")
+            || raw.eq_ignore_ascii_case("double"))
+}
+
+/// Width of `[equal or] greater|lesser` at `offset` and the operator it
+/// states for the object against its anchor (CR 107.1).
+fn comparative_operator_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(usize, NumericComparisonOperator)> {
+    let inclusive = word_is(cursor, offset, "equal") && word_is(cursor, offset + 1, "or");
+    let at = if inclusive { offset + 2 } else { offset };
+    let raw = cursor.peek_ahead(at)?.to_ascii_lowercase();
+    let operator = match (raw.as_str(), inclusive) {
+        ("greater", false) => NumericComparisonOperator::GreaterThan,
+        ("lesser", false) => NumericComparisonOperator::LessThan,
+        ("greater", true) => NumericComparisonOperator::GreaterThanOrEqual,
+        ("lesser", true) => NumericComparisonOperator::LessThanOrEqual,
+        _ => return None,
+    };
+    Some((at + 1 - offset, operator))
+}
+
+/// `greater power than this creature`, `greater power or toughness than
+/// Hulkling`, `lesser mana value than that creature` (CR 107.1): each
+/// property of the object compared with the same property of the anchor,
+/// a disjunction over `or`. The anchor is the ability's source or a bound
+/// object the shared binding environment resolves; its property is the
+/// shared bound-object read (live, else last known information).
+fn recognize_possessed_comparative(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("condition.sentence.object.comparative");
+    let (width, operator) = cursor.require_value(
+        comparative_operator_at(cursor, 0),
+        "`greater`, `lesser`, `equal or greater` or `equal or lesser`",
+    )?;
+    for _ in 0..width {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.sentence.object.comparative-property");
+    let mut properties = vec![recognize_selector_numeric_property(cursor)?];
+    while word_is(cursor, 0, "or") && !word_is(cursor, 1, "than") {
+        cursor.consume("or")?;
+        properties.push(recognize_selector_numeric_property(cursor)?);
+    }
+    cursor.enter("condition.sentence.object.comparative-anchor");
+    cursor.consume("than")?;
+    let anchor = if super::bound_object_reference_starts(cursor) {
+        let environment = installed_binding_environment(cursor);
+        super::recognize_bound_object_reference(cursor, &environment)?
+    } else {
+        let names = cursor.source_names().to_vec();
+        PermanentEffectReference::Source(recognize_source_reference(cursor, &names, None)?)
+    };
+    let mut comparisons = Vec::with_capacity(properties.len());
+    for property in properties {
+        let right = super::bound_object_numeric_property(
+            anchor,
+            property,
+            ObjectPredicate::ObjectKind(ObjectKind::Permanent),
+        )
+        .map_err(|expected| cursor.fail(expected))?;
+        comparisons.push(ObjectPredicate::NumericComparison {
+            left: property,
+            operator,
+            right: Box::new(right),
+        });
+    }
+    Ok(if comparisons.len() == 1 {
+        comparisons.remove(0)
+    } else {
+        ObjectPredicate::Union(comparisons)
     })
 }
 
@@ -2234,7 +2431,7 @@ fn recognize_existential_counter_atom(
 /// the latest declared card target, or the current card-collection result.
 /// Outside an effect program, `it` denotes the source when the parent's
 /// subject is its source.
-fn resolve_object_anaphor(
+pub(in crate::oracle::canonical) fn resolve_object_anaphor(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionObjectReference> {
@@ -2310,6 +2507,103 @@ fn resolve_card_anaphor(
     }
 }
 
+/// The registered nominal of one non-possessive token `offset` tokens
+/// ahead (`creature`, `permanent`, `artifact`, `card`).
+fn plain_nominal_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<TargetNominal> {
+    let token = cursor
+        .token_slice(cursor.position() + offset, cursor.position() + offset + 1)
+        .first()
+        .filter(|token| token.token_type != "possessiveTypeWord")?;
+    match lookup_object_selector_lexeme(&token.raw) {
+        Some(CharacteristicLexeme::CardType(value)) => Some(TargetNominal::CardType(value)),
+        Some(CharacteristicLexeme::ObjectDomain(value)) => Some(TargetNominal::Domain(value)),
+        _ => None,
+    }
+}
+
+/// Lexical lookahead for `the VERBed NOUN` as a condition subject: a
+/// definite description of an object an action or a cost VERBed (`the
+/// sacrificed creature`, `the discarded card`). Its genitive (`the
+/// sacrificed creature's power`) is a numeric operand, not this subject.
+fn participle_subject_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_is(cursor, 0, "the")
+        && cursor
+            .peek_ahead(1)
+            .and_then(ActionResultVerb::from_word)
+            .is_some()
+        && plain_nominal_at(cursor, 2).is_some()
+}
+
+/// `the VERBed NOUN` (CR 608.2c, 608.2h): the one object an earlier action
+/// of this program VERBed when its selection guarantees the nominal (`Exile
+/// target enchantment. If the exiled card is a God card`), else the object
+/// a cost of this ability VERBed (`Sacrifice another creature: ... If the
+/// sacrificed creature was legendary`), whose producing cost the card
+/// composition proves (`contextual_binding.rs`). A participle without a
+/// producer of either kind is a committed diagnostic.
+fn recognize_participle_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionObjectReference> {
+    cursor.enter("condition.sentence.object.participle");
+    cursor.consume("the")?;
+    let verb = cursor
+        .peek()
+        .and_then(ActionResultVerb::from_word)
+        .ok_or_else(|| cursor.fail("the past participle of an object-producing verb"))?;
+    consume_current(cursor)?;
+    cursor.enter("condition.sentence.object.participle-nominal");
+    let nominal = plain_nominal_at(cursor, 0)
+        .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
+    consume_current(cursor)?;
+    cursor.enter("condition.sentence.object.participle-antecedent");
+    if let Some(program) = context.program {
+        let environment = condition_binding_environment(cursor, program.effects);
+        if let Some(result) = environment.result_object.as_ref().filter(|result| {
+            result.verb == Some(verb)
+                && result.number == GrammaticalNumber::Singular
+                && selector_names_nominals(&result.selector, &[nominal])
+        }) {
+            // The card a sacrifice made is another object (CR 400.7); the
+            // permanent's last known information is not recorded for it.
+            cursor.require(
+                result.reference.permanent || verb != ActionResultVerb::Sacrificed,
+                SACRIFICED_RESULT_CONDITION,
+            )?;
+            return Ok(ConditionObjectReference::Permanent(
+                PermanentEffectReference::ActionResult(result.reference),
+            ));
+        }
+    }
+    let object = match verb {
+        ActionResultVerb::Sacrificed => CostPaidConditionObject::SacrificedPermanent,
+        ActionResultVerb::Discarded => CostPaidConditionObject::DiscardedCard,
+        _ => {
+            return Err(cursor.fail(
+                "an earlier action of this program that VERBed exactly one object of this nominal, or a sacrifice or discard cost",
+            ));
+        }
+    };
+    // The nominal restates the cost's object: a sacrifice pays with a
+    // permanent of the named kind, a discard with a card.
+    cursor.require(
+        match (object, nominal) {
+            (CostPaidConditionObject::SacrificedPermanent, TargetNominal::CardType(card_type)) => {
+                card_type.is_permanent_type()
+            }
+            (CostPaidConditionObject::SacrificedPermanent, TargetNominal::Domain(kind)) => {
+                kind == ObjectKind::Permanent
+            }
+            (CostPaidConditionObject::DiscardedCard, TargetNominal::Domain(kind)) => {
+                kind == ObjectKind::Card
+            }
+            (CostPaidConditionObject::DiscardedCard, TargetNominal::CardType(_)) => false,
+        },
+        "a nominal the paying cost's object has (a permanent kind for a sacrifice, `card` for a discard)",
+    )?;
+    Ok(ConditionObjectReference::CostPaid(object))
+}
+
 fn finish_referenced_object(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
@@ -2351,6 +2645,7 @@ fn finish_referenced_object(
             ObjectKind::Card
         }
         ConditionObjectReference::EventSpell => ObjectKind::Spell,
+        ConditionObjectReference::CostPaid(object) => object.domain(),
     };
     cursor.require(
         predicate.supports_domain(domain),
@@ -2402,3 +2697,7 @@ mod tests;
 #[cfg(test)]
 #[path = "sentence_condition_object_atoms_tests.rs"]
 mod object_atoms_tests;
+
+#[cfg(test)]
+#[path = "sentence_condition_possession_tests.rs"]
+mod possession_tests;

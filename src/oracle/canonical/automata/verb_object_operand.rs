@@ -59,9 +59,7 @@ impl VerbObjectOperandNode {
             Self::CardTargets(target) => {
                 target.unbounded || target.cardinality.maximum != NumericAtom::Integer(1)
             }
-            Self::Selection(selection) => selection
-                .bounds
-                .is_none_or(|bounds| bounds.maximum != NumericAtom::Integer(1)),
+            Self::Selection(selection) => selection.is_plural(),
             Self::Collection { .. } | Self::LibraryTop(_) => true,
         }
     }
@@ -128,10 +126,15 @@ pub(in crate::oracle::canonical) fn recognize_verb_object_operand(
     }
     // (3) Declared targets. A possessive `target player's` owns a zone and
     // is never an object target slot.
+    // A count that heads no `target` (`any number of Mountains you
+    // control`, `one or more lands`) is a resolution choice (CR 608.2d),
+    // read below by the quantified query; the same count before `target`
+    // is a declaration.
     if !starts_possessive_target_player(cursor)
         && (target_operand_starts(cursor)
             || (expectation.counts == TargetCountSupport::Expressed
-                && expressed_target_count_starts(cursor)))
+                && expressed_target_count_starts(cursor)
+                && !resolution_selection_count_starts(cursor)))
     {
         cursor.enter("verb-operand.targets");
         return recognize_target_list_with_counts(cursor, expectation.counts)
@@ -148,7 +151,42 @@ pub(in crate::oracle::canonical) fn recognize_verb_object_operand(
     // (4) A quantified non-target query: a universal collection or a
     // resolution choice.
     cursor.enter("verb-operand.query");
-    recognize_quantified_permanent_operand(cursor)
+    let operand = recognize_quantified_permanent_operand(cursor)?;
+    // The operand ends transactionally: a relative clause the shared query
+    // did not read is this operand's failure, not the end of the operand.
+    cursor.enter("verb-operand.query.tail");
+    refuse_unread_relative_tail(cursor)?;
+    Ok(operand)
+}
+
+/// `one or more QUERY` (CR 608.2d): at least one, no upper bound. The noun
+/// phrase reads the query as a bare plural; the count is this reader's.
+fn recognize_at_least_one_selection(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<VerbObjectOperandNode> {
+    cursor.enter("verb-operand.query.at-least-one");
+    cursor.consume_phrase(&["one", "or", "more"])?;
+    let phrase = recognize_object_noun_phrase(
+        cursor,
+        ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Permanent]),
+    )?;
+    cursor.enter("verb-operand.query.at-least-one.domain");
+    cursor.require(
+        phrase.determiner.is_none() && phrase.domain == Some(ObjectKind::Permanent),
+        "a plural battlefield-permanent query after `one or more`",
+    )?;
+    let exclude_source = phrase.exclude_source;
+    let mut objects = phrase.query.into_object_query(cursor)?;
+    objects.exclude_source = exclude_source;
+    Ok(VerbObjectOperandNode::Selection(
+        PermanentSelectionOperandNode {
+            bounds: Some(TargetCount {
+                minimum: NumericExpression::from(1),
+                maximum: TargetCountBound::Unbounded,
+            }),
+            query: objects,
+        },
+    ))
 }
 
 /// `target`, `another target`, a literal count before `[other] target`, or
@@ -203,6 +241,17 @@ fn target_operand_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 fn recognize_quantified_permanent_operand(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<VerbObjectOperandNode> {
+    if ["one", "or", "more"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+    {
+        return recognize_at_least_one_selection(cursor);
+    }
     let phrase = recognize_object_noun_phrase(
         cursor,
         ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Permanent]),
@@ -234,32 +283,30 @@ fn recognize_quantified_permanent_operand(
         }
         Some(ObjectDeterminer::Chosen { quantity, .. }) => {
             cursor.enter("verb-operand.query.selection");
+            // The one count node shared with declarations; the amount is the
+            // shared numeric expression, validated in the face context when
+            // the choice is lowered (never defaulted).
             let bounds = match quantity {
-                ChosenObjectQuantity::Exactly(NumericExpression::Atom(amount)) => {
-                    ExpressedTargetCardinality {
-                        minimum: amount,
-                        maximum: amount,
-                    }
-                }
-                ChosenObjectQuantity::UpTo(NumericExpression::Atom(amount)) => {
-                    ExpressedTargetCardinality {
-                        minimum: NumericAtom::Integer(0),
-                        maximum: amount,
-                    }
-                }
-                ChosenObjectQuantity::Exactly(_) | ChosenObjectQuantity::UpTo(_) => {
-                    return Err(cursor.fail(
-                        "a literal or X resolution quantity for a chosen permanent operand",
-                    ));
-                }
-                ChosenObjectQuantity::AnyNumber => {
-                    return Err(cursor.fail(
-                        "a bounded resolution quantity; `any number of` non-target permanents has no selection writer",
-                    ));
-                }
+                ChosenObjectQuantity::Exactly(amount) => TargetCount {
+                    minimum: amount.clone(),
+                    maximum: TargetCountBound::Amount(amount),
+                },
+                ChosenObjectQuantity::UpTo(amount) => TargetCount {
+                    minimum: NumericExpression::from(0),
+                    maximum: TargetCountBound::Amount(amount),
+                },
+                // `any number of QUERY`: zero or more, no upper bound.
+                ChosenObjectQuantity::AnyNumber => TargetCount {
+                    minimum: NumericExpression::from(0),
+                    maximum: TargetCountBound::Unbounded,
+                },
             };
             cursor.require(
-                !matches!(bounds.maximum, NumericAtom::Integer(value) if value <= 0),
+                !matches!(
+                    &bounds.maximum,
+                    TargetCountBound::Amount(NumericExpression::Atom(NumericAtom::Integer(value)))
+                        if *value <= 0
+                ),
                 "a positive resolution quantity",
             )?;
             Ok(VerbObjectOperandNode::Selection(

@@ -145,6 +145,8 @@ fn lower_entry_copy(
         cursor.enter("replacement.entry-frame.copy-exception.runtime");
         cursor.require(
             changes.subtypes.is_empty()
+                && changes.supertypes.is_empty()
+                && changes.copy_name.is_none()
                 && changes.card_types.is_empty()
                 && changes.colors.is_none()
                 && changes.base_power_toughness().is_none()

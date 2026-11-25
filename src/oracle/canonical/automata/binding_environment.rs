@@ -78,6 +78,17 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     /// creature attacks or would attack (CR 506.2, 508.1c, 509.1b). Only
     /// the static combat-restriction parent sets it.
     pub combat_defending_player: bool,
+    /// The card selector of the permanent an earlier program step put onto
+    /// the battlefield, when a following independent step inherits that
+    /// moved permanent as its antecedent (`inherit_program_step_antecedents`,
+    /// CR 400.7, 608.2c). Only the program parent sets it; `None` otherwise.
+    pub inherited_moved_selector: Option<TargetSelector>,
+    /// The token index where a replacing sentence's postposed `instead`
+    /// was written (`If COND, NAME deals 4 damage instead.`). Only the
+    /// replacing parent sets it (`recognize_replacing_sequence`); a damage
+    /// frame whose recipient is omitted exactly there restates the replaced
+    /// damage's recipient (CR 608.2c). `None` otherwise.
+    pub replacing_instead_at: Option<usize>,
 }
 
 impl FrameBindings {
@@ -140,6 +151,12 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// gates the declaring action; it is never a permanent operand. The
     /// program parent publishes it (`publish_program_antecedents`).
     pub declared_target: Option<DeclaredTargetAntecedent>,
+    /// The recipient of the damage the latest action of the program dealt,
+    /// as a later reference to it: the slot it declared, or the fixed or
+    /// bound group it named. A replacing sentence's `deals N damage
+    /// instead` restates that recipient (CR 608.2c); the program parent
+    /// publishes it (`publish_program_antecedents`).
+    pub restated_damage_recipient: Option<super::DamageRecipientNode>,
 }
 
 /// A singular declared target that need not be a battlefield permanent: the
@@ -210,7 +227,193 @@ pub(in crate::oracle::canonical) fn publish_program_antecedents(
     environment.player_target = program_player_target(effects);
     environment.result_object = super::permanent_subject::program_action_result(effects);
     environment.declared_target = program_declared_target(effects);
+    environment.restated_damage_recipient = restated_damage_recipient(effects);
+    retype_moved_object(&mut environment, effects);
     environment
+}
+
+/// Zone-crossing retyping (CR 400.7): the permanent a move put onto the
+/// battlefield is a new object, but the object it was is the one the move
+/// named, so its nominal follows from what that object was declared or
+/// recorded as. When the move restates no card predicate (`return it to the
+/// battlefield`, `put that card onto the battlefield`), the selector is the
+/// one of the object the moved pronoun named: a declared target's slot,
+/// the event's object (the card a dying creature became, read only when the
+/// move is the program's first action, so no observed card is nearer), or
+/// the one object an earlier action selected. Anything else stays without a
+/// selector and a nominal anaphor of it keeps its committed diagnostic.
+fn retype_moved_object(environment: &mut BindingEnvironment, effects: &[super::LocalEffectNode]) {
+    let moved = PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield);
+    let Some(object) = environment
+        .object
+        .as_mut()
+        .filter(|object| object.reference == moved && object.selector.is_none())
+    else {
+        return;
+    };
+    let Some((move_index, operand)) =
+        effects
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(index, effect)| {
+                super::permanent_subject::moved_onto_battlefield_selector(effect)
+                    .map(|_| (index, moved_card_operand(effect)))
+            })
+    else {
+        // No move of this sequence: the permanent an earlier program step
+        // put onto the battlefield, with the selector that step published.
+        object.selector = environment.frame.inherited_moved_selector.clone();
+        return;
+    };
+    object.selector = match operand {
+        Some(super::CardOperandNode::ObjectAntecedent {
+            object: PermanentEffectReference::Target(binding),
+            ..
+        }) => effects
+            .get(binding.effect_index)
+            .and_then(|effect| {
+                super::permanent_subject::target_slot_selector(effect, binding.slot_index)
+            })
+            .cloned(),
+        Some(super::CardOperandNode::ObjectAntecedent {
+            object: PermanentEffectReference::Observed(TypedObservedEventObject::EventPermanent),
+            ..
+        }) => environment
+            .frame
+            .event_object
+            .as_ref()
+            .map(|slot| TargetSelector::Object(slot.predicate.clone())),
+        Some(super::CardOperandNode::ObjectAntecedent {
+            object: PermanentEffectReference::ActionResult(result),
+            ..
+        }) => effects.get(result.effect_index).and_then(|effect| {
+            super::permanent_subject::action_result_object(effect, result.effect_index)
+                .map(|produced| produced.selector)
+        }),
+        // `return it to the battlefield` in a frame whose event put its
+        // object into a public zone: the card the event's object became.
+        Some(super::CardOperandNode::Reference(super::CardCollectionReferenceNode::Selected))
+            if move_index == 0 && environment.frame.event_card.is_some() =>
+        {
+            environment
+                .frame
+                .event_object
+                .as_ref()
+                .filter(|slot| slot.departed)
+                .map(|slot| TargetSelector::Object(slot.predicate.clone()))
+        }
+        _ => None,
+    };
+}
+
+/// Branch inheritance across independent program steps (CR 608.2c, 400.7):
+/// the context a following step of `previous` is read with. When the last
+/// written sentence of `previous` ends by putting one card onto the
+/// battlefield with an ordinary card move (`You may put a creature card from
+/// your hand onto the battlefield.`), the following steps start with that
+/// permanent as their singular antecedent (`That creature gains haste.`),
+/// with the move's card selector. Such a move always binds the moved
+/// permanent program-wide, so a following step reads the same binding; when
+/// an optional move was declined the binding names no object and the
+/// following action on it does nothing. Every other antecedent (a declared
+/// target, an action result) is bound per sentence group and is not
+/// inherited: the program parent keeps its committed diagnostic.
+///
+/// The program parent calls it once per following step group, e.g. in
+/// `effect_program::complete_outcome_block`:
+/// `let context = &super::inherit_program_step_antecedents(context, &block);`
+pub(in crate::oracle::canonical) fn inherit_program_step_antecedents(
+    context: &EffectRecognitionContext,
+    previous: &super::EffectProgramNode,
+) -> EffectRecognitionContext {
+    let sequence = match previous {
+        super::EffectProgramNode::Sequence(sequence) => sequence,
+        super::EffectProgramNode::Optional { body, .. } => match body.as_ref() {
+            super::EffectProgramNode::Sequence(sequence) => sequence,
+            _ => return context.clone(),
+        },
+        _ => return context.clone(),
+    };
+    inherit_sequence_antecedents(context, sequence)
+}
+
+/// The same inheritance from one producing sentence: the body of an
+/// outcome (`you may return target creature card ... to the battlefield. If
+/// you do, it gains haste.`) is read with the permanent its producer put
+/// onto the battlefield. The program parent calls it with the producer's
+/// sequence, e.g. in `effect_program::recognize_optional_action_block`:
+/// `let context = &super::inherit_sequence_antecedents(context, &action);`
+/// before reading the outcome body.
+pub(in crate::oracle::canonical) fn inherit_sequence_antecedents(
+    context: &EffectRecognitionContext,
+    sequence: &super::EffectSequenceNode,
+) -> EffectRecognitionContext {
+    let mut inherited = context.clone();
+    let Some(last) = sequence.effects.last() else {
+        return inherited;
+    };
+    let Some(selector) = always_bound_battlefield_entry(last) else {
+        return inherited;
+    };
+    inherited.permanent_subject_scope = PermanentSubjectScope::Local(Some(
+        PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
+    ));
+    inherited.permanent_subject_selector = selector.clone();
+    inherited.frame.inherited_moved_selector = selector;
+    inherited
+}
+
+/// The card selector of an ordinary card move of exactly one card onto the
+/// battlefield (looking through an optional block), whose lowering always
+/// binds the permanent it became; `None` for any other action, including
+/// entries bound only when read in their own sequence (a library search, a
+/// deployment, the source's own return).
+fn always_bound_battlefield_entry(
+    effect: &super::LocalEffectNode,
+) -> Option<Option<TargetSelector>> {
+    match effect {
+        super::LocalEffectNode::CardAction(super::CardActionNode::Move { .. }) => {
+            super::permanent_subject::moved_onto_battlefield_selector(effect)
+        }
+        super::LocalEffectNode::OptionalSequence(body) => {
+            body.effects.last().and_then(always_bound_battlefield_entry)
+        }
+        _ => None,
+    }
+}
+
+/// The card operand of the move a moved-onto-battlefield antecedent names,
+/// looking through an optional block (`you may return it ...`).
+fn moved_card_operand(effect: &super::LocalEffectNode) -> Option<&super::CardOperandNode> {
+    match effect {
+        super::LocalEffectNode::CardAction(super::CardActionNode::Move { cards, .. }) => {
+            Some(cards)
+        }
+        super::LocalEffectNode::OptionalSequence(body) => {
+            body.effects.last().and_then(moved_card_operand)
+        }
+        _ => None,
+    }
+}
+
+/// The one declared party of a damage-prevention shield a later anaphor
+/// names, with its party position (0: the protected recipient, 1: the
+/// source whose damage is prevented, as `PreventDamageEffectNode::parties`
+/// orders them): the protected target, else the targeted source when the
+/// shield declares no protected target (`Prevent all damage target creature
+/// would deal this turn. That creature ...`). The lowering binds exactly
+/// this slot, so the parser and the lowering name the same declaration.
+pub(in crate::oracle::canonical) fn prevention_declared_party_index(
+    node: &super::PreventDamageEffectNode,
+) -> Option<(usize, &super::TargetListNode)> {
+    match (&node.recipient, &node.source) {
+        (Some(super::DamagePartyNode::Targets(targets)), _) => Some((0, targets)),
+        (_, Some(super::DamagePartyNode::Targets(targets))) if !node.recipient_also_source => {
+            Some((1, targets))
+        }
+        _ => None,
+    }
 }
 
 /// Publishes only the declared-target antecedent over `effects`, the
@@ -231,6 +434,44 @@ pub(in crate::oracle::canonical) fn publish_installed_declared_target(
 /// the recipient of damage or of a prevention shield written `any target`.
 /// A later action that declares a target of its own is the nearer
 /// declaration, so nothing earlier is published past it.
+/// The recipient of the program's latest action when it dealt damage, as
+/// a reference that declares nothing: one declared slot becomes the bound
+/// target it is; a fixed or bound group is the same group. Several slots or
+/// a variable slot have no single restatement.
+fn restated_damage_recipient(
+    effects: &[super::LocalEffectNode],
+) -> Option<super::DamageRecipientNode> {
+    let (effect_index, super::LocalEffectNode::DealDamage(damage)) =
+        effects.iter().enumerate().last()?
+    else {
+        return None;
+    };
+    match &damage.recipient {
+        super::DamageRecipientNode::Targets(targets) => match targets.slots.as_slice() {
+            [slot] if slot.cardinality == super::TargetCardinality::EXACTLY_ONE => {
+                // A targeted damage source occupies the action's first slot.
+                (!matches!(damage.source, super::PermanentOperandNode::Targets(_))).then_some(
+                    super::DamageRecipientNode::BoundObject(PermanentEffectReference::Target(
+                        super::TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                    )),
+                )
+            }
+            _ => None,
+        },
+        super::DamageRecipientNode::All(groups)
+            if groups
+                .iter()
+                .any(|group| matches!(group, super::DamageRecipientNode::Targets(_))) =>
+        {
+            None
+        }
+        recipient => Some(recipient.clone()),
+    }
+}
+
 fn program_declared_target(effects: &[super::LocalEffectNode]) -> Option<DeclaredTargetAntecedent> {
     for (effect_index, effect) in effects.iter().enumerate().rev() {
         let targets = match effect {
@@ -438,6 +679,7 @@ impl BindingEnvironment {
             player_target: None,
             result_object: None,
             declared_target: None,
+            restated_damage_recipient: None,
         }
     }
 }
@@ -1386,6 +1628,17 @@ pub(in crate::oracle::canonical) fn selector_names_nominals(
     }
 }
 
+/// The permanent a move put onto the battlefield is named by `permanent`
+/// whatever card it was (CR 110.1), and by any nominal its retyped
+/// selector names (`creature` after `return target creature card ... to the
+/// battlefield`, CR 400.7).
+fn moved_permanent_names(antecedent: &ObjectSubjectAntecedent, nominals: &[TargetNominal]) -> bool {
+    nominals
+        .iter()
+        .any(|nominal| *nominal == TargetNominal::Domain(ObjectKind::Permanent))
+        || antecedent_names(antecedent, nominals)
+}
+
 fn antecedent_names(antecedent: &ObjectSubjectAntecedent, nominals: &[TargetNominal]) -> bool {
     antecedent
         .selector
@@ -1486,12 +1739,20 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
             Err(DEPARTED_ACTION_RESULT_OPERAND)
         };
     }
-    // A lexical target with this nominal wins; otherwise the event's object
-    // when the event wrote this nominal for it.
-    let lexical = environment.object.as_ref().filter(|antecedent| {
-        matches!(antecedent.reference, PermanentEffectReference::Target(_))
-            && antecedent_names(antecedent, nominals)
-    });
+    // A lexical target with this nominal wins, and so does the permanent a
+    // move of this program put onto the battlefield (the event's dying
+    // object a move returned is that new permanent, CR 400.7); otherwise
+    // the event's object when the event wrote this nominal for it.
+    let lexical = environment
+        .object
+        .as_ref()
+        .filter(|antecedent| match antecedent.reference {
+            PermanentEffectReference::Target(_) => antecedent_names(antecedent, nominals),
+            PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield) => {
+                moved_permanent_names(antecedent, nominals)
+            }
+            _ => false,
+        });
     if lexical.is_none()
         && let Some(slot) = environment
             .frame
@@ -1512,6 +1773,14 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
     }
     if let Some(antecedent) = environment.object.as_ref() {
         match antecedent.reference {
+            // The permanent a move put onto the battlefield is a permanent
+            // whatever card it was (CR 110.1, 400.7): `that permanent`
+            // names it; any other nominal follows from its card's selector.
+            PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield)
+                if moved_permanent_names(antecedent, nominals) =>
+            {
+                return Ok(antecedent.reference);
+            }
             // A declared target, or the card a move put onto the battlefield
             // (its declared card predicate is the selector the nominal must
             // follow from).
@@ -2255,9 +2524,9 @@ fn participle_property_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 /// `the VERBed NOUN's PROPERTY` (CR 608.2c, 608.2h): the property of the one
 /// object an earlier action of this program VERBed, when its selection
 /// guarantees the nominal; read as last known information once it left the
-/// battlefield. `the sacrificed NOUN's power|toughness` without such an
-/// action keeps its reading as the permanent sacrificed to pay a cost of
-/// this ability (`recognize_sacrificed_cost_object_property`). Any other
+/// battlefield. `the sacrificed|tapped NOUN's PROPERTY` without such an
+/// action keeps its reading as the permanent sacrificed or tapped to pay a
+/// cost of this ability (`recognize_sacrificed_cost_object_property`). Any other
 /// participle without a producing action is a committed diagnostic.
 fn recognize_participle_object_property(
     cursor: &mut OracleTokenCursor<'_>,
@@ -2289,7 +2558,13 @@ fn recognize_participle_object_property(
             bound_object_numeric_property(reference, property, nominal.as_predicate())
                 .map_err(|expected| cursor.fail(expected))
         }
-        None if verb == super::ActionResultVerb::Sacrificed => {
+        // A sacrifice or tap cost of this ability is the other producer of
+        // `the sacrificed|tapped NOUN's PROPERTY` (`cost_paid_object.rs`).
+        None if matches!(
+            verb,
+            super::ActionResultVerb::Sacrificed | super::ActionResultVerb::Tapped
+        ) =>
+        {
             *cursor = start;
             super::recognize_sacrificed_cost_object_property(cursor)
         }

@@ -1,0 +1,246 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-performers/funeral-pyre-token-goes-to-the-exiled-card-owner",
+  "seed": 8101,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetCard",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "anyGraveyard"
+            },
+            "where": null
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "exileTargetCards",
+        "cards": {
+          "kind": "chosenTargets",
+          "id": "targetCard"
+        }
+      },
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "performer": {
+          "kind": "ownerOf",
+          "object": {
+            "kind": "chosenTarget",
+            "id": "targetCard"
+          }
+        },
+        "quantity": {
+          "kind": "integer",
+          "value": 1
+        },
+        "token": {
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Spirit"
+          ],
+          "colors": [
+            "White"
+          ],
+          "power": {
+            "kind": "integer",
+            "value": 1
+          },
+          "toughness": {
+            "kind": "integer",
+            "value": 1
+          },
+          "abilities": [
+            {
+              "kind": "flying"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Pyre controller",
+        "battlefield": [
+          {
+            "id": "pyre-source",
+            "name": "Pyre Source",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetCard",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "anyGraveyard"
+                        },
+                        "where": null
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "exileTargetCards",
+                    "cards": {
+                      "kind": "chosenTargets",
+                      "id": "targetCard"
+                    }
+                  },
+                  {
+                    "kind": "createTokens",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "performer": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetCard"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "token": {
+                      "types": [
+                        "Creature"
+                      ],
+                      "subtypes": [
+                        "Spirit"
+                      ],
+                      "colors": [
+                        "White"
+                      ],
+                      "power": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "toughness": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "abilities": [
+                        {
+                          "kind": "flying"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Card owner",
+        "graveyard": [
+          {
+            "id": "owned-card",
+            "name": "Owned Card",
+            "typeLine": "Sorcery"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "pyre-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetCard": {
+          "kind": "cardDefinition",
+          "definitionId": "owned-card"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "exile",
+      "definitionId": "owned-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

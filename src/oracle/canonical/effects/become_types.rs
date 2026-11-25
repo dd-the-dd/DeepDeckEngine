@@ -9,7 +9,12 @@
 //! - layer 5: `setColors` (CR 105.3), a chosen color set reading its decision;
 //! - layer 6: `grantKeyword` / `grantAbility` / `removeKeywordsFromPermanents`
 //!   / ability loss;
-//! - layer 7b: `setBasePowerToughness` with shared numeric expressions.
+//! - layer 7b: `setBasePowerToughness` with shared numeric expressions, or
+//!   `setPower` for the base power alone;
+//! - layer 7d: `switchPowerToughness` (CR 613.4d);
+//! - supertypes (CR 205.4): `addPermanentCharacteristics` for a lasting
+//!   change of one target, `addSupertype` in a copy's exceptions;
+//! - a copy's name (CR 707.9b): `setName` in its exceptions only.
 use super::super::*;
 
 fn lower_become_types_duration(duration: Option<&EffectDurationNode>) -> Option<Value> {
@@ -124,8 +129,17 @@ pub(in crate::oracle::canonical) fn lower_copiable_characteristic_changes<Subjec
         || node.characteristics.loses_all_abilities
         || !node.characteristics.lost_keywords.is_empty()
         || node.characteristics.all_creature_types
+        || node.characteristics.base_power.is_some()
+        || node.characteristics.switches_power_toughness
     {
         return Err("copiable-value exceptions the token copy supports");
+    }
+    // CR 707.9b: the stated name and supertypes are copiable values.
+    if let Some(name) = &node.copy_name {
+        operations.push(json!({ "kind": "setName", "name": name }));
+    }
+    for supertype in &node.supertypes {
+        operations.push(json!({ "kind": "addSupertype", "supertype": supertype.ir_name() }));
     }
     for card_type in &node.card_types {
         operations.push(json!({ "kind": "addCardType", "cardType": card_type.ir_name() }));
@@ -223,6 +237,15 @@ pub(in crate::oracle::canonical) fn lower_become_types_to_object_in_scope(
     };
     let duration = lower_become_types_duration(node.duration.as_ref())
         .ok_or("a type-change duration that the runtime can end (`until end of turn` or none)")?;
+    if node.copy_name.is_some() {
+        // A name is stated only by a copy's exceptions (CR 707.9b).
+        return Err("a name change stated only as a copy exception");
+    }
+    let single_object = matches!(
+        object["kind"].as_str(),
+        Some("chosenTarget" | "self" | "abilitySource")
+    );
+    let until_end_of_turn = duration["kind"] == "untilEndOfCurrentTurn";
     if node.copy_of.is_some() {
         // CR 707.2: layer 1 copies the copiable values; the copy effect has
         // no other characteristic of its own.
@@ -422,6 +445,46 @@ pub(in crate::oracle::canonical) fn lower_become_types_to_object_in_scope(
             "power": stat_component(&statistics.power)?,
             "toughness": stat_component(&statistics.toughness)?,
             "duration": duration,
+        }));
+    }
+    if let Some(power) = &node.characteristics.base_power {
+        // CR 613.4b: the base power alone; the runtime keeps one object's
+        // temporary base power until the turn ends.
+        if !(single_object && until_end_of_turn) {
+            return Err("a base power of one object until end of turn");
+        }
+        effects.push(json!({
+            "kind": "setPower",
+            "object": object,
+            "power": stat_component(power)?,
+            "duration": duration,
+        }));
+    }
+    if node.characteristics.switches_power_toughness {
+        // CR 613.4d: applied after every other power/toughness effect.
+        if !until_end_of_turn {
+            return Err("a power/toughness switch until end of turn");
+        }
+        effects.push(json!({
+            "kind": "switchPowerToughness",
+            "object": object,
+            "duration": duration,
+        }));
+    }
+    if !node.supertypes.is_empty() {
+        // CR 205.4: the supertypes are added; the runtime records a lasting
+        // addition on one declared target only.
+        if !(object["kind"] == "chosenTarget" && duration["kind"] == "permanent") {
+            return Err("a lasting supertype addition to one declared target");
+        }
+        effects.push(json!({
+            "kind": "addPermanentCharacteristics",
+            "object": object,
+            "supertypes": node
+                .supertypes
+                .iter()
+                .map(|supertype| supertype.ir_name())
+                .collect::<Vec<_>>(),
         }));
     }
     Ok(effects)

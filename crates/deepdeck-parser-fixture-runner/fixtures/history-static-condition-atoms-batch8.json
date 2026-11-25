@@ -1,0 +1,1228 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "history-static-condition-atoms-batch8",
+  "cases": [
+    {
+      "id": "exact-gnoll-hunter-total-power-this-combat",
+      "request": {
+        "cardName": "Gnoll Hunter",
+        "typeLine": "Creature — Gnoll",
+        "manaCost": "{1}{G}",
+        "oracleText": "Pack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "attackerDeclared",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null,
+                    "measure": "power",
+                    "since": "combatPhaseStarted"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 6
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-total-power-this-combat-draws",
+      "request": {
+        "cardName": "Pack Probe",
+        "typeLine": "Creature — Gnoll",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature attacks, if you attacked with creatures with total power 8 or greater this combat, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "attackerDeclared",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null,
+                    "measure": "power",
+                    "since": "combatPhaseStarted"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 8
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponent-total-power-is-not-a-population-sum",
+      "request": {
+        "cardName": "Pack Probe",
+        "typeLine": "Creature — Gnoll",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your end step, if an opponent attacked with creatures with total power 6 or greater this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.threshold.direction"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-vengevine-second-creature-spell",
+      "request": {
+        "cardName": "Vengevine",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Haste\nWhenever you cast a spell, if it's the second creature spell you cast this turn, you may return this card from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "spellCastOrdinal"
+              },
+              {
+                "pointer": "/condition/spell",
+                "equals": {
+                  "kind": "triggeringSpell"
+                }
+              },
+              {
+                "pointer": "/condition/ordinal",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-third-noncreature-spell-ordinal",
+      "request": {
+        "cardName": "Ordinal Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you cast a spell, if it's the third noncreature spell you cast this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "spellCastOrdinal"
+              },
+              {
+                "pointer": "/condition/ordinal",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-spell-ordinal-without-a-cast-event",
+      "request": {
+        "cardName": "Ordinal Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "At the beginning of your upkeep, if it's the second creature spell you cast this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.ordinal.spell.subject"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-first-combat-phase-of-the-turn",
+      "request": {
+        "cardName": "Combat Probe",
+        "typeLine": "Creature — Warrior",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever this creature attacks, if it's the first combat phase of the turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "==",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "combatPhaseStarted",
+                    "where": null
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-myojin-of-nights-reach-cast-from-hand-entry",
+      "request": {
+        "cardName": "Myojin of Night's Reach",
+        "typeLine": "Legendary Creature — Spirit",
+        "manaCost": "{5}{B}{B}{B}",
+        "oracleText": "Myojin of Night's Reach enters with a divinity counter on it if you cast it from your hand.\nMyojin of Night's Reach has indestructible as long as it has a divinity counter on it.\nRemove a divinity counter from Myojin of Night's Reach: Each opponent discards their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "wasCastFromHand",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-entry-counters-if-cast-from-hand",
+      "request": {
+        "cardName": "Entry Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{G}",
+        "oracleText": "This creature enters with two +1/+1 counters on it if you cast it from your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "wasCastFromHand",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entry-counters-if-cast-from-a-graveyard",
+      "request": {
+        "cardName": "Entry Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{G}",
+        "oracleText": "This creature enters with a +1/+1 counter on it if you cast it from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.source.cast-zone"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-starfall-invocation-gift-promised",
+      "request": {
+        "cardName": "Starfall Invocation",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Gift a card (You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)\nDestroy all creatures. If the gift was promised, return a creature card put into your graveyard this way to the battlefield under your control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "verb-operand.query.domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gift-wasnt-promised-life-loss",
+      "request": {
+        "cardName": "Gift Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card. If the gift wasn't promised, you lose 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "castChoiceMade",
+                    "spell": {
+                      "kind": "self"
+                    },
+                    "choice": "gift"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-hulk-smash-cast-using-teamwork",
+      "request": {
+        "cardName": "HULK SMASH!",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Teamwork 4 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 4 or more.)\nChoose one. If this spell was cast using teamwork, choose both instead.\n• Destroy target noncreature artifact.\n• Target creature you control deals damage equal to its power to target creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "modal.header.upgrade.permission"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-reckless-bushwhacker-surge-cost-paid",
+      "request": {
+        "cardName": "Reckless Bushwhacker",
+        "typeLine": "Creature — Goblin Warrior Ally",
+        "manaCost": "{2}{R}",
+        "oracleText": "Surge {1}{R} (You may cast this spell for its surge cost if you or a teammate has cast another spell this turn.)\nHaste\nWhen this creature enters, if its surge cost was paid, other creatures you control get +1/+0 and gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "castChoiceMade",
+                  "spell": {
+                    "kind": "self"
+                  },
+                  "choice": "alternativeCost",
+                  "mode": "surge"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-this-spells-surge-cost-paid",
+      "request": {
+        "cardName": "Crush of Tentacles",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Surge {3}{U}{U} (You may cast this spell for its surge cost if you or a teammate has cast another spell this turn.)\nReturn all nonland permanents to their owners' hands. If this spell's surge cost was paid, create an 8/8 blue Octopus creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "near-miss-additional-cost-paid-is-not-a-recorded-mode",
+      "request": {
+        "cardName": "Cost Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Draw a card. If this spell's additional cost was paid, draw two cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.cast-choice.keyword-cost.keyword"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-baleful-mastery-printed-alternative-cost-paid",
+      "request": {
+        "cardName": "Baleful Mastery",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "You may pay {1}{B} rather than pay this spell's mana cost.\nIf the {1}{B} cost was paid, an opponent draws a card.\nExile target creature or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-illusory-angel-another-spell",
+      "request": {
+        "cardName": "Illusory Angel",
+        "typeLine": "Creature — Angel Illusion",
+        "manaCost": "{2}{U}",
+        "oracleText": "Cast this spell only if you've cast another spell this turn.\nFlying",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-mage-duel-another-instant-or-sorcery",
+      "request": {
+        "cardName": "Mage Duel",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "This spell costs {2} less to cast if you've cast another instant or sorcery spell this turn.\nTarget creature you control gets +1/+2 until end of turn. Then it fights target creature you don't control. (Each deals damage equal to its power to the other.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "no-code-another-creature-spell-from-your-hand",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Human",
+        "manaCost": "{2}{W}",
+        "oracleText": "At the beginning of your end step, if you've cast another creature spell from your hand this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/operator",
+                "equals": ">="
+              },
+              {
+                "pointer": "/condition/right",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countEventsThisTurn"
+              },
+              {
+                "pointer": "/condition/left/event",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/condition/left/excludeObject",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/condition/left/fromZone",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wrangler-of-the-damned-no-spell-from-hand",
+      "request": {
+        "cardName": "Wrangler of the Damned",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{3}{W}{U}",
+        "oracleText": "Flash\nAt the beginning of your end step, if you haven't cast a spell from your hand this turn, create a 2/2 white Spirit creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "==",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "spellCast",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null,
+                    "fromZone": "hand"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-another-spell-this-game-has-no-turn-history",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Human",
+        "manaCost": "{2}{W}",
+        "oracleText": "At the beginning of your end step, if you've cast another spell this game, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.history.scope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-faramir-died-under-your-control",
+      "request": {
+        "cardName": "Faramir Probe",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{3}{W}",
+        "oracleText": "At the beginning of your end step, if a creature died under your control this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/event",
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/condition/left/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lightning-phoenix-opponent-dealt-three",
+      "request": {
+        "cardName": "Damage Probe",
+        "typeLine": "Creature — Phoenix",
+        "manaCost": "{2}{R}",
+        "oracleText": "At the beginning of your end step, if an opponent was dealt 3 or more damage this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/event",
+                "equals": "damageDealt"
+              },
+              {
+                "pointer": "/condition/left/measure",
+                "equals": "amount"
+              },
+              {
+                "pointer": "/condition/left/aggregate",
+                "equals": "greatestPerPlayer"
+              },
+              {
+                "pointer": "/condition/right",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-has-been-dealt-noncombat-damage",
+      "request": {
+        "cardName": "Damage Probe",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "At the beginning of your end step, if an opponent has been dealt noncombat damage this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/event",
+                "equals": "damageDealt"
+              },
+              {
+                "pointer": "/condition/left/detail",
+                "equals": {
+                  "combat": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-yshtola-a-player-lost-four-life",
+      "request": {
+        "cardName": "Life Probe",
+        "typeLine": "Creature — Cat Warlock",
+        "manaCost": "{1}{W}{U}{B}",
+        "oracleText": "At the beginning of each end step, if a player lost 4 or more life this turn, you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/event",
+                "equals": "lifeLost"
+              },
+              {
+                "pointer": "/condition/left/aggregate",
+                "equals": "greatestPerPlayer"
+              },
+              {
+                "pointer": "/condition/right",
+                "equals": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-full-party",
+      "request": {
+        "cardName": "Party Probe",
+        "typeLine": "Creature — Kor Warrior",
+        "manaCost": "{3}{W}",
+        "oracleText": "At the beginning of combat on your turn, if you have a full party, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "partySize",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 4
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-loyal-apprentice-controls-your-commander",
+      "request": {
+        "cardName": "Loyal Apprentice",
+        "typeLine": "Creature — Human Artificer",
+        "manaCost": "{1}{R}",
+        "oracleText": "Haste\nLieutenant — At the beginning of combat on your turn, if you control your commander, create a 1/1 colorless Thopter artifact creature token with flying. That token gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/left/ownership",
+                "equals": "owned"
+              },
+              {
+                "pointer": "/condition/left/where",
+                "equals": {
+                  "kind": "isCommander"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-max-speed",
+      "request": {
+        "cardName": "Speed Probe",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "At the beginning of your end step, if you have max speed, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/counter",
+                "equals": "speed"
+              },
+              {
+                "pointer": "/condition/right",
+                "equals": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-card-in-hand",
+      "request": {
+        "cardName": "Hand Probe",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "At the beginning of your upkeep, if you have a card in hand, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-bhaal-half-starting-life-total",
+      "request": {
+        "cardName": "Bhaal, Lord of Murder",
+        "typeLine": "Legendary Creature — God",
+        "manaCost": "{2}{B}{R}{G}",
+        "oracleText": "As long as your life total is less than or equal to half your starting life total, Bhaal has indestructible.\nWhenever another nontoken creature you control dies, put a +1/+1 counter on target creature and goad it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-leyline-of-hope-life-beyond-starting",
+      "request": {
+        "cardName": "Life Beyond Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "As long as you have at least 7 life more than your starting life total, creatures you control get +2/+2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/operator",
+                "equals": ">="
+              },
+              {
+                "pointer": "/condition/right",
+                "equals": {
+                  "kind": "integer",
+                  "value": 7
+                }
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "subtract"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-visions-of-beyond-a-graveyard-has-twenty",
+      "request": {
+        "cardName": "Visions of Beyond",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card. If a graveyard has twenty or more cards in it, draw three cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-your-library-has-no-cards",
+      "request": {
+        "cardName": "Library Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "At the beginning of your upkeep, if your library has no cards in it, you win the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-phenax-two-color-devotion",
+      "request": {
+        "cardName": "Phenax, God of Deception",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{3}{U}{B}",
+        "oracleText": "Indestructible\nAs long as your devotion to blue and black is less than seven, Phenax isn't a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "removeCardTypeWhile"
+              },
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "<",
+                  "left": {
+                    "kind": "devotion",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "colors": [
+                      "Blue",
+                      "Black"
+                    ]
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 7
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mul-daya-channelers-top-card-creature",
+      "request": {
+        "cardName": "Top Probe",
+        "typeLine": "Creature — Elf Druid Shaman",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "As long as the top card of your library is a creature card, this creature gets +3/+3.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "topCardMatches"
+              },
+              {
+                "pointer": "/condition/zone",
+                "equals": "library"
+              },
+              {
+                "pointer": "/condition/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-top-card-of-library-is-black",
+      "request": {
+        "cardName": "Top Probe",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{1}{B}{B}{B}",
+        "oracleText": "As long as the top card of your library is black, this creature gets +2/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "topCardMatches"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-halam-djinn-most-common-color",
+      "request": {
+        "cardName": "Halam Djinn",
+        "typeLine": "Creature — Djinn",
+        "manaCost": "{5}{R}",
+        "oracleText": "Haste\nThis creature gets -2/-2 as long as red is the most common color among all permanents or is tied for most common.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "colorIsMostCommon",
+                  "color": "Red",
+                  "where": null,
+                  "tieAllowed": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-most-common-color-among-a-controlled-collection",
+      "request": {
+        "cardName": "Rank Probe",
+        "typeLine": "Creature — Djinn",
+        "manaCost": "{5}{R}",
+        "oracleText": "This creature gets +1/+1 as long as red is the most common color among creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.color-rank.collection"
+          }
+        ]
+      }
+    }
+  ]
+}

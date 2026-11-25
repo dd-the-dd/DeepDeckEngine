@@ -282,13 +282,13 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "condition.bound-object-numeric.if"
+            "state": "permanent.subject.nominal-anaphor.antecedent"
           }
         ]
       }
     },
     {
-      "id": "known-gap-goblin-guide-exact-revealed-card-condition",
+      "id": "goblin-guide-exact-revealed-card-condition-by-defending-player",
       "request": {
         "cardName": "Goblin Guide",
         "typeLine": "Creature — Goblin Scout",
@@ -298,12 +298,24 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "effect.start"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/performer",
+                "equals": {
+                  "kind": "triggeringPlayer"
+                }
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "conditional"
+              }
+            ]
           }
         ]
       }

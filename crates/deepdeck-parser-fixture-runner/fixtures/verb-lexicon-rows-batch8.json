@@ -1,0 +1,699 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "verb-lexicon-rows-batch8/keyword-action-rows",
+  "cases": [
+    {
+      "id": "exact-converter-beast-incubate-5",
+      "request": {
+        "cardName": "Converter Beast",
+        "typeLine": "Creature — Phyrexian Beast",
+        "manaCost": "{3}{G}",
+        "oracleText": "When this creature enters, incubate 5. (Create an Incubator token with five +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/0/token/subtypes",
+                "equals": [
+                  "Incubator"
+                ]
+              },
+              {
+                "pointer": "/effects/0/counters/0",
+                "equals": {
+                  "counter": "+1/+1",
+                  "count": {
+                    "kind": "integer",
+                    "value": 5
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/token/abilities/0/effects/0",
+                "equals": {
+                  "kind": "transformPermanent",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/token/abilities/1/transformFaces/1/name",
+                "equals": "Phyrexian Token"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-eyes-of-gitaxias-incubate-then-draw",
+      "request": {
+        "cardName": "Eyes of Gitaxias",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Incubate 3. (Create an Incubator token with three +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/0/counters/0/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-chrome-host-seedshark-incubate-x-where",
+      "request": {
+        "cardName": "Chrome Host Seedshark",
+        "typeLine": "Creature — Phyrexian Shark",
+        "manaCost": "{2}{U}",
+        "oracleText": "Flying\nWhenever you cast a noncreature spell, incubate X, where X is that spell's mana value. (Create an Incubator token with X +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-glistening-dawn-incubate-x-twice",
+      "request": {
+        "cardName": "Glistening Dawn",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Incubate X twice, where X is the number of lands you control. (To incubate X, create an Incubator token with X +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "repeatEffects"
+              },
+              {
+                "pointer": "/effects/1/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tangled-skyline-life-and-incubate",
+      "request": {
+        "cardName": "Tangled Skyline",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{G}",
+        "oracleText": "When this enchantment enters, you gain 5 life and incubate 5. (Create an Incubator token with five +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)\nPhyrexians you control have reach.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-activated-incubate-1",
+      "request": {
+        "cardName": "Incubate Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{4}, {T}: Incubate 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/counters/0/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-draw-then-incubate-three-times",
+      "request": {
+        "cardName": "Incubate Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Draw a card, then incubate 1 three times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "repeatEffects"
+              },
+              {
+                "pointer": "/effects/1/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-incubate-without-number",
+      "request": {
+        "cardName": "Incubate Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Incubate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-spin-into-myth-fateseal-2",
+      "request": {
+        "cardName": "Spin into Myth",
+        "typeLine": "Instant",
+        "manaCost": "{4}{U}",
+        "oracleText": "Put target creature on top of its owner's library, then fateseal 2. (To fateseal 2, look at the top two cards of an opponent's library, then put any number of them on the bottom of that player's library and the rest on top in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-fateseal-activated",
+      "request": {
+        "cardName": "Fateseal Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{1}, {T}: Fateseal 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePlayers"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "lookAtTopCards"
+              },
+              {
+                "pointer": "/effects/1/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-optional-upkeep-cloak",
+      "request": {
+        "cardName": "Cloak Witness",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "At the beginning of your upkeep, you may cloak the top card of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cloak-top-card",
+      "request": {
+        "cardName": "Cloak Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Cloak the top card of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/to/faceDown",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/to/faceDownAbilities/0/ability/kind",
+                "equals": "ward"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-break-open-turn-face-up",
+      "request": {
+        "cardName": "Break Open",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Turn target face-down creature an opponent controls face up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "turnPermanentFaceUp"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wall-of-deceit-turn-face-down",
+      "request": {
+        "cardName": "Wall of Deceit",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{1}{U}",
+        "oracleText": "Defender (This creature can't attack.)\n{3}: Turn this creature face down.\nMorph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "turnPermanentFaceDown",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skittish-valesk-flip-then-face-down",
+      "request": {
+        "cardName": "Skittish Valesk",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{6}{R}",
+        "oracleText": "At the beginning of your upkeep, flip a coin. If you lose the flip, turn this creature face down.\nMorph {5}{R} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-turn-target-face-down-creature-face-up",
+      "request": {
+        "cardName": "Face Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Turn target face-down creature face up. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "turnPermanentFaceUp"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-turn-sideways",
+      "request": {
+        "cardName": "Face Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Turn target creature sideways.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.keyword-action.turn.face"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-carry-away-unattach-enchanted-equipment",
+      "request": {
+        "cardName": "Carry Away",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{U}{U}",
+        "oracleText": "Enchant Equipment\nWhen this Aura enters, unattach enchanted Equipment.\nYou control enchanted Equipment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "reference.attached-object.nominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unattach-source",
+      "request": {
+        "cardName": "Unattach Witness",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{0}",
+        "oracleText": "{1}: Unattach this Equipment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "unattachPermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ghostly-keybearer-unlock-door",
+      "request": {
+        "cardName": "Ghostly Keybearer",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWhenever this creature deals combat damage to a player, unlock a locked door of up to one target Room you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-keys-to-the-house-lock-or-unlock",
+      "request": {
+        "cardName": "Keys to the House",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{1}, {T}, Sacrifice this artifact: Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n{3}, {T}, Sacrifice this artifact: Lock or unlock a door of target Room you control. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-lock-an-unlocked-door",
+      "request": {
+        "cardName": "Door Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: Lock an unlocked door of target Room you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "changeRoomDoor"
+              },
+              {
+                "pointer": "/effects/1/change",
+                "equals": "lock"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unlock-an-unlocked-door",
+      "request": {
+        "cardName": "Door Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: Unlock an unlocked door of target Room you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.keyword-action.room-door.state"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -304,6 +304,18 @@ impl GameEngine {
             {
                 continue;
             }
+            // `from your graveyard` (CR 400.3): the spell's card was in its
+            // caster's own zone. An unknown casting card cannot prove it.
+            if modifier["sourceZoneOwner"].as_str() == Some("caster") {
+                let Some(casting) = casting_source else {
+                    return Err(EngineError::new(
+                        "cost query: the casting card is required for its source-zone owner",
+                    ));
+                };
+                if casting.owner != player_id {
+                    continue;
+                }
+            }
             if modifier["excludeSource"].as_bool() == Some(true) {
                 match casting_source {
                     Some(casting) if casting.instance_id == source.instance_id => continue,

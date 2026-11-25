@@ -542,12 +542,43 @@
       }
     },
     {
-      "id": "near-miss-copy-exception-outside-the-typed-list",
+      "id": "copy-exception-legendary-supertype",
       "request": {
         "cardName": "Untyped Exception Fixture",
         "typeLine": "Creature — Cat",
         "manaCost": "{W}",
         "oracleText": "{W}: Create a token that's a copy of this creature, except it's legendary.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/except/0",
+                "equals": {
+                  "kind": "addSupertype",
+                  "supertype": "Legendary"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-exception-names-a-status-not-a-characteristic",
+      "request": {
+        "cardName": "Untyped Exception Fixture",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "{W}: Create a token that's a copy of this creature, except it's tapped.",
         "layout": "normal",
         "faces": []
       },
@@ -558,8 +589,9 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
+            "code": "oracle_machine_failure",
             "state": "token.copy.except.complement",
-            "code": "oracle_machine_failure"
+            "found": "tapped"
           }
         ]
       }

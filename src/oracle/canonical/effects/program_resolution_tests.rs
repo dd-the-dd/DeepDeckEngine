@@ -161,6 +161,7 @@ fn outside_slice_is_structural_and_checked_program_keeps_native_ir_exact() {
             from: CardCollectionReferenceNode::Antecedent,
             quantity: CardSelectionQuantityNode::Exactly(NumericExpression::from(1)),
             predicate: Some(ObjectPredicate::ObjectKind(ObjectKind::Card)),
+            via: None,
         },
     )));
     // Query reference resolution has not migrated, even with a literal count.

@@ -127,6 +127,7 @@ mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
 mod event_batch;
+mod event_card_batch;
 mod event_model;
 mod invariants;
 mod keyword_actions;
@@ -1371,6 +1372,16 @@ fn default_opening_hand_size() -> usize {
 
 fn default_max_hand_size() -> usize {
     DEFAULT_MAX_HAND_SIZE
+}
+
+/// CR 103.4: a two-player game's starting life total, for a state recorded
+/// before the player kept their own.
+fn default_starting_life() -> i32 {
+    20
+}
+
+fn is_default_starting_life(value: &i32) -> bool {
+    *value == default_starting_life()
 }
 
 fn is_false(value: &bool) -> bool {
@@ -2772,7 +2783,8 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 && expression["counter"].is_string()
         }
         Some("devotion") => {
-            player_reference_supported(&expression["player"]) && expression["color"].is_string()
+            player_reference_supported(&expression["player"])
+                && devotion_symbols(&expression["colors"]).is_some()
         }
         Some("devotionToChosenColor" | "commanderColorIdentityCount") => {
             player_reference_supported(&expression["player"])
@@ -3107,7 +3119,7 @@ fn condition_supported(condition: &Value) -> bool {
         }
         Some("objectMatchesFilter") => {
             object_condition::object_condition_reference_supported(&condition["object"])
-                && permanent_filter_supported(&condition["where"])
+                && object_condition::object_condition_filter_supported(&condition["where"])
         }
         Some("controllerIsBeingAttacked") => true,
         Some("sorceryTiming" | "ninjutsuTiming") => true,
@@ -3288,6 +3300,29 @@ fn move_operation_supported(operation: &Value) -> bool {
     let objects_supported = object_expression_supported(&operation["objects"])
         || target_reference_supported(&operation["objects"]);
     from_supported && objects_supported && value_kind(&operation["to"]) == Some("exile")
+}
+
+/// The mana-symbol letters of a devotion's color list (CR 700.5a): a
+/// non-empty list of distinct color names. `None` for an empty, repeated or
+/// unknown color, so a malformed devotion is unsupported, not zero.
+fn devotion_symbols(colors: &Value) -> Option<Vec<&'static str>> {
+    let colors = colors.as_array().filter(|colors| !colors.is_empty())?;
+    let mut symbols = Vec::with_capacity(colors.len());
+    for color in colors {
+        let symbol = match color.as_str()?.to_ascii_lowercase().as_str() {
+            "white" => "W",
+            "blue" => "U",
+            "black" => "B",
+            "red" => "R",
+            "green" => "G",
+            _ => return None,
+        };
+        if symbols.contains(&symbol) {
+            return None;
+        }
+        symbols.push(symbol);
+    }
+    Some(symbols)
 }
 
 fn player_reference_supported(reference: &Value) -> bool {
@@ -5405,6 +5440,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         Some("grantCascadeToSpells") => {
             player_reference_supported(&modifier["player"])
                 && integer_value(&modifier["minimumManaValue"]).is_some_and(|minimum| minimum >= 0)
+                && stack_filter_supported(&modifier["where"])
         }
         Some("playCardsFromTopLibrary") => {
             player_reference_supported(&modifier["player"])
@@ -6304,6 +6340,7 @@ impl GameEngine {
                 starting_deck_size,
                 land_plays_remaining: 0,
                 max_hand_size: default_max_hand_size(),
+                starting_life: player.starting_life,
             });
         }
         unsupported_rules.sort_by(|left, right| {
@@ -9300,7 +9337,7 @@ impl GameEngine {
                     == 1
             }
             Some(kind) if state_condition_atoms::owns(kind) => {
-                self.state_condition_atom_with_source(condition, controller_id, source)
+                self.state_condition_atom_with_source(condition, controller_id, source, decisions)
             }
             _ => false,
         }
@@ -9685,24 +9722,18 @@ impl GameEngine {
                 self.event_history_count(expression, controller_id, None)
             }
             Some("devotion") => {
-                let symbol = match expression["color"].as_str()?.to_ascii_lowercase().as_str() {
-                    "white" => "W",
-                    "blue" => "U",
-                    "black" => "B",
-                    "red" => "R",
-                    "green" => "G",
-                    _ => return None,
-                };
+                let symbols = devotion_symbols(&expression["colors"])?;
                 let player_index = self.player_index(controller_id).ok()?;
-                // CR 700.5: each mana symbol of that color in the mana costs
-                // of the player's permanents (a hybrid symbol counts for each
-                // of its colors); not the number of permanents of the color.
+                // CR 700.5, 700.5a: each mana symbol in the mana costs of the
+                // player's permanents that is any of the colors, counted once
+                // (a hybrid of two listed colors is one symbol); not the
+                // number of permanents of those colors.
                 Some(
                     self.state.players[player_index]
                         .battlefield
                         .iter()
                         .flat_map(|card| parse_mana_symbols(&card.definition.mana_cost))
-                        .filter(|mana| mana.split('/').any(|part| part == symbol))
+                        .filter(|mana| mana.split('/').any(|part| symbols.contains(&part)))
                         .count() as i32,
                 )
             }
@@ -10560,6 +10591,7 @@ impl GameEngine {
         self.state.rule_modifiers.iter().any(|modifier| {
             value_kind(modifier) == Some("temporaryProtection")
                 && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+                && Self::modifier_incarnation_current(modifier, permanent)
                 && modifier["expiresAfterTurn"]
                     .as_u64()
                     .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
@@ -10693,6 +10725,7 @@ impl GameEngine {
 
     fn player_has_battlefield_static_modifier(&self, player_id: &str, modifier_kind: &str) -> bool {
         self.player_static_modifier_present(player_id, modifier_kind)
+            || self.player_has_granted_keyword(player_id, modifier_kind)
     }
 
     fn permanent_has_card_type(&self, permanent: &CardInstance, card_type: &str) -> bool {
@@ -11627,7 +11660,7 @@ impl GameEngine {
             .sum()
     }
 
-    fn current_power(&self, permanent: &CardInstance) -> i32 {
+    fn layered_power(&self, permanent: &CardInstance) -> i32 {
         let reaver_bonus = self
             .battlefield_static_modifiers()
             .iter()
@@ -11660,7 +11693,7 @@ impl GameEngine {
             + self.muckslinger_bonus(permanent)
     }
 
-    fn current_toughness(&self, permanent: &CardInstance) -> i32 {
+    fn layered_toughness(&self, permanent: &CardInstance) -> i32 {
         let reaver_bonus = self
             .battlefield_static_modifiers()
             .iter()
@@ -17135,6 +17168,14 @@ impl GameEngine {
                     };
                     decision["candidates"]["resolvedControllerIds"] = json!([player]);
                 }
+                if card_selection::resolve_triggering_zone_owner(
+                    &mut decision["candidates"],
+                    trigger_decisions,
+                )
+                .is_none()
+                {
+                    return Ok(None);
+                }
             }
         }
         let mut definition = source.definition.clone();
@@ -18334,6 +18375,7 @@ impl GameEngine {
                     decisions.insert("spendManaAsAnyType".to_string(), Value::Bool(true));
                 }
                 if let Some(permission) = permission {
+                    Self::carry_permission_graveyard_exile(permission, &mut decisions);
                     decisions.insert(
                         "exileOnLeaveStack".to_string(),
                         Value::Bool(permission["exileOnLeaveStack"].as_bool().unwrap_or(false)),
@@ -19531,6 +19573,13 @@ impl GameEngine {
                     .printed_definition
                     .as_ref()
                     .is_some_and(is_creature)
+                // An instruction's face-down permanent turns up only by morph
+                // or disguise (CR 702.37e, 702.168d; `face_status.rs`).
+                && (permanent.flags.get(effect_domains::TURNED_FACE_DOWN_BY_EFFECT) != Some(&true)
+                    || permanent
+                        .printed_definition
+                        .as_ref()
+                        .is_some_and(|printed| morph_ability(printed).is_some()))
         }) {
             let printed = permanent
                 .printed_definition
@@ -20474,7 +20523,9 @@ impl GameEngine {
                             "card is not in declared source zone {source_zone}: {instance_id}"
                         ))
                     })?;
-                if card_index + 1 != zone.len() {
+                if card_index + 1 != zone.len()
+                    && !resolution_casting::observed_library_position_admitted(&action.decisions)
+                {
                     return Err(EngineError::new("only the top library card can be played"));
                 }
                 zone.remove(card_index)
@@ -25903,6 +25954,7 @@ impl GameEngine {
                             && value_kind(modifier) == Some("grantCascadeToSpells")
                             && integer_value(&modifier["minimumManaValue"])
                                 .is_some_and(|minimum| spell_mana_value >= minimum)
+                            && matches_stack_filter(&spell_definition, &modifier["where"])
                     })
                     .count();
                 let cascade_count = keyword_count(&spell_definition, "cascade")
@@ -26015,6 +26067,11 @@ impl GameEngine {
                 ) {
                     stack_decisions.insert(binding, Value::from(value));
                 }
+                self.record_casting_cost_paid_objects(
+                    &spell_definition,
+                    &action.targets,
+                    &mut stack_decisions,
+                );
                 let stack_targets: BTreeMap<String, TargetRef> = action
                     .targets
                     .iter()
@@ -26044,6 +26101,7 @@ impl GameEngine {
                     decisions: stack_decisions,
                     targets: stack_targets.clone(),
                 });
+                self.install_permitted_cast_graveyard_exile(&action.decisions, &card_id);
                 if matches!(
                     movement_source.zone,
                     card_zone_transition::ObjectZone::Graveyard(_)
@@ -27581,6 +27639,11 @@ impl GameEngine {
                 self.stack_sequence += 1;
                 let stack_id = format!("stack:{}", self.stack_sequence);
                 let mut stack_decisions = action.decisions.clone();
+                self.record_cost_paid_objects(
+                    &rule["costs"],
+                    &action.targets,
+                    &mut stack_decisions,
+                );
                 for stored in source
                     .definition
                     .printed_rules()
@@ -27706,6 +27769,7 @@ impl GameEngine {
                     })?;
                 let pending_counter_cost_triggers = self.state.stack.split_off(cost_trigger_start);
                 self.state.stack.push(pending_activation);
+                self.record_random_discard_cost_object(&rule);
                 self.apply_activated_exile_source_costs(action, &rule)?;
                 self.apply_activated_exile_object_costs(action, &rule)?;
                 self.apply_activated_discard_costs(action, &rule)?;
@@ -30206,6 +30270,11 @@ impl GameEngine {
                 card.flags.insert(flag, true);
             }
             mana_payment::record_mana_spent_flags(&mut card.flags, &stack_object.decisions);
+            card.flags.extend(
+                self.cast_choice_flags(&card.definition, &stack_object.decisions)
+                    .into_iter()
+                    .map(|flag| (flag, true)),
+            );
             let was_warped = stack_object
                 .decisions
                 .get("useWarp")
@@ -33268,25 +33337,14 @@ impl GameEngine {
         decisions.insert(choice_key, Value::Bool(chosen));
         // CR 608.2c, 603.12: the outcome follows whether the instruction was
         // actually performed, measured by its prepared witness.
-        let performed = if chosen {
-            let witness = self.prepare_optional_action_witness(
-                &effect["action"],
-                stack_object,
-                bindings,
-                decisions,
-            );
-            let first_event = self.state.events.len();
-            self.execute_effects(
-                &Value::Array(vec![effect["action"].clone()]),
+        let performed = chosen
+            && self.run_measured_instruction(
+                effect,
                 stack_object,
                 bindings,
                 decisions,
                 provider,
             )?;
-            self.optional_action_was_performed(&witness, first_event)
-        } else {
-            false
-        };
         if performed {
             self.execute_effects(
                 &effect["onPerformed"],
@@ -33304,42 +33362,6 @@ impl GameEngine {
             Some(stack_object.card.instance_id.clone()),
             json!({ "chosen": chosen, "performed": performed, "stackId": stack_object.id }),
         );
-        Ok(())
-    }
-
-    /// Runs a mandatory instruction and, only when its prepared witness shows
-    /// it was actually performed (CR 603.12), the dependent outcome effects.
-    fn execute_performed_action<P: DecisionProvider>(
-        &mut self,
-        effect: &Value,
-        stack_object: &StackObject,
-        bindings: &mut BTreeMap<String, RuntimeBinding>,
-        decisions: &mut BTreeMap<String, Value>,
-        provider: &mut P,
-    ) -> Result<(), EngineError> {
-        let witness = self.prepare_optional_action_witness(
-            &effect["action"],
-            stack_object,
-            bindings,
-            decisions,
-        );
-        let first_event = self.state.events.len();
-        self.execute_effects(
-            &Value::Array(vec![effect["action"].clone()]),
-            stack_object,
-            bindings,
-            decisions,
-            provider,
-        )?;
-        if self.optional_action_was_performed(&witness, first_event) {
-            self.execute_effects(
-                &effect["onPerformed"],
-                stack_object,
-                bindings,
-                decisions,
-                provider,
-            )?;
-        }
         Ok(())
     }
 
@@ -36217,6 +36239,7 @@ impl GameEngine {
                     value_kind(modifier),
                     Some(
                         "protectionFromEverything"
+                            | "grantedPlayerKeyword"
                             | "temporaryProtection"
                             | "temporaryActivationProhibition"
                             | "lifeTotalCannotChange"
@@ -37166,6 +37189,12 @@ impl GameEngine {
         }
         self.clear_combat_state();
         self.transition_to_step(GameStep::BeginningOfCombat);
+        self.record_event(
+            "combatPhaseStarted",
+            Some(self.state.players[self.state.active_player].id.clone()),
+            None,
+            json!({}),
+        );
         self.enqueue_step_triggers("beginCombat");
         self.run_priority_window(provider)?;
         if self.state.outcome.is_some() || self.force_end_turn {

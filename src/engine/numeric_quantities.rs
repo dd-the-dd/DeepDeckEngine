@@ -10,6 +10,7 @@
 //! { kind: countDistinctManaValues, zone, where, allPlayers? }  CR 202.3
 //!   zone: graveyard | hand | library (printed card filter) | battlefield
 //! { kind: countManaSymbolsAmongCards, zone, where, color, allPlayers? }
+//! { kind: countPlayers, players: filterPlayers }    CR 102.1-102.3 members
 //! ```
 //!
 //! A shape outside this grammar is refused by `numeric_quantity_supported`;
@@ -35,6 +36,9 @@ fn zone_collection_supported(expression: &Value) -> bool {
 
 /// `Some(valid)` for a kind this module owns, `None` otherwise.
 pub(super) fn numeric_quantity_supported(expression: &Value) -> Option<bool> {
+    if let Some(supported) = state_condition_atoms::player_quantity_supported(expression) {
+        return Some(supported);
+    }
     let supported = match value_kind(expression) {
         Some("commanderCastsFromCommandZone" | "countOpponentsAttackedThisTurn") => {
             player_reference_supported(&expression["player"])
@@ -46,6 +50,11 @@ pub(super) fn numeric_quantity_supported(expression: &Value) -> Option<bool> {
                     expression["color"].as_str(),
                     Some("W" | "U" | "B" | "R" | "G")
                 )
+        }
+        // A bare `countPlayers` keeps its own evaluator; a population is
+        // counted here (`player_query.rs`).
+        Some("countPlayers") if expression.get("players").is_some() => {
+            super::player_query::countable_population_supported(&expression["players"])
         }
         _ => return None,
     };
@@ -140,6 +149,9 @@ impl GameEngine {
         player_id: &str,
     ) -> Option<Option<i32>> {
         numeric_quantity_supported(expression)?;
+        if let Some(value) = self.player_quantity(expression, player_id) {
+            return Some(value);
+        }
         let value = match value_kind(expression) {
             Some("commanderCastsFromCommandZone") => {
                 let casts = self
@@ -154,6 +166,7 @@ impl GameEngine {
             Some("countOpponentsAttackedThisTurn") => {
                 Some(self.opponents_attacked_this_turn(player_id))
             }
+            Some("countPlayers") => self.population_member_count(&expression["players"], player_id),
             Some("countDistinctManaValues") => self
                 .zone_collection_cards(expression, player_id)
                 .and_then(|cards| {

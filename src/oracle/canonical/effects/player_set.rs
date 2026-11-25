@@ -9,6 +9,12 @@ pub(in crate::oracle::canonical) fn lower_player_set_reference(
         PlayerSetReferenceNode::OpponentsOfAbilityController => {
             json!({"kind":"opponentsOf", "player":controller()})
         }
+        // CR 102.3: the controller's opponents but the triggering player.
+        PlayerSetReferenceNode::OpponentsOtherThanEventPlayer => json!({
+            "kind": "filterPlayers",
+            "players": {"kind":"opponentsOf", "player":controller()},
+            "except": {"kind": "triggeringPlayer"},
+        }),
     }
 }
 
@@ -53,6 +59,26 @@ pub(in crate::oracle::canonical) fn lower_player_population_query(
                 integer(value),
             );
             lowered["where"] = if *negated { not(fact) } else { fact };
+        }
+        // CR 119.3, 120.3: an event of this turn whose player is the member.
+        Some(PlayerRelativePredicate::History(history)) => {
+            let events = match history {
+                MemberHistory::LostLife => {
+                    json!({"kind": "lifeLostThisTurn", "player": population_member()})
+                }
+                MemberHistory::DealtDamage { combat_only } => {
+                    let mut events = json!({
+                        "kind": "countEventsThisTurn",
+                        "event": "damageDealt",
+                        "player": population_member(),
+                    });
+                    if *combat_only {
+                        events["detail"] = json!({ "combat": true });
+                    }
+                    events
+                }
+            };
+            lowered["where"] = compare(">=", events, integer(1));
         }
         Some(PlayerRelativePredicate::Superlative { measure, extremum }) => {
             if query.players != PlayerSetReferenceNode::EachPlayer

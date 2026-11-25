@@ -61,6 +61,10 @@ pub(in crate::oracle::canonical) fn lower_action_result_objects(
         && reference.predicate.is_in_domain(ObjectKind::Card)
     {
         lower_card_object_predicate(&reference.predicate)
+    } else if reference.verb.preserves_permanents()
+        && reference.predicate.is_in_domain(ObjectKind::Permanent)
+    {
+        lower_permanent_object_predicate(&reference.predicate)
     } else {
         return Err("a restated noun the producing action guarantees or keeps readable");
     };
@@ -179,11 +183,7 @@ fn bind_pending_action_result_objects(
                     .get(index + 1)
                     .map_or(effects.len(), |(to, _)| *to);
                 let producers = (from..to)
-                    .filter(|position| {
-                        effects[*position]["kind"]
-                            .as_str()
-                            .is_some_and(|kind| verb.runtime_kinds().contains(&kind))
-                    })
+                    .filter(|position| verb.records_result(&effects[*position]))
                     .collect::<Vec<_>>();
                 (!producers.is_empty()).then_some((index, producers))
             });
@@ -442,10 +442,13 @@ fn lower_numeric_expression_in_context(
             "reader": reader_effect,
             "quantity": quantity.ir_name(),
         })),
-        NumericExpression::Devotion(color) => Some(json!({
+        NumericExpression::Devotion(colors) => Some(json!({
             "kind": "devotion",
             "player": controller(),
-            "color": canonical_color_name(*color),
+            "colors": colors
+                .iter()
+                .map(|color| canonical_color_name(*color))
+                .collect::<Vec<_>>(),
         })),
         NumericExpression::EventHistoryCount(node) => Some(lower_event_history_count(
             &node.pattern,
@@ -550,6 +553,7 @@ fn lower_numeric_expression_in_context(
             "kind": match fact {
                 PlayerNumericFact::LifeGainedThisTurn => "lifeGainedThisTurn",
                 PlayerNumericFact::LifeTotal => "lifeTotal",
+                PlayerNumericFact::StartingLifeTotal => "startingLifeTotal",
                 PlayerNumericFact::Counters(_) => unreachable!("lowered above"),
             },
             "player": controller(),
@@ -702,6 +706,12 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
                 "player": { "kind": ACTING_PLAYER },
             },
             "where": Value::Null,
+        })),
+        // CR 102.1-102.3: the members of a restricted population, counted
+        // by the engine's player count over the same `filterPlayers` node.
+        NumericQuantity::Players(query) => Some(json!({
+            "kind": "countPlayers",
+            "players": lower_player_population_query(query, None).ok()?,
         })),
         NumericQuantity::Greatest(_) => None,
     }

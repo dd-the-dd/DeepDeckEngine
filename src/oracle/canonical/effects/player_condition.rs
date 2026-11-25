@@ -15,7 +15,22 @@ pub(in crate::oracle::canonical) fn lower_player_measure(
         PlayerStateMeasure::ControlledPermanents {
             predicate,
             exclude_source,
-        } => lower_controlled_permanent_count(predicate, player, *exclude_source),
+        } => {
+            // An ownership relation of the controller's own permanents (`you
+            // control your commander`, CR 903.3) is the count's `ownership`
+            // field, read against the counted player.
+            if player == controller()
+                && let Some((rest, Some(ownership))) = split_collection_ownership(predicate)
+            {
+                let mut count = lower_controlled_permanent_count(&rest, player, *exclude_source);
+                if count["kind"] == "countPermanents" {
+                    count["ownership"] = json!(ownership);
+                    return count;
+                }
+                return lower_controlled_permanent_count(predicate, controller(), *exclude_source);
+            }
+            lower_controlled_permanent_count(predicate, player, *exclude_source)
+        }
         PlayerStateMeasure::Life => json!({ "kind": "lifeTotal", "player": player }),
         PlayerStateMeasure::PlayerCounters(counter) => json!({
             "kind": "countPlayerCounters",
@@ -26,6 +41,7 @@ pub(in crate::oracle::canonical) fn lower_player_measure(
             let zone_kind = match zone {
                 PlayerCardZone::Hand => "hand",
                 PlayerCardZone::Graveyard => "graveyard",
+                PlayerCardZone::Library => "library",
             };
             json!({
                 "kind": "countCards",
@@ -50,6 +66,8 @@ pub(in crate::oracle::canonical) fn lower_player_measure(
             "player": player,
             "where": Value::Null,
         }),
+        // CR 700.8: the engine's party-size quantity of that player.
+        PlayerStateMeasure::PartySize => json!({ "kind": "partySize", "player": player }),
     }
 }
 

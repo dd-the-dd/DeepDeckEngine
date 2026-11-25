@@ -201,6 +201,18 @@ fn parse_ability_body(
                 };
             }
         }
+        // The exact-count optional exile keeps its all-or-nothing primitive
+        // (`exileCards` with a literal count: it cannot be performed with
+        // fewer cards in the graveyard), which the shared measured group
+        // would otherwise lower as a capped choice. Only full success owns it.
+        if claims_promoted_optional_zone_action_trigger_family(input) {
+            if let Ok(draft) = parse_promoted_optional_zone_action_trigger(input) {
+                return CanonicalParseOutcome::Parsed {
+                    draft,
+                    recognizer: RecognizerProvenance::Native,
+                };
+            }
+        }
         match try_parse_generic_trigger_program(input) {
             GenericTriggerProgramAttempt::Parsed(draft) => {
                 return CanonicalParseOutcome::Parsed {
@@ -1252,6 +1264,23 @@ fn parse_existing_native_rule(
                 };
             }
             StaticSpellReductionParseAttempt::NotClaimed => {}
+        }
+        // `Artifact spells you cast have convoke.`: a keyword granted to a
+        // spell set, claimed once its subject and verb read.
+        match try_parse_spell_set_grant(input) {
+            SpellSetGrantParseAttempt::Parsed(draft) => {
+                return CanonicalParseOutcome::Parsed {
+                    draft,
+                    recognizer: RecognizerProvenance::Native,
+                };
+            }
+            SpellSetGrantParseAttempt::Failed(failure) => {
+                return CanonicalParseOutcome::Failed {
+                    failure,
+                    recognizer: RecognizerProvenance::Native,
+                };
+            }
+            SpellSetGrantParseAttempt::NotClaimed => {}
         }
     }
 

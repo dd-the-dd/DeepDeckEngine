@@ -3,6 +3,7 @@
 //! Existing root preflight/checkpoint and earlier domain hooks retain precedence.
 use super::*;
 
+mod attachment;
 mod battlefield_deployment;
 mod card_movement;
 mod casting_permissions;
@@ -16,6 +17,7 @@ mod counters;
 mod damage_combat;
 mod destruction_sacrifice;
 mod exile;
+mod face_status;
 mod graveyard_reanimation;
 mod hand;
 mod keyword_modification;
@@ -31,6 +33,7 @@ mod combat_removal;
 pub(super) mod player_designations;
 mod player_status;
 mod reflexive_cost_transactions;
+mod room_doors;
 mod rules_permissions;
 
 mod stack_casting;
@@ -43,6 +46,7 @@ pub(super) use characteristic_layers::{
     battlefield_object_operand_supported, characteristic_object_supported,
     marker_base_power_toughness, marker_card_types, marker_colors,
 };
+pub(super) use face_status::TURNED_FACE_DOWN_BY_EFFECT;
 
 pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
     super::card_zone_transition::node_requires_checkpoint(value)
@@ -92,6 +96,9 @@ enum Domain {
     PlayerStatus,
     PlayerDesignations,
     CombatRemoval,
+    FaceStatus,
+    Attachment,
+    RoomDoors,
     CastingPermissions,
     Triggers,
     Mana,
@@ -232,7 +239,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "setPermanentFlag"
             | "suspectPermanent",
         ) => Some(Domain::Characteristics),
-        Some("setCardTypes" | "setColors" | "setBasePowerToughness") => {
+        Some("setCardTypes" | "setColors" | "setBasePowerToughness" | "switchPowerToughness") => {
             Some(Domain::CharacteristicLayers)
         }
         Some(
@@ -295,7 +302,9 @@ fn domain(effect: &Value) -> Option<Domain> {
         ) => Some(Domain::ContinuousRules),
         Some(
             "grantNoMaximumHandSize"
+            | "grantPlayerKeyword"
             | "loseGame"
+            | "winGame"
             | "grantExtraTurn"
             | "ventureDungeon"
             | "restrictPlayerActions",
@@ -304,6 +313,9 @@ fn domain(effect: &Value) -> Option<Domain> {
             Some(Domain::PlayerDesignations)
         }
         Some("removeFromCombat") => Some(Domain::CombatRemoval),
+        Some("turnPermanentFaceUp" | "turnPermanentFaceDown") => Some(Domain::FaceStatus),
+        Some("unattachPermanent") => Some(Domain::Attachment),
+        Some("changeRoomDoor") => Some(Domain::RoomDoors),
         Some(
             "installNextCreatureSpellModifier"
             | "installTemporaryCantBeCountered"
@@ -379,6 +391,9 @@ pub(super) fn effect_domain_supported(effect: &Value) -> Option<bool> {
         Domain::PlayerStatus => player_status::supports_effect(effect),
         Domain::PlayerDesignations => player_designations::supports_effect(effect),
         Domain::CombatRemoval => combat_removal::supports_effect(effect),
+        Domain::FaceStatus => face_status::supports_effect(effect),
+        Domain::Attachment => attachment::supports_effect(effect),
+        Domain::RoomDoors => room_doors::supports_effect(effect),
         Domain::CastingPermissions => casting_permissions::supports_effect(effect),
         Domain::Triggers => triggers::supports_effect(effect),
         Domain::Mana => mana::supports_effect(effect),
@@ -620,6 +635,30 @@ impl GameEngine {
                 provider,
             ),
             Domain::CombatRemoval => self.execute_combat_removal_domain(
+                effect,
+                next_effect,
+                stack_object,
+                bindings,
+                decisions,
+                provider,
+            ),
+            Domain::FaceStatus => self.execute_face_status_domain(
+                effect,
+                next_effect,
+                stack_object,
+                bindings,
+                decisions,
+                provider,
+            ),
+            Domain::Attachment => self.execute_attachment_domain(
+                effect,
+                next_effect,
+                stack_object,
+                bindings,
+                decisions,
+                provider,
+            ),
+            Domain::RoomDoors => self.execute_room_doors_domain(
                 effect,
                 next_effect,
                 stack_object,

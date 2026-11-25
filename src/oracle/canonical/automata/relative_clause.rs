@@ -178,9 +178,24 @@ pub(in crate::oracle::canonical) fn relative_clause_starts_in(
         || (stack_targets && is_relative_pronoun(cursor) && targets_clause_starts(cursor, 1))
 }
 
+/// `controlled by different players` at `offset`, with its width: a reduced
+/// relative over a plural chosen set (CR 108.4). It constrains the set, not
+/// one candidate; only a consumer choosing a plural set admits it.
+fn distinct_controllers_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    let phrase = ["controlled", "by", "different", "players"];
+    phrase
+        .iter()
+        .enumerate()
+        .all(|(index, expected)| word_at(cursor, offset + index, expected))
+        .then_some(phrase.len())
+}
+
 /// True when a relative clause of every query starts at the cursor.
 pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    if participial_relation_starts(cursor) || contracted_copular_participle(cursor) {
+    if participial_relation_starts(cursor)
+        || contracted_copular_participle(cursor)
+        || distinct_controllers_at(cursor, 0).is_some()
+    {
         return true;
     }
     if is_relative_pronoun(cursor)
@@ -230,6 +245,16 @@ pub(in crate::oracle::canonical) fn card_zone_relative_clause_starts(
     is_relative_pronoun(cursor)
         && (put_there_from_battlefield_at(cursor, 1).is_some()
             || same_characteristic_possession_at(cursor, 1).is_some())
+}
+
+/// `that was|were put there from the battlefield this turn` after a zone a
+/// declared card target is in: the one zone-history clause whose atom every
+/// card-candidate matcher evaluates on the candidate instance (CR 400.7,
+/// 603.10a). A pure lookahead.
+pub(in crate::oracle::canonical) fn card_zone_history_clause_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    is_relative_pronoun(cursor) && put_there_from_battlefield_at(cursor, 1).is_some()
 }
 
 /// `the same name as` / `the same mana value as` at `offset`: the compared
@@ -418,6 +443,16 @@ fn status_after_copula(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
 pub(in crate::oracle::canonical) fn recognize_relative_clause(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ObjectPredicate> {
+    if let Some(width) = distinct_controllers_at(cursor, 0) {
+        // `two target creatures controlled by different players`: a
+        // constraint over the chosen set, which the consumer lifts to its
+        // selection constraint (CR 601.2c).
+        cursor.enter("selector.relative-clause.distinct-controllers");
+        consume_words(cursor, width)?;
+        return Ok(ObjectPredicate::Qualifier(
+            super::ObjectQualifier::DistinctControllers,
+        ));
+    }
     if participial_relation_at(cursor, 0).is_some() {
         // `Equipment attached to that creature`, `each creature blocking
         // it`: a reduced relative clause, the participle with no pronoun.

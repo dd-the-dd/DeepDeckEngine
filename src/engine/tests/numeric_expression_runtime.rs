@@ -81,6 +81,27 @@ fn devotion_counts_mana_symbols_and_halves_round_as_stated() {
     resolve(&mut engine, &drain);
     assert_eq!(engine.state.players[1].life, life - 4);
 
+    // The same operand over two colors (CR 700.5a): {B}{R} gives 2, the
+    // hybrid {B/R} counts once, {R} gives 1, {W} none: 4, not 5.
+    let two_color = compiled(
+        "Two Color Devotion Probe",
+        "Sorcery",
+        "Each opponent loses X life, where X is your devotion to black and red.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        permanent("gold", "{B}{R}"),
+        permanent("hybrid-br", "{B/R}"),
+        permanent("red", "{R}"),
+        permanent("white", "{W}"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let life = engine.state.players[1].life;
+    resolve(&mut engine, &two_color);
+    assert_eq!(engine.state.players[1].life, life - 4);
+
     // CR 107.1a: `half your life total, rounded down`.
     let gain = compiled(
         "Half Probe",

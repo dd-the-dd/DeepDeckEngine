@@ -44,6 +44,56 @@ fn is_continuation_line(line: &str) -> bool {
     trimmed.starts_with('\u{2022}') || trimmed.starts_with("+ ")
 }
 
+/// CR 207.2c, 608.2c: an ability word line of an instant or sorcery whose
+/// instruction replaces an earlier one with `instead` (`Metalcraft — Galvanic
+/// Blast deals 4 damage instead if you control three or more artifacts.`)
+/// is a sentence of the spell ability it amends, not an ability of its own.
+/// The ability word has no rules meaning, so the amending sentence keeps
+/// only its instruction. Returns that sentence.
+fn replacing_ability_word_sentence<'a>(type_line: &str, line: &'a str) -> Option<&'a str> {
+    if !["Instant", "Sorcery"]
+        .iter()
+        .any(|card_type| type_line.contains(card_type))
+    {
+        return None;
+    }
+    let (word, body) = line.trim().split_once(" \u{2014} ")?;
+    if word.is_empty()
+        || !word
+            .chars()
+            .all(|character| character.is_alphabetic() || matches!(character, ' ' | '\'' | '-'))
+    {
+        return None;
+    }
+    let mut depth = 0_usize;
+    let mut quoted = false;
+    let mut instead = false;
+    for (index, character) in body.char_indices() {
+        match character {
+            '"' => quoted = !quoted,
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        // A conditional of its own before `instead` (`Destroy that creature
+        // if it has mana value 4 or less instead if ...`) is a separately
+        // claimed amendment family, not this sentence.
+        if !quoted
+            && depth == 0
+            && body[index..].starts_with("instead")
+            && body[..index].ends_with(' ')
+            && !body[..index].contains(" if ")
+            && !body.starts_with("If ")
+        {
+            instead = true;
+        }
+    }
+    let opens_trigger = ["When", "Whenever", "At "]
+        .iter()
+        .any(|head| body.starts_with(head));
+    (instead && !opens_trigger).then_some(body)
+}
+
 /// The ability text names a die (`d20`, `six-sided`): the rows that follow
 /// it are its results table, not separate abilities. A station threshold
 /// row (`12+ | ...`) follows no die and keeps its own ability.
@@ -139,6 +189,16 @@ pub(crate) fn split_abilities(document: &OracleDocument<'_>) -> Vec<AbilitySourc
         {
             previous.text.push('\n');
             previous.text.push_str(line);
+            previous.line_end = line_index;
+            continue;
+        }
+        if let Some(sentence) = replacing_ability_word_sentence(document.face_type_line, line)
+            && let Some(previous) = abilities
+                .last_mut()
+                .filter(|previous| !is_reminder_only_line(&previous.text))
+        {
+            previous.text.push(' ');
+            previous.text.push_str(sentence);
             previous.line_end = line_index;
             continue;
         }

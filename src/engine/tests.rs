@@ -54,6 +54,9 @@ mod antecedent_continuation_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/binding_environment_runtime.rs"]
 mod binding_environment_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/measured_instruction_runtime.rs"]
+mod measured_instruction_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/effect_subject_runtime.rs"]
@@ -167,6 +170,10 @@ mod static_characteristics_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/animation_layers_runtime.rs"]
 mod animation_layers_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/characteristic_change_frame_runtime.rs"]
+mod characteristic_change_frame_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/mobilize_primitives_runtime.rs"]
@@ -33214,6 +33221,10 @@ mod extra_turn_runtime;
 mod player_designations_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/verb_lexicon_rows_runtime.rs"]
+mod verb_lexicon_rows_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/random_outcome_runtime.rs"]
 mod random_outcome_runtime;
 
@@ -33241,6 +33252,9 @@ mod intervening_if_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/leveler_band_runtime.rs"]
 mod leveler_band_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/object_condition_cost_paid_runtime.rs"]
+mod object_condition_cost_paid_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/object_query_runtime.rs"]
 mod object_query_runtime;
@@ -33253,6 +33267,9 @@ mod player_quantified_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_combat_restriction_runtime.rs"]
 mod source_combat_restriction_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/spell_set_grant_runtime.rs"]
+mod spell_set_grant_runtime;
 #[path = "tests/stack_and_damage_cells_runtime.rs"]
 mod stack_and_damage_cells_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

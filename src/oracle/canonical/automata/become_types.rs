@@ -4,12 +4,18 @@
 //! Change      := Subject Verb Complement ("and" Verb Complement)* Duration? StillSentence?
 //! Verb        := become | lose | have          (agreeing with the subject)
 //! Complement  := "a" "copy" "of" Object                       (layer 1, CR 707.2)
-//!              | Article? PT? Colors? TypeNouns With? Retention   (layers 4, 5, 7b)
+//!              | Article? Supertypes? PT? Supertypes? Colors? TypeNouns With? Retention
+//!                                                               (layers 4, 5, 7b)
 //!              | ColorComplement                                (layer 5)
 //!              | "the" ("creature" | "basic" "land") "type" "of" "your" "choice"
 //!              | "all" "abilities" | KeywordList                (after `lose`, layer 6)
 //!              | BaseStats StatValue                            (after `have`, layer 7b)
+//!              | "base" "power" StatComponent                   (after `have`, layer 7b)
 //!              | GrantedList                                    (after `gain`, layer 6)
+//! Switch      := "switch" (Possessed "power" "and" "toughness"
+//!                         | "the" "power" "and" "toughness" "of" Object) Duration?
+//!                                                               (layer 7d, CR 613.4d)
+//! Copula      := Complement Retention? StillSentence?           (a static `is`/`are`)
 //! BaseStats   := "base" "power" "and" "base"? "toughness"
 //!              | "power" "and" "toughness"                      (after `with`)
 //! StatValue   := PT | "each" "equal" "to" Amount     (`its` names the clause subject)
@@ -26,17 +32,20 @@
 //! The final `It's still a TYPE` sentence belongs to this effect; the
 //! enclosing sequence keeps its own final terminator.
 use crate::oracle::canonical::automata::{VerbAgreement, VerbForm, VerbLemma, is_verb_form};
-use crate::oracle::characteristic_vocabulary::{AcceptedForms, lookup_permanent_card_type};
+use crate::oracle::characteristic_vocabulary::{
+    AcceptedForms, lookup_permanent_card_type, lookup_supertype,
+};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    BasePowerToughnessNode, ColorComplementNode, EffectDurationNode, GRANTED_OBJECT_TYPE_LINE,
-    GrantedKeyword, ObjectCardType, QuotedAbilityNode, RecognizedEffectFragment, TargetListNode,
-    TokenCopyExceptionsNode, TypeChangeNumber, TypeChangeSubtype, color_complement_starts,
-    numeric_power_toughness_starts, recognize_card_color_set,
-    recognize_clause_subject_equal_amount, recognize_color_complement, recognize_copy_exceptions,
-    recognize_effect_owned_granted_ability_list, recognize_effect_owned_keyword_list,
-    recognize_numeric_power_toughness, recognize_trailing_or_supplied_duration,
+    BasePowerToughnessNode, CardSupertype, ColorComplementNode, EffectDurationNode,
+    GRANTED_OBJECT_TYPE_LINE, GrantedKeyword, NumericExpression, ObjectCardType, QuotedAbilityNode,
+    RecognizedEffectFragment, TargetListNode, TokenCopyExceptionsNode, TypeChangeNumber,
+    TypeChangeSubtype, color_complement_starts, numeric_power_toughness_starts,
+    recognize_card_color_set, recognize_clause_subject_equal_amount, recognize_color_complement,
+    recognize_copy_exceptions, recognize_effect_owned_granted_ability_list,
+    recognize_effect_owned_keyword_list, recognize_numeric_power_toughness,
+    recognize_single_stat_component, recognize_trailing_or_supplied_duration,
     recognize_type_change_nouns, type_change_noun_at,
 };
 
@@ -83,6 +92,12 @@ pub(in crate::oracle::canonical) struct BecomeCharacteristicsNode {
     pub loses_all_abilities: bool,
     /// `loses flying and trample` (CR 613.1f): the keywords removed.
     pub lost_keywords: Vec<GrantedKeyword>,
+    /// `has base power N` (CR 613.4b): the base power alone, set in layer
+    /// 7b; the toughness keeps its own value.
+    pub base_power: Option<NumericExpression>,
+    /// `switch ... power and toughness` (CR 613.4d): the switch applies in
+    /// layer 7d, after every other power/toughness effect.
+    pub switches_power_toughness: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -93,6 +108,9 @@ pub(in crate::oracle::canonical) struct BecomeTypesNode<Subject = TargetListNode
     /// `a blue and red ...`, `becomes white`, `becomes the color of your
     /// choice`: the new color set (CR 105.3).
     pub colors: Option<ColorComplementNode>,
+    /// `a legendary 4/4 red Dragon creature`: supertypes the object gains
+    /// (CR 205.4); no change states a supertype it removes.
+    pub supertypes: Vec<CardSupertype>,
     pub subtypes: Vec<TypeChangeSubtype>,
     pub card_types: Vec<ObjectCardType>,
     /// `becomes the creature type of your choice`.
@@ -102,6 +120,9 @@ pub(in crate::oracle::canonical) struct BecomeTypesNode<Subject = TargetListNode
     /// `, except ...` after the copy (CR 707.9b), read by the shared
     /// copy-exception reader.
     pub copy_exceptions: Option<Box<TokenCopyExceptionsNode>>,
+    /// `its name is NAME` (CR 201.2, 707.9b): the linked name the object
+    /// has, a copiable-value exception only.
+    pub copy_name: Option<String>,
     pub characteristics: BecomeCharacteristicsNode,
     pub retention: TypeChangeRetention,
     /// `None` is a continuous effect without a stated duration (CR 611.2a).
@@ -115,11 +136,13 @@ impl<Subject> BecomeTypesNode<Subject> {
             objects,
             power_toughness: None,
             colors: None,
+            supertypes: Vec::new(),
             subtypes: Vec::new(),
             card_types: Vec::new(),
             chosen_subtype: None,
             copy_of: None,
             copy_exceptions: None,
+            copy_name: None,
             characteristics: BecomeCharacteristicsNode::default(),
             retention: TypeChangeRetention::ReplacesSameClass,
             duration: None,
@@ -188,6 +211,13 @@ fn become_complement_starts(
             return true;
         }
         let _ = trial.advance_to(trial.position() + 1);
+        // `a legendary 4/4 red Dragon creature`: prenominal supertypes.
+        while trial
+            .peek()
+            .is_some_and(|raw| lookup_supertype(raw, AcceptedForms::SingularOnly).is_some())
+        {
+            let _ = trial.advance_to(trial.position() + 1);
+        }
     }
     if numeric_power_toughness_starts(&trial) {
         return article || number == TypeChangeNumber::Plural;
@@ -253,11 +283,20 @@ fn characteristic_verb_at(
         return Some(CharacteristicVerb::Lose);
     }
     if verb_at(cursor, offset, VerbLemma::Have, agreement)
-        && base_stats_length(cursor, offset + 1).is_some_and(|(_, base)| base)
+        && (base_stats_length(cursor, offset + 1).is_some_and(|(_, base)| base)
+            || base_power_alone_at(cursor, offset + 1))
     {
         return Some(CharacteristicVerb::HaveBase);
     }
     None
+}
+
+/// `base power N` without `and toughness` (CR 613.4b): layer 7b of the
+/// power alone. `base power and toughness` is the pair instead.
+fn base_power_alone_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    word_at(cursor, offset, "base")
+        && word_at(cursor, offset + 1, "power")
+        && !word_at(cursor, offset + 2, "and")
 }
 
 /// The token length of the stated pair `[base] power and [base] toughness`
@@ -339,19 +378,101 @@ enum BecomeTypesState {
     Complete,
 }
 
+/// Whether the frame reads a change (a verb chain with one duration) or
+/// the complement of a static copula (`is`/`are`), which owns neither verbs,
+/// durations nor copies: the static parent owns its predicate list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FrameMode {
+    Change,
+    Copula,
+}
+
 /// The frame after a subject the parent recognized. `copy_object` reads the
 /// object of `becomes a copy of`, with the same reference grammar as the
 /// subject; it is called only after that complement has been seen.
 pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subject: Clone>(
     cursor: &mut OracleTokenCursor<'tokens>,
+    subject: impl FnMut(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
+    copy_object: impl FnMut(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
+    preposed_duration: Option<&EffectDurationNode>,
+    agreement: VerbAgreement,
+    number: TypeChangeNumber,
+) -> MachineResult<RecognizedEffectFragment<BecomeTypesNode<Subject>>> {
+    run_become_frame(
+        cursor,
+        BecomeTypesState::Subject,
+        None,
+        subject,
+        copy_object,
+        preposed_duration,
+        agreement,
+        number,
+        FrameMode::Change,
+    )
+}
+
+/// The complement of a static copula (`Enchanted land is a 3/3 black Ooze
+/// creature. It's still a land.`, `All lands are 1/1 creatures that are
+/// still lands.`): the same complement states as `becomes`, without a verb
+/// chain, a duration or a copy (CR 205.1b, 613.1). The parent has consumed
+/// the copula and owns the subject and the lowering.
+pub(in crate::oracle::canonical) fn recognize_characteristic_copula_complement(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+) -> MachineResult<BecomeTypesNode<()>> {
+    cursor.enter("static.characteristic-copula");
+    run_become_frame(
+        cursor,
+        BecomeTypesState::BecomeComplement,
+        Some(BecomeTypesNode::empty(())),
+        |cursor| Err(cursor.fail("a copula subject supplied by the static parent")),
+        |cursor| Err(cursor.fail("a copy effect, which a static copula does not state")),
+        None,
+        match number {
+            TypeChangeNumber::Singular => VerbAgreement::ThirdPersonSingular,
+            TypeChangeNumber::Plural => VerbAgreement::Base,
+        },
+        number,
+        FrameMode::Copula,
+    )
+    .map(|fragment| fragment.node)
+}
+
+/// Prenominal supertypes after the article (`a legendary 4/4 red Dragon`,
+/// `a 6/6 legendary Horror`), each one added (CR 205.4).
+fn read_prenominal_supertypes<Subject>(
+    cursor: &mut OracleTokenCursor<'_>,
+    change: &mut BecomeTypesNode<Subject>,
+) -> MachineResult<()> {
+    while let Some(supertype) = cursor
+        .peek()
+        .and_then(|raw| lookup_supertype(raw, AcceptedForms::SingularOnly))
+    {
+        cursor.enter("effect.become-types.supertype");
+        cursor.require(
+            !change.supertypes.contains(&supertype),
+            "distinct supertypes",
+        )?;
+        change.supertypes.push(supertype);
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_become_frame<'tokens, Subject: Clone>(
+    cursor: &mut OracleTokenCursor<'tokens>,
+    start: BecomeTypesState,
+    initial: Option<BecomeTypesNode<Subject>>,
     mut subject: impl FnMut(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
     mut copy_object: impl FnMut(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
     preposed_duration: Option<&EffectDurationNode>,
     agreement: VerbAgreement,
     number: TypeChangeNumber,
+    mode: FrameMode,
 ) -> MachineResult<RecognizedEffectFragment<BecomeTypesNode<Subject>>> {
-    let mut state = BecomeTypesState::Subject;
-    let mut node: Option<BecomeTypesNode<Subject>> = None;
+    let mut state = start;
+    let mut node: Option<BecomeTypesNode<Subject>> = initial;
     let mut article = false;
     loop {
         state = match state {
@@ -465,6 +586,10 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
             }
             BecomeTypesState::Statistics => {
                 cursor.enter("effect.become-types.power-toughness");
+                if article {
+                    let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
+                    read_prenominal_supertypes(cursor, change)?;
+                }
                 if numeric_power_toughness_starts(cursor) {
                     let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
                     cursor.require(
@@ -478,6 +603,9 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
             BecomeTypesState::Colors => {
                 cursor.enter("effect.become-types.colors");
                 let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
+                if article {
+                    read_prenominal_supertypes(cursor, change)?;
+                }
                 if word_at(cursor, 0, "colorless")
                     || cursor
                         .peek()
@@ -536,6 +664,15 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
                     let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
                     cursor.consume("that's")?;
                     change.retention = recognize_still_type(cursor, &change.card_types)?;
+                } else if number == TypeChangeNumber::Plural
+                    && word_at(cursor, 0, "that")
+                    && word_at(cursor, 1, "are")
+                    && word_at(cursor, 2, "still")
+                {
+                    // `1/1 creatures that are still lands` (CR 205.1b).
+                    let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
+                    cursor.consume_phrase(&["that", "are"])?;
+                    change.retention = recognize_plural_still_type(cursor, &change.card_types)?;
                 }
                 BecomeTypesState::Retention
             }
@@ -555,7 +692,10 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
                     cursor.consume_phrase(&["other", "types"])?;
                     change.retention = TypeChangeRetention::InAdditionToOtherTypes;
                 }
-                BecomeTypesState::Coordination
+                match mode {
+                    FrameMode::Change => BecomeTypesState::Coordination,
+                    FrameMode::Copula => BecomeTypesState::RetentionSentence,
+                }
             }
             BecomeTypesState::Coordination => {
                 cursor.enter("effect.become-types.coordination");
@@ -641,18 +781,29 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
             BecomeTypesState::RetentionSentence => {
                 cursor.enter("effect.become-types.retention-sentence");
                 let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
+                let singular = word_at(cursor, 1, "it's") || word_at(cursor, 1, "it’s");
+                let plural = word_at(cursor, 1, "they're") || word_at(cursor, 1, "they’re");
                 if change.names_types()
                     && cursor.peek() == Some(".")
-                    && word_at(cursor, 1, "it's")
+                    && (singular || plural)
                     && word_at(cursor, 2, "still")
                 {
                     cursor.require(
                         !change.retention.retains_prior_types(),
                         "one type-retention clause",
                     )?;
+                    cursor.require(
+                        plural == (number == TypeChangeNumber::Plural),
+                        "a retention pronoun agreeing in number with the changed objects",
+                    )?;
                     cursor.consume(".")?;
-                    cursor.consume("it's")?;
-                    change.retention = recognize_still_type(cursor, &change.card_types)?;
+                    let pronoun = cursor.peek().expect("a contracted pronoun").to_string();
+                    cursor.consume(&pronoun)?;
+                    change.retention = if plural {
+                        recognize_plural_still_type(cursor, &change.card_types)?
+                    } else {
+                        recognize_still_type(cursor, &change.card_types)?
+                    };
                 }
                 BecomeTypesState::Complete
             }
@@ -735,9 +886,15 @@ fn recognize_have_base_into<Subject>(
 ) -> MachineResult<()> {
     cursor.enter("effect.become-types.base-power-toughness");
     cursor.require(
-        change.base_power_toughness().is_none(),
+        change.base_power_toughness().is_none() && change.characteristics.base_power.is_none(),
         "one stated base power/toughness",
     )?;
+    if base_power_alone_at(cursor, 0) {
+        cursor.enter("effect.become-types.base-power");
+        cursor.consume_phrase(&["base", "power"])?;
+        change.characteristics.base_power = Some(recognize_single_stat_component(cursor)?);
+        return Ok(());
+    }
     change.characteristics.base_power_toughness = Some(recognize_stated_base_stats(cursor)?);
     Ok(())
 }
@@ -781,6 +938,67 @@ pub(in crate::oracle::canonical) fn recognize_possessed_base_power_toughness<Sub
     let mut node = BecomeTypesNode::empty(objects);
     node.characteristics.base_power_toughness = Some(recognize_numeric_power_toughness(cursor)?);
     cursor.enter("effect.base-power-toughness.duration");
+    node.duration = if preposed_duration.is_some() || word_at(cursor, 0, "until") {
+        Some(recognize_trailing_or_supplied_duration(
+            cursor,
+            preposed_duration,
+        )?)
+    } else {
+        None
+    };
+    Ok(RecognizedEffectFragment {
+        node,
+        end_position: cursor.position(),
+    })
+}
+
+/// Whether `switch` (CR 613.4d) opens an imperative instruction here.
+pub(in crate::oracle::canonical) fn switch_power_toughness_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    verb_at(cursor, 0, VerbLemma::Switch, VerbAgreement::Base)
+}
+
+/// The stated pair `power and toughness` whose values are switched.
+fn consume_switched_pair(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.enter("effect.switch-power-toughness.pair");
+    cursor.consume_phrase(&["power", "and", "toughness"])
+}
+
+/// `switch POSSESSED power and toughness [DURATION]` / `switch the power and
+/// toughness of OBJECTS [DURATION]` (CR 613.4d): one characteristic change
+/// whose complement is the layer-7d switch. `possessed` reads the genitive
+/// object (`this creature's`, `target creature's`, `its`) and `objects` the
+/// object after `of`; both are the parent's shared operand grammar.
+pub(in crate::oracle::canonical) fn recognize_switch_power_toughness<'tokens, Subject>(
+    cursor: &mut OracleTokenCursor<'tokens>,
+    possessed: impl FnOnce(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
+    objects: impl FnOnce(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
+    preposed_duration: Option<&EffectDurationNode>,
+) -> MachineResult<RecognizedEffectFragment<BecomeTypesNode<Subject>>> {
+    cursor.enter("effect.switch-power-toughness.verb");
+    cursor.require(
+        switch_power_toughness_starts(cursor),
+        "the imperative `switch`",
+    )?;
+    let raw = cursor.peek().expect("a recognized verb").to_string();
+    cursor.consume(&raw)?;
+    cursor.enter("effect.switch-power-toughness.object");
+    let subject =
+        if word_at(cursor, 0, "the") && word_at(cursor, 1, "power") && word_at(cursor, 2, "and") {
+            cursor.consume("the")?;
+            consume_switched_pair(cursor)?;
+            cursor.enter("effect.switch-power-toughness.of");
+            cursor.consume("of")?;
+            objects(cursor)?
+        } else {
+            let subject = possessed(cursor)?;
+            consume_switched_pair(cursor)?;
+            subject
+        };
+    let mut node = BecomeTypesNode::empty(subject);
+    node.characteristics.switches_power_toughness = true;
+    cursor.enter("effect.switch-power-toughness.duration");
     node.duration = if preposed_duration.is_some() || word_at(cursor, 0, "until") {
         Some(recognize_trailing_or_supplied_duration(
             cursor,

@@ -309,6 +309,40 @@ pub(in crate::oracle::canonical) fn lower_permanent_keyword_action(
                 vec![json!({ "kind": "putSameCountersAs", "permanent": object, "source": source })]
             })
         }
+        // CR 708.8 / 708.2a: each permanent keeps its identity, counters and
+        // attachments; only its face status (and so its copiable values)
+        // changes. The runtime primitive owns the no-op cases (CR 708.2b,
+        // 701.40g).
+        PermanentKeywordAction::TurnFace(direction) => {
+            let kind = match direction {
+                FaceDirection::Up => "turnPermanentFaceUp",
+                FaceDirection::Down => "turnPermanentFaceDown",
+                FaceDirection::Unread => {
+                    return Err("`face up` or `face down` after `turn` (CR 708)".to_string());
+                }
+            };
+            for_each_object(object, scope, |object| {
+                vec![json!({ "kind": kind, "permanent": object })]
+            })
+        }
+        // CR 701.3, 301.5c: each attachment stays on the battlefield,
+        // attached to nothing; an Aura then goes to its owner's graveyard as
+        // a state-based action (CR 704.5m).
+        PermanentKeywordAction::Unattach => for_each_object(object, scope, |object| {
+            vec![json!({ "kind": "unattachPermanent", "permanent": object })]
+        }),
+        // CR 709.5f-g: the ability controller chooses one door of each Room
+        // whose designation the change allows; a Room with no such door,
+        // or a permanent that isn't a Room, is unchanged. Unlocking fires
+        // the door's own `unlock` triggers (CR 709.5h).
+        PermanentKeywordAction::RoomDoor(change) => for_each_object(object, scope, |object| {
+            vec![json!({
+                "kind": "changeRoomDoor",
+                "permanent": object,
+                "player": controller(),
+                "change": change.runtime_name(),
+            })]
+        }),
         // CR 122.8: counters of any kinds leave each permanent; the ability
         // controller chooses which while the action resolves.
         PermanentKeywordAction::RemoveUnnamedCounters(removal) => {
@@ -449,9 +483,21 @@ fn face_down_onto_battlefield(cards: Value, from: Value) -> Value {
     })
 }
 
+/// The ward {2} a cloaked permanent has while it is face down (CR 701.58a):
+/// the same keyword rule a face-down disguise permanent has (CR 702.168a).
+fn cloaked_ward() -> Value {
+    json!({
+        "kind": "keywordAbility",
+        "source": self_ref(),
+        "ability": { "kind": "ward", "cost": { "kind": "payMana", "manaCost": "{2}" } },
+    })
+}
+
 /// CR 701.40a/e: each card is turned face down and put onto the battlefield
-/// as a 2/2 creature, one card at a time from the top of the library.
-fn lower_manifest_program(quantity: &Value) -> Result<Vec<Value>, String> {
+/// as a 2/2 creature, one card at a time from the top of the library. CR
+/// 701.58a/e: cloak is the same procedure whose face-down characteristics
+/// also have ward {2}.
+fn lower_manifest_program(quantity: &Value, cloak: bool) -> Result<Vec<Value>, String> {
     let count = quantity["value"]
         .as_i64()
         .filter(|count| quantity["kind"] == "integer" && *count > 0)
@@ -459,12 +505,135 @@ fn lower_manifest_program(quantity: &Value) -> Result<Vec<Value>, String> {
     let library = json!({ "kind": "library", "player": controller() });
     Ok((0..count)
         .map(|_| {
-            face_down_onto_battlefield(
+            let mut entry = face_down_onto_battlefield(
                 json!({ "kind": "libraryTopCards", "zone": library, "count": integer(1) }),
                 library.clone(),
-            )
+            );
+            if cloak {
+                entry["to"]["faceDownAbilities"] = json!([cloaked_ward()]);
+            }
+            entry
         })
         .collect())
+}
+
+/// CR 701.53a-b: an Incubator token with N +1/+1 counters. It is a
+/// double-faced token: a colorless Incubator artifact with "{2}: Transform
+/// this token." whose back face is a 0/0 colorless Phyrexian artifact
+/// creature named Phyrexian Token. The faces are the shared transform
+/// marker of double-faced permanents; the activated ability is active on
+/// the front face only. Incubate 0 still creates the token.
+fn lower_incubate_program(quantity: Value) -> Vec<Value> {
+    vec![json!({
+        "kind": "createTokens",
+        "controller": controller(),
+        "quantity": integer(1),
+        "token": {
+            "name": "Incubator Token",
+            "types": ["Artifact"],
+            "subtypes": ["Incubator"],
+            "abilities": [
+                {
+                    "kind": "activatedAbility",
+                    "activeFaceIndex": 0,
+                    "source": self_ref(),
+                    "costs": [{ "kind": "payMana", "manaCost": "{2}" }],
+                    "effects": [{ "kind": "transformPermanent", "object": self_ref() }],
+                },
+                {
+                    "kind": "rulesMarker",
+                    "text": "Transformable token faces.",
+                    "transformFaces": [
+                        {
+                            "id": "incubator",
+                            "name": "Incubator Token",
+                            "typeLine": "Artifact - Incubator",
+                            "manaCost": "",
+                            "oracleText": "{2}: Transform this token.",
+                            "power": null,
+                            "toughness": null,
+                            "loyalty": null,
+                        },
+                        {
+                            "id": "phyrexian",
+                            "name": "Phyrexian Token",
+                            "typeLine": "Artifact Creature - Phyrexian",
+                            "manaCost": "",
+                            "oracleText": "",
+                            "power": "0",
+                            "toughness": "0",
+                            "loyalty": null,
+                        },
+                    ],
+                },
+            ],
+        },
+        "counters": [{ "counter": "+1/+1", "count": quantity }],
+    })]
+}
+
+/// CR 701.29a: look at the top N cards of an opponent's library, then put
+/// any number of them on the bottom of that library in any order and the
+/// rest on top in any order. The opponent is the shared resolution-time
+/// player choice (as for clash, CR 701.30b); the looking, choosing and
+/// ordering player is the fatesealing controller, the library the
+/// opponent's. The same primitives as scry over another library.
+fn lower_fateseal_program(quantity: Value, scope: &str) -> Vec<Value> {
+    let opponent_id = format!("{scope}:fatesealOpponent");
+    let looked_id = format!("{scope}:fatesealLooked");
+    let bottom_id = format!("{scope}:fatesealBottom");
+    let bottom_order_id = format!("{scope}:fatesealBottomOrder");
+    let top_order_id = format!("{scope}:fatesealTopOrder");
+    let opponent = bound(&opponent_id);
+    let library = |position: Option<&str>| {
+        let mut zone = json!({ "kind": "library", "player": opponent.clone() });
+        if let Some(position) = position {
+            zone["position"] = json!(position);
+        }
+        zone
+    };
+    let looked = json!({ "kind": "boundObjects", "binding": looked_id });
+    let bottom = decision_result(&bottom_id);
+    vec![
+        json!({
+            "kind": "choosePlayers",
+            "id": opponent_id,
+            "player": controller(),
+            "candidates": lower_player_set_reference(
+                PlayerSetReferenceNode::OpponentsOfAbilityController,
+            ),
+            "minimum": integer(1),
+            "maximum": integer(1),
+            "bindAs": opponent_id,
+        }),
+        json!({
+            "kind": "lookAtTopCards", "zone": library(None), "player": controller(),
+            "count": quantity, "bind": looked_id,
+        }),
+        json!({
+            "kind": "chooseCards", "id": bottom_id, "player": controller(),
+            "from": looked.clone(), "minimum": integer(0),
+            "maximum": { "kind": "countObjects", "objects": looked.clone() },
+        }),
+        json!({
+            "kind": "chooseOrder", "id": bottom_order_id,
+            "player": controller(), "objects": bottom.clone(),
+        }),
+        json!({
+            "kind": "moveCards", "cards": decision_result(&bottom_order_id),
+            "to": library(Some("bottom")),
+            "order": { "kind": "decisionOrder", "decisionId": bottom_order_id },
+        }),
+        json!({
+            "kind": "chooseOrder", "id": top_order_id, "player": controller(),
+            "objects": { "kind": "setDifference", "left": looked, "right": bottom },
+        }),
+        json!({
+            "kind": "moveCards", "cards": decision_result(&top_order_id),
+            "to": library(Some("top")),
+            "order": { "kind": "decisionOrder", "decisionId": top_order_id },
+        }),
+    ]
 }
 
 /// CR 701.62a: look at the top two cards, manifest one of them, then put the
@@ -516,8 +685,18 @@ pub(in crate::oracle::canonical) fn lower_controller_keyword_action(
             Err("a tracked outside-the-game movement source for learn (CR 701.48a)".to_string())
         }
         ControllerKeywordAction::Manifest => {
-            lower_manifest_program(quantity.as_ref().ok_or("a manifested card count")?)
+            lower_manifest_program(quantity.as_ref().ok_or("a manifested card count")?, false)
         }
+        ControllerKeywordAction::Cloak => {
+            lower_manifest_program(quantity.as_ref().ok_or("a cloaked card count")?, true)
+        }
+        ControllerKeywordAction::Incubate => Ok(lower_incubate_program(
+            quantity.ok_or("an incubate quantity (CR 701.53a)")?,
+        )),
+        ControllerKeywordAction::Fateseal => Ok(lower_fateseal_program(
+            quantity.ok_or("a fateseal quantity (CR 701.29a)")?,
+            scope,
+        )),
         ControllerKeywordAction::ManifestDread => Ok(lower_manifest_dread_program(scope)),
         ControllerKeywordAction::Bolster => Ok(lower_bolster_program(
             quantity.ok_or("a bolster quantity")?,
@@ -553,6 +732,19 @@ pub(in crate::oracle::canonical) fn lower_controller_keyword_action(
         ControllerKeywordAction::ExchangeZones(ZoneExchange(None)) => {
             Err("the two zones of an exchange (CR 701.12a)".to_string())
         }
+    }
+}
+
+/// `ACTION twice|N times` (`incubate 2 twice`): the whole lowered action
+/// performed that many times in a row, the count read once before the first
+/// performance; without a repetition the action is unchanged.
+pub(in crate::oracle::canonical) fn repeat_keyword_action(
+    effects: Vec<Value>,
+    times: Option<Value>,
+) -> Vec<Value> {
+    match times {
+        None => effects,
+        Some(count) => vec![json!({ "kind": "repeatEffects", "count": count, "effects": effects })],
     }
 }
 

@@ -94,10 +94,12 @@ fn or_between_the_exiled_objects_is_the_performers_choice() {
 #[test]
 fn malformed_family_members_fail_in_the_responsible_local_automaton() {
     for (oracle_text, expected_state, expected_found) in [
+        // `their library` is no family member: it is the performer's whole
+        // library, read by the shared performer clause (CR 608.2c).
         (
-            "Target opponent exiles a creature they control and their library.",
+            "Target opponent exiles a creature they control and their battlefield.",
             "zone.possessive-player.kind",
-            "library",
+            "battlefield",
         ),
         (
             "Target opponent exiles an instant they control and their graveyard.",
@@ -152,4 +154,21 @@ fn unrelated_player_exile_phrases_are_the_declared_performers_instruction() {
         assert_eq!(effect["performer"]["kind"], "chosenTarget", "{rule:#}");
         assert_eq!(effect["performer"]["id"], target_id, "{rule:#}");
     }
+}
+
+#[test]
+fn a_whole_library_member_is_the_performers_ordinary_card_move() {
+    // Previously unused combination: a controlled object and a whole
+    // library, both the performer's (`they`/`their` read as the performer).
+    let parsed = parse("Target opponent exiles a creature they control and their library.");
+    assert_eq!(parsed.status, "canonical");
+    let rule = parsed.abilities[0].rule.as_ref().expect("performer rule");
+    let effects = rule["effects"].as_array().expect("effects");
+    assert!(
+        effects
+            .iter()
+            .all(|effect| effect["performer"]["kind"] == "chosenTarget"),
+        "{rule:#}"
+    );
+    assert_eq!(effects.last().unwrap()["cards"]["zone"]["kind"], "library");
 }

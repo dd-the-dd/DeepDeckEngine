@@ -61,7 +61,8 @@ fn lower_cast_quota(
     cursor.enter("static.cast-quota.lower.players");
     let players = match node.players {
         PlayerSetReferenceNode::EachPlayer => json!({"kind":"eachPlayer"}),
-        PlayerSetReferenceNode::OpponentsOfAbilityController => {
+        PlayerSetReferenceNode::OpponentsOfAbilityController
+        | PlayerSetReferenceNode::OpponentsOtherThanEventPlayer => {
             return Err(cursor
                 .fail("each player; the runtime quota currently ignores narrower player scopes"));
         }

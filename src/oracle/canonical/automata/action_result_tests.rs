@@ -22,8 +22,13 @@ fn restated_noun_and_verb_are_typed() {
 
 #[test]
 fn other_verbs_and_controlled_nouns_are_refused() {
-    assert!(!action_result_reference_starts_text(
+    // `returned` and `tapped` are restated results (operand tails); a verb
+    // with no recorded result is still refused.
+    assert!(action_result_reference_starts_text(
         "creature returned this way"
+    ));
+    assert!(!action_result_reference_starts_text(
+        "creature regenerated this way"
     ));
     assert!(read("creature you control destroyed this way").is_err());
 }

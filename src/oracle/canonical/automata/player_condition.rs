@@ -108,6 +108,8 @@ impl ConditionPlayerSubject {
 pub(in crate::oracle::canonical) enum PlayerCardZone {
     Hand,
     Graveyard,
+    /// CR 401.1.
+    Library,
 }
 
 /// One measured fact about the subject player, compared with a threshold.
@@ -133,6 +135,9 @@ pub(in crate::oracle::canonical) enum PlayerStateMeasure {
     SpellsCastThisTurn(Option<ObjectPredicate>),
     /// Cards the player drew this turn.
     CardsDrawnThisTurn,
+    /// The size of the player's party (CR 700.8): up to one each of
+    /// Cleric, Rogue, Warrior and Wizard among the creatures they control.
+    PartySize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

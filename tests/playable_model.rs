@@ -442,7 +442,7 @@ fn playable_card_compilation_keeps_canonical_rules_from_partial_talon_parse() {
             layout: None,
             mana_cost: None,
             oracle_text: Some(
-                "When Talon Gates of Madara enters the battlefield, up to one target creature phases out.\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}: You win the game."
+                "When Talon Gates of Madara enters the battlefield, up to one target creature phases out.\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}: Seek a creature card."
                     .to_string(),
             ),
             type_line: "Land - Gate".to_string(),
@@ -455,7 +455,7 @@ fn playable_card_compilation_keeps_canonical_rules_from_partial_talon_parse() {
     assert_eq!(compilation.parser_status, "unsupported");
     assert_eq!(compilation.engine_status, "incomplete");
     // The enters trigger now phases its target out (CR 702.26b); only the
-    // `{4}` ability without a grammar (winning the game) remains unsupported;
+    // `{4}` ability without a grammar (seeking a card) remains unsupported;
     // the printed put-from-hand activation is now read by the source-move frame.
     assert_eq!(compilation.canonical_ability_count, 3);
     assert_eq!(compilation.unsupported_ability_count, 1);

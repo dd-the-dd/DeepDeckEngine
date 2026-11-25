@@ -149,7 +149,7 @@ fn third_person_life_verb_is_never_defaulted_to_controller() {
 #[test]
 fn unsupported_bodies_and_wide_optional_scope_are_unpromoted_candidates() {
     for text in [
-        "At the beginning of your upkeep, incubate 2.",
+        "At the beginning of your upkeep, seek a creature card.",
         "At the beginning of your upkeep, you may draw a card and gain 1 life.",
     ] {
         assert!(
@@ -229,22 +229,25 @@ fn source_damage_to_a_permanent_collection_is_complete_native_ir() {
 
 #[test]
 fn default_preserves_native_phase_failure_without_fallback() {
-    for (name, type_line, text, primary_state, candidate_state) in [
-        (
-            "Sanctum of Calm Waters",
-            "Legendary Enchantment — Shrine",
-            "At the beginning of your first main phase, you may draw X cards, where X is the number of Shrines you control. If you do, discard a card.",
-            "lower.program.optional-action.action",
-            "condition.sentence.atom-kind",
-        ),
-        (
-            "Sylvan Library",
-            "Enchantment",
-            "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.",
-            "effect.draw-cards.unsupported-qualifier",
-            "effect.draw-cards.unsupported-qualifier",
-        ),
-    ] {
+    // Sanctum of Calm Waters, formerly the optional-action near miss, is a
+    // measured instruction group now (`If you do` observes the bound X and
+    // the draw together); the remaining native failure keeps its owner.
+    let sanctum = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Sanctum of Calm Waters".to_string(),
+        type_line: "Legendary Enchantment — Shrine".to_string(),
+        mana_cost: None,
+        oracle_text: Some("At the beginning of your first main phase, you may draw X cards, where X is the number of Shrines you control. If you do, discard a card.".to_string()),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    });
+    assert_eq!(sanctum.status, "canonical");
+    for (name, type_line, text, primary_state, candidate_state) in [(
+        "Sylvan Library",
+        "Enchantment",
+        "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.",
+        "effect.draw-cards.unsupported-qualifier",
+        "effect.draw-cards.unsupported-qualifier",
+    )] {
         let request = OracleCardParseRequest {
             card_name: name.to_string(),
             type_line: type_line.to_string(),

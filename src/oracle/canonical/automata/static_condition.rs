@@ -10,18 +10,18 @@
 //! evaluates generically, not a card recipe.
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    ClauseAction, ClauseAmount, ClauseAmountPolicy, ClauseFrame, ClauseModality, ClauseSubject,
-    ClauseSubjectPolicy, ClauseTense, ConditionAtom, ConditionComparison, ConditionContext,
-    ConditionNode, ConditionNumber, ConditionPlayerSubject, ConditionScope,
-    ControlledCountDirection, CountThreshold, EventActorScope, EventHistoryNode,
+    CastChoice, CastChoiceNode, ClauseAction, ClauseAmount, ClauseAmountPolicy, ClauseFrame,
+    ClauseModality, ClauseSubject, ClauseSubjectPolicy, ClauseTense, ConditionAtom,
+    ConditionComparison, ConditionContext, ConditionNode, ConditionNumber, ConditionPlayerSubject,
+    ConditionScope, ControlledCountDirection, CountThreshold, EventActorScope, EventHistoryNode,
     EventHistoryPattern, HistoryAggregate, HistoryCastMode, HistoryDestination, HistoryEvent,
     HistoryMeasure, HistoryPlayer, HistoryQualifiers, HistoryScope, LIFE_LEMMAS, NumericAtom,
     NumericComparisonOperator, ObjectControllerScope, ObjectKind, ObjectPredicate, PlayerCardZone,
     PlayerDesignation, PlayerDesignationNode, PlayerStateConditionNode, PlayerStateMeasure,
-    TargetPlayerLifeAction, ThresholdOperator, recognize_boolean_condition_list_before_separator,
-    recognize_clause, recognize_condition_atom, recognize_count_threshold, recognize_numeric_atom,
-    recognize_object_query, recognize_player_possession_proposition,
-    recognize_search_card_selector, threshold_comparison,
+    SourceCastZone, TargetPlayerLifeAction, ThresholdOperator,
+    recognize_boolean_condition_list_before_separator, recognize_clause, recognize_condition_atom,
+    recognize_count_threshold, recognize_numeric_atom, recognize_object_query,
+    recognize_player_possession_proposition, recognize_search_card_selector, threshold_comparison,
 };
 use super::{ClauseArguments, VerbForm, VerbLemma, Voice, is_verb_form, lookup_verb};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
@@ -221,8 +221,37 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
         cursor.consume("have")?;
     }
     cursor.enter("condition.static.controller-history.verb");
+    // `you've been dealt [N or more] [noncombat] damage this turn`: the
+    // perfect passive of the recorded damage event (CR 120.3).
+    if word_is(cursor, 0, "been")
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Deal, VerbForm::PastParticiple))
+    {
+        consume_current(cursor)?;
+        consume_current(cursor)?;
+        return recognize_dealt_damage_history(cursor, HistoryPlayer::Controller);
+    }
+    // `you've cast ...`: the possession reader keeps the counts it states;
+    // any other cast phrase (`another spell`, a filtered count, `from your
+    // hand`) is the same recorded action read by the shared history reader.
+    if word_is(cursor, 0, "cast") {
+        let subject = ConditionPlayerSubject::Controller;
+        let mut possession = cursor.clone();
+        if let Ok(proposition) = recognize_player_possession_proposition(&mut possession, subject) {
+            *cursor = possession;
+            return Ok(super::player_state_atom(PlayerStateConditionNode {
+                subject,
+                proposition,
+            }));
+        }
+        return recognize_history_predicate(
+            cursor,
+            HistoryPlayer::Controller,
+            VerbForm::PastParticiple,
+        );
+    }
     if word_is(cursor, 0, "drawn")
-        || word_is(cursor, 0, "cast")
         || word_is(cursor, 0, "no")
         || word_is(cursor, 0, "at")
         || word_is(cursor, 0, "exactly")
@@ -253,6 +282,19 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
             HistoryPlayer::Controller,
             VerbForm::PastParticiple,
         );
+    }
+    // `you have a card in hand`, `you have an artifact card in your
+    // graveyard`: an article possession the designations below do not name.
+    if word_is(cursor, 0, "a") || word_is(cursor, 0, "an") {
+        let subject = ConditionPlayerSubject::Controller;
+        let mut possession = cursor.clone();
+        if let Ok(proposition) = recognize_player_possession_proposition(&mut possession, subject) {
+            *cursor = possession;
+            return Ok(super::player_state_atom(PlayerStateConditionNode {
+                subject,
+                proposition,
+            }));
+        }
     }
     cursor.enter("condition.static.controller-history.designation");
     // CR 702.131c: `you have the city's blessing`.
@@ -591,12 +633,13 @@ pub(in crate::oracle::canonical) fn try_recognize_life_history_atom(
         }
     };
     cursor.enter("condition.static.life-history.per-player");
-    // A quantified other player who gained N life: one player's sum, not
-    // the sum over the population.
-    cursor.require(
-        threshold == 1 || player == HistoryPlayer::Controller,
-        "`N or more life` of the controller; a population's per-player sum is unsupported",
-    )?;
+    // A quantified other player who lost N life: one player's sum, not the
+    // sum over the population (`an opponent lost 3 or more life this turn`).
+    let aggregate = if threshold > 1 && player != HistoryPlayer::Controller {
+        HistoryAggregate::GreatestPerPlayer
+    } else {
+        HistoryAggregate::Total
+    };
     Ok(Some(ConditionAtom::EventHistory(EventHistoryNode {
         pattern: EventHistoryPattern {
             event: match direction {
@@ -609,7 +652,7 @@ pub(in crate::oracle::canonical) fn try_recognize_life_history_atom(
             qualifiers: HistoryQualifiers::default(),
         },
         scope: HistoryScope::ThisTurn,
-        aggregate: HistoryAggregate::Total,
+        aggregate,
         operator: NumericComparisonOperator::GreaterThanOrEqual,
         threshold,
     })))
@@ -762,12 +805,16 @@ pub(in crate::oracle::canonical) fn actor_event_history_starts(
 /// action result, never a turn history: mixing both scopes fails here.
 fn recognize_history_scope(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<HistoryScope> {
     cursor.enter("condition.history.scope");
+    if word_is(cursor, 0, "this") && word_is(cursor, 1, "combat") {
+        cursor.consume_phrase(&["this", "combat"])?;
+        return Ok(HistoryScope::ThisCombat);
+    }
     let scope = if word_is(cursor, 0, "this") && word_is(cursor, 1, "turn") {
         HistoryScope::ThisTurn
     } else if word_is(cursor, 0, "last") {
         HistoryScope::LastTurn
     } else {
-        return Err(cursor.fail("`this turn` or `last turn`"));
+        return Err(cursor.fail("`this turn`, `last turn` or `this combat`"));
     };
     consume_current(cursor)?;
     cursor.consume("turn")?;
@@ -1057,21 +1104,7 @@ fn recognize_history_predicate(
     if !negated && (word_is(cursor, 0, "was") || word_is(cursor, 0, "were")) {
         consume_current(cursor)?;
         consume_current(cursor)?;
-        cursor.enter("condition.history.damage");
-        cursor.consume("damage")?;
-        let scope = recognize_history_scope(cursor)?;
-        let threshold = CountThreshold::at_least(1);
-        return Ok(history_node(
-            plain_pattern(
-                HistoryEvent::DamageDealtToPlayer,
-                player,
-                None,
-                HistoryMeasure::Amount,
-            ),
-            scope,
-            HistoryAggregate::Total,
-            threshold,
-        ));
+        return recognize_dealt_damage_history(cursor, player);
     }
     let verb = history_verb_at(cursor, 0, form)
         .ok_or_else(|| cursor.fail("a recorded action in the simple past"))?;
@@ -1100,7 +1133,8 @@ fn recognize_history_object(
     match verb {
         ActorHistoryVerb::Cast => {
             cursor.enter("condition.history.cast.amount");
-            let threshold = recognize_count_threshold(cursor, true)?;
+            // `another spell`: a spell other than the ability's own source.
+            let (threshold, exclude_source) = recognize_history_amount(cursor)?;
             cursor.enter("condition.history.cast.query");
             let query =
                 super::recognize_object_noun_query(cursor, super::ObjectQueryContext::ORDINARY)?
@@ -1114,13 +1148,48 @@ fn recognize_history_object(
                     && query.predicate.supports_domain(ObjectKind::Spell),
                 "an explicit spell-domain query",
             )?;
+            // `from your hand`, `from your graveyard`, `from exile`: the zone
+            // the cast record keeps (CR 601.2a).
+            cursor.enter("condition.history.cast.origin");
+            let cast_zone = if word_is(cursor, 0, "from") {
+                cursor.consume("from")?;
+                let possessive = if player == HistoryPlayer::Controller {
+                    "your"
+                } else {
+                    "their"
+                };
+                Some(if word_is(cursor, 0, "exile") {
+                    cursor.consume("exile")?;
+                    SourceCastZone::Exile
+                } else {
+                    cursor.require(
+                        word_is(cursor, 0, possessive),
+                        "the zone possessive that agrees with the history's player subject",
+                    )?;
+                    consume_current(cursor)?;
+                    if word_is(cursor, 0, "hand") {
+                        cursor.consume("hand")?;
+                        SourceCastZone::Hand
+                    } else {
+                        cursor.consume("graveyard")?;
+                        SourceCastZone::Graveyard
+                    }
+                })
+            } else {
+                None
+            };
             Ok((
-                plain_pattern(
-                    HistoryEvent::SpellCast,
+                EventHistoryPattern {
+                    event: HistoryEvent::SpellCast,
                     player,
-                    object_filter(query.predicate, ObjectKind::Spell),
-                    HistoryMeasure::Occurrences,
-                ),
+                    object: object_filter(query.predicate, ObjectKind::Spell),
+                    measure: HistoryMeasure::Occurrences,
+                    qualifiers: HistoryQualifiers {
+                        exclude_source,
+                        cast_zone,
+                        ..HistoryQualifiers::default()
+                    },
+                },
                 threshold,
                 true,
             ))
@@ -1151,6 +1220,32 @@ fn recognize_history_object(
         }
         ActorHistoryVerb::Attack => {
             cursor.enter("condition.history.attack.with");
+            // `attacked with creatures with total power 6 or greater` (CR
+            // 508.1): the power each attacker had as it was declared, summed.
+            if word_is(cursor, 0, "with")
+                && word_is(cursor, 1, "creatures")
+                && word_is(cursor, 2, "with")
+                && word_is(cursor, 3, "total")
+                && word_is(cursor, 4, "power")
+            {
+                cursor.consume_phrase(&["with", "creatures", "with", "total", "power"])?;
+                cursor.enter("condition.history.attack.total-power");
+                let threshold = recognize_count_threshold(cursor, false)?;
+                cursor.require(
+                    player == HistoryPlayer::Controller,
+                    "the total power of the controller's attackers",
+                )?;
+                return Ok((
+                    plain_pattern(
+                        HistoryEvent::AttackerDeclared,
+                        player,
+                        None,
+                        HistoryMeasure::Power,
+                    ),
+                    threshold,
+                    false,
+                ));
+            }
             let (object, threshold) = if word_is(cursor, 0, "with") {
                 cursor.consume("with")?;
                 let threshold = recognize_count_threshold(cursor, true)?;
@@ -1763,11 +1858,16 @@ pub(in crate::oracle::canonical) fn recognize_object_event_history_atom(
     };
     cursor.enter("condition.history.object.control");
     let player = if word_is(cursor, 0, "under") {
+        // A death record keeps the controller the permanent had (CR
+        // 700.4): `a creature died under your control`.
         cursor.require(
             player == HistoryPlayer::Any
+                && !qualifiers.zone_owner
                 && matches!(
                     event,
-                    HistoryEvent::PermanentLeftBattlefield | HistoryEvent::PermanentEntered
+                    HistoryEvent::PermanentLeftBattlefield
+                        | HistoryEvent::PermanentEntered
+                        | HistoryEvent::PermanentDied
                 ),
             "one control relation of a permanent that moved",
         )?;
@@ -1802,6 +1902,741 @@ pub(in crate::oracle::canonical) fn recognize_object_event_history_atom(
         },
         scope,
         HistoryAggregate::Total,
+        threshold,
+    ))
+}
+
+// ---------------------------------------------------------------------------
+// Cast records, designations, turn ordinals and static state.
+//
+// These atoms are claimed before the subject dispatch of the one atom reader
+// (`read_condition_atom`): each recognizes only its own lexical frame and
+// otherwise returns `None` without consuming, so no other reader loses a
+// phrase it owns.
+
+/// The pre-dispatch atoms of the condition language:
+///
+/// ```text
+/// CastChoice    := "the" "gift" COPULA "promised"
+///                | "the" MANA "cost" COPULA "paid"
+///                | SOURCE-GENITIVE KEYWORD "cost" COPULA "paid"
+///                | SOURCE "was" "cast" "using" KEYWORD
+/// Ordinal       := "it's" "the" ORDINAL SPELL-QUERY "you" "cast" "this" "turn"
+///                | "it's" "the" ORDINAL "combat" "phase" "of" "the" "turn"
+/// PlayerState   := "you" "have" "a" "full" "party" | "you" "have" "max" "speed"
+///                | "you" "control" "your" "commander"
+///                | "you" "have" "at" "least" N "life" "more" "than"
+///                  "your" "starting" "life" "total"
+///                | ("your" | "a") ZONE "has" THRESHOLD CARDS "in" "it"
+///                | PLAYER ("has" | "have") "been" "dealt" DAMAGE "this" "turn"
+/// TopCard       := "the" "top" "card" "of" "your" ZONE "is" CARD-PREDICATE
+/// ColorRank     := COLOR "is" "the" "most" "common" "color" "among" "all"
+///                  "permanents" ["or" "is" "tied" "for" "most" "common"]
+/// ```
+pub(in crate::oracle::canonical) fn try_recognize_history_static_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<Option<ConditionAtom>> {
+    if word_is(cursor, 0, "the") && word_is(cursor, 1, "gift") && past_copula_at(cursor, 2) {
+        return recognize_gift_atom(cursor).map(Some);
+    }
+    if alternative_mana_cost_atom_starts(cursor) {
+        return recognize_alternative_mana_cost_atom(cursor).map(Some);
+    }
+    if let Some(subject) = keyword_cost_subject_at(cursor, context) {
+        return recognize_keyword_cost_atom(cursor, context, subject).map(Some);
+    }
+    if cast_using_atom_starts(cursor, context) {
+        return recognize_cast_using_atom(cursor, context).map(Some);
+    }
+    if contraction_is(cursor, 0, "it", "s")
+        && word_is(cursor, 1, "the")
+        && cursor
+            .peek_ahead(2)
+            .and_then(super::super::parse_ordinal_word)
+            .is_some()
+    {
+        if word_is(cursor, 3, "combat") && word_is(cursor, 4, "phase") {
+            return recognize_combat_phase_ordinal_atom(cursor).map(Some);
+        }
+        if spell_ordinal_you_offset(cursor).is_some() {
+            return recognize_spell_cast_ordinal_atom(cursor, context).map(Some);
+        }
+    }
+    if word_is(cursor, 0, "you") && word_is(cursor, 1, "have") {
+        if word_is(cursor, 2, "a") && word_is(cursor, 3, "full") && word_is(cursor, 4, "party") {
+            return recognize_full_party_atom(cursor).map(Some);
+        }
+        if word_is(cursor, 2, "max") && word_is(cursor, 3, "speed") {
+            return recognize_max_speed_atom(cursor).map(Some);
+        }
+        if life_beyond_starting_atom_starts(cursor) {
+            return recognize_life_beyond_starting_atom(cursor).map(Some);
+        }
+    }
+    if word_is(cursor, 0, "you")
+        && word_is(cursor, 1, "control")
+        && word_is(cursor, 2, "your")
+        && (word_is(cursor, 3, "commander") || word_is(cursor, 3, "commanders"))
+    {
+        return recognize_controls_your_commander_atom(cursor).map(Some);
+    }
+    if zone_card_count_atom_starts(cursor) {
+        return recognize_zone_card_count_atom(cursor).map(Some);
+    }
+    if top_card_atom_starts(cursor) {
+        return recognize_top_card_atom(cursor).map(Some);
+    }
+    if most_common_color_atom_starts(cursor) {
+        return recognize_most_common_color_atom(cursor).map(Some);
+    }
+    if let Some((width, player)) = history_actor_at(cursor)
+        && (word_is(cursor, width, "has") || word_is(cursor, width, "have"))
+        && word_is(cursor, width + 1, "been")
+        && cursor
+            .peek_ahead(width + 2)
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Deal, VerbForm::PastParticiple))
+    {
+        cursor.enter("condition.history.damage.perfect");
+        for _ in 0..width + 3 {
+            consume_current(cursor)?;
+        }
+        return recognize_dealt_damage_history(cursor, player).map(Some);
+    }
+    Ok(None)
+}
+
+/// `was`, `wasn't` or `was not` at `offset`.
+fn past_copula_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    word_is(cursor, offset, "was") || contraction_is(cursor, offset, "wasn", "t")
+}
+
+/// Consumes `was`, `wasn't` or `was not`; true when it negates.
+fn recognize_past_copula(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<bool> {
+    cursor.enter("condition.cast-choice.copula");
+    if contraction_is(cursor, 0, "wasn", "t") {
+        consume_current(cursor)?;
+        return Ok(true);
+    }
+    cursor.consume("was")?;
+    if word_is(cursor, 0, "not") {
+        cursor.consume("not")?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+fn cast_choice_atom(choice: CastChoice, negated: bool) -> ConditionAtom {
+    ConditionAtom::CastChoice(CastChoiceNode { choice, negated })
+}
+
+/// `the gift was|wasn't promised` (CR 702.174a): the gift of the ability's
+/// own source.
+fn recognize_gift_atom(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.cast-choice.gift");
+    cursor.consume_phrase(&["the", "gift"])?;
+    let negated = recognize_past_copula(cursor)?;
+    cursor.enter("condition.cast-choice.gift.verb");
+    cursor.consume("promised")?;
+    Ok(cast_choice_atom(CastChoice::GiftPromised, negated))
+}
+
+fn is_mana_symbol_raw(raw: &str) -> bool {
+    raw.starts_with('{') && raw.ends_with('}') && raw.len() > 2
+}
+
+/// Lexical lookahead for `the MANA cost was|wasn't paid`.
+fn alternative_mana_cost_atom_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if !word_is(cursor, 0, "the") || !cursor.peek_ahead(1).is_some_and(is_mana_symbol_raw) {
+        return false;
+    }
+    let mut offset = 1;
+    while cursor.peek_ahead(offset).is_some_and(is_mana_symbol_raw) {
+        offset += 1;
+    }
+    word_is(cursor, offset, "cost") && past_copula_at(cursor, offset + 1)
+}
+
+/// `the {1}{B} cost was paid` (CR 118.9): the printed alternative mana cost
+/// the shared mana-cost reader preserves, compared with the one the caster
+/// paid for the ability's own source.
+fn recognize_alternative_mana_cost_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.cast-choice.mana-cost");
+    cursor.consume("the")?;
+    let cost = super::recognize_mana_cost(cursor)?;
+    cursor.require(
+        cost.fixed_runtime_mana_value().is_ok(),
+        "a fixed alternative mana cost",
+    )?;
+    cursor.enter("condition.cast-choice.mana-cost.noun");
+    cursor.consume("cost")?;
+    let negated = recognize_past_copula(cursor)?;
+    cursor.enter("condition.cast-choice.mana-cost.verb");
+    cursor.consume("paid")?;
+    Ok(cast_choice_atom(
+        CastChoice::AlternativeManaCost(cost.as_oracle_cost()),
+        negated,
+    ))
+}
+
+/// The genitive that names the source before a cost noun: a pronoun (`its`,
+/// `his`, `her`), `this NOUN's`, or a linked name in the genitive.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CostSubject {
+    Pronoun,
+    /// The width of the genitive source reference.
+    Source(usize),
+}
+
+impl CostSubject {
+    const fn width(self) -> usize {
+        match self {
+            Self::Pronoun => 1,
+            Self::Source(width) => width,
+        }
+    }
+}
+
+/// The stem of a genitive word (`spell's` is `spell`), if it is one.
+fn genitive_stem(raw: &str) -> Option<String> {
+    let raw = raw.replace('\u{2019}', "'");
+    raw.strip_suffix("'s").map(str::to_string)
+}
+
+/// `this NOUN's` where NOUN names an object domain or a card type.
+fn this_genitive_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    use crate::oracle::characteristic_vocabulary::{
+        AcceptedForms, lookup_card_type, lookup_object_domain,
+    };
+    if !word_is(cursor, 0, "this") {
+        return None;
+    }
+    let stem = genitive_stem(cursor.peek_ahead(1)?)?;
+    (lookup_card_type(&stem, AcceptedForms::SingularOnly).is_some()
+        || lookup_object_domain(&stem, AcceptedForms::SingularOnly).is_some())
+    .then_some(2)
+}
+
+/// The width of a linked source name in the genitive (`Rix Maadi
+/// Reveler's`): the shared source reference ending on a genitive token.
+fn named_genitive_width(
+    cursor: &OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> Option<usize> {
+    if word_is(cursor, 0, "this") {
+        return None;
+    }
+    let mut trial = cursor.clone();
+    super::recognize_source_reference(&mut trial, context.name_links, context.name_failure).ok()?;
+    let end = trial.position();
+    let genitive = end > cursor.position()
+        && cursor
+            .token_slice(end - 1, end)
+            .first()
+            .is_some_and(|token| genitive_stem(&token.raw).is_some());
+    genitive.then(|| end - cursor.position())
+}
+
+/// True at `SUBJECT KEYWORD cost was|wasn't paid`.
+fn keyword_cost_subject_at(
+    cursor: &OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> Option<CostSubject> {
+    let subject = if ["its", "his", "her"]
+        .iter()
+        .any(|pronoun| word_is(cursor, 0, pronoun))
+    {
+        CostSubject::Pronoun
+    } else if let Some(width) = this_genitive_width(cursor) {
+        CostSubject::Source(width)
+    } else {
+        CostSubject::Source(named_genitive_width(cursor, context)?)
+    };
+    let width = subject.width();
+    (cursor.peek_ahead(width).is_some()
+        && word_is(cursor, width + 1, "cost")
+        && past_copula_at(cursor, width + 2))
+    .then_some(subject)
+}
+
+/// `its surge cost was paid`, `this spell's spectacle cost wasn't paid`
+/// (CR 118.9): the alternative cost of a casting keyword paid for the
+/// ability's own source. A cost the runtime does not record by its keyword
+/// (an additional, madness or prowl cost) fails here.
+fn recognize_keyword_cost_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+    subject: CostSubject,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.cast-choice.keyword-cost.subject");
+    match subject {
+        CostSubject::Pronoun => {
+            consume_current(cursor)?;
+            let object = super::resolve_object_anaphor(cursor, context)?;
+            cursor.enter("condition.cast-choice.keyword-cost.source-pronoun");
+            cursor.require(
+                object == super::ConditionObjectReference::SOURCE,
+                "a pronoun that denotes the ability's own source",
+            )?;
+        }
+        CostSubject::Source(width) => {
+            for _ in 0..width {
+                consume_current(cursor)?;
+            }
+        }
+    }
+    cursor.enter("condition.cast-choice.keyword-cost.keyword");
+    let mode = cursor
+        .peek()
+        .and_then(super::AlternativeCastMode::from_word)
+        .ok_or_else(|| {
+            cursor.fail(
+                "a casting keyword whose paid alternative cost the cast record keeps (surge, spectacle, emerge, sneak, web-slinging)",
+            )
+        })?;
+    consume_current(cursor)?;
+    cursor.consume("cost")?;
+    let negated = recognize_past_copula(cursor)?;
+    cursor.enter("condition.cast-choice.keyword-cost.verb");
+    cursor.consume("paid")?;
+    Ok(cast_choice_atom(CastChoice::AlternativeMode(mode), negated))
+}
+
+/// True at `SOURCE was cast using`.
+fn cast_using_atom_starts(cursor: &OracleTokenCursor<'_>, context: &ConditionContext<'_>) -> bool {
+    if !super::source_reference_starts_at(
+        cursor.position(),
+        cursor.peek(),
+        context.name_links,
+        context.name_failure,
+    ) {
+        return false;
+    }
+    let mut trial = cursor.clone();
+    super::recognize_source_reference(&mut trial, context.name_links, context.name_failure).is_ok()
+        && word_is(&trial, 0, "was")
+        && word_is(&trial, 1, "cast")
+        && word_is(&trial, 2, "using")
+}
+
+/// `this spell was cast using teamwork` (CR 702.194), `... using
+/// web-slinging`: how the ability's own source was cast.
+fn recognize_cast_using_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.cast-choice.using.subject");
+    super::recognize_source_reference(cursor, context.name_links, context.name_failure)?;
+    cursor.consume_phrase(&["was", "cast", "using"])?;
+    cursor.enter("condition.cast-choice.using.keyword");
+    let choice = if word_is(cursor, 0, "teamwork") {
+        CastChoice::Teamwork
+    } else {
+        CastChoice::AlternativeMode(
+            cursor
+                .peek()
+                .and_then(super::AlternativeCastMode::from_word)
+                .ok_or_else(|| {
+                    cursor.fail("a casting keyword the cast record keeps (teamwork, web-slinging)")
+                })?,
+        )
+    };
+    consume_current(cursor)?;
+    Ok(cast_choice_atom(choice, false))
+}
+
+/// `it's the first combat phase of the turn` (CR 506.1): the turn's
+/// combat-phase records counted up to the current one.
+fn recognize_combat_phase_ordinal_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.ordinal.combat-phase");
+    consume_current(cursor)?;
+    cursor.consume("the")?;
+    let ordinal = cursor
+        .peek()
+        .and_then(super::super::parse_ordinal_word)
+        .ok_or_else(|| cursor.fail("an ordinal"))?;
+    consume_current(cursor)?;
+    cursor.consume_phrase(&["combat", "phase", "of", "the", "turn"])?;
+    Ok(ConditionAtom::EventHistory(EventHistoryNode {
+        pattern: plain_pattern(
+            HistoryEvent::CombatPhaseStarted,
+            HistoryPlayer::Any,
+            None,
+            HistoryMeasure::Occurrences,
+        ),
+        scope: HistoryScope::ThisTurn,
+        aggregate: HistoryAggregate::Total,
+        operator: NumericComparisonOperator::Equal,
+        threshold: ordinal,
+    }))
+}
+
+/// The offset of `you cast this turn` after `it's the ORDINAL ...`, before
+/// the clause ends.
+fn spell_ordinal_you_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    (4..12)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "," | "." | ";" | ":"))
+        })
+        .find(|offset| {
+            word_is(cursor, *offset, "you")
+                && word_is(cursor, offset + 1, "cast")
+                && word_is(cursor, offset + 2, "this")
+                && word_is(cursor, offset + 3, "turn")
+                && word_is(cursor, offset - 1, "spell")
+        })
+}
+
+/// `it's the second creature spell you cast this turn` (Vengevine): the
+/// spell a cast event observed is its caster's ORDINAL spell of the shared
+/// spell query this turn, counted on the cast records up to its own.
+fn recognize_spell_cast_ordinal_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.ordinal.spell.subject");
+    let offset = spell_ordinal_you_offset(cursor)
+        .ok_or_else(|| cursor.fail("`it's the ORDINAL SPELL you cast this turn`"))?;
+    let you = cursor.position() + offset;
+    let event_spell = context
+        .program
+        .is_some_and(|program| program.effects.frame.event_spell)
+        || cursor
+            .binding_environment()
+            .is_some_and(|environment| environment.frame.event_spell);
+    cursor.require(
+        event_spell,
+        "a cast event that records the spell `it` names",
+    )?;
+    consume_current(cursor)?;
+    cursor.consume("the")?;
+    cursor.enter("condition.ordinal.spell.ordinal");
+    let ordinal = cursor
+        .peek()
+        .and_then(super::super::parse_ordinal_word)
+        .ok_or_else(|| cursor.fail("an ordinal"))?;
+    consume_current(cursor)?;
+    cursor.enter("condition.ordinal.spell.query");
+    let query = cursor.bounded(you, |cursor| {
+        super::recognize_object_noun_query(cursor, super::ObjectQueryContext::ORDINARY)?
+            .into_spell_cast_query(cursor)
+    })?;
+    cursor.require(
+        query.caster.is_none()
+            && query.predicate.has_domain(ObjectKind::Spell)
+            && query.predicate.supports_domain(ObjectKind::Spell),
+        "an explicit spell-domain query whose caster is the history's subject",
+    )?;
+    cursor.enter("condition.ordinal.spell.history");
+    cursor.consume_phrase(&["you", "cast", "this", "turn"])?;
+    Ok(ConditionAtom::SpellCastOrdinal(
+        super::SpellCastOrdinalNode {
+            spell: super::CastSpellReference::EventSpell,
+            ordinal,
+            predicate: object_filter(query.predicate, ObjectKind::Spell),
+        },
+    ))
+}
+
+/// `you have a full party` (CR 700.8): a party of four.
+fn recognize_full_party_atom(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.player.party");
+    cursor.consume_phrase(&["you", "have", "a", "full", "party"])?;
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Player(PlayerStateMeasure::PartySize),
+        operator: NumericComparisonOperator::GreaterThanOrEqual,
+        right: ConditionNumber::Integer(4),
+    }))
+}
+
+/// `you have max speed`: a speed of four or more (Start your engines!).
+fn recognize_max_speed_atom(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.player.max-speed");
+    cursor.consume_phrase(&["you", "have", "max", "speed"])?;
+    let speed = crate::oracle::counter_name::CounterName::from_parts(["speed"])
+        .ok_or_else(|| cursor.fail("the speed counter name"))?;
+    Ok(ConditionAtom::Compare(ConditionComparison::measured(
+        ConditionPlayerSubject::Controller,
+        PlayerStateMeasure::PlayerCounters(speed),
+        CountThreshold::at_least(4),
+    )))
+}
+
+/// Lexical lookahead for `you have at least N life more than your starting
+/// life total`.
+fn life_beyond_starting_atom_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_is(cursor, 2, "at")
+        && word_is(cursor, 3, "least")
+        && word_is(cursor, 5, "life")
+        && word_is(cursor, 6, "more")
+        && word_is(cursor, 7, "than")
+        && word_is(cursor, 8, "your")
+        && word_is(cursor, 9, "starting")
+}
+
+/// `you have at least 7 life more than your starting life total`: the
+/// controller's life total minus their starting life total (CR 103.4,
+/// 119.1) compared with N, over the shared player numeric facts.
+fn recognize_life_beyond_starting_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.player.life-beyond-starting");
+    cursor.consume_phrase(&["you", "have"])?;
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.require(
+        threshold.operator == ThresholdOperator::AtLeast,
+        "`at least N life more than` your starting life total",
+    )?;
+    cursor.consume_phrase(&["life", "more", "than"])?;
+    cursor.enter("condition.player.life-beyond-starting.reference");
+    let starting = super::recognize_player_numeric_fact(cursor)?;
+    cursor.require(
+        starting
+            == super::NumericExpression::PlayerFact {
+                player: super::LocalPlayerReference::Controller,
+                fact: super::PlayerNumericFact::StartingLifeTotal,
+            },
+        "your starting life total",
+    )?;
+    let life = super::NumericExpression::PlayerFact {
+        player: super::LocalPlayerReference::Controller,
+        fact: super::PlayerNumericFact::LifeTotal,
+    };
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(super::NumericExpression::subtract(life, starting)),
+        operator: NumericComparisonOperator::GreaterThanOrEqual,
+        right: ConditionNumber::Integer(threshold.value),
+    }))
+}
+
+/// `you control your commander` (CR 903.3): the controlled-permanent count
+/// of the shared `your commander` predicate (the commander designation and
+/// the controller's ownership).
+fn recognize_controls_your_commander_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.controls-permanent.your-commander");
+    cursor.consume_phrase(&["you", "control"])?;
+    let predicate = super::recognize_your_commander(cursor)?;
+    Ok(ConditionAtom::Compare(ConditionComparison::measured(
+        ConditionPlayerSubject::Controller,
+        PlayerStateMeasure::ControlledPermanents {
+            predicate,
+            exclude_source: false,
+        },
+        CountThreshold::at_least(1),
+    )))
+}
+
+/// The player subject and zone of `your|a ZONE has`.
+fn zone_card_count_subject_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<(ConditionPlayerSubject, PlayerCardZone)> {
+    let subject = if word_is(cursor, 0, "your") {
+        ConditionPlayerSubject::Controller
+    } else if word_is(cursor, 0, "a") {
+        ConditionPlayerSubject::Quantified {
+            quantifier: super::PlayerQuantifier::Some,
+            population: super::PlayerPopulation::Players,
+        }
+    } else {
+        return None;
+    };
+    let zone = if word_is(cursor, 1, "library") {
+        PlayerCardZone::Library
+    } else if word_is(cursor, 1, "graveyard") {
+        PlayerCardZone::Graveyard
+    } else if word_is(cursor, 1, "hand") {
+        PlayerCardZone::Hand
+    } else {
+        return None;
+    };
+    word_is(cursor, 2, "has").then_some((subject, zone))
+}
+
+/// Lexical lookahead for `your|a ZONE has ... in it`.
+fn zone_card_count_atom_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    zone_card_count_subject_at(cursor).is_some()
+        && (3..10)
+            .take_while(|offset| {
+                cursor
+                    .peek_ahead(offset - 1)
+                    .is_some_and(|raw| !matches!(raw, "," | "." | ";" | ":"))
+            })
+            .any(|offset| word_is(cursor, offset, "in") && word_is(cursor, offset + 1, "it"))
+}
+
+/// `your library has no cards in it`, `a graveyard has twenty or more cards
+/// in it` (CR 401.1, 404.1): the cards of the shared card selector in that
+/// player's zone, compared with the shared threshold; `a ZONE` is some
+/// player's.
+fn recognize_zone_card_count_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.player.zone-card-count");
+    let (subject, zone) = zone_card_count_subject_at(cursor)
+        .ok_or_else(|| cursor.fail("`your|a library|graveyard|hand has`"))?;
+    for _ in 0..3 {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.player.zone-card-count.threshold");
+    let threshold = recognize_count_threshold(cursor, true)?;
+    cursor.enter("condition.player.zone-card-count.cards");
+    let singular = threshold.value == 1 && threshold.operator != ThresholdOperator::AtMost;
+    let predicate = recognize_search_card_selector(cursor, !singular)?;
+    cursor.enter("condition.player.zone-card-count.anaphor");
+    cursor.consume_phrase(&["in", "it"])?;
+    Ok(ConditionAtom::Compare(ConditionComparison::measured(
+        subject,
+        PlayerStateMeasure::CardsInZone { zone, predicate },
+        threshold,
+    )))
+}
+
+/// Lexical lookahead for `the top card of your library|graveyard is`.
+fn top_card_atom_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_is(cursor, 0, "the")
+        && word_is(cursor, 1, "top")
+        && word_is(cursor, 2, "card")
+        && word_is(cursor, 3, "of")
+        && word_is(cursor, 4, "your")
+        && (word_is(cursor, 5, "library") || word_is(cursor, 5, "graveyard"))
+        && word_is(cursor, 6, "is")
+}
+
+/// `the top card of your library is a Goblin card`, `... is black`, `the
+/// top card of your graveyard is a creature card` (CR 401.1, 404.1): the
+/// shared card selector, or a color adjective, over that top card.
+fn recognize_top_card_atom(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ConditionAtom> {
+    use crate::oracle::characteristic_vocabulary::lookup_card_color;
+    cursor.enter("condition.top-card.zone");
+    cursor.consume_phrase(&["the", "top", "card", "of", "your"])?;
+    let zone = if word_is(cursor, 0, "library") {
+        super::TopCardZone::Library
+    } else {
+        super::TopCardZone::Graveyard
+    };
+    consume_current(cursor)?;
+    cursor.consume("is")?;
+    cursor.enter("condition.top-card.predicate");
+    let ends_after_one = cursor.peek_ahead(1).is_none_or(|raw| {
+        matches!(
+            raw.to_ascii_lowercase().as_str(),
+            "," | "." | ";" | "and" | "or"
+        )
+    });
+    let predicate = match cursor.peek().and_then(lookup_card_color) {
+        Some(color) if ends_after_one => {
+            consume_current(cursor)?;
+            ObjectPredicate::Color(color)
+        }
+        _ => {
+            cursor.require(
+                word_is(cursor, 0, "a") || word_is(cursor, 0, "an"),
+                "`a`/`an` before the card noun, or a color",
+            )?;
+            consume_current(cursor)?;
+            recognize_search_card_selector(cursor, false)?
+        }
+    };
+    Ok(ConditionAtom::TopCard(super::TopCardConditionNode {
+        player: ConditionPlayerSubject::Controller,
+        zone,
+        predicate,
+    }))
+}
+
+/// Lexical lookahead for `COLOR is the most common color`.
+fn most_common_color_atom_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .and_then(crate::oracle::characteristic_vocabulary::lookup_card_color)
+        .is_some()
+        && word_is(cursor, 1, "is")
+        && word_is(cursor, 2, "the")
+        && word_is(cursor, 3, "most")
+        && word_is(cursor, 4, "common")
+        && word_is(cursor, 5, "color")
+}
+
+/// `red is the most common color among all permanents or is tied for most
+/// common` (CR 105.1): the color's count among the permanents is at least
+/// (or, without the tie, strictly greater than) every other color's.
+fn recognize_most_common_color_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.color-rank.color");
+    let color = cursor
+        .peek()
+        .and_then(crate::oracle::characteristic_vocabulary::lookup_card_color)
+        .ok_or_else(|| cursor.fail("a color"))?;
+    consume_current(cursor)?;
+    cursor.consume_phrase(&["is", "the", "most", "common", "color", "among"])?;
+    cursor.enter("condition.color-rank.collection");
+    cursor.consume_phrase(&["all", "permanents"])?;
+    cursor.enter("condition.color-rank.tie");
+    let tie_allowed =
+        word_is(cursor, 0, "or") && word_is(cursor, 1, "is") && word_is(cursor, 2, "tied");
+    if tie_allowed {
+        cursor.consume_phrase(&["or", "is", "tied", "for", "most", "common"])?;
+    }
+    Ok(ConditionAtom::MostCommonColor(super::MostCommonColorNode {
+        color,
+        predicate: ObjectPredicate::ObjectKind(ObjectKind::Permanent),
+        tie_allowed,
+    }))
+}
+
+/// After `PLAYER was|were dealt` or `PLAYER has|have been dealt`: `[N or
+/// more] [combat|noncombat] damage this turn` (CR 120.3). A lower bound
+/// over a player population reads one player's total.
+fn recognize_dealt_damage_history(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: HistoryPlayer,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.history.damage");
+    let threshold = if word_is(cursor, 0, "damage")
+        || word_is(cursor, 0, "combat")
+        || word_is(cursor, 0, "noncombat")
+    {
+        CountThreshold::at_least(1)
+    } else {
+        recognize_count_threshold(cursor, false)?
+    };
+    cursor.enter("condition.history.damage.kind");
+    let combat_damage = if word_is(cursor, 0, "combat") {
+        consume_current(cursor)?;
+        Some(true)
+    } else if word_is(cursor, 0, "noncombat") {
+        consume_current(cursor)?;
+        Some(false)
+    } else {
+        None
+    };
+    cursor.consume("damage")?;
+    let scope = recognize_history_scope(cursor)?;
+    let aggregate = history_aggregate(cursor, player, threshold)?;
+    Ok(history_node(
+        EventHistoryPattern {
+            event: HistoryEvent::DamageDealtToPlayer,
+            player,
+            object: None,
+            measure: HistoryMeasure::Amount,
+            qualifiers: HistoryQualifiers {
+                combat_damage,
+                ..HistoryQualifiers::default()
+            },
+        },
+        scope,
+        aggregate,
         threshold,
     ))
 }

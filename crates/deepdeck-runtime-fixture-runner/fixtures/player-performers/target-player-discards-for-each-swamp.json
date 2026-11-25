@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-performers/target-player-discards-a-card-for-each-swamp-you-control",
+  "seed": 8107,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "discardCards",
+        "player": {
+          "kind": "chosenTarget",
+          "id": "targetPlayer"
+        },
+        "count": {
+          "kind": "countPermanents",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "subtypeContains",
+            "value": "Swamp"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Sludge controller",
+        "battlefield": [
+          {
+            "id": "sludge-source",
+            "name": "Sludge Source",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "discardCards",
+                    "player": {
+                      "kind": "chosenTarget",
+                      "id": "targetPlayer"
+                    },
+                    "count": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Swamp"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "swamp-1",
+            "name": "Swamp One",
+            "typeLine": "Basic Land — Swamp"
+          },
+          {
+            "id": "swamp-2",
+            "name": "Swamp Two",
+            "typeLine": "Basic Land — Swamp"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Discarding player",
+        "hand": [
+          {
+            "id": "card-1",
+            "name": "Card One",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "card-2",
+            "name": "Card Two",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "card-3",
+            "name": "Card Three",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "sludge-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPlayer": {
+          "kind": "player",
+          "playerId": "p1"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 2,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "equals": 2
+    }
+  ]
+}
