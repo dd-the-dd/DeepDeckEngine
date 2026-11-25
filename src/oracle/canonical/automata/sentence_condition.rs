@@ -231,11 +231,12 @@ fn impossible_outcome_subject_width(cursor: &OracleTokenCursor<'_>) -> Option<us
     (contraction_is(cursor, width, "can", "t") || word_is(cursor, width, "cannot")).then_some(width)
 }
 
-/// True at a sentence-initial `if` whose condition this child may read.
+/// True at a sentence-initial `if` whose condition this child may read, or
+/// at the head of a die-result row (`1-9 |`, CR 706.3).
 pub(in crate::oracle::canonical) fn sentence_condition_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    word_is(cursor, 0, "if")
+    word_is(cursor, 0, "if") || super::die_result_row_starts(cursor)
 }
 
 /// Reads `if CONDITION,`. The comma is consumed here because the sequence
@@ -244,6 +245,10 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition(
     cursor: &mut OracleTokenCursor<'_>,
     context: &SentenceConditionContext<'_>,
 ) -> MachineResult<SentenceConditionNode> {
+    // A die-result row is the conditional instruction of its results.
+    if super::die_result_row_starts(cursor) {
+        return super::recognize_die_result_row(cursor);
+    }
     cursor.enter("condition.sentence.if");
     cursor.consume("if")?;
     cursor.enter("condition.sentence.boolean-program");

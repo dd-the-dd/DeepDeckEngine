@@ -22,9 +22,9 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    ActionResultQuantity, ConditionAtom, ConditionComparison, ConditionNumber,
-    ConditionPlayerSubject, ConditionScope, NumericComparisonOperator, VerbForm, VerbLemma,
-    is_verb_form, lookup_verb, recognize_numeric_atom,
+    ActionResultQuantity, BooleanConditionNode, ConditionAtom, ConditionComparison, ConditionNode,
+    ConditionNumber, ConditionPlayerSubject, ConditionScope, NumericComparisonOperator, VerbForm,
+    VerbLemma, is_verb_form, lookup_verb, recognize_numeric_atom,
 };
 use super::{
     ControllerKeywordAction, ControllerKeywordActionNode, EffectRecognitionContext,
@@ -550,6 +550,169 @@ pub(in crate::oracle::canonical) fn try_recognize_random_outcome_condition(
         operator,
         right: ConditionNumber::Integer(right),
     })))
+}
+
+/// One bound of a die-result row: the face values it covers (CR 706.3:
+/// a results table maps result ranges to instructions).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ResultRowRange {
+    /// `N`, `N—M`, `N-M`: the results from `N` to `M` included.
+    Between(i64, i64),
+    /// `N+`, `N or more|higher|greater`.
+    AtLeast(i64),
+    /// `N or less|lower`.
+    AtMost(i64),
+    /// `N or M`: either result.
+    Either(i64, i64),
+}
+
+fn face_value(raw: &str) -> Option<i64> {
+    (!raw.is_empty() && raw.bytes().all(|byte| byte.is_ascii_digit()))
+        .then(|| raw.parse::<i64>().ok())
+        .flatten()
+        .filter(|value| *value > 0)
+}
+
+/// The written separator between a row's results and its instruction.
+fn row_separator(raw: &str) -> bool {
+    matches!(raw, "|" | "\u{2014}")
+}
+
+/// Reads a die-result row head (`1—9 |`, `20 |`, `15+ |`, `9 or less |`,
+/// `1 or 2 —`, `6 —`) on `cursor`; `None` when the tokens are no row head.
+/// The row head is structural: the range is complete before its separator.
+fn read_result_row_head(cursor: &mut OracleTokenCursor<'_>) -> Option<ResultRowRange> {
+    let first = cursor.peek()?.to_owned();
+    // `1-9` is one token: the hyphen joins the two results.
+    let (low, joined_high) = match first.split_once('-') {
+        Some((low, high)) => (face_value(low)?, Some(face_value(high)?)),
+        None => (face_value(&first)?, None),
+    };
+    cursor.advance_to(cursor.position() + 1).ok()?;
+    let range = if let Some(high) = joined_high {
+        ResultRowRange::Between(low, high)
+    } else if matches!(cursor.peek(), Some("\u{2014}" | "-"))
+        && cursor.peek_ahead(1).and_then(face_value).is_some()
+        && cursor.peek_ahead(2).is_some_and(row_separator)
+    {
+        let high = cursor.peek_ahead(1).and_then(face_value)?;
+        cursor.advance_to(cursor.position() + 2).ok()?;
+        ResultRowRange::Between(low, high)
+    } else if cursor.peek() == Some("+") {
+        cursor.advance_to(cursor.position() + 1).ok()?;
+        ResultRowRange::AtLeast(low)
+    } else if word_at(cursor, 0, "or") {
+        let bound = cursor.peek_ahead(1)?.to_ascii_lowercase();
+        let range = match bound.as_str() {
+            "less" | "lower" => ResultRowRange::AtMost(low),
+            "more" | "higher" | "greater" => ResultRowRange::AtLeast(low),
+            other => ResultRowRange::Either(low, face_value(other)?),
+        };
+        cursor.advance_to(cursor.position() + 2).ok()?;
+        range
+    } else {
+        ResultRowRange::Between(low, low)
+    };
+    if let ResultRowRange::Between(low, high) = range
+        && low > high
+    {
+        return None;
+    }
+    if !cursor.peek().is_some_and(row_separator) {
+        return None;
+    }
+    cursor.advance_to(cursor.position() + 1).ok()?;
+    Some(range)
+}
+
+/// True when a die-result row head starts at the cursor: the results of a
+/// row of the table that follows a die roll (CR 706.3).
+pub(in crate::oracle::canonical) fn die_result_row_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let mut trial = cursor.clone();
+    read_result_row_head(&mut trial).is_some()
+}
+
+/// True when the instruction of the row at the cursor is one sentence: the
+/// token after its first top-level period ends the text or heads the next
+/// row. Quoted abilities and reminder text are nested scopes.
+fn row_instruction_is_one_sentence(cursor: &OracleTokenCursor<'_>) -> bool {
+    let mut depth = 0usize;
+    let mut quoted = false;
+    let mut offset = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        match raw {
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            _ if quoted => {}
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "." if depth == 0 => {
+                let mut next = cursor.clone();
+                if next.advance_to(cursor.position() + offset + 1).is_err() {
+                    return false;
+                }
+                // A reminder after the period belongs to the same row.
+                return next.peek().is_none()
+                    || next.peek() == Some("(")
+                    || die_result_row_starts(&next);
+            }
+            _ => {}
+        }
+        offset += 1;
+    }
+    false
+}
+
+/// Reads the head of a die-result row as the condition of its conditional
+/// instruction: the latest die result lies in the row's results (CR 706.3).
+/// The row's instruction must be one sentence (a longer row has no
+/// multi-sentence branch yet and fails here), and an earlier action of the
+/// program must have rolled the die.
+pub(in crate::oracle::canonical) fn recognize_die_result_row(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionNode> {
+    cursor.enter("condition.die-result-row");
+    let mut trial = cursor.clone();
+    let range = read_result_row_head(&mut trial)
+        .ok_or_else(|| cursor.fail("a die-result row: `N—M |`, `N |`, `N+ |`"))?;
+    *cursor = trial;
+    cursor.enter("condition.die-result-row.roll");
+    let reader = cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
+        .filter(|index| *index > 0);
+    cursor.require(
+        reader.is_some(),
+        "a die roll earlier in the program whose result the row reads",
+    )?;
+    cursor.enter("condition.die-result-row.instruction");
+    cursor.require(
+        row_instruction_is_one_sentence(cursor),
+        "a die-result row whose instruction is one sentence",
+    )?;
+    let result = outcome_quantity(cursor, RandomResultQuantity::DieResult);
+    let compare = |operator: NumericComparisonOperator, value: i64| {
+        BooleanConditionNode::Atom(ConditionAtom::Compare(ConditionComparison {
+            subject: ConditionPlayerSubject::Controller,
+            left: ConditionNumber::Expression(result.clone()),
+            operator,
+            right: ConditionNumber::Integer(value),
+        }))
+    };
+    Ok(match range {
+        ResultRowRange::Between(low, high) if low == high => {
+            compare(NumericComparisonOperator::Equal, low)
+        }
+        ResultRowRange::Between(low, high) => BooleanConditionNode::And(vec![
+            compare(NumericComparisonOperator::GreaterThanOrEqual, low),
+            compare(NumericComparisonOperator::LessThanOrEqual, high),
+        ]),
+        ResultRowRange::AtLeast(low) => compare(NumericComparisonOperator::GreaterThanOrEqual, low),
+        ResultRowRange::AtMost(high) => compare(NumericComparisonOperator::LessThanOrEqual, high),
+        ResultRowRange::Either(first, second) => BooleanConditionNode::Or(vec![
+            compare(NumericComparisonOperator::Equal, first),
+            compare(NumericComparisonOperator::Equal, second),
+        ]),
+    })
 }
 
 /// `the result`, `the total of those results`, `the number of coins that

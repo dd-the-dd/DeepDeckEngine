@@ -656,6 +656,257 @@
       }
     },
     {
+      "id": "exact-djinni-windseer-d20-results-table",
+      "request": {
+        "cardName": "Djinni Windseer",
+        "typeLine": "Creature — Djinn",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWhen this creature enters, roll a d20.\n1—9 | Scry 1.\n10—19 | Scry 2.\n20 | Scry 3.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 20,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "compare",
+                      "operator": ">=",
+                      "left": {
+                        "kind": "randomOutcomeValue",
+                        "binding": "randomOutcome:dieRoll"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "operator": "<=",
+                      "left": {
+                        "kind": "randomOutcomeValue",
+                        "binding": "randomOutcome:dieRoll"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 9
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/effects/3/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "==",
+                  "left": {
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:dieRoll"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 20
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-contact-other-plane-spell-results-table",
+      "request": {
+        "cardName": "Contact Other Plane",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Roll a d20.\n1—9 | Draw two cards.\n10—19 | Scry 2, then draw two cards.\n20 | Scry 3, then draw three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 20,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-six-sided-die-dash-rows",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Roll a six-sided die.\n1 — You lose 1 life.\n2 or 3 — Draw a card.\n4+ | You gain 4 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 6,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              },
+              {
+                "pointer": "/effects/2/condition",
+                "equals": {
+                  "kind": "or",
+                  "operands": [
+                    {
+                      "kind": "compare",
+                      "operator": "==",
+                      "left": {
+                        "kind": "randomOutcomeValue",
+                        "binding": "randomOutcome:dieRoll"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 2
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "operator": "==",
+                      "left": {
+                        "kind": "randomOutcomeValue",
+                        "binding": "randomOutcome:dieRoll"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 3
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/effects/3/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:dieRoll"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 4
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-multi-sentence-results-row",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Roll a d20.\n1—9 | Draw a card.\n10—20 | Draw a card. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "unused-combination-d8-target-player-mills-the-result",
       "request": {
         "cardName": "Random Outcome Witness",

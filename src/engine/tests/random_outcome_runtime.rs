@@ -303,6 +303,52 @@ fn a_d20_threshold_picks_the_right_branch() {
 }
 
 #[test]
+fn a_d20_results_table_runs_exactly_the_row_of_the_result() {
+    // Sylvan Shepherd: the rows are one ability with the roll (CR 706.3).
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Sylvan Shepherd".to_string(),
+        type_line: "Creature — Human Druid".to_string(),
+        mana_cost: Some("{2}{G}".to_string()),
+        oracle_text: Some(
+            "Vigilance\nWhenever this creature attacks, roll a d20.\n1—9 | You gain 1 life.\n10—19 | You gain 2 life.\n20 | You gain 5 life."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.abilities);
+    assert_eq!(
+        parsed.abilities.len(),
+        2,
+        "the rows join the rolling ability"
+    );
+    let rule = parsed.abilities[1].rule.clone().expect("canonical rule");
+    assert!(rule_is_executable(&rule), "{rule:#}");
+    let mut rows = BTreeSet::new();
+    for seed in 0..64 {
+        let (mut engine, stack) = position(seed);
+        run_effects(
+            &mut engine,
+            &stack,
+            &rule["effects"],
+            &mut FixedChoice::new(0),
+        );
+        let result = events(&engine, "dieRolled")
+            .next()
+            .and_then(|event| event.detail["result"].as_i64())
+            .expect("one roll");
+        let (row, gained) = match result {
+            1..=9 => (0, 1),
+            10..=19 => (1, 2),
+            _ => (2, 5),
+        };
+        rows.insert(row);
+        assert_eq!(engine.state.players[0].life, 20 + gained, "rolled {result}");
+    }
+    assert!(rows.len() >= 2, "several rows were taken over the seeds");
+}
+
+#[test]
 fn a_clash_reveals_compares_and_lets_each_player_bottom_their_card() {
     let rule = compile(
         "Oaken Brawler",

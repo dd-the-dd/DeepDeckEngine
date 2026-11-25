@@ -44,6 +44,56 @@ fn is_continuation_line(line: &str) -> bool {
     trimmed.starts_with('\u{2022}') || trimmed.starts_with("+ ")
 }
 
+/// The ability text names a die (`d20`, `six-sided`): the rows that follow
+/// it are its results table, not separate abilities. A station threshold
+/// row (`12+ | ...`) follows no die and keeps its own ability.
+fn names_a_die(text: &str) -> bool {
+    text.split_whitespace().any(|word| {
+        let word =
+            word.trim_matches(|character: char| !character.is_alphanumeric() && character != '-');
+        word.to_ascii_lowercase().ends_with("-sided")
+            || word.strip_prefix('d').is_some_and(|faces| {
+                !faces.is_empty() && faces.bytes().all(|byte| byte.is_ascii_digit())
+            })
+    })
+}
+
+/// CR 706.3: a die roll's results table prints one row per line (`1—9 | ...`,
+/// `20 | ...`, `15+ | ...`, `9 or less | ...`, `6 — ...`). The rows belong to
+/// the ability that rolls the die; the effect grammar reads each row as the
+/// conditional instruction of its results.
+fn is_die_result_row_line(line: &str) -> bool {
+    fn after_digits(text: &str) -> Option<&str> {
+        let count = text.bytes().take_while(u8::is_ascii_digit).count();
+        (count > 0).then(|| &text[count..])
+    }
+    let Some(rest) = after_digits(line) else {
+        return false;
+    };
+    let rest = if let Some(after) = rest
+        .strip_prefix('\u{2014}')
+        .or_else(|| rest.strip_prefix('-'))
+        .and_then(after_digits)
+    {
+        after
+    } else if let Some(after) = rest.strip_prefix('+') {
+        after
+    } else if let Some(after) = rest.strip_prefix(" or ") {
+        let Some(after) = ["less", "lower", "more", "higher", "greater"]
+            .iter()
+            .find_map(|word| after.strip_prefix(word))
+            .or_else(|| after_digits(after))
+        else {
+            return false;
+        };
+        after
+    } else {
+        rest
+    };
+    let rest = rest.trim_start();
+    rest.starts_with('|') || rest.starts_with('\u{2014}')
+}
+
 /// CR 207.2: reminder text has no rules meaning. A line that is exactly one
 /// balanced parenthetical therefore carries no ability of its own. Text that
 /// follows real ability text is not covered: it stays with that ability.
@@ -80,7 +130,11 @@ pub(crate) fn split_abilities(document: &OracleDocument<'_>) -> Vec<AbilitySourc
         if line.trim().is_empty() {
             continue;
         }
-        if is_continuation_line(line)
+        if (is_continuation_line(line)
+            || (is_die_result_row_line(line.trim_start())
+                && abilities
+                    .last()
+                    .is_some_and(|previous| names_a_die(&previous.text))))
             && let Some(previous) = abilities.last_mut()
         {
             previous.text.push('\n');
