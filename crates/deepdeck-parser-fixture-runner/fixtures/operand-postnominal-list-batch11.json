@@ -1,0 +1,421 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "operand-postnominal-list-batch11",
+  "cases": [
+    {
+      "id": "tinder-wall-exact-contracted-combat-subject",
+      "request": {
+        "cardName": "Tinder Wall",
+        "typeLine": "Creature — Plant Wall",
+        "manaCost": "{G}",
+        "oracleText": "Defender (This creature can't attack.)\nSacrifice this creature: Add {R}{R}.\n{R}, Sacrifice this creature: It deals 2 damage to target creature it's blocking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "goblin-snowman-exact-contracted-combat-subject",
+      "request": {
+        "cardName": "Goblin Snowman",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{3}{R}",
+        "oracleText": "Whenever this creature blocks, prevent all combat damage that would be dealt to and dealt by it this turn.\n{T}: This creature deals 1 damage to target creature it's blocking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wall-of-corpses-exact-source-combat-subject",
+      "request": {
+        "cardName": "Wall of Corpses",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{1}{B}",
+        "oracleText": "Defender (This creature can't attack.)\n{B}, Sacrifice this creature: Destroy target creature this creature is blocking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "defiant-vanguard-exact-block-history-subject",
+      "request": {
+        "cardName": "Defiant Vanguard",
+        "typeLine": "Creature — Human Rebel",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature blocks, at end of combat, destroy it and all creatures it blocked this turn.\n{5}, {T}: Search your library for a Rebel permanent card with mana value 4 or less, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "guardian-of-the-gateless-exact-counted-combat-subject",
+      "request": {
+        "cardName": "Guardian of the Gateless",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{4}{W}",
+        "oracleText": "Flying\nThis creature can block any number of creatures.\nWhenever this creature blocks, it gets +1/+1 until end of turn for each creature it's blocking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "appetite-for-brains-exact-selection-continuation",
+      "request": {
+        "cardName": "Appetite for Brains",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Target opponent reveals their hand. You choose a card from it with mana value 4 or greater and exile that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "transgress-the-mind-exact-selection-continuation",
+      "request": {
+        "cardName": "Transgress the Mind",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Devoid (This card has no color.)\nTarget player reveals their hand. You choose a card from it with mana value 3 or greater and exile that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "clip-wings-exact-chooser-continuation",
+      "request": {
+        "cardName": "Clip Wings",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Each opponent sacrifices a creature of their choice with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "run-afoul-exact-chooser-continuation",
+      "request": {
+        "cardName": "Run Afoul",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target opponent sacrifices a creature of their choice with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "clever-conjurer-exact-not-named",
+      "request": {
+        "cardName": "Clever Conjurer",
+        "typeLine": "Creature — Gnome Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Mage Hand — {T}: Untap target permanent not named Clever Conjurer. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "coiling-stalker-exact-negated-counter-possession",
+      "request": {
+        "cardName": "Coiling Stalker",
+        "typeLine": "Creature — Snake Ninja",
+        "manaCost": "{1}{G}",
+        "oracleText": "Ninjutsu {1}{G} ({1}{G}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, put a +1/+1 counter on target creature you control that doesn't have a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "gilt-leaf-winnower-exact-whose-power-toughness",
+      "request": {
+        "cardName": "Gilt-Leaf Winnower",
+        "typeLine": "Creature — Elf Warrior",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Menace (This creature can't be blocked except by two or more creatures.)\nWhen this creature enters, you may destroy target non-Elf creature whose power and toughness aren't equal.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "algorithmic-ferocity-exact-zone-count-continuation",
+      "request": {
+        "cardName": "Algorithmic Ferocity",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Until end of turn, target creature you control gains indestructible and gets +1/+0 for each card in your hand with mana value 4 or greater. Then it fights target creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "thunderkin-awakener-exact-card-target-continuation",
+      "request": {
+        "cardName": "Thunderkin Awakener",
+        "typeLine": "Creature — Elemental Shaman",
+        "manaCost": "{1}{R}",
+        "oracleText": "Haste\nWhenever this creature attacks, choose target Elemental creature card in your graveyard with toughness less than this creature's toughness. Return that card to the battlefield tapped and attacking. Sacrifice it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "same-player-pair-return-sibling",
+      "request": {
+        "cardName": "Postnominal Same Controller Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose two target creatures controlled by the same player. Return those creatures to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "same-opponent-destroy-pair-sibling",
+      "request": {
+        "cardName": "Postnominal Same Opponent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Destroy two target artifacts controlled by the same opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "chooser-status-relative-sibling",
+      "request": {
+        "cardName": "Postnominal Chooser Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Each opponent sacrifices a creature of their choice that attacked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "source-subject-tap-sibling",
+      "request": {
+        "cardName": "Postnominal Blocker Probe",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{1}{W}",
+        "oracleText": "Defender\n{2}: Tap target creature this creature is blocking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "card-target-zone-then-with-sibling",
+      "request": {
+        "cardName": "Postnominal Card Target Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target creature card in your graveyard with mana value 2 or less to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "no-code-location-not-named-then-with",
+      "request": {
+        "cardName": "Postnominal Recombination Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Target opponent reveals their hand. You choose a card from it not named Swamp with mana value 2 or less and exile that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "no-code-chooser-with-then-relative",
+      "request": {
+        "cardName": "Postnominal Recombination Chooser Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Target opponent sacrifices a creature of their choice with flying that attacked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-same-controller-singular-head",
+      "request": {
+        "cardName": "Postnominal Singular Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Tap target creature controlled by the same player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "traceContainsState": "selector.relative-clause.same-controller.plural-head"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-continuation-player-relation",
+      "request": {
+        "cardName": "Postnominal Relation Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Target opponent reveals their hand. You choose a card from it you control and exile that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "traceContainsState": "selector.postnominal-continuation.relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-continuation-coordinated-head-keyword",
+      "request": {
+        "cardName": "Postnominal Coordinated Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target opponent sacrifices an artifact or creature of their choice with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "traceContainsState": "selector.postnominal-continuation.coordinated-head"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-trailing-with-item",
+      "request": {
+        "cardName": "Postnominal Unknown Item Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Target opponent reveals their hand. You choose a card from it with the longest name and exile that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "traceContainsState": "collection.selection.postnominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-blocked-this-combat-unclaimed",
+      "request": {
+        "cardName": "Postnominal Combat Window Probe",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{3}",
+        "oracleText": "Defender\nWhen this creature dies during combat, it deals 6 damage to each creature it blocked this combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -209,6 +209,7 @@ mod object_identity_test_setup;
 mod object_predicate;
 mod object_predicate_eval;
 mod object_relation_eval;
+mod object_set_constraints;
 mod object_snapshot;
 mod offered_action;
 mod once_per_turn;
@@ -4707,6 +4708,7 @@ fn target_selection_constraint_supported(constraint: &Value) -> bool {
         }
         Some("targetControllerMatchesTargetPlayer") => constraint["targetId"].is_string(),
         Some("distinctPermanentControllers") => true,
+        kind if object_set_constraints::object_set_constraint_supported(kind) => true,
         Some("distinctCardNames") => true,
         Some("shareCardType") => true,
         Some("allOf") => object_predicate_eval::all_of_supported(
@@ -8280,6 +8282,9 @@ impl GameEngine {
                         },
                     )
                 })
+            }
+            Some(object_set_constraints::SAME_PERMANENT_CONTROLLER) => {
+                self.selection_has_same_permanent_controller(selection)
             }
             Some("distinctPermanentControllers") => {
                 let mut controllers = BTreeSet::new();

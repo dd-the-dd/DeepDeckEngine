@@ -262,6 +262,26 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
         } else {
             predicate
         };
+        // `a creature card in your hand without blitz`: the shared
+        // postnominal list of the cards continues after their zone.
+        let predicate = match predicate {
+            Some(head) => {
+                trial.enter("collection.zone.postnominal");
+                let plural = !matches!(
+                    quantity,
+                    Some(CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                        NumericAtom::Integer(1)
+                    )))
+                );
+                Some(continue_unrelated_predicate(
+                    &mut trial,
+                    ObjectQueryContext::ORDINARY,
+                    head,
+                    plural,
+                )?)
+            }
+            None => None,
+        };
         if matches!(owner, CardZoneOwnerNode::Players(_)) {
             // Another player's hidden zone is not an open collection to
             // read or choose from (CR 400.2); only public zones admit a
