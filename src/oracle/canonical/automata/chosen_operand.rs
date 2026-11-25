@@ -19,8 +19,8 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ExpressedTargetCardinality, ObjectChoiceNode, PermanentEffectReference, TargetSelector,
-    recognize_expressed_target_cardinality, recognize_object_query, resolution_choice_binding,
-    resolution_selection_count_starts,
+    ordinal_target_head_follows, recognize_expressed_target_cardinality, recognize_object_query,
+    resolution_choice_binding, resolution_selection_count_starts,
 };
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
@@ -39,8 +39,9 @@ pub(in crate::oracle::canonical) fn chosen_permanent_operand_starts(
         word_at(cursor, 0, "a") || word_at(cursor, 0, "an") || word_at(cursor, 0, "another");
     if article {
         // `a number of`, `a single`: not an object determiner here; `another
-        // target` is a declaration.
+        // target` and `a second target` are declarations.
         return !(word_at(cursor, 1, "target")
+            || ordinal_target_head_follows(cursor)
             || word_at(cursor, 1, "number")
             || word_at(cursor, 1, "single")
             || word_at(cursor, 1, "player")
