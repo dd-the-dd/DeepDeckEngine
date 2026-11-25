@@ -3673,7 +3673,37 @@ fn recognize_put_frame(
         )
         .map(LocalEffectNode::ReferencedPermanentAction);
     }
-    recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards)
+    // `put N cards from ZONE ...`: the counted move reads a card count first.
+    if put_card_count_follows(cursor) {
+        return recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards);
+    }
+    // Every other head is the object-to-zone frame: the shared card operand
+    // (a reference, a selection, a zone's cards, a restated antecedent),
+    // then a destination whose lexical shape (`into`, `onto`, `on top of`,
+    // `on the bottom of`, `ORDINAL from the top`) is read by the shared
+    // destination child. The card-action child is read again here so its
+    // own state names the failure, never a numeric atom it never claimed.
+    cursor.enter("effect.put.object-to-zone");
+    match super::recognize_card_action(
+        cursor,
+        false,
+        super::CardActionReadContext::of(inputs.context, inputs.name_links, inputs.name_failure),
+    ) {
+        Ok(Some(action)) => Ok(LocalEffectNode::CardAction(action)),
+        Ok(None) => Err(cursor.fail("an object operand and its destination after `put`")),
+        Err(failure) => Err(failure),
+    }
+}
+
+/// `put a|N|X card(s)`: the head of the counted move (`put two cards from
+/// your hand on top of your library`). Pure lookahead after the verb.
+fn put_card_count_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek_ahead(1).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("a")
+            || raw.eq_ignore_ascii_case("x")
+            || raw.parse::<i64>().is_ok()
+            || super::super::parse_number_word(raw).is_some()
+    })
 }
 
 /// `destroy OBJECTS`: a universal collection, a bound set, a bound

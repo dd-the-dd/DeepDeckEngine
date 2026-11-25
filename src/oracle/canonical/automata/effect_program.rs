@@ -646,14 +646,29 @@ fn recognize_permission_program(
     // the optional wrapper cannot order that choice, so the body rejects it.
     let mut permission_context = context.clone();
     permission_context.unless_frames = UnlessFrameSupport::Unsupported;
-    let body = cursor.bounded(body_end, |cursor| {
-        recognize_effect_sequence_with_context(
-            cursor,
-            name_links,
-            name_failure,
-            &permission_context,
-        )
-    })?;
+    // Later sentences acting only on the cards this sentence observed are
+    // governed with it (`card_action.rs`).
+    let ability_end = reflexive_ability_end(cursor, context);
+    let continuation =
+        super::try_recognize_observed_card_continuation(cursor, body_end, ability_end, |cursor| {
+            recognize_effect_sequence_with_context(
+                cursor,
+                name_links,
+                name_failure,
+                &permission_context,
+            )
+        });
+    let body = match continuation {
+        Some(body) => body,
+        None => cursor.bounded(body_end, |cursor| {
+            recognize_effect_sequence_with_context(
+                cursor,
+                name_links,
+                name_failure,
+                &permission_context,
+            )
+        })?,
+    };
     cursor.enter("program.optional.complete");
     let optional = EffectProgramNode::Optional {
         player,
@@ -1125,6 +1140,22 @@ fn recognize_outcome_body(
         {
             return Ok(EffectProgramNode::Sequence(body));
         }
+    }
+    // `If you do, reveal cards ... . Put that card into your hand and the
+    // rest into your graveyard.`: later sentences acting only on the cards
+    // the outcome's sentence observed are governed with it (`card_action.rs`).
+    let ability_end = reflexive_ability_end(cursor, context);
+    if outcome == PerformanceOutcome::Performed
+        && let Some(body) = super::try_recognize_observed_card_continuation(
+            cursor,
+            body_end,
+            ability_end,
+            |cursor| {
+                recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
+            },
+        )
+    {
+        return Ok(EffectProgramNode::Sequence(body));
     }
     let body = cursor.bounded(body_end, |cursor| {
         recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)

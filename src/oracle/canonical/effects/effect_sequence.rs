@@ -200,6 +200,28 @@ pub(in crate::oracle::canonical) fn try_lower_local_effect_sequence_with_context
     }
 }
 
+/// The same lowering over a caller-owned card-collection scope: an outcome
+/// body reads the cards its producing instruction observed (CR 608.2c).
+pub(in crate::oracle::canonical) fn try_lower_local_effect_sequence_with_collections(
+    cursor: &mut OracleTokenCursor<'_>,
+    sequence: &EffectSequenceNode,
+    context: EffectSequenceLoweringContext,
+    collections: &mut CardCollectionMemory,
+) -> EffectSequenceLoweringAttempt {
+    match lower_local_effect_sequence_with_collections(cursor, sequence, context, collections) {
+        Ok(lowered) => EffectSequenceLoweringAttempt::Lowered(lowered),
+        Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure)) => {
+            EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure)
+        }
+        Err(EffectSequenceLoweringFailure::FailedSupport(failure)) => {
+            EffectSequenceLoweringAttempt::FailedSupport(failure)
+        }
+        Err(EffectSequenceLoweringFailure::FailedInvariant(failure)) => {
+            EffectSequenceLoweringAttempt::FailedInvariant(failure)
+        }
+    }
+}
+
 /// Whether the next action that reads or replaces the card-collection scope
 /// reads it through a lexical reference (`that card`, `it`, `them`).
 fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
@@ -2113,6 +2135,14 @@ fn lower_local_effect_sequence_with_collections(
                             operation["cardsAbove"] = lower_numeric_atom(above);
                         }
                         effects.push(operation);
+                        continue;
+                    }
+                    // CR 400.3: the permanent goes to its owner's hand.
+                    ReferencedPermanentAction::ReturnToOwnerHand => {
+                        effects.push(json!({
+                            "kind": "returnToOwnersHand",
+                            "permanent": reference,
+                        }));
                         continue;
                     }
                     // CR 701.24a: put into the owner's library, then that

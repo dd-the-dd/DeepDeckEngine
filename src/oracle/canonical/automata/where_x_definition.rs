@@ -56,8 +56,13 @@ pub(in crate::oracle::canonical) fn recognize_optional_amount_reminder(
         return Ok(());
     }
     cursor.enter("reminder.amount.kind");
-    let NumericExpression::Devotion(color) = amount else {
+    let NumericExpression::Devotion(colors) = amount else {
         return Err(cursor.fail("a reminder restating the defined amount (devotion)"));
+    };
+    // Only the one-color reminder is read; a multicolor devotion reminder
+    // (CR 700.5a) fails here rather than being approximated.
+    let [color] = colors.as_slice() else {
+        return Err(cursor.fail("a single-color devotion reminder"));
     };
     cursor.enter("reminder.devotion.open");
     cursor.consume_phrase(&["(", "each"])?;

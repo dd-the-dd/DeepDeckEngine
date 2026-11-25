@@ -70,6 +70,7 @@ fn lower_granted_affinity(
             amount: expansion.amount,
             condition: None,
             target_query: None,
+            colored: None,
         },
     )
 }

@@ -834,20 +834,23 @@ fn lower_native_ability_body(
         let lowered = lower_program_step(
             cursor,
             step,
-            &mut |cursor, sequence| match try_lower_local_effect_sequence_with_context(
-                cursor,
-                sequence,
-                EffectSequenceLoweringContext::ValidateXAfterCardComposition,
-            ) {
-                EffectSequenceLoweringAttempt::Lowered(lowered) => Ok(lowered),
-                EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure) => {
-                    Err(EffectProgramParseAttempt::Unpromoted(failure))
-                }
-                EffectSequenceLoweringAttempt::FailedSupport(failure) => {
-                    Err(EffectProgramParseAttempt::FailedSupport(failure))
-                }
-                EffectSequenceLoweringAttempt::FailedInvariant(failure) => {
-                    Err(EffectProgramParseAttempt::Failed(failure))
+            &mut |cursor, sequence, collections| {
+                match try_lower_local_effect_sequence_with_collections(
+                    cursor,
+                    sequence,
+                    EffectSequenceLoweringContext::ValidateXAfterCardComposition,
+                    collections,
+                ) {
+                    EffectSequenceLoweringAttempt::Lowered(lowered) => Ok(lowered),
+                    EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure) => {
+                        Err(EffectProgramParseAttempt::Unpromoted(failure))
+                    }
+                    EffectSequenceLoweringAttempt::FailedSupport(failure) => {
+                        Err(EffectProgramParseAttempt::FailedSupport(failure))
+                    }
+                    EffectSequenceLoweringAttempt::FailedInvariant(failure) => {
+                        Err(EffectProgramParseAttempt::Failed(failure))
+                    }
                 }
             },
             EffectProgramParseAttempt::FailedSupport,

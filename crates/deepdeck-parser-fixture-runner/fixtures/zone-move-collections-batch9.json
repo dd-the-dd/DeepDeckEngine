@@ -1,0 +1,696 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "zone-move-collections-batch9",
+  "cases": [
+    {
+      "id": "foster-exact-if-you-do-reveal-until-continuation",
+      "request": {
+        "cardName": "Foster",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Whenever a creature you control dies, you may pay {1}. If you do, reveal cards from the top of your library until you reveal a creature card. Put that card into your hand and the rest into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "spinner-of-souls-exact-optional-reveal-until-continuation",
+      "request": {
+        "cardName": "Spinner of Souls",
+        "typeLine": "Creature — Spider Spirit",
+        "manaCost": "{2}{G}",
+        "oracleText": "Reach\nWhenever another nontoken creature you control dies, you may reveal cards from the top of your library until you reveal a creature card. Put that card into your hand and the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "gamekeeper-exact-action-outcome-continuation",
+      "request": {
+        "cardName": "Gamekeeper",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{3}{G}",
+        "oracleText": "When this creature dies, you may exile it. If you do, reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield and put all other cards revealed this way into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "treasure-keeper-exact-all-revealed-cards-not-cast",
+      "request": {
+        "cardName": "Treasure Keeper",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}",
+        "oracleText": "When this creature dies, reveal cards from the top of your library until you reveal a nonland card with mana value 3 or less. You may cast that card without paying its mana cost. Put all revealed cards not cast this way on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "ojer-kaslem-exact-elided-library-bottom",
+      "request": {
+        "cardName": "Ojer Kaslem, Deepest Growth // Temple of Cultivation",
+        "typeLine": "Legendary Creature — God // Land",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "0cbc43a3-8cba-4988-9de1-c89aedd79ada:face-0",
+            "name": "Ojer Kaslem, Deepest Growth",
+            "typeLine": "Legendary Creature — God",
+            "manaCost": "{3}{G}{G}",
+            "oracleText": "Trample\nWhenever Ojer Kaslem deals combat damage to a player, reveal that many cards from the top of your library. You may put a creature card and/or a land card from among them onto the battlefield. Put the rest on the bottom in a random order.\nWhen Ojer Kaslem dies, return it to the battlefield tapped and transformed under its owner's control.",
+            "power": "6",
+            "toughness": "5",
+            "loyalty": null
+          },
+          {
+            "id": "0cbc43a3-8cba-4988-9de1-c89aedd79ada:face-1",
+            "name": "Temple of Cultivation",
+            "typeLine": "Land",
+            "manaCost": "",
+            "oracleText": "(Transforms from Ojer Kaslem, Deepest Growth.)\n{T}: Add {G}.\n{2}{G}, {T}: Transform this land. Activate only if you control ten or more permanents and only as a sorcery.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "winota-exact-rest-of-the-cards",
+      "request": {
+        "cardName": "Winota, Joiner of Forces",
+        "typeLine": "Legendary Creature — Human Warrior",
+        "manaCost": "{2}{R}{W}",
+        "oracleText": "Whenever a non-Human creature you control attacks, look at the top six cards of your library. You may put a Human creature card from among them onto the battlefield tapped and attacking. It gains indestructible until end of turn. Put the rest of the cards on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "kruphixs-insight-exact-gapped-rest-of-the-revealed-cards",
+      "request": {
+        "cardName": "Kruphix's Insight",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Reveal the top six cards of your library. Put up to three enchantment cards from among them into your hand and the rest of the revealed cards into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "mass-polymorph-exact-shuffle-rest-of-the-revealed-cards",
+      "request": {
+        "cardName": "Mass Polymorph",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{U}",
+        "oracleText": "Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards. Put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "the-ring-goes-south-exact-those-land-cards",
+      "request": {
+        "cardName": "The Ring Goes South",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "The Ring tempts you. Then reveal cards from the top of your library until you reveal X land cards, where X is the number of legendary creatures you control. Put those land cards onto the battlefield tapped and the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "skyserpent-seeker-exact-those-land-cards-activated",
+      "request": {
+        "cardName": "Skyserpent Seeker",
+        "typeLine": "Creature — Snake",
+        "manaCost": "{G}{U}",
+        "oracleText": "Flying, deathtouch\nExhaust — {4}: Reveal cards from the top of your library until you reveal two land cards. Put those land cards onto the battlefield tapped and the rest on the bottom of your library in a random order. Put a +1/+1 counter on this creature. (Activate each exhaust ability only once.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "fathom-trawl-exact-the-nonland-cards-revealed-this-way",
+      "request": {
+        "cardName": "Fathom Trawl",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Reveal cards from the top of your library until you reveal three nonland cards. Put the nonland cards revealed this way into your hand, then put the rest of the revealed cards on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "tel-jilad-stylus-exact-target-permanent-your-library",
+      "request": {
+        "cardName": "Tel-Jilad Stylus",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Put target permanent you own on the bottom of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "painful-memories-exact-that-players-library-top",
+      "request": {
+        "cardName": "Painful Memories",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Look at target opponent's hand and choose a card from it. Put that card on top of that player's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "agonizing-memories-exact-that-players-library-any-order",
+      "request": {
+        "cardName": "Agonizing Memories",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Look at target player's hand and choose two cards from it. Put them on top of that player's library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "dramatic-accusation-exact-shuffle-enchanted-creature",
+      "request": {
+        "cardName": "Dramatic Accusation",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{U}",
+        "oracleText": "Enchant creature\nWhen this Aura enters, tap enchanted creature.\nEnchanted creature doesn't untap during its controller's untap step.\n{U}{U}: Shuffle enchanted creature into its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "astral-slide-exact-if-you-do-reads-exiled-card",
+      "request": {
+        "cardName": "Astral Slide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever a player cycles a card, you may exile target creature. If you do, return that card to the battlefield under its owner's control at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "engulf-the-shore-exact-preposed-owner-hand-destination",
+      "request": {
+        "cardName": "Engulf the Shore",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Return to their owners' hands all creatures with toughness less than or equal to the number of Islands you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "whirlpool-rider-exact-shuffle-the-cards-from-your-hand",
+      "request": {
+        "cardName": "Whirlpool Rider",
+        "typeLine": "Creature — Merfolk",
+        "manaCost": "{1}{U}",
+        "oracleText": "When this creature enters, shuffle the cards from your hand into your library, then draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "mindmoil-exact-the-cards-in-your-hand-on-the-bottom",
+      "request": {
+        "cardName": "Mindmoil",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{R}",
+        "oracleText": "Whenever you cast a spell, put the cards in your hand on the bottom of your library in any order, then draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-reveal-five-lands-battlefield-shuffle-rest",
+      "request": {
+        "cardName": "Zone Move Sibling Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Reveal the top five cards of your library. Put all land cards revealed this way onto the battlefield tapped and shuffle the rest into your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-look-three-one-to-hand-rest-on-the-bottom-any-order",
+      "request": {
+        "cardName": "Zone Move Elided Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-look-target-players-library-into-that-players-graveyard",
+      "request": {
+        "cardName": "Zone Move Possessive Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Look at the top two cards of target player's library. Put them into that player's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-rest-of-them-into-graveyard",
+      "request": {
+        "cardName": "Zone Move Remainder Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Look at the top four cards of your library. Put two of them into your hand and the rest of them into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-return-to-owners-hands-all-artifacts",
+      "request": {
+        "cardName": "Zone Move Heavy Object Probe",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Return to their owners' hands all artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-if-you-do-look-continuation-trigger",
+      "request": {
+        "cardName": "Zone Move Outcome Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever you gain life, you may pay {1}. If you do, look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-the-rest-without-a-preceding-selection",
+      "request": {
+        "cardName": "Zone Move Missing Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Put the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-put-x-counters-keeps-the-counter-frame",
+      "request": {
+        "cardName": "Zone Move Counter Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{G}",
+        "oracleText": "Put X +1/+1 counters on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-those-creature-cards-after-an-unfiltered-look",
+      "request": {
+        "cardName": "Zone Move Restated Query Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Look at the top five cards of your library. Put those creature cards into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-elided-library-without-an-observed-library",
+      "request": {
+        "cardName": "Zone Move Elided Origin Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Put a card from your hand on the bottom.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.move.origin-library"
+          }
+        ]
+      }
+    },
+    {
+      "id": "alora-merry-thief-exact-return-that-creature-delayed",
+      "request": {
+        "cardName": "Alora, Merry Thief",
+        "typeLine": "Legendary Creature — Halfling Rogue",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you attack, up to one target attacking creature can't be blocked this turn. Return that creature to its owner's hand at the beginning of the next end step.\nChoose a Background (You can have a Background as a second commander.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wall-of-tears-exact-return-that-creature-end-of-combat",
+      "request": {
+        "cardName": "Wall of Tears",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{1}{U}",
+        "oracleText": "Defender (This creature can't attack.)\nWhenever this creature blocks a creature, return that creature to its owner's hand at end of combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "scrappy-bruiser-exact-return-that-creature-end-of-combat",
+      "request": {
+        "cardName": "Scrappy Bruiser",
+        "typeLine": "Creature — Raccoon Warrior",
+        "manaCost": "{3}{R}",
+        "oracleText": "Whenever this creature attacks, up to one target attacking creature gets +2/+0 and gains trample until end of turn. Return that creature to its owner's hand at end of combat. (Return it only if it's on the battlefield.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-block-trigger-return-that-creature-now",
+      "request": {
+        "cardName": "Zone Move Bound Return Probe",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{2}{U}",
+        "oracleText": "Defender\nWhenever this creature blocks a creature, return that creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "urza-exact-elided-library-after-shuffle",
+      "request": {
+        "cardName": "Urza, Lord High Artificer",
+        "typeLine": "Legendary Creature — Human Artificer",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "When Urza enters, create a 0/0 colorless Construct artifact creature token with \"This token gets +1/+1 for each artifact you control.\"\nTap an untapped artifact you control: Add {U}.\n{5}: Shuffle your library, then exile the top card. Until end of turn, you may play that card without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "hazorets-undying-fury-exact-elided-library-top-four",
+      "request": {
+        "cardName": "Hazoret's Undying Fury",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Shuffle your library, then exile the top four cards. You may cast any number of spells with mana value 5 or less from among them without paying their mana costs. Lands you control don't untap during your next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "magus-of-the-mind-exact-elided-library-top-x",
+      "request": {
+        "cardName": "Magus of the Mind",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "{U}, {T}, Sacrifice this creature: Shuffle your library, then exile the top X cards, where X is one plus the number of spells cast this turn. Until end of turn, you may play lands and cast spells from among cards exiled this way without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-elided-library-without-a-named-library",
+      "request": {
+        "cardName": "Zone Move Elided Top Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Exile the top two cards. You may play them this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "collection.library-top.owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "redcap-gutter-dweller-exact-if-you-do-exile-top-then-play",
+      "request": {
+        "cardName": "Redcap Gutter-Dweller",
+        "typeLine": "Creature — Goblin Warrior",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Menace\nWhen this creature enters, create two 1/1 black Rat creature tokens with \"This token can't block.\"\nAt the beginning of your upkeep, you may sacrifice another creature. If you do, put a +1/+1 counter on this creature and exile the top card of your library. You may play that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "ardent-dustspeaker-exact-if-you-do-exile-two-then-play",
+      "request": {
+        "cardName": "Ardent Dustspeaker",
+        "typeLine": "Creature — Minotaur Shaman",
+        "manaCost": "{4}{R}",
+        "oracleText": "Whenever this creature attacks, you may put an instant or sorcery card from your graveyard on the bottom of your library. If you do, exile the top two cards of your library. You may play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "rotisserie-elemental-exact-if-you-do-exile-x-then-play",
+      "request": {
+        "cardName": "Rotisserie Elemental",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{R}",
+        "oracleText": "Menace\nWhenever this creature deals combat damage to a player, put a skewer counter on this creature. Then you may sacrifice it. If you do, exile the top X cards of your library, where X is the number of skewer counters on this creature. You may play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "harnesser-of-storms-exact-optional-exile-then-preposed-play",
+      "request": {
+        "cardName": "Harnesser of Storms",
+        "typeLine": "Creature — Otter Wizard",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever you cast a noncreature or Otter spell, you may exile the top card of your library. Until end of turn, you may play that card. This ability triggers only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "superior-foes-exact-if-you-do-play-the-exiled-card",
+      "request": {
+        "cardName": "Superior Foes of Spider-Man",
+        "typeLine": "Creature — Human Rogue Villain",
+        "manaCost": "{2}{R}",
+        "oracleText": "Trample\nWhenever you cast a spell with mana value 4 or greater, you may exile the top card of your library. If you do, you may play that card until you exile another card with this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "bring-to-light-exact-exiled-search-result-survives-shuffle",
+      "request": {
+        "cardName": "Bring to Light",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}{U}",
+        "oracleText": "Converge — Search your library for a creature, instant, or sorcery card with mana value less than or equal to the number of colors of mana spent to cast this spell, exile that card, then shuffle. You may cast that card without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    }
+  ]
+}

@@ -492,6 +492,50 @@ fn recognize_back_destination(
     Ok(destination)
 }
 
+/// `on top` / `on the bottom` with no written library, then an optional
+/// order: the library the moved cards were observed in. The phrase must end
+/// its instruction (a terminator, a connector, or the order); anything else
+/// after the position is not an elided library and fails here.
+fn recognize_elided_origin_library(
+    trial: &mut OracleTokenCursor<'_>,
+    position: LibraryPosition,
+) -> MachineResult<CardMoveDestinationNode> {
+    trial.enter("collection.destination.elided-library");
+    let order = if trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
+    {
+        trial.enter("collection.destination.order");
+        Some(recognize_collection_order(trial)?)
+    } else {
+        None
+    };
+    trial.enter("collection.destination.elided-library.boundary");
+    trial.require(
+        trial.peek().is_none_or(|raw| {
+            matches!(raw, "." | "," | ";" | ")")
+                || raw.eq_ignore_ascii_case("and")
+                || raw.eq_ignore_ascii_case("then")
+                || raw.eq_ignore_ascii_case("or")
+        }),
+        "the end of the instruction after an elided library position",
+    )?;
+    Ok(CardMoveDestinationNode {
+        zone: CardZoneName::Library,
+        owner: CardMoveOwnerNode::EachCardOwner,
+        position: Some(position),
+        order,
+        tapped: false,
+        entering_counters: None,
+        face_down: false,
+        transformed: false,
+        shuffle: false,
+        attached_to: None,
+        origin_library: true,
+        attacking: None,
+    })
+}
+
 /// Reads a destination phrase, never the move action or its object binding.
 pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
     cursor: &mut OracleTokenCursor<'_>,
@@ -536,6 +580,17 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
                 raw.eq_ignore_ascii_case("top") || raw.eq_ignore_ascii_case("bottom")
             }) {
             let position = recognize_library_position_kind(&mut trial)?;
+            if relation == "on"
+                && !trial
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
+            {
+                // `put the rest on the bottom [in a random order]`: the
+                // elided library is the one the moved cards were observed
+                // in (their owner's, CR 400.3); the lowerer proves that
+                // observation.
+                return recognize_elided_origin_library(&mut trial, position);
+            }
             trial.consume("of")?;
             Some(position)
         } else {
@@ -565,6 +620,14 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
                 // cards were observed in, which is their owner's (CR 400.3).
                 trial.consume("that")?;
                 origin_library = true;
+                CardMoveOwnerNode::EachCardOwner
+            } else if super::try_recognize_bound_possessive_player(&mut trial)?.is_some() {
+                // `on top of that player's library`, `into that player's
+                // graveyard`: the shared bound-player resolver proves the
+                // possessive names a player of this program (an unbound one
+                // fails there). A hand, library or graveyard is always its
+                // card's owner's (CR 400.3), checked with the zone below.
+                owned_zone_only = true;
                 CardMoveOwnerNode::EachCardOwner
             } else if trial
                 .peek()
