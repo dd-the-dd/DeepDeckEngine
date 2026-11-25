@@ -1113,6 +1113,7 @@ pub(in crate::oracle::canonical) fn effect_program_operator_follows(
         || later_mandatory_outcome_block(cursor).is_some()
         || reflexive_action_block_follows(cursor)
         || replacing_sentence(cursor).is_some()
+        || super::postposed_replacing_sentence(cursor).is_some()
 }
 
 fn optional_program_starts(cursor: &OracleTokenCursor<'_>) -> bool {
