@@ -2192,6 +2192,9 @@ fn recognize_effect_sequence_attempt_scoped(
                             card_focus: false,
                             departed_targets: &departed,
                         };
+                        // Targets are declared as the spell is cast (CR
+                        // 601.2c): the condition may read its own action's.
+                        super::publish_installed_declared_target(cursor, &memory.effects);
                         let condition = super::recognize_postposed_sentence_condition(
                             cursor,
                             &condition_context,
