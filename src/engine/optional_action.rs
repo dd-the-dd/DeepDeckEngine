@@ -184,6 +184,18 @@ fn group_role(member: &Value) -> Option<GroupRole> {
     }
 }
 
+/// Members measured only inside a group: their objects (`cards`,
+/// `objects`) are measured after the group, against the zones they occupied
+/// before it, never by a primitive's count witness.
+fn group_measured_member(member: &Value) -> bool {
+    match value_kind(member) {
+        Some("revealCards") => true,
+        Some("discardCards") => member.get("cards").is_some(),
+        Some("sacrificePermanents") => member.get("objects").is_some(),
+        _ => false,
+    }
+}
+
 /// Static contract of an instruction group: every member is a supported
 /// effect with a role, and at least one member is measured.
 pub(super) fn measured_group_supported(actions: &Value) -> bool {
@@ -350,7 +362,12 @@ impl GameEngine {
             let measure = match group_role(member) {
                 Some(GroupRole::Selection) => MemberMeasure::Selection(member.clone()),
                 Some(GroupRole::Neutral) | None => MemberMeasure::Neutral,
-                Some(GroupRole::Measured) if reads_any(member, &produced) => {
+                // A member reading an earlier member's result, or one whose
+                // performance only the group measures (a reveal, a chosen
+                // discard or sacrifice), is measured after the group.
+                Some(GroupRole::Measured)
+                    if reads_any(member, &produced) || group_measured_member(member) =>
+                {
                     MemberMeasure::Deferred(member.clone())
                 }
                 Some(GroupRole::Measured) => MemberMeasure::Prepared(
