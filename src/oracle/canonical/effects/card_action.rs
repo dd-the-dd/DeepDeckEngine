@@ -17,6 +17,9 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// its look or reveal began (CR 608.2c): a later reference to them names
     /// exactly those cards, wherever an action moves them (CR 400.7).
     view_from_library_top: bool,
+    /// Those library cards are in the controller's own library, from which
+    /// a resolution-time cast of this program may cast them (CR 608.2g).
+    view_library_of_controller: bool,
     /// The cards the most recent reveal of this scope revealed (`the
     /// revealed cards`).
     last_revealed: Option<(Value, Option<i64>)>,
@@ -234,6 +237,7 @@ impl CardCollectionMemory {
         self.view_zone = snapshot.view_zone;
         self.view_zone_noun = snapshot.view_zone_noun;
         self.view_from_library_top = snapshot.view_from_library_top;
+        self.view_library_of_controller = snapshot.view_library_of_controller;
         self.last_revealed = snapshot.last_revealed.clone();
         self.last_exiled = snapshot.last_exiled.clone();
         self.last_cast = snapshot.last_cast.clone();
@@ -254,6 +258,7 @@ impl CardCollectionMemory {
             && self.view_zone == other.view_zone
             && self.view_zone_noun == other.view_zone_noun
             && self.view_from_library_top == other.view_from_library_top
+            && self.view_library_of_controller == other.view_library_of_controller
             && self.last_revealed == other.last_revealed
             && self.last_exiled == other.last_exiled
             && self.last_cast == other.last_cast
@@ -276,6 +281,7 @@ impl CardCollectionMemory {
         self.view_zone = None;
         self.view_zone_noun = false;
         self.view_from_library_top = false;
+        self.view_library_of_controller = false;
         self.last_revealed = None;
         self.last_exiled = None;
         self.last_cast = None;
@@ -448,20 +454,41 @@ impl CardCollectionMemory {
                     .or_else(|| self.plural_focus.clone())
                     .ok_or_else(|| cursor.fail("the cards this program exiled"));
             }
+            // `cards revealed|exiled this way`: the whole observed collection
+            // of this scope, produced by the restated verb (CR 608.2c).
+            CardCollectionReferenceNode::Restated(verb) => {
+                let view = self.view.clone().ok_or_else(|| {
+                    cursor.fail("an observed card collection in the current lexical scope")
+                })?;
+                cursor.require(
+                    self.view_verb == Some(verb),
+                    "a collection produced by the verb restated with `this way`",
+                )?;
+                return Ok((view, self.view_maximum));
+            }
             _ => {}
         }
         // Without an observed collection, `it` / `that card` is the card the
-        // triggering zone change put into a public zone (CR 400.7).
+        // triggering zone change put into a public zone (CR 400.7); `them`
+        // after `one or more cards are put into a graveyard` is every card of
+        // that event (CR 603.2c), whose number is not static.
         if self.view.is_none()
             && matches!(
                 reference,
                 CardCollectionReferenceNode::Selected | CardCollectionReferenceNode::Antecedent
             )
-            && cursor
+            && let Some(environment) = cursor
                 .binding_environment()
-                .is_some_and(|environment| environment.frame.event_card.is_some())
+                .filter(|environment| environment.frame.event_card.is_some())
         {
-            return Ok((json!({"kind":"triggeringCard"}), Some(1)));
+            let maximum = if reference == CardCollectionReferenceNode::Selected
+                || environment.frame.event_object.is_some()
+            {
+                Some(1)
+            } else {
+                None
+            };
+            return Ok((json!({"kind":"triggeringCard"}), maximum));
         }
         self.view.as_ref().ok_or_else(|| {
             cursor.fail("an observed card collection in the current lexical scope")
@@ -476,8 +503,9 @@ impl CardCollectionMemory {
                 .ok_or_else(|| cursor.fail("a singular card antecedent in the current scope")),
             CardCollectionReferenceNode::Exiled
             | CardCollectionReferenceNode::Linked
-            | CardCollectionReferenceNode::Revealed => {
-                unreachable!("linked, exiled and revealed references are resolved above")
+            | CardCollectionReferenceNode::Revealed
+            | CardCollectionReferenceNode::Restated(_) => {
+                unreachable!("linked, exiled, revealed and restated references are resolved above")
             }
             CardCollectionReferenceNode::Zone => {
                 cursor.require(
@@ -800,8 +828,10 @@ impl CardCollectionMemory {
             };
             let id = fresh("topCards", &mut self.next_view);
             self.allocated_ids.insert(id.clone());
+            let controller_library = player == controller();
             self.observe(&id, maximum);
             self.view_from_library_top = true;
+            self.view_library_of_controller = controller_library;
             // The set is fixed when the action starts (CR 608.2c): later verbs
             // read these identities, not whatever is on top afterwards.
             effects.push(json!({"kind":"bind", "id":id,
@@ -987,12 +1017,20 @@ impl CardCollectionMemory {
         declarations: TargetlessDeclarationSupport,
         target_decisions: &mut Vec<Value>,
     ) -> MachineResult<Value> {
+        // `all cards from your library` (CR 401.1): every card of the zone,
+        // read on resolution; no member is chosen, so its hidden order and
+        // contents need no player view. A chosen or coordinated library
+        // collection keeps no runtime reader.
+        let whole_library = query.zone == CardZoneName::Library
+            && query.quantity.is_none()
+            && query.additional_zones.is_empty();
         cursor.require(
-            matches!(
-                query.zone,
-                CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
-            ),
-            "an executable hand, graveyard or exile collection",
+            whole_library
+                || matches!(
+                    query.zone,
+                    CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
+                ),
+            "an executable hand, graveyard or exile collection, or a whole library",
         )?;
         // `all graveyards`, `an opponent's graveyard`: the zone of every
         // player of the population, read on resolution.
@@ -1203,8 +1241,18 @@ impl CardCollectionMemory {
         if linked_exile {
             return Ok(CardZoneName::Exile);
         }
+        // Library cards this program looked at or revealed in the
+        // controller's own library, none of which an earlier action of the
+        // scope moved elsewhere: the cast takes them from where they are,
+        // whatever their position (CR 608.2g, 601.2a).
+        if self.view_zone.is_none() && self.view_from_library_top && self.view_library_of_controller
+        {
+            return Ok(CardZoneName::Library);
+        }
         let zone = self.view_zone.ok_or_else(|| {
-            cursor.fail("observed cards whose zone (hand, graveyard or exile) is proved")
+            cursor.fail(
+                "observed cards whose zone (hand, graveyard, exile or your library) is proved",
+            )
         })?;
         Ok(zone)
     }
@@ -1364,6 +1412,12 @@ impl CardCollectionMemory {
                 (Some(cards), maximum, vec![zone.ir_name()])
             }
             CardOperandNode::ZoneCollection(query) => {
+                // A library is cast from only through cards this program
+                // observed in it; a zone query never names library cards.
+                cursor.require(
+                    query.zone != CardZoneName::Library,
+                    "a hand, graveyard or exile zone to cast from",
+                )?;
                 if let Some(predicate) = &query.predicate {
                     require_lowerable_card_predicate(cursor, predicate)?;
                 }
@@ -1418,10 +1472,13 @@ impl CardCollectionMemory {
             _ => return Err(cursor.fail("an observed card collection to cast from")),
         };
         cursor.require(
-            zones
-                .iter()
-                .all(|zone| matches!(*zone, "hand" | "graveyard" | "exile" | "commandZone")),
-            "a hand, graveyard, exile or command-zone source for the cast",
+            zones.iter().all(|zone| {
+                matches!(
+                    *zone,
+                    "hand" | "graveyard" | "exile" | "commandZone" | "library"
+                )
+            }),
+            "a hand, graveyard, exile, command-zone or observed-library source for the cast",
         )?;
         let id = fresh("castCards", &mut self.next_cast);
         self.allocated_ids.insert(id.clone());
@@ -1538,6 +1595,7 @@ impl CardCollectionMemory {
                 };
                 self.observe(&id, maximum);
                 self.view_from_library_top = true;
+                self.view_library_of_controller = true;
                 effects.push(json!({"kind":"lookAtTopCards", "zone":{"kind":"library", "player":controller()}, "count":amount_ir, "bind":id}));
             }
             CardActionNode::LookAt(operand) => {
@@ -1679,6 +1737,7 @@ impl CardCollectionMemory {
                 // the reveal happened (CR 608.2c, 701.20a).
                 self.observe(&id, None);
                 self.view_from_library_top = true;
+                self.view_library_of_controller = true;
                 self.view_verb = Some(CardCollectionVerb::Revealed);
                 self.selected.push(matching.clone());
                 self.complement_exclusions.push(matching.clone());
@@ -1956,6 +2015,16 @@ impl CardCollectionMemory {
                     &mut effects,
                     target_decisions,
                 )?;
+                // Cards of the observed library collection moved out of the
+                // library: a later cast can no longer prove where they are.
+                if destination.zone != CardZoneName::Library
+                    && matches!(
+                        operand,
+                        CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                    )
+                {
+                    self.view_library_of_controller = false;
+                }
                 if destination.origin_library {
                     // `put them back`, `on the bottom of that library`: the
                     // cards this program observed in a library return to it

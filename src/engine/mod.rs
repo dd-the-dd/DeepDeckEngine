@@ -127,6 +127,7 @@ mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
 mod event_batch;
+mod event_card_batch;
 mod event_model;
 mod invariants;
 mod keyword_actions;
@@ -20474,7 +20475,9 @@ impl GameEngine {
                             "card is not in declared source zone {source_zone}: {instance_id}"
                         ))
                     })?;
-                if card_index + 1 != zone.len() {
+                if card_index + 1 != zone.len()
+                    && !resolution_casting::observed_library_position_admitted(&action.decisions)
+                {
                     return Err(EngineError::new("only the top library card can be played"));
                 }
                 zone.remove(card_index)

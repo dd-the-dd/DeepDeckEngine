@@ -123,13 +123,16 @@ fn cast_any_number_supported(effect: &Value) -> bool {
         (None, None) => true,
         (Some(zone), None) => matches!(
             zone.as_str(),
-            Some("exile" | "graveyard" | "hand" | "commandZone")
+            Some("exile" | "graveyard" | "hand" | "commandZone" | "library")
         ),
         (None, Some(zones)) => zones.as_array().is_some_and(|zones| {
             zones.len() >= 2
-                && zones
-                    .iter()
-                    .all(|zone| matches!(zone.as_str(), Some("exile" | "graveyard" | "hand")))
+                && zones.iter().all(|zone| {
+                    matches!(
+                        zone.as_str(),
+                        Some("exile" | "graveyard" | "hand" | "library")
+                    )
+                })
         }),
         (Some(_), Some(_)) => false,
     };
@@ -757,6 +760,14 @@ impl GameEngine {
             let mut options = Vec::new();
             for source_zone in &source_zones {
                 let cards = match source_zone.as_str() {
+                    // CR 608.2g, 601.2a: the caster's own library cards this
+                    // effect observed, cast from wherever they are in it.
+                    "library" => self.state.players[player_index]
+                        .library
+                        .iter()
+                        .filter(|card| object_ids.contains(&card.instance_id))
+                        .cloned()
+                        .collect::<Vec<_>>(),
                     "hand" | "graveyard" | "exile" | "commandZone" => self
                         .state
                         .players
@@ -816,6 +827,10 @@ impl GameEngine {
                     ));
                 }
                 offered_cards.extend(cards);
+            }
+            // The observed library cards are cast from their position.
+            for action in &mut options {
+                resolution_casting::admit_observed_library_position(action);
             }
             let card_of = |action: &LegalAction| {
                 action
