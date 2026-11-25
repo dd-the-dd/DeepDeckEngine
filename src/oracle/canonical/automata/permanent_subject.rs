@@ -1063,6 +1063,118 @@ fn recognize_nominal_permanent_anaphor(
         .map(PermanentOperandNode::BoundReference)
 }
 
+/// The singular `card` noun (not a possessive) `offset` tokens after the
+/// cursor. Lexical lookahead only.
+fn card_noun_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    cursor
+        .token_slice(cursor.position() + offset, cursor.position() + offset + 1)
+        .first()
+        .filter(|token| token.token_type != "possessiveTypeWord")
+        .is_some_and(|token| {
+            crate::oracle::characteristic_vocabulary::lookup_object_domain(
+                &token.raw,
+                crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOnly,
+            ) == Some(ObjectKind::Card)
+        })
+}
+
+/// The object a copy reads (CR 707.2): only its copiable values, in
+/// whatever zone it is. A reference resolves through the one binding
+/// environment like any other reference, with the zone typing of a
+/// characteristic reader: besides the battlefield antecedents the shared
+/// contextual operand reads, it may name a card the program declared or
+/// moved (`a copy of that card`, `a copy of the exiled card`, `a copy of
+/// it`) or the triggering event's object after it left the battlefield, as
+/// it last existed (`a copy of that creature` after `a creature dies`, CR
+/// 400.7, 608.2h). Targets, the source and created tokens stay with the
+/// shared contextual operand. Missing, ambiguous and zone-incompatible
+/// antecedents keep distinct diagnostics.
+pub(in crate::oracle::canonical) fn recognize_copied_object_operand(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PermanentOperandNode> {
+    // A printed name or `this NOUN` is the source.
+    if super::reference::source_reference_starts_at(
+        cursor.position(),
+        cursor.peek(),
+        name_links,
+        name_failure,
+    ) {
+        return recognize_contextual_permanent_operand(cursor, name_links, name_failure, context);
+    }
+    let mut environment = permanent_subject_environment(cursor, context);
+    environment.card_target = installed_binding_environment(cursor).card_target;
+    let first = cursor.peek().map(str::to_ascii_lowercase);
+    let participle = match first.as_deref() {
+        Some("the") => cursor
+            .peek_ahead(1)
+            .and_then(super::ActionResultVerb::from_word)
+            .filter(|_| card_noun_at(cursor, 2)),
+        _ => None,
+    };
+    // `the exiled card` / `the discarded card`: the one card an earlier
+    // action of this program moved with that verb.
+    if let Some(verb) = participle {
+        cursor.enter("copy.object.participle");
+        let reference = resolve_copied_card_antecedent(&environment, Some(verb))
+            .map_err(|expected| cursor.fail(expected))?;
+        cursor.advance_to(cursor.position() + 3)?;
+        cursor.enter("copy.object.complete");
+        return Ok(PermanentOperandNode::BoundReference(reference));
+    }
+    // `that card` / `the card`: a card is no permanent; only the card
+    // antecedents of the program name it.
+    if matches!(first.as_deref(), Some("that" | "the")) && card_noun_at(cursor, 1) {
+        cursor.enter("copy.object.card-antecedent");
+        let reference = resolve_copied_card_antecedent(&environment, None)
+            .map_err(|expected| cursor.fail(expected))?;
+        cursor.advance_to(cursor.position() + 2)?;
+        cursor.enter("copy.object.complete");
+        return Ok(PermanentOperandNode::BoundReference(reference));
+    }
+    // `it`: the proven pronoun antecedent, else a card of the program.
+    if cursor
+        .peek()
+        .is_some_and(super::reference::is_source_anaphor)
+    {
+        cursor.enter("copy.object.pronoun");
+        let reference = resolve_copied_pronoun_antecedent(&environment)
+            .and_then(|reference| {
+                copied_reference_admitted(&environment, reference).map(|()| reference)
+            })
+            .map_err(|expected| cursor.fail(expected))?;
+        cursor.advance_to(cursor.position() + 1)?;
+        cursor.enter("copy.object.complete");
+        return Ok(match reference {
+            PermanentEffectReference::Source(source) => PermanentOperandNode::Reference(source),
+            reference => PermanentOperandNode::BoundReference(reference),
+        });
+    }
+    // `that creature`: the nominal antecedent read for its copiable values,
+    // which a departed event object keeps as it last existed. A spell is a
+    // stack object no token copies (CR 707.10); the shared operand keeps it.
+    if first.as_deref() == Some("that")
+        && bound_object_reference_starts(cursor)
+        && !cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("spell"))
+    {
+        let start = cursor.clone();
+        let reference = recognize_nominal_object_read(cursor, &environment)?;
+        cursor.enter("copy.object.zone");
+        if let Err(expected) = copied_reference_admitted(&environment, reference) {
+            *cursor = start;
+            cursor.enter("copy.object.zone");
+            return Err(cursor.fail(expected));
+        }
+        cursor.enter("copy.object.complete");
+        return Ok(PermanentOperandNode::BoundReference(reference));
+    }
+    recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)
+}
+
 /// The shared subject reader does not declare a target for a reference.
 pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
     cursor: &mut OracleTokenCursor<'_>,

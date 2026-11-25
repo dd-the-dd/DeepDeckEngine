@@ -843,6 +843,7 @@ fn recognize_effect_sequence_attempt_scoped(
                     },
                 )));
                 super::publish_installed_program_antecedents(cursor, &memory.effects);
+                super::publish_installed_unless_payer(cursor, &memory.unless);
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
@@ -1139,7 +1140,9 @@ fn recognize_effect_sequence_attempt_scoped(
                                         &memory.effects,
                                     )
                             });
-                        if permanent_antecedent {
+                        if permanent_antecedent
+                            || super::attached_object_operand_follows_verb(attempt)
+                        {
                             match super::recognize_referenced_permanent_zone_action(
                                 attempt,
                                 name_links,
@@ -3696,14 +3699,20 @@ fn recognize_destroy_frame(
             recognize_destroy_referenced_set_effect(cursor, inputs.object_set_antecedent)
                 .map(LocalEffectNode::DestroyReferencedSet)
         }
-        // `destroy that creature`: a bound reference, never a declaration.
-        super::OperandDeterminer::That => super::recognize_destroy_reference_effect(
-            cursor,
-            inputs.name_links,
-            inputs.name_failure,
-            inputs.context,
-        )
-        .map(LocalEffectNode::ReferencedPermanentAction),
+        // `destroy that creature` / `destroy enchanted creature`: a bound
+        // reference, never a declaration.
+        super::OperandDeterminer::That | super::OperandDeterminer::Other
+            if super::operand_determiner(cursor, 1) == super::OperandDeterminer::That
+                || super::attached_object_operand_follows_verb(cursor) =>
+        {
+            super::recognize_destroy_reference_effect(
+                cursor,
+                inputs.name_links,
+                inputs.name_failure,
+                inputs.context,
+            )
+            .map(LocalEffectNode::ReferencedPermanentAction)
+        }
         super::OperandDeterminer::Absent => recognize_zone_change_effect_with_policy(
             cursor,
             ZoneChangeTargetSupport::TargetCollection,

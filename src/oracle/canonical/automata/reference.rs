@@ -260,6 +260,18 @@ pub(in crate::oracle::canonical) fn attached_object_reference_starts(
     })
 }
 
+/// Lexical lookahead from a verb at the cursor: its operand is an
+/// attached-object reference (`exile enchanted creature`, `destroy
+/// enchanted land`), the one permanent the source is attached to, which the
+/// bound-reference zone actions read through the shared contextual operand.
+/// It proves no binding.
+pub(in crate::oracle::canonical) fn attached_object_operand_follows_verb(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let mut operand = cursor.clone();
+    operand.advance_to(operand.position() + 1).is_ok() && attached_object_reference_starts(&operand)
+}
+
 /// `enchanted PERMANENT` / `equipped creature`: a reference to the permanent
 /// the ability source is attached to (CR 301.5a, 303.4a). The role must match
 /// the source face supplied by the parent; an Aura may enchant any permanent
@@ -289,9 +301,12 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_reference(
         .to_string();
     let accepted = match role {
         AttachedObjectRole::Equipped => noun.eq_ignore_ascii_case("creature"),
+        // `enchanted Mountain`: the Aura's enchant ability may name a
+        // subtype (`Enchant Mountain`, CR 303.4a); the noun restates it.
         AttachedObjectRole::Enchanted => {
             noun.eq_ignore_ascii_case("permanent")
                 || lookup_permanent_card_type(&noun, AcceptedForms::SingularOnly).is_some()
+                || lookup_noncreature_subtype(&noun).is_some()
         }
     };
     cursor.require(
@@ -299,7 +314,7 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_reference(
         match role {
             AttachedObjectRole::Equipped => "`creature` after `equipped`",
             AttachedObjectRole::Enchanted => {
-                "`permanent` or a permanent card type after `enchanted`"
+                "`permanent`, a permanent card type or a noncreature subtype after `enchanted`"
             }
         },
     )?;

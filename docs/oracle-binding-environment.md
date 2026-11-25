@@ -438,3 +438,38 @@ mana (liaison de coût moteur absente) ; lecteur source-ou-anaphore typé
 3. Source de dégâts observée (`it`), retard avec jeton ou cible
    (`Sacrifice it at the beginning of the next end step`), changement de
    contrôle d'un sort (LKI non suivie, limite documentée).
+
+## Lecteurs de caractéristiques et opérandes (lot 9)
+
+Une référence se résout par le même environnement ; son consommateur fixe la
+zone admise. Un opérande (détruire, exiler, engager) exige un permanent ; un
+lecteur des seules valeurs copiables ou caractéristiques accepte un objet
+d'une autre zone.
+
+- Copie (`a copy of …`, CR 707.2) : `recognize_copied_object_operand`
+  (`permanent_subject.rs`) lit `that card` / `the VERBed card` / `it` comme la
+  carte que le programme a ciblée (`card_target`, publié depuis le dernier
+  `TargetCardZoneChange` singulier) ou déplacée (`result_object`), la plus
+  proche gagnant (CR 608.2c), et `that NOUN` comme l'objet de l'événement parti
+  du champ de bataille, lu tel qu'il existait (`departed_event_object_capture`
+  dans `source_lki.rs`, CR 608.2h). Diagnostics distincts : antécédent absent
+  (`COPIED_CARD_MISSING`), ambigu (cible et résultat d'une même action,
+  `COPIED_CARD_AMBIGUOUS`), exil lié (`COPIED_LINKED_EXILE`, CR 607.2a) et zone
+  sans valeurs connues (`COPIED_DEPARTED_UNRECORDED`).
+- Payeur d'un `unless` (CR 118.12) : `unless_payer`, publié par le parent
+  programme (`publish_installed_unless_payer`), est le `that player` d'une
+  phrase suivante, sauf joueur déclaré plus tard.
+- `them` est la forme objet de `they` pour l'ensemble d'objets précédent.
+- `transform it` lit la source par l'environnement ; un autre antécédent garde
+  `reference.source-or-anaphor.object-antecedent`.
+- `enchanted NOUN` / `equipped creature` est l'opérande lié des actions de zone
+  (`exile|destroy|sacrifice enchanted creature`) ; `enchanted Mountain` admet un
+  sous-type non créature (CR 303.4a).
+- `also` avant un verbe actif du cadre (hors `become`) n'est pas une frontière
+  de proposition (`clause.rs`).
+
+Restes : liaison des cibles et du joueur du producteur dans un corps `If you
+do` (abaissé séparément), carte exilée par une capacité liée comme objet
+copié ou propriétaire (`Prototype Portal`, `Skyclave Apparition`), ensembles
+déplacés en masse (`Return all … They gain haste`), génitif numérique d'une
+carte ciblée (`that card's power`), itération `For each NOUN, … that NOUN`.

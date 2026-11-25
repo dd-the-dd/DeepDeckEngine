@@ -271,3 +271,110 @@ fn real_world_planner_backtracks_to_query_before_sacrifice_and_receipt_replays_t
         ]
     );
 }
+
+struct FirstOption;
+
+impl DecisionProvider for FirstOption {
+    fn choose(
+        &mut self,
+        _state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        (!request.options.is_empty())
+            .then_some(0)
+            .ok_or_else(|| EngineError::new("departed copy test decision has no option"))
+    }
+}
+
+/// `Whenever another legendary creature you control dies, create a token
+/// that's a copy of that creature` (Ratadrabik of Urborg): the copy reads the
+/// event's object as it last existed on the battlefield (CR 608.2h, 707.2),
+/// from its authenticated departure capture, never from the card it became.
+/// Without a capture of the incarnation the event saw, nothing is copied.
+#[test]
+fn a_token_copy_of_a_departed_event_object_reads_its_last_known_copiable_values() {
+    let mut e = engine();
+    let dying = install(&mut e, "dying");
+    let ability = install(&mut e, "ability");
+    let identity = GameEngine::tracked_zone_identity(&dying)
+        .expect("an admitted battlefield incarnation")
+        .to_string();
+    e.move_permanent_to_graveyard(&dying.instance_id, "destroyed")
+        .expect("the creature dies");
+    // The card it became is another object; changing it must not change the
+    // copied values.
+    e.state.players[0]
+        .graveyard
+        .iter_mut()
+        .filter(|card| card.instance_id == dying.instance_id)
+        .for_each(|card| card.definition.power = Some("9".into()));
+    let effects = json!([{
+        "kind": "createTokens",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": {
+            "kind": "copyOf",
+            "object": { "kind": "triggeringPermanent" },
+            "except": [],
+        },
+    }]);
+    let record = |departed_identity: &str| {
+        let mut stack = StackObject {
+            id: "stack:ability".to_string(),
+            controller: "player-0".to_string(),
+            card: ability.clone(),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("triggeredAbility".to_string()),
+            ability_rule: None,
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        };
+        stack.decisions.insert(
+            "triggeringPermanentId".to_string(),
+            json!(dying.instance_id),
+        );
+        // A death record: the object is no longer on the battlefield when
+        // the ability is put on the stack (`capture_event_object`).
+        stack
+            .decisions
+            .insert("triggeringPermanentIdentity".to_string(), Value::Null);
+        stack.decisions.insert(
+            "triggeringPermanentDepartedIdentity".to_string(),
+            json!(departed_identity),
+        );
+        stack
+    };
+    let copies = |e: &GameEngine| {
+        e.state.players[0]
+            .battlefield
+            .iter()
+            .filter(|card| card.definition.is_token && card.definition.name == "dying")
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+
+    // No capture of this incarnation: nothing is guessed.
+    e.execute_effects(
+        &effects,
+        &record("not-an-incarnation"),
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut FirstOption,
+    )
+    .expect("an uncaptured object copies nothing");
+    assert!(copies(&e).is_empty());
+
+    e.execute_effects(
+        &effects,
+        &record(&identity),
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut FirstOption,
+    )
+    .expect("the copy of the departed object resolves");
+    let created = copies(&e);
+    assert_eq!(created.len(), 1, "one token copy of the departed creature");
+    assert_eq!(created[0].definition.power.as_deref(), Some("2"));
+    assert_eq!(created[0].controller, "player-0");
+}
