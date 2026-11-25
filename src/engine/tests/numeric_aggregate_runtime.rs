@@ -242,3 +242,50 @@ fn half_of_their_hand_rounded_down_is_discarded_by_that_player() {
     assert_eq!(engine.state.players[1].graveyard.len(), graveyard + 2);
     assert_eq!(engine.state.players[0].hand.len(), controller_hand);
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn half_the_creatures_they_control_rounded_up_are_sacrificed_by_that_player() {
+    // Three creatures: half rounded up is two, chosen by the declared
+    // opponent among its own creatures; its land and the controller's
+    // creature stay.
+    let rule = parsed_rule(
+        "Sorcery",
+        "Target opponent sacrifices half the creatures they control of their choice, rounded up.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![permanent(
+        "own-bear",
+        "Creature \u{2014} Bear",
+        2,
+        "player-0",
+    )];
+    engine.state.players[1].battlefield = vec![
+        permanent("their-bear-a", "Creature \u{2014} Bear", 2, "player-1"),
+        permanent("their-bear-b", "Creature \u{2014} Bear", 2, "player-1"),
+        permanent("their-bear-c", "Creature \u{2014} Bear", 2, "player-1"),
+        permanent("their-forest", "Land \u{2014} Forest", 0, "player-1"),
+    ];
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared opponent")
+        .to_string();
+    resolve(
+        &mut engine,
+        &rule,
+        BTreeMap::from([(
+            target_id,
+            TargetRef::Player {
+                player_id: "player-1".to_string(),
+            },
+        )]),
+    );
+    let remaining = &engine.state.players[1].battlefield;
+    assert_eq!(remaining.len(), 2, "{remaining:#?}");
+    assert!(
+        remaining
+            .iter()
+            .any(|card| card.instance_id == "their-forest")
+    );
+    assert_eq!(engine.state.players[0].battlefield.len(), 1);
+}

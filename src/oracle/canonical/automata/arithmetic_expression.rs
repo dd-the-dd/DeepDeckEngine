@@ -492,7 +492,9 @@ fn recognize_half(
 
 /// `, rounded up|down` (CR 107.1a): a fraction is rounded as the text
 /// says; without a stated rounding the expression is refused.
-fn recognize_stated_rounding(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumericRounding> {
+pub(in crate::oracle::canonical) fn recognize_stated_rounding(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericRounding> {
     if cursor.peek().is_some_and(|raw| raw == ",") {
         require_separator(cursor, ",")?;
     }
