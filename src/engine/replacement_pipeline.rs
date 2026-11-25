@@ -594,6 +594,24 @@ impl GameEngine {
             graveyard_owner_id,
             static_modifiers,
         );
+        // Proposals with one outcome (the same zone, no reflexive ability,
+        // no one-shot modifier the application consumes) differ only in
+        // attribution: the order chosen cannot change the event (CR 616.1),
+        // so the first in precedence applies.
+        let equivalent = proposals.iter().all(|proposal| {
+            proposal.program.reflexive.is_none()
+                && !matches!(
+                    proposal.program.origin,
+                    GraveyardReplacementOrigin::SpecificCard { .. }
+                )
+        }) && proposals
+            .windows(2)
+            .all(|pair| pair[0].program.zone == pair[1].program.zone);
+        let order = if equivalent {
+            &ReplacementOrder::FirstProposed
+        } else {
+            order
+        };
         // The event: whether the card still goes to a graveyard.
         let mut to_graveyard = true;
         let mut selected = None;
