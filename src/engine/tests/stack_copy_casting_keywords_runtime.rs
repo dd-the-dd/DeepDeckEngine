@@ -305,3 +305,29 @@ fn retained_mana_survives_steps_until_the_turn_ends() {
     engine.transition_to_step(GameStep::Untap);
     assert!(symbols(&engine).is_empty(), "lost as the turn ends");
 }
+
+/// CR 106.6: mana restricted to abilities of artifacts pays an artifact's
+/// activated ability, not a creature's, and no spell, artifact or not.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn ability_only_mana_pays_abilities_of_its_sources_and_no_spell() {
+    let rules = parsed_rules(
+        "Soldevi Machinist",
+        "Artifact Creature — Human Artificer",
+        "{1}{U}",
+        "{T}: Add {C}{C}. Spend this mana only to activate abilities of artifacts.",
+    );
+    let restriction = rules[0]["effects"][0]["spendRestriction"].clone();
+    assert_eq!(restriction["kind"], "castSpellOrActivateAbilityOf");
+    let mana = FloatingMana {
+        symbol: "C".to_string(),
+        spend_restriction: Some(restriction),
+    };
+    let artifact = test_definition("relic", "Artifact");
+    let creature = test_definition("bear", "Creature — Bear");
+    let can_pay = super::super::mana_postcost_ordered::mana_pool_entry_can_pay;
+    assert!(can_pay(&mana, None, Some(&artifact), None));
+    assert!(!can_pay(&mana, None, Some(&creature), None));
+    assert!(!can_pay(&mana, Some(&artifact), None, None));
+    assert!(!can_pay(&mana, None, None, None));
+}

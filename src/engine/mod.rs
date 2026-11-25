@@ -196,6 +196,7 @@ mod mana_projection_fixed_point;
 mod mana_public_path_tests;
 mod mana_retention;
 mod mana_spend_prohibition;
+mod mana_spending_policy;
 mod mana_value_execution;
 mod nominal_choices;
 mod numeric_evaluation;
@@ -4206,14 +4207,15 @@ fn mana_spend_restriction_supported(restriction: &Value) -> bool {
 }
 
 fn mana_spend_use_supported(restriction: &Value) -> bool {
-    (matches!(
-        value_kind(restriction),
-        Some(
-            "castSpell"
-                | "castSpellOrActivateAbility"
-                | mana_spend_prohibition::CAST_SPELL_PROHIBITED
-        )
-    ) && card_filter_supported(&restriction["where"]))
+    mana_spending_policy::use_union_supported(restriction)
+        || (matches!(
+            value_kind(restriction),
+            Some(
+                "castSpell"
+                    | "castSpellOrActivateAbility"
+                    | mana_spend_prohibition::CAST_SPELL_PROHIBITED
+            )
+        ) && card_filter_supported(&restriction["where"]))
         || (value_kind(restriction) == Some("castSpellFromZone")
             && matches!(
                 restriction["zone"].as_str(),

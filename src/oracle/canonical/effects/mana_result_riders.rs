@@ -12,17 +12,41 @@ pub(in crate::oracle::canonical) fn lower_mana_result_riders(
         // CR 106.6: a permitted use (`only to cast`) or a barred one
         // (`can't be spent to cast`) over the same spell predicate.
         Some(restriction) => {
-            let mut lowered = json!({
-                "kind": if restriction.prohibited {
-                    "castSpellProhibited"
-                } else if restriction.also_activates_abilities() {
-                    // `or activate abilities of` the same objects.
-                    "castSpellOrActivateAbility"
-                } else {
-                    "castSpell"
-                },
-                "where": lower_spell_object_predicate(&restriction.spells).unwrap_or(Value::Null),
-            });
+            let spells = |predicate: &ObjectPredicate| {
+                lower_spell_object_predicate(predicate).unwrap_or(Value::Null)
+            };
+            let mut lowered = match restriction.union() {
+                // A barred cast use states its spells as its only use.
+                ManaSpendUnion::CastSpell(predicate) if restriction.prohibited => {
+                    json!({ "kind": "castSpellProhibited", "where": spells(predicate) })
+                }
+                ManaSpendUnion::CastSpell(predicate) => {
+                    json!({ "kind": "castSpell", "where": spells(predicate) })
+                }
+                // `or activate abilities of` the same objects.
+                ManaSpendUnion::CastSpellOrAbilityOfSameObjects(predicate) => {
+                    json!({ "kind": "castSpellOrActivateAbility", "where": spells(predicate) })
+                }
+                // Any other union: the cast use's spells and the ability
+                // use's sources (`any` when the ability use names none).
+                ManaSpendUnion::Uses {
+                    spells: cast,
+                    abilities,
+                } => {
+                    let mut uses = json!({ "kind": "castSpellOrActivateAbilityOf" });
+                    if let Some(predicate) = cast {
+                        uses["spells"] = spells(predicate);
+                    }
+                    match abilities {
+                        Some(Some(source)) => {
+                            uses["abilitySources"] = lower_permanent_object_predicate(source);
+                        }
+                        Some(None) => uses["abilitySources"] = json!("any"),
+                        None => {}
+                    }
+                    uses
+                }
+            };
             if restriction.spell_cant_be_countered {
                 lowered["cantBeCountered"] = json!(true);
             }

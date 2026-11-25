@@ -22,6 +22,8 @@ fn production_and_spell_use_predicate_remain_separate_typed_parameters() {
                 .as_ref()
                 .unwrap()
                 .spells
+                .as_ref()
+                .unwrap()
                 .has_domain(ObjectKind::Spell)
         );
         let ir = crate::oracle::canonical::lower_add_mana_effect(&node);
@@ -126,13 +128,59 @@ fn a_union_of_cast_and_activation_uses_of_the_same_objects_is_one_restriction() 
 #[test]
 fn a_union_the_runtime_cannot_restrict_fails_at_its_own_state() {
     for text in [
-        "Add {C}. Spend this mana only to cast an artifact spell or activate an ability.",
-        "Add {C}. Spend this mana only to activate abilities.",
-        "Add {C}. Spend this mana only to cast artifact spells or activate abilities of creatures.",
+        "Add {C}. Spend this mana only to cast an artifact spell or cast a creature spell.",
+        "Add {C}. Spend this mana only to activate abilities of creatures or activate abilities of artifacts.",
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("qualified-production-union-negative", &tokens);
         let failure = recognize_add_mana_effect(&mut cursor).expect_err(text);
         assert_eq!(failure.state, "mana.policy.runtime-union", "{text}");
     }
+}
+
+/// CR 106.6: an ability-only use, a cast use joined with any ability, and
+/// a cast use joined with abilities of other objects are each one union.
+#[test]
+fn ability_uses_of_any_or_other_sources_lower_to_the_general_union() {
+    let lowered = |text: &str| {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("qualified-production-ability-use", &tokens);
+        let node = recognize_add_mana_effect(&mut cursor).unwrap_or_else(|failure| {
+            panic!("{text}: {failure}");
+        });
+        cursor.consume(".").unwrap();
+        cursor.finish().unwrap();
+        crate::oracle::canonical::lower_add_mana_effect(&node)["spendRestriction"].clone()
+    };
+    let any = lowered("Add {C}{C}. Spend this mana only to activate abilities.");
+    assert_eq!(any["kind"], "castSpellOrActivateAbilityOf");
+    assert_eq!(any["abilitySources"], "any");
+    assert!(any.get("spells").is_none());
+
+    let lands = lowered("Add {G}{G}. Spend this mana only to activate abilities of land sources.");
+    assert_eq!(lands["kind"], "castSpellOrActivateAbilityOf");
+    assert!(lands["abilitySources"].is_object());
+
+    for text in [
+        "Add {C}. Spend this mana only to cast a colorless spell or to activate an ability.",
+        "Add {C}. Spend this mana only to activate an ability or cast an artifact spell.",
+    ] {
+        let union = lowered(text);
+        assert_eq!(union["kind"], "castSpellOrActivateAbilityOf", "{text}");
+        assert!(union["spells"].is_object(), "{text}");
+        assert_eq!(union["abilitySources"], "any", "{text}");
+    }
+    // The historical same-object union keeps its kind.
+    assert_eq!(
+        lowered(
+            "Add {C}. Spend this mana only to cast artifact spells or activate abilities of artifacts."
+        )["kind"],
+        "castSpellOrActivateAbility"
+    );
+    // A cast-only consequence needs a cast use.
+    let tokens = recognize_entities(
+        "Add {C}. Spend this mana only to activate abilities, and that spell can't be countered.",
+    );
+    let mut cursor = OracleTokenCursor::new("ability-use-uncounterable", &tokens);
+    assert!(recognize_add_mana_effect(&mut cursor).is_err());
 }

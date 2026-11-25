@@ -16,7 +16,9 @@
 //! of the produced mana, independent of any spending restriction.
 //!
 //! The uses form a union (CR 106.6): the mana may be spent on any of them.
-//! Each use reads its object with the shared object query.
+//! Each use reads its object with the shared object query; `TYPE source(s)`
+//! names the objects of that type as ability sources. At most one cast use
+//! and one ability use form a union.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::*;
 
@@ -51,8 +53,8 @@ impl ManaSpendingPolicyNode {
 /// The spending restriction slot of the riders (CR 106.6).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ManaSpendRestrictionNode {
-    /// The spells of the cast use.
-    pub spells: ObjectPredicate,
+    /// The spells of the cast use; `None` when only abilities are a use.
+    pub spells: Option<ObjectPredicate>,
     /// Every permitted use, in Oracle order; the cast use included.
     pub uses: Vec<ManaSpendUse>,
     pub spell_cant_be_countered: bool,
@@ -61,15 +63,56 @@ pub(in crate::oracle::canonical) struct ManaSpendRestrictionNode {
     pub prohibited: bool,
 }
 
+/// The shape of a permitted union as the runtime restricts it (CR 106.6).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ManaSpendUnion<'a> {
+    /// Only cast spells matching the predicate.
+    CastSpell(&'a ObjectPredicate),
+    /// Cast spells, or activate abilities of the same objects.
+    CastSpellOrAbilityOfSameObjects(&'a ObjectPredicate),
+    /// Any other union of at most one cast use and one ability use; an
+    /// ability use without a source admits any ability.
+    Uses {
+        spells: Option<&'a ObjectPredicate>,
+        abilities: Option<Option<&'a ObjectPredicate>>,
+    },
+}
+
 impl ManaSpendRestrictionNode {
-    /// Whether abilities of the same objects as the cast spells are also a
-    /// permitted use (`cast artifact spells or activate abilities of
-    /// artifacts`). The recognizer admits no other ability use.
+    /// Whether an ability use is part of the union.
     pub(in crate::oracle::canonical) fn also_activates_abilities(&self) -> bool {
         self.uses
             .iter()
             .any(|spend_use| matches!(spend_use, ManaSpendUse::ActivateAbility { .. }))
     }
+
+    /// The ability use's source, `Some(None)` for any ability.
+    fn ability_source(&self) -> Option<Option<&ObjectPredicate>> {
+        self.uses.iter().find_map(|spend_use| match spend_use {
+            ManaSpendUse::ActivateAbility { source } => Some(source.as_ref()),
+            ManaSpendUse::CastSpell(_) => None,
+        })
+    }
+
+    /// The runtime shape of a permitted union. The historical shapes keep
+    /// their kinds; the union of other objects is the general one.
+    pub(in crate::oracle::canonical) fn union(&self) -> ManaSpendUnion<'_> {
+        match (self.spells.as_ref(), self.ability_source()) {
+            (Some(spells), None) => ManaSpendUnion::CastSpell(spells),
+            (Some(spells), Some(Some(source))) if same_objects_as_abilities(spells, source) => {
+                ManaSpendUnion::CastSpellOrAbilityOfSameObjects(spells)
+            }
+            (spells, abilities) => ManaSpendUnion::Uses { spells, abilities },
+        }
+    }
+}
+
+/// Whether the ability use's sources are the same objects as the cast use's
+/// spells (`cast artifact spells or activate abilities of artifacts`).
+fn same_objects_as_abilities(spells: &ObjectPredicate, source: &ObjectPredicate) -> bool {
+    let spell_filter = crate::oracle::canonical::effects::lower_spell_object_predicate(spells);
+    let source_filter = crate::oracle::canonical::effects::lower_permanent_object_predicate(source);
+    !source_filter.is_null() && spell_filter.as_ref() == Some(&source_filter)
 }
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
@@ -121,6 +164,14 @@ fn recognize_activate_use(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<M
     cursor.consume("of")?;
     consume_optional_article(cursor)?;
     let query = recognize_object_query(cursor)?;
+    // `land sources`, `an Assassin source`: the type names the objects
+    // whose abilities are a use; `source` adds no further restriction.
+    if word_at(cursor, 0, "source") || word_at(cursor, 0, "sources") {
+        cursor.enter("mana.policy.ability-source.noun");
+        let noun = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&noun)?;
+    }
+    cursor.enter("mana.policy.ability-source.predicate");
     cursor.require(
         query.controller.is_none()
             && !query.exclude_source
@@ -150,12 +201,13 @@ fn further_use_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
     (word_at(cursor, offset, "cast") || word_at(cursor, offset, "activate")).then_some(offset)
 }
 
-/// CR 106.6: the runtime spends restricted mana on cast spells, or on cast
-/// spells and abilities of the same objects. Another union fails here.
+/// CR 106.6: the runtime spends restricted mana on at most one cast use
+/// and one ability use; another union fails here. A source predicate must
+/// lower to an object filter.
 fn validate_runtime_union(
     cursor: &OracleTokenCursor<'_>,
     uses: &[ManaSpendUse],
-) -> MachineResult<ObjectPredicate> {
+) -> MachineResult<Option<ObjectPredicate>> {
     let mut spells = None;
     let mut sources = Vec::new();
     for spend_use in uses {
@@ -167,22 +219,11 @@ fn validate_runtime_union(
             ManaSpendUse::ActivateAbility { source } => sources.push(source.clone()),
         }
     }
-    let spells = cursor.require_value(
-        spells,
-        "a cast use (the runtime restricts mana to cast spells, with their abilities)",
-    )?;
     cursor.require(sources.len() <= 1, "one ability use in a spending union")?;
-    if let Some(source) = sources.first() {
-        let source = cursor.require_value(
-            source.as_ref(),
-            "abilities of the same objects as the cast spells (any ability has no runtime restriction)",
-        )?;
-        let spell_filter = crate::oracle::canonical::effects::lower_spell_object_predicate(&spells);
-        let source_filter =
-            crate::oracle::canonical::effects::lower_permanent_object_predicate(source);
+    if let Some(Some(source)) = sources.first() {
         cursor.require(
-            !source_filter.is_null() && spell_filter.as_ref() == Some(&source_filter),
-            "abilities of the same objects as the cast spells (CR 106.6)",
+            !crate::oracle::canonical::effects::lower_permanent_object_predicate(source).is_null(),
+            "ability sources the shared object filter represents (CR 106.6)",
         )?;
     }
     Ok(spells)
@@ -353,7 +394,7 @@ pub(in crate::oracle::canonical) fn recognize_mana_spending_policy(
     };
     cursor.enter("mana.policy.complete");
     cursor.require(
-        !(spell_cant_be_countered && uses.len() > 1),
+        !(spell_cant_be_countered && (uses.len() > 1 || spells.is_none())),
         "an uncounterable consequence of a single cast use",
     )?;
     Ok(ManaSpendRestrictionNode {

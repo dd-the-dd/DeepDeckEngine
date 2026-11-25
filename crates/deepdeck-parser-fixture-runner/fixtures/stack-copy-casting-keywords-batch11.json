@@ -832,6 +832,211 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-soldevi-machinist-ability-source-use",
+      "request": {
+        "cardName": "Soldevi Machinist",
+        "typeLine": "Creature — Human Wizard Artificer",
+        "manaCost": "{1}{U}",
+        "oracleText": "{T}: Add {C}{C}. Spend this mana only to activate abilities of artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpellOrActivateAbilityOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-omen-hawker-any-ability-use",
+      "request": {
+        "cardName": "Omen Hawker",
+        "typeLine": "Creature — Octopus Advisor",
+        "manaCost": "{U}",
+        "oracleText": "{T}: Add {C}{U}. Spend this mana only to activate abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpellOrActivateAbilityOf"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction/abilitySources",
+                "equals": "any"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-steelswarm-operator-typed-sources",
+      "request": {
+        "cardName": "Steelswarm Operator",
+        "typeLine": "Artifact Creature — Robot Soldier",
+        "manaCost": "{1}{U}",
+        "oracleText": "Flying\n{T}: Add {U}. Spend this mana only to cast an artifact spell.\n{T}: Add {U}{U}. Spend this mana only to activate abilities of artifact sources.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpell"
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpellOrActivateAbilityOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sage-of-the-unknowable-cast-or-any-ability",
+      "request": {
+        "cardName": "Sage of the Unknowable",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "{T}: Add {C}. Spend this mana only to cast a colorless spell or to activate an ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/abilitySources",
+                "equals": "any"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-two-cast-uses",
+      "request": {
+        "cardName": "Doubled Purpose",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add {C}. Spend this mana only to cast an artifact spell or cast a creature spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "mana.policy.runtime-union"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ancestral-communion-copy-this-spell-singular",
+      "request": {
+        "cardName": "Ancestral Communion",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "When you cast this spell while you control your commander, copy this spell. You may choose a new target for the copy.\nReturn target permanent card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "triggeringStackObject"
+              },
+              {
+                "pointer": "/effects/0/mayChooseNewTargets",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-social-snub-optional-copy-this-spell",
+      "request": {
+        "cardName": "Social Snub",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "When you cast this spell while you control a creature, you may copy this spell.\nEach player sacrifices a creature of their choice. Each opponent loses 1 life and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }
