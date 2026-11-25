@@ -1179,6 +1179,9 @@ pub(in crate::oracle::canonical) enum RelationAnchor {
     /// Some battlefield permanent of a query (`attached to a creature you
     /// control`): the relation holds with at least one of them.
     Query(Box<ObjectQueryNode>),
+    /// A definite description's recorded or linked object (`the sacrificed
+    /// creature`, `the exiled card`): `definite_object_description.rs`.
+    Described(super::DescribedObject),
 }
 
 /// The characteristic a `share` clause compares (CR 105.1, 205.2, 205.3).
@@ -1275,8 +1278,12 @@ impl RelatedObject {
             | ObjectRelationKind::BlockedByThisTurn
             | ObjectRelationKind::DealtDamageToThisTurn
             | ObjectRelationKind::DealtCombatDamageToThisTurn => domain == ObjectKind::Permanent,
+            // A spell has the characteristics of its card (CR 112.1).
             ObjectRelationKind::Shares(_) => {
-                matches!(domain, ObjectKind::Permanent | ObjectKind::Card)
+                matches!(
+                    domain,
+                    ObjectKind::Permanent | ObjectKind::Card | ObjectKind::Spell
+                )
             }
         }
     }
@@ -1613,6 +1620,9 @@ pub(in crate::oracle::canonical) fn recognize_relation_anchor(
     definite_only: bool,
 ) -> MachineResult<RelationAnchor> {
     cursor.enter("selector.relation.anchor");
+    if let Some(anchor) = super::recognize_described_relation_anchor(cursor)? {
+        return Ok(anchor);
+    }
     if super::bound_object_reference_starts(cursor) {
         let environment = super::installed_binding_environment(cursor);
         // `X gets +1/+1 for each Aura attached to it`: without a lexical

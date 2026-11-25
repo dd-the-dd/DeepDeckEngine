@@ -126,6 +126,7 @@ mod death_trigger_batch;
 mod deck_construction_keywords;
 mod declaration_result;
 mod defending_player_restriction;
+mod described_object_anchor;
 mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
