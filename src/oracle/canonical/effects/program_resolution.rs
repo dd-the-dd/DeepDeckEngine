@@ -169,6 +169,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             | CardActionNode::LookAt(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
+            | CardActionNode::ChooseFromZone(_)
             | CardActionNode::Shuffle { .. } => false,
             CardActionNode::Move { cards, destination } => {
                 simple_operand(cards)
@@ -425,6 +426,7 @@ fn resolve_sequence(
                 | CardActionNode::LookAt(_)
                 | CardActionNode::RevealUntil { .. }
                 | CardActionNode::Choose(_)
+                | CardActionNode::ChooseFromZone(_)
                 | CardActionNode::Shuffle { .. } => {
                     unreachable!("a permission window is outside the checked scope slice")
                 }

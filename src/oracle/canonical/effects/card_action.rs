@@ -200,6 +200,24 @@ impl CardCollectionMemory {
         self.removed_up_to_size = 0;
     }
 
+    /// Cards chosen on resolution from a named zone or a linked exile (CR
+    /// 608.2d) become the observed collection: `that card`, `it` and `them`
+    /// name exactly the chosen cards, which are in `zone` when one zone is
+    /// proved. Nothing else of the choice (no complement) is observed.
+    fn observe_chosen_cards(
+        &mut self,
+        chosen: Value,
+        maximum: Option<i64>,
+        zone: Option<CardZoneName>,
+    ) {
+        self.clear_antecedent();
+        self.view = Some(chosen.clone());
+        self.view_maximum = maximum;
+        self.view_zone = zone;
+        self.mention((chosen.clone(), maximum));
+        self.plural_focus = Some((chosen, maximum));
+    }
+
     /// A player's revealed hand (CR 701.20a) is the observed collection: its
     /// identities are fixed when revealed (CR 608.2c), and `from it` names
     /// the whole hand. Returns the binding that records those cards.
@@ -635,6 +653,23 @@ impl CardCollectionMemory {
             return Ok((json!({"kind":"chosenTargets","id":id}), maximum));
         }
         if let CardOperandNode::LibraryTop(top) = operand {
+            // `the top card of each player's library`: every library of the
+            // population, read on resolution; the number of libraries is
+            // not static, so the collection has no fixed size.
+            if let CardLibraryOwnerNode::Players(players) = &top.owner {
+                let count_ir = lower_targetless_numeric_expression(&top.count, declarations)
+                    .map_err(|error| cursor.fail(error.expectation()))?;
+                let id = fresh("topCards", &mut self.next_view);
+                self.allocated_ids.insert(id.clone());
+                self.observe(&id, None);
+                self.view_from_library_top = true;
+                effects.push(json!({"kind":"bind", "id":id,
+                    "value":{"kind":"libraryTopCards",
+                        "zone":{"kind":"library",
+                            "players":lower_player_set_reference(*players)},
+                        "count":count_ir}}));
+                return Ok((bound(&id), None));
+            }
             let player = match &top.owner {
                 CardLibraryOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
                 // `that player's library`: the player the event records.
@@ -643,6 +678,9 @@ impl CardCollectionMemory {
                 )) => json!({"kind":"triggeringPlayer"}),
                 CardLibraryOwnerNode::Player(_) => {
                     return Err(cursor.fail("a supported explicit library owner"));
+                }
+                CardLibraryOwnerNode::Players(_) => {
+                    unreachable!("a library population is lowered above")
                 }
                 // `the top N cards of target opponent's library`: the
                 // declared player owns the library the cards are read from.
@@ -1427,6 +1465,13 @@ impl CardCollectionMemory {
                             CardLibraryOwnerNode::Player(player) => {
                                 CardZoneOwnerNode::Player(player.clone())
                             }
+                            // A private look at several libraries has no one
+                            // looked-at collection of this frame.
+                            CardLibraryOwnerNode::Players(_) => {
+                                return Err(cursor.fail(
+                                    "one library to look at; a look at each library of a population is not read",
+                                ));
+                            }
                         };
                         let player = self.zone_owner_player(cursor, &owner, target_decisions)?;
                         let amount_ir =
@@ -1552,13 +1597,38 @@ impl CardCollectionMemory {
                 cursor.enter("lower.card-action.choose");
                 // The choice itself is the action: the operand child emits
                 // `chooseCards` and records its result as the antecedent.
-                self.operand(
+                let (chosen, maximum) = self.operand(
                     cursor,
                     &CardOperandNode::Selection(selection.clone()),
                     declarations,
                     &mut effects,
                     target_decisions,
                 )?;
+                // A choice among the source's linked exile observes nothing
+                // before it: the chosen cards, in exile, are the collection
+                // a later `that card` names (CR 607.2a).
+                if selection.from == CardCollectionReferenceNode::Linked && self.view.is_none() {
+                    self.observe_chosen_cards(chosen, maximum, Some(CardZoneName::Exile));
+                }
+            }
+            CardActionNode::ChooseFromZone(zone) => {
+                cursor.enter("lower.card-action.choose-zone");
+                // The zone collection child emits `chooseCards` among the
+                // zone's matching cards; the chosen cards become the observed
+                // collection (the chosen-card binding), in that zone.
+                let (chosen, maximum) = self.operand(
+                    cursor,
+                    &CardOperandNode::ZoneCollection(zone.clone()),
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
+                cursor.require(
+                    value_kind_name(&chosen) == Some("decisionResult"),
+                    "a resolution choice among the zone's cards",
+                )?;
+                let single_zone = zone.additional_zones.is_empty().then_some(zone.zone);
+                self.observe_chosen_cards(chosen, maximum, single_zone);
             }
             CardActionNode::Shuffle { owner } => {
                 cursor.enter("lower.card-action.shuffle");

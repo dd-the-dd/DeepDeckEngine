@@ -10,6 +10,33 @@ use super::*;
 pub(in crate::oracle::canonical) enum CardLibraryOwnerNode {
     Player(LocalPlayerReference),
     TargetPlayer(TargetListNode),
+    /// `each player's library`, `each opponent's library`: the library of
+    /// every player of a population, read on resolution (CR 401.1).
+    Players(PlayerSetReferenceNode),
+}
+
+/// `each player's` / `each opponent's` before a library: the population
+/// whose libraries the operand reads. `None` consumes nothing.
+fn recognize_library_owner_population(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<PlayerSetReferenceNode>> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+    {
+        return Ok(None);
+    }
+    let role = cursor
+        .peek_ahead(1)
+        .map(|raw| raw.replace('\u{2019}', "'").to_ascii_lowercase());
+    let players = match role.as_deref() {
+        Some("player's") => PlayerSetReferenceNode::EachPlayer,
+        Some("opponent's") => PlayerSetReferenceNode::OpponentsOfAbilityController,
+        _ => return Ok(None),
+    };
+    cursor.enter("collection.library-top.population-owner");
+    cursor.advance_to(cursor.position() + 2)?;
+    Ok(Some(players))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -126,6 +153,13 @@ pub(in crate::oracle::canonical) fn try_recognize_card_library_position(
             // declared owner, only a consumer that lowers the owner admits it.
             trial.enter("collection.library-top.bound-owner");
             CardLibraryOwnerNode::Player(LocalPlayerReference::Bound(player))
+        } else if target_owner
+            && let Some(players) = recognize_library_owner_population(&mut trial)?
+        {
+            // `the top card of each player's library`: one library per
+            // player of the population; only a consumer that lowers the
+            // owner admits it, like a declared owner.
+            CardLibraryOwnerNode::Players(players)
         } else {
             trial.consume("your")?;
             CardLibraryOwnerNode::Player(LocalPlayerReference::Controller)

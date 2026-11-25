@@ -271,6 +271,86 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
     }
 }
 
+/// Where the cards of a card noun phrase are, stated after the noun (CR
+/// 400.1). The location is a query domain, independent of the consumer that
+/// chooses, moves, casts or counts the cards.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CardLocationNode {
+    /// `exiled with it|this NOUN|SOURCE NAME`: the cards the ability source
+    /// exiled with its linked abilities (CR 607.2a), all in exile.
+    LinkedExile,
+}
+
+/// `exiled with ...` after a card noun: the lookahead of the linked-exile
+/// location. Pure lookahead; [`recognize_card_location`] reads it.
+pub(in crate::oracle::canonical) fn card_location_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("exiled"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
+}
+
+/// Reads one card location tail. `exiled with` names the source by `it`,
+/// by `this` and a registered object noun (`this artifact`, `this
+/// Vehicle`), or by a name link to the current card or face (`exiled with
+/// Chaos Shrine's Black Crystal`). Another object after `exiled with` (`a
+/// card exiled with another creature`) is no linked exile of the source and
+/// fails here.
+pub(in crate::oracle::canonical) fn recognize_card_location(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CardLocationNode> {
+    cursor.enter("collection.location.linked-exile");
+    cursor.consume_phrase(&["exiled", "with"])?;
+    cursor.enter("collection.location.linked-exile.source");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+    {
+        cursor.consume("it")?;
+        return Ok(CardLocationNode::LinkedExile);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+    {
+        cursor.consume("this")?;
+        let noun = cursor
+            .peek()
+            .ok_or_else(|| cursor.fail("a source noun after `exiled with this`"))?
+            .to_string();
+        cursor.require(
+            crate::oracle::characteristic_vocabulary::lookup_object_selector_lexeme(&noun)
+                .is_some()
+                || crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(&noun)
+                    .is_some(),
+            "a registered source noun after `exiled with this`",
+        )?;
+        cursor.consume(&noun)?;
+        return Ok(CardLocationNode::LinkedExile);
+    }
+    let position = cursor.position();
+    let source_end = cursor
+        .source_names()
+        .iter()
+        .find(|link| {
+            link.token_start == position
+                && matches!(
+                    link.kind,
+                    crate::oracle::syntax::NameLinkKind::CurrentCard
+                        | crate::oracle::syntax::NameLinkKind::CurrentFace
+                )
+        })
+        .map(|link| link.token_end.max(link.token_start + 1));
+    let end = cursor.require_value(
+        source_end,
+        "`it`, `this` and a source noun, or the name of this card after `exiled with`",
+    )?;
+    cursor.advance_to(end)?;
+    Ok(CardLocationNode::LinkedExile)
+}
+
 #[cfg(test)]
 #[path = "card_zone_collection_tests.rs"]
 mod tests;

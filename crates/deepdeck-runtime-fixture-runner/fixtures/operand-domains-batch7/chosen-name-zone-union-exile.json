@@ -1,0 +1,274 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "chosen-card-name-filters-a-union-of-player-zones",
+  "seed": 13,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "chooseCardName",
+        "id": "resolutionCardName",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "not",
+          "operand": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "union",
+          "sets": [
+            {
+              "kind": "cardsInZone",
+              "where": {
+                "kind": "chosenCardName",
+                "decisionId": "resolutionCardName"
+              },
+              "zone": {
+                "kind": "graveyard",
+                "player": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            },
+            {
+              "kind": "cardsInZone",
+              "where": {
+                "kind": "chosenCardName",
+                "decisionId": "resolutionCardName"
+              },
+              "zone": {
+                "kind": "hand",
+                "player": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            },
+            {
+              "kind": "cardsInZone",
+              "where": {
+                "kind": "chosenCardName",
+                "decisionId": "resolutionCardName"
+              },
+              "zone": {
+                "kind": "library",
+                "player": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            }
+          ]
+        },
+        "minimum": 0,
+        "maximum": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "union",
+            "sets": [
+              {
+                "kind": "cardsInZone",
+                "where": {
+                  "kind": "chosenCardName",
+                  "decisionId": "resolutionCardName"
+                },
+                "zone": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  }
+                }
+              },
+              {
+                "kind": "cardsInZone",
+                "where": {
+                  "kind": "chosenCardName",
+                  "decisionId": "resolutionCardName"
+                },
+                "zone": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  }
+                }
+              },
+              {
+                "kind": "cardsInZone",
+                "where": {
+                  "kind": "chosenCardName",
+                  "decisionId": "resolutionCardName"
+                },
+                "zone": {
+                  "kind": "library",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "searchedCards"
+        },
+        "to": {
+          "kind": "exile",
+          "faceDown": false,
+          "player": {
+            "kind": "chosenTarget",
+            "id": "targetPlayer"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Memory thief",
+        "hand": [
+          {
+            "id": "memoricide",
+            "name": "Memoricide",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{B}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Victim",
+        "graveyard": [
+          {
+            "id": "doomed-graveyard",
+            "name": "Doomed Spell",
+            "typeLine": "Instant",
+            "manaCost": "{R}"
+          }
+        ],
+        "hand": [
+          {
+            "id": "doomed-hand",
+            "name": "Doomed Spell",
+            "typeLine": "Instant",
+            "manaCost": "{R}"
+          },
+          {
+            "id": "safe-hand",
+            "name": "Safe Spell",
+            "typeLine": "Instant",
+            "manaCost": "{U}"
+          }
+        ],
+        "library": [
+          {
+            "id": "doomed-library",
+            "name": "Doomed Spell",
+            "typeLine": "Instant",
+            "manaCost": "{R}"
+          },
+          {
+            "id": "safe-library",
+            "name": "Safe Spell",
+            "typeLine": "Instant",
+            "manaCost": "{U}"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "memoricide",
+    "targets": {
+      "targetPlayer": {
+        "player": {
+          "playerId": "player-1"
+        }
+      }
+    }
+  },
+  "decisions": [
+    {
+      "kind": "chooseCardName",
+      "value": "Doomed Spell"
+    },
+    {
+      "kind": "selectCards",
+      "count": 3,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "exile",
+      "equals": 3
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "safe-hand",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "library",
+      "definitionId": "safe-library",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "equals": 0
+    }
+  ]
+}

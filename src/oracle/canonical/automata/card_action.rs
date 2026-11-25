@@ -241,6 +241,11 @@ pub(in crate::oracle::canonical) enum CardActionNode {
     /// an observed collection while the effect resolves. The choice is the
     /// singular or plural antecedent of a later `that card`, `it` or `them`.
     Choose(CardSelectionOperandNode),
+    /// `[you] choose QUANTITY QUERY card(s) in|from ZONE` (CR 608.2d): the
+    /// controller chooses cards of a named zone while the effect resolves.
+    /// The chosen cards are the observed collection (the chosen-card binding)
+    /// a later `that card`, `it` or `them` names, in that zone.
+    ChooseFromZone(CardZoneCollectionNode),
     /// `shuffle [your library]` (CR 701.20a).
     Shuffle {
         owner: LocalPlayerReference,
@@ -368,14 +373,28 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
         }
         trial.consume("choose")?;
         trial.enter("card-action.choose.selection");
-        return match try_recognize_card_selection_operand(&mut trial) {
+        match try_recognize_card_selection_operand(&mut trial) {
             CardSelectionOperandAttempt::Recognized(fragment) => {
                 *cursor = trial;
-                Ok(Some(CardActionNode::Choose(fragment.node)))
+                return Ok(Some(CardActionNode::Choose(fragment.node)));
             }
-            CardSelectionOperandAttempt::FailedCommitted(failure) => Err(failure),
+            CardSelectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
             CardSelectionOperandAttempt::NotClaimed
-            | CardSelectionOperandAttempt::RejectedCandidate(_) => Ok(None),
+            | CardSelectionOperandAttempt::RejectedCandidate(_) => {}
+        }
+        // `choose an instant or sorcery card in your graveyard`: a chosen
+        // quantity of a named zone's cards, read by the shared zone
+        // collection. `all cards in ZONE` chooses nothing and stays unread.
+        trial.enter("card-action.choose.zone");
+        return match try_recognize_card_zone_collection(&mut trial) {
+            CollectionOperandAttempt::Recognized(fragment) if fragment.node.quantity.is_some() => {
+                *cursor = trial;
+                Ok(Some(CardActionNode::ChooseFromZone(fragment.node)))
+            }
+            CollectionOperandAttempt::FailedCommitted(failure) => Err(failure),
+            CollectionOperandAttempt::Recognized(_)
+            | CollectionOperandAttempt::NotClaimed
+            | CollectionOperandAttempt::RejectedCandidate(_) => Ok(None),
         };
     }
     if head.eq_ignore_ascii_case("shuffle") {
