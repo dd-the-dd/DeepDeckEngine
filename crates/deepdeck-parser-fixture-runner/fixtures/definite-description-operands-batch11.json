@@ -1,0 +1,386 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "definite-description-operands-batch11",
+  "cases": [
+    {
+      "id": "exact-sanguine-praetor-same-mana-value-as-the-sacrificed-creature",
+      "request": {
+        "cardName": "Sanguine Praetor",
+        "typeLine": "Creature — Phyrexian Praetor",
+        "manaCost": "{6}{B}{B}",
+        "oracleText": "{B}, Sacrifice a creature: Destroy each creature with the same mana value as the sacrificed creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/where/operands/1",
+                "equals": {
+                  "kind": "sharesCharacteristic",
+                  "characteristic": "manaValue",
+                  "object": {
+                    "kind": "decisionResult",
+                    "decisionId": "sacrificedPermanentObject"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ixalans-binding-opponents-cant-cast-the-exiled-cards-name",
+      "request": {
+        "cardName": "Ixalan's Binding",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}",
+        "oracleText": "When this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield.\nYour opponents can't cast spells with the same name as the exiled card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-exclusion-ritual-players-cant-cast-the-exiled-cards-name",
+      "request": {
+        "cardName": "Exclusion Ritual",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Imprint — When this enchantment enters, exile target nonland permanent.\nPlayers can't cast spells with the same name as the exiled card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-deaths-presence-power-of-the-creature-that-died",
+      "request": {
+        "cardName": "Death's Presence",
+        "typeLine": "Enchantment",
+        "manaCost": "{5}{G}",
+        "oracleText": "Whenever a creature you control dies, put X +1/+1 counters on target creature you control, where X is the power of the creature that died.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-ashioks-erasure-spell-exile-producer-remains-unsupported",
+      "request": {
+        "cardName": "Ashiok's Erasure",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "Flash\nWhen this enchantment enters, exile target spell.\nYour opponents can't cast spells with the same name as the exiled card.\nWhen this enchantment leaves the battlefield, return the exiled card to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-change.target.validation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-homing-lightning-coordinated-recipient-remains-unsupported",
+      "request": {
+        "cardName": "Homing Lightning",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Homing Lightning deals 4 damage to target creature and each other creature with the same name as that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.start"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-eradicate-search-quantity-remains-unsupported",
+      "request": {
+        "cardName": "Eradicate",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Exile target nonblack creature. Search its controller's graveyard, hand, and library for all cards with the same name as that creature and exile them. Then that player shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "numeric.atom.start"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cost-paid-sacrificed-artifact-anchors-counters-on-each",
+      "request": {
+        "cardName": "Shared Alloy Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, Sacrifice an artifact: Put a +1/+1 counter on each creature you control that shares a color with the sacrificed artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-cost-paid-discarded-card-anchors-destroy-all",
+      "request": {
+        "cardName": "Discard Echo Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{B}",
+        "oracleText": "{2}, Discard a card: Destroy all creatures that share a color with the discarded card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/where/operands/1",
+                "equals": {
+                  "kind": "sharesCharacteristic",
+                  "characteristic": "color",
+                  "object": {
+                    "kind": "decisionResult",
+                    "decisionId": "discardedCardObject"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-action-result-sacrificed-creature-anchors-destroy-all",
+      "request": {
+        "cardName": "Shared Grief Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Sacrifice a creature. Destroy all creatures that share a creature type with the sacrificed creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-linked-exile-anchors-a-static-count",
+      "request": {
+        "cardName": "Strata Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{3}",
+        "oracleText": "When this Equipment enters, exile target land.\nEquipped creature gets +1/+1 for each land with the same name as the exiled card.\nEquip {3}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-action-result-toughness-of-the-creature-sacrificed-this-way",
+      "request": {
+        "cardName": "Toll Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target player sacrifices a creature. You gain life equal to the toughness of the creature sacrificed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-cost-paid-power-of-the-creature-tapped-this-way",
+      "request": {
+        "cardName": "Battlewagon Probe",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}",
+        "oracleText": "Tap an untapped creature you control: This creature gets +X/+0 until end of turn, where X is the power of the creature tapped this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "combination-linked-exile-anchor-shares-a-card-type-in-a-cast-prohibition",
+      "request": {
+        "cardName": "Mirror Ban Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this enchantment enters, exile target creature an opponent controls until this enchantment leaves the battlefield.\nYour opponents can't cast spells that share a card type with the exiled card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-exiled-card-without-an-exile-producer",
+      "request": {
+        "cardName": "Lonely Ban Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "Players can't cast spells with the same name as the exiled card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_card_composition_failure",
+            "state": "binding.linked-exile.producer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-chosen-card-is-a-name-choice-not-an-object",
+      "request": {
+        "cardName": "Chosen Name Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Choose a card name. Destroy all creatures with the same name as the chosen card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exiled-this-way-without-an-exile",
+      "request": {
+        "cardName": "This Way Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Draw a card. Destroy all creatures that share a color with the creature exiled this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "reference.definite-description.producer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-departed-event-object-is-not-a-relation-anchor",
+      "request": {
+        "cardName": "Died Anchor Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever a creature you control dies, destroy all creatures that share a color with the creature that died.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relation.anchor.description"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-creature-that-died-outside-a-death-trigger",
+      "request": {
+        "cardName": "Died Number Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a creature you control attacks, you gain life equal to the power of the creature that died.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "reference.definite-description.producer"
+          }
+        ]
+      }
+    }
+  ]
+}

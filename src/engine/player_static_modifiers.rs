@@ -37,7 +37,9 @@ pub(super) fn modifier_supported(modifier: &Value) -> Option<bool> {
         // CR 101.2: `PLAYERS can't cast SPELLS [during combat | during your turn]`.
         Some("prohibitCast") => Some(
             population("players")
-                && modifier.get("where").is_none_or(card_filter_supported)
+                && modifier
+                    .get("where")
+                    .is_none_or(super::described_object_anchor::static_spell_filter_supported)
                 && modifier
                     .get("duringTurnOf")
                     .is_none_or(|turn| singular_player_reference_supported(turn))
@@ -169,7 +171,9 @@ impl GameEngine {
             && (modifier["duringCombat"].as_bool() != Some(true) || in_combat)
             && match (modifier.get("where"), card) {
                 (None, _) => true,
-                (Some(filter), Some(card)) => matches_card_filter(card, filter),
+                (Some(filter), Some(card)) => {
+                    self.static_spell_filter_matches(source, card, filter)
+                }
                 (Some(_), None) => false,
             }
     }

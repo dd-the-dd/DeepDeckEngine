@@ -44,6 +44,7 @@ fn lower_relation_anchor(anchor: &RelationAnchor) -> Value {
         // The relative slot admits only references with a value here.
         RelationAnchor::Object(reference) => bound_permanent_reference_value(*reference, &[])
             .unwrap_or_else(|| json!({ "kind": DECLARED_TARGET_ANCHOR })),
+        RelationAnchor::Described(object) => lower_described_object(object),
         RelationAnchor::Query(query) => {
             let mut objects = json!({
                 "kind": "eachPermanent",

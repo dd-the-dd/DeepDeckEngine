@@ -124,6 +124,7 @@ mod damage_preparation;
 mod damage_replacement;
 mod death_trigger_batch;
 mod deck_construction_keywords;
+mod described_object_anchor;
 mod declaration_result;
 mod defending_player_restriction;
 mod destruction_batch;

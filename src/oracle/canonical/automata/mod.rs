@@ -88,6 +88,7 @@ mod damage_event;
 mod damage_prevention;
 mod damage_replacement;
 mod deck_construction_keyword;
+mod definite_object_description;
 mod delayed_blink;
 mod delayed_draw;
 mod delayed_step;
@@ -2684,6 +2685,7 @@ pub(super) use trigger_program::*;
 
 pub(super) use boolean_condition::*;
 pub(super) use deck_construction_keyword::*;
+pub(super) use definite_object_description::*;
 pub(super) use token_window::*;
 pub(super) use unsupported_word::*;
 

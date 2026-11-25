@@ -317,17 +317,9 @@ pub(in crate::oracle::canonical) fn of_genitive_property_starts(
     if word_at(cursor, at + 1, "that") {
         return plain_nominal_at(cursor, at + 2).is_some();
     }
-    word_at(cursor, at + 1, "the")
-        && cursor
-            .peek_ahead(at + 2)
-            .and_then(super::ActionResultVerb::from_word)
-            .is_some_and(|verb| {
-                !matches!(
-                    verb,
-                    super::ActionResultVerb::Sacrificed | super::ActionResultVerb::Tapped
-                )
-            })
-        && plain_nominal_at(cursor, at + 3).is_some()
+    // `the exiled card`, `the creature exiled this way`, `the creature that
+    // died`: the shared definite description reader.
+    super::postposed_description_starts_at(cursor, at + 1)
 }
 
 /// `the PROPERTY of that NOUN`, `the PROPERTY of the VERBed NOUN`: the
@@ -387,50 +379,12 @@ pub(in crate::oracle::canonical) fn recognize_of_genitive_property(
         return super::bound_object_numeric_property(reference, property, nominal.as_predicate())
             .map_err(|expected| cursor.fail(expected));
     }
-    cursor.consume("the")?;
-    let verb = cursor
-        .peek()
-        .and_then(super::ActionResultVerb::from_word)
-        .ok_or_else(|| cursor.fail("the past participle of an object-producing verb"))?;
-    let participle = cursor.peek().unwrap_or_default().to_owned();
-    cursor.consume(&participle)?;
-    let nominal = plain_nominal_at(cursor, 0)
-        .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
-    let raw = cursor.peek().unwrap_or_default().to_owned();
-    cursor.consume(&raw)?;
-    cursor.enter("numeric.of-genitive.result");
-    let result = environment.result_object.as_ref().filter(|result| {
-        result.verb == Some(verb)
-            && result.number == super::GrammaticalNumber::Singular
-            && super::selector_names_nominals(&result.selector, &[nominal])
-    });
-    let Some(result) = result else {
-        // `the mana value of the exiled card` without an exile of this
-        // program: the card a cost of this ability paid with, which card
-        // composition binds to that one cost or refuses explicitly.
-        if let Some(expected) = super::participle_card_target_conflict(environment, verb) {
-            return Err(cursor.fail(expected));
-        }
-        let card_nominal = matches!(
-            nominal,
-            super::TargetNominal::Domain(super::ObjectKind::Card)
-                | super::TargetNominal::CardType(_)
-        );
-        return card_nominal
-            .then(|| super::cost_paid_participle_property(verb, property))
-            .flatten()
-            .ok_or_else(|| {
-                cursor.fail(
-                    "an earlier action of this program that selected or moved exactly one object of this nominal with this verb",
-                )
-            });
-    };
-    super::bound_object_numeric_property(
-        result.permanent_reference(),
-        property,
-        nominal.as_predicate(),
-    )
-    .map_err(|expected| cursor.fail(expected))
+    // `the PROPERTY of the VERBed NOUN`, `... of the NOUN VERBed this
+    // way`, `... of the NOUN that died`: the one definite description
+    // reader resolves the producer (an earlier action, a cost of this
+    // ability, the event's departed object) or fails explicitly.
+    cursor.enter("numeric.of-genitive.description");
+    super::recognize_described_object_property(cursor, environment, property)
 }
 
 /// A possessive registered card type or object domain (`creature's`,
