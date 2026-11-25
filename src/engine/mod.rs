@@ -32742,7 +32742,14 @@ impl GameEngine {
                         self.face_down_permanent_visible_to(player_id, &card.instance_id)
                     })
                     .chain(&player.graveyard)
-                    .chain(&player.exile)
+                    // CR 406.3: a face-down exiled card only for a viewer
+                    // an effect lets look at it.
+                    .chain(
+                        player
+                            .exile
+                            .iter()
+                            .filter(|card| self.exiled_card_visible_to(player_id, card)),
+                    )
                     .chain(&player.command_zone)
                     .chain(player.hand.iter().filter(|card| {
                         player.id == player_id

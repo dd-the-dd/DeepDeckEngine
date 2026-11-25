@@ -718,6 +718,95 @@
         "outcome": "success",
         "cardStatus": "canonical"
       }
+    },
+    {
+      "id": "exact-thought-string-analyst",
+      "request": {
+        "cardName": "Thought-String Analyst",
+        "typeLine": "Creature \u2014 Human Wizard",
+        "manaCost": "{3}{B}",
+        "oracleText": "At the beginning of your upkeep, exile the top card of target opponent's library face down. You lose life equal to its mana value. You may look at and play that card for as long as it remains exiled, and mana of any type can be spent to cast that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-look-at-and-play-this-turn",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile the top two cards of your library face down. You may look at and play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantCardVisibility"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "grantPermission"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-look-only-while-exiled",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "When this artifact enters, exile the top card of target opponent's library face down. You may look at it for as long as it remains exiled.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-look-permission-without-window",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Exile the top card of your library face down. You may look at it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

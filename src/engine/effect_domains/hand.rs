@@ -44,6 +44,9 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("lookAtFaceDownPermanents") => {
             super::super::hidden_visibility::look_at_face_down_supported(effect)
         }
+        Some("grantCardVisibility") => {
+            super::super::hidden_visibility::grant_card_visibility_supported(effect)
+        }
         _ => false,
     }
 }
@@ -316,6 +319,9 @@ impl GameEngine {
             }
             Some("lookAtFaceDownPermanents") => {
                 self.look_at_face_down_permanents(effect, stack_object, bindings, decisions)?;
+            }
+            Some("grantCardVisibility") => {
+                self.grant_card_visibility(effect, stack_object, bindings, decisions)?;
             }
             Some("lookAtHand") => {
                 let hand_owner = self.resolve_player(&effect["player"], stack_object, bindings);

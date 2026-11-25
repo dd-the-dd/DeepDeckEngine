@@ -1478,7 +1478,10 @@ impl CardCollectionMemory {
         cursor: &OracleTokenCursor<'_>,
         permit: &CardPermissionNode,
     ) -> bool {
-        if permit.duration.is_some() || permit.window.is_some() {
+        if permit.duration.is_some()
+            || permit.window.is_some()
+            || permit.verb == CardPermissionVerb::Look
+        {
             return false;
         }
         if !permit.optional
@@ -1515,7 +1518,9 @@ impl CardCollectionMemory {
     ) -> MachineResult<Vec<Value>> {
         cursor.enter("lower.card-action.resolution-cast");
         cursor.require(
-            permit.grantee == CardPermissionGranteeNode::Controller,
+            permit.grantee == CardPermissionGranteeNode::Controller
+                && permit.verb != CardPermissionVerb::Look
+                && !permit.look,
             "a cast while the effect resolves by the ability's controller",
         )?;
         cursor.require(
@@ -2326,13 +2331,31 @@ impl CardCollectionMemory {
                         ));
                     }
                 };
+                // `you may look at [and play] CARDS` (CR 406.3): the grantee
+                // learns the hidden cards for the same window.
+                if permit.look || permit.verb == CardPermissionVerb::Look {
+                    effects.push(json!({"kind":"grantCardVisibility",
+                        "cards":card.clone(), "viewer":grantee.clone(),
+                        "duration":duration.clone()}));
+                }
+                let action_kind = match permit.verb {
+                    CardPermissionVerb::Play => "play",
+                    CardPermissionVerb::Cast => "cast",
+                    CardPermissionVerb::Look => {
+                        cursor.enter("lower.card-action.permit.look");
+                        cursor.require(
+                            !replace_from_source
+                                && permit.graveyard_exile.is_none()
+                                && !permit.mana_of_any_type,
+                            "a look permission without a play or cast",
+                        )?;
+                        return Ok(effects);
+                    }
+                };
                 // `without paying its mana cost` (CR 118.9): the permitted
                 // cast has no mana cost to pay.
                 let normal_costs_apply = !permit.without_paying_mana_cost();
-                let mut action = json!({"kind":match permit.verb {
-                        CardPermissionVerb::Play => "play",
-                        CardPermissionVerb::Cast => "cast",
-                    },
+                let mut action = json!({"kind":action_kind,
                     "card":card, "normalTimingApplies":true,
                     "normalCostsApply":normal_costs_apply});
                 if permit.mana_of_any_type {

@@ -179,6 +179,10 @@ pub(in crate::oracle::canonical) enum CardPermissionGranteeNode {
 pub(in crate::oracle::canonical) enum CardPermissionVerb {
     Play,
     Cast,
+    /// `you may look at CARDS for as long as they remain exiled` (CR 406.3,
+    /// 401.2): the grantee may look at hidden cards while the window lasts;
+    /// nothing is played or cast.
+    Look,
 }
 
 /// A permission window that the shared effect duration does not name: it
@@ -228,6 +232,10 @@ pub(in crate::oracle::canonical) struct CardPermissionNode {
     /// `you may` (true) or an imperative `cast` (false), which the player
     /// performs if able (CR 608.2g).
     pub optional: bool,
+    /// `you may look at and play CARDS`: the grantee may also look at the
+    /// permitted cards while the permission lasts (a face-down exiled card
+    /// is hidden otherwise, CR 406.3).
+    pub look: bool,
     /// The base-cost policy. Without a window, a free cast happens while
     /// the ability resolves (CR 608.2g), not later.
     pub cost: CardCastCostNode,
@@ -1034,7 +1042,25 @@ fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool 
 fn permission_head_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     peek_word(cursor, 0, "you")
         && peek_word(cursor, 1, "may")
-        && (peek_word(cursor, 2, "play") || peek_word(cursor, 2, "cast"))
+        && (peek_word(cursor, 2, "play")
+            || peek_word(cursor, 2, "cast")
+            || look_permission_head_at(cursor, 2))
+}
+
+/// `look at and play|cast` or `look at` a bound card reference (`it`, `them`,
+/// `that card`, `those cards`, `the exiled card(s)`) at `offset`: the look
+/// permission heads. Pure lookahead; the frame commits only once its window
+/// is read, so a look without one stays with the other readers.
+fn look_permission_head_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    let at = |delta: usize, word: &str| peek_word(cursor, offset + delta, word);
+    at(0, "look")
+        && at(1, "at")
+        && ((at(2, "and") && (at(3, "play") || at(3, "cast")))
+            || at(2, "it")
+            || at(2, "them")
+            || (at(2, "that") && at(3, "card"))
+            || (at(2, "those") && at(3, "cards"))
+            || (at(2, "the") && at(3, "exiled")))
 }
 
 /// An imperative `cast` at the clause head (CR 608.2g: the player casts
@@ -2532,7 +2558,26 @@ fn recognize_card_permission_frame(
     } else if optional {
         cursor.consume_phrase(&["you", "may"])?;
     }
-    let verb = if optional
+    // `you may look at and play|cast CARDS` / `you may look at CARDS`: the
+    // look permission coordinated with the play permission, or alone.
+    let mut look = false;
+    let verb = if optional && look_permission_head_at(cursor, 0) {
+        cursor.enter("card-action.permit.look");
+        cursor.consume_phrase(&["look", "at"])?;
+        if peek_word(cursor, 0, "and") {
+            cursor.consume("and")?;
+            look = true;
+            if peek_word(cursor, 0, "play") {
+                cursor.consume("play")?;
+                CardPermissionVerb::Play
+            } else {
+                cursor.consume("cast")?;
+                CardPermissionVerb::Cast
+            }
+        } else {
+            CardPermissionVerb::Look
+        }
+    } else if optional
         && cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("play"))
@@ -2643,6 +2688,20 @@ fn recognize_card_permission_frame(
     } else {
         None
     };
+    if verb == CardPermissionVerb::Look {
+        // A look grants knowledge for a stated window; it plays nothing, so
+        // it has no base cost, spending policy or graveyard replacement.
+        cursor.enter("card-action.permit.look.window");
+        cursor.require(
+            (duration.is_some() || window.is_some())
+                && cost == CardCastCostNode::Printed
+                && !mana_of_any_type
+                && !if_able
+                && graveyard_exile.is_none()
+                && origin.is_none(),
+            "a look at bound cards for a stated window (`for as long as they remain exiled`, `this turn`)",
+        )?;
+    }
     if grantee == CardPermissionGranteeNode::CardOwner {
         // `its owner` and the permitted `it|that card` name one card.
         cursor.enter("card-action.permit.grantee.card");
@@ -2666,6 +2725,7 @@ fn recognize_card_permission_frame(
         duration,
         window,
         optional,
+        look,
         cost,
         mana_of_any_type,
         graveyard_exile,

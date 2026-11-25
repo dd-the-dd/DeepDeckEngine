@@ -147,7 +147,8 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "lookAtRandomCardInHand"
             | "revealHand"
             | "lookAtHand"
-            | "lookAtFaceDownPermanents",
+            | "lookAtFaceDownPermanents"
+            | "grantCardVisibility",
         ) => Some(Domain::Hand),
         Some(
             "moveTriggeringCardFromGraveyard"

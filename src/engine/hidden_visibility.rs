@@ -14,7 +14,128 @@ pub(super) fn look_at_face_down_supported(effect: &Value) -> bool {
             || object_expression_supported(&effect["objects"]))
 }
 
+/// `grantCardVisibility`: a viewer may look at bound hidden cards (a
+/// face-down exiled card, CR 406.3) for a window the runtime can end.
+pub(super) fn grant_card_visibility_supported(effect: &Value) -> bool {
+    singular_player_reference_supported(&effect["viewer"])
+        && permission_card_reference_supported(&effect["cards"])
+        && match value_kind(&effect["duration"]) {
+            Some("whileInExile" | "untilEndOfCurrentTurn") => true,
+            Some("untilEndOfNextTurn") => {
+                singular_player_reference_supported(&effect["duration"]["player"])
+            }
+            _ => false,
+        }
+}
+
 impl GameEngine {
+    /// The cards a permission reference names: a bound collection, a
+    /// decision result, or one declared or bound card.
+    fn visibility_card_ids(
+        &self,
+        reference: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Vec<String> {
+        if let Some(binding_id) = reference["binding"].as_str() {
+            return bindings
+                .get(binding_id)
+                .and_then(|binding| match binding {
+                    RuntimeBinding::Objects(objects) => Some(objects.clone()),
+                    RuntimeBinding::Target(
+                        TargetRef::Card { instance_id } | TargetRef::Permanent { instance_id },
+                    ) => Some(vec![instance_id.clone()]),
+                    _ => None,
+                })
+                .unwrap_or_default();
+        }
+        if value_kind(reference) == Some("decisionResult") {
+            return reference["decisionId"]
+                .as_str()
+                .and_then(|decision_id| decisions.get(decision_id))
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect();
+        }
+        match self.resolve_target(reference, stack_object, bindings) {
+            Some(TargetRef::Card { instance_id }) => vec![instance_id],
+            _ => Vec::new(),
+        }
+    }
+
+    /// `you may look at [and play] CARDS WINDOW` (CR 406.3): the viewer
+    /// learns each named card in the zone it is in now, for the window; a
+    /// card that changes zones is a new object the grant does not follow
+    /// (CR 400.7). Nothing is revealed to any other player.
+    pub(super) fn grant_card_visibility(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<(), EngineError> {
+        let Some(viewer) = self.resolve_player(&effect["viewer"], stack_object, bindings) else {
+            return Ok(());
+        };
+        let expires_after_turn = match value_kind(&effect["duration"]) {
+            Some("untilEndOfCurrentTurn") => Some(self.state.turn_number),
+            Some("untilEndOfNextTurn") => {
+                let Some(player) =
+                    self.resolve_player(&effect["duration"]["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                Some(
+                    self.next_turn_number_for_player(&player)
+                        .unwrap_or(self.state.turn_number),
+                )
+            }
+            _ => None,
+        };
+        for instance_id in
+            self.visibility_card_ids(&effect["cards"], stack_object, bindings, decisions)
+        {
+            let Some(zone) = self.card_outside_battlefield_zone(&instance_id) else {
+                continue;
+            };
+            let mut grant = json!({
+                "kind": "knownHiddenCard",
+                "viewerId": viewer,
+                "cardInstanceId": instance_id,
+                "zone": zone,
+                "sourceCardInstanceId": stack_object.card.instance_id,
+            });
+            if let Some(turn) = expires_after_turn {
+                grant["expiresAfterTurn"] = Value::from(turn);
+            }
+            self.state.rule_modifiers.push(grant);
+        }
+        Ok(())
+    }
+
+    /// Whether `viewer` may see an exiled card's front face: a face-up
+    /// exiled card is public (CR 406.3); a face-down one only through a
+    /// visibility grant still in force for the card in that zone.
+    pub(super) fn exiled_card_visible_to(&self, viewer: &str, card: &CardInstance) -> bool {
+        if card.flags.get("faceDown") != Some(&true) {
+            return true;
+        }
+        self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some("knownHiddenCard")
+                && modifier["viewerId"].as_str() == Some(viewer)
+                && modifier["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
+                && modifier["zone"].as_str() == Some("exile")
+                && self.card_outside_battlefield_zone(&card.instance_id) == Some("exile")
+                && modifier["expiresAfterTurn"]
+                    .as_u64()
+                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
+        })
+    }
+
     /// The battlefield permanents an object reference names, face down now.
     fn face_down_permanent_ids(
         &self,

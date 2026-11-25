@@ -1,5 +1,5 @@
 use super::super::*;
-use super::look_at_face_down_supported;
+use super::{grant_card_visibility_supported, look_at_face_down_supported};
 
 fn definition(id: &str, type_line: &str) -> CardDefinition {
     CardDefinition {
@@ -182,4 +182,109 @@ fn face_down_look_validation_requires_a_viewer_and_objects() {
     let mut missing = effect;
     missing["objects"] = json!({"kind": "unknownObjects"});
     assert!(!look_at_face_down_supported(&missing));
+}
+
+fn exile_face_down(engine: &mut GameEngine, owner: &str) -> String {
+    let mut card = card_instance(owner, &definition("hidden-spell", "Sorcery"), 11);
+    card.flags.insert("faceDown".to_string(), true);
+    let id = card.instance_id.clone();
+    let index = engine.player_index(owner).expect("owner exists");
+    engine.state.players[index].exile.push(card);
+    id
+}
+
+fn grant(engine: &mut GameEngine, viewer_controller: &str, card: &str, duration: Value) {
+    let bindings = BTreeMap::from([(
+        "exiledCards".to_string(),
+        RuntimeBinding::Objects(vec![card.to_string()]),
+    )]);
+    engine
+        .grant_card_visibility(
+            &json!({
+                "kind": "grantCardVisibility",
+                "cards": {"kind": "boundObjects", "binding": "exiledCards"},
+                "viewer": {"kind": "abilityController"},
+                "duration": duration,
+            }),
+            &stack_object(viewer_controller),
+            &bindings,
+            &BTreeMap::new(),
+        )
+        .expect("the grant resolves");
+}
+
+fn exiled<'a>(engine: &'a GameEngine, owner: &str, card: &str) -> &'a CardInstance {
+    let index = engine.player_index(owner).expect("owner exists");
+    engine.state.players[index]
+        .exile
+        .iter()
+        .find(|candidate| candidate.instance_id == card)
+        .expect("the card is in exile")
+}
+
+/// `You may look at those cards for as long as they remain exiled` (CR
+/// 406.3): only the viewer sees the face-down exiled card, only while it
+/// stays in exile; an opponent's library card exiled face down never leaks
+/// to its owner or anyone else.
+#[test]
+fn exiled_card_visibility_is_granted_to_the_viewer_while_it_remains_exiled() {
+    let mut engine = engine(3);
+    let hidden = exile_face_down(&mut engine, "player-1");
+    for viewer in ["player-0", "player-1", "player-2"] {
+        assert!(!engine.exiled_card_visible_to(viewer, exiled(&engine, "player-1", &hidden)));
+    }
+    grant(
+        &mut engine,
+        "player-0",
+        &hidden,
+        json!({"kind": "whileInExile"}),
+    );
+    let card = exiled(&engine, "player-1", &hidden).clone();
+    assert!(engine.exiled_card_visible_to("player-0", &card));
+    assert!(!engine.exiled_card_visible_to("player-1", &card));
+    assert!(!engine.exiled_card_visible_to("player-2", &card));
+    // The card leaves exile: the grant does not follow the new object.
+    let index = engine.player_index("player-1").expect("player-1 exists");
+    let moved = engine.state.players[index]
+        .exile
+        .pop()
+        .expect("one exiled card");
+    engine.state.players[index].graveyard.push(moved);
+    assert!(!engine.exiled_card_visible_to("player-0", &card));
+}
+
+/// `You may look at and play that card this turn`: the look ends with the
+/// turn.
+#[test]
+fn exiled_card_visibility_this_turn_expires_after_the_turn() {
+    let mut engine = engine(2);
+    let hidden = exile_face_down(&mut engine, "player-0");
+    grant(
+        &mut engine,
+        "player-0",
+        &hidden,
+        json!({"kind": "untilEndOfCurrentTurn"}),
+    );
+    let card = exiled(&engine, "player-0", &hidden).clone();
+    assert!(engine.exiled_card_visible_to("player-0", &card));
+    engine.state.turn_number += 1;
+    assert!(!engine.exiled_card_visible_to("player-0", &card));
+    assert!(grant_card_visibility_supported(&json!({
+        "kind": "grantCardVisibility",
+        "cards": {"kind": "boundObjects", "binding": "exiledCards"},
+        "viewer": {"kind": "abilityController"},
+        "duration": {"kind": "whileInExile"},
+    })));
+    assert!(!grant_card_visibility_supported(&json!({
+        "kind": "grantCardVisibility",
+        "cards": {"kind": "boundObjects", "binding": "exiledCards"},
+        "viewer": {"kind": "eachPlayer"},
+        "duration": {"kind": "whileInExile"},
+    })));
+    assert!(!grant_card_visibility_supported(&json!({
+        "kind": "grantCardVisibility",
+        "cards": {"kind": "boundObjects", "binding": "exiledCards"},
+        "viewer": {"kind": "abilityController"},
+        "duration": {"kind": "permanent"},
+    })));
 }
