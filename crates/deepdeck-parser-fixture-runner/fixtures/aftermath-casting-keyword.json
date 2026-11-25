@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/aftermath-casting-keyword",
+  "cases": [
+    {
+      "id": "exact-dusk-dawn",
+      "request": {
+        "cardName": "Dusk // Dawn",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{2}{W}{W} // {3}{W}{W}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "dusk",
+            "name": "Dusk",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{W}{W}",
+            "oracleText": "Destroy all creatures with power 3 or greater."
+          },
+          {
+            "id": "dawn",
+            "name": "Dawn",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{W}{W}",
+            "oracleText": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nReturn all creature cards with power 2 or less from your graveyard to your hand."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "aftermath"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cut-ribbons-x-half",
+      "request": {
+        "cardName": "Cut // Ribbons",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{1}{R} // {X}{B}{B}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "cut",
+            "name": "Cut",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{R}",
+            "oracleText": "Cut deals 4 damage to target creature."
+          },
+          {
+            "id": "ribbons",
+            "name": "Ribbons",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{B}{B}",
+            "oracleText": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nEach opponent loses X life."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "aftermath"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-aftermath-on-creature-face",
+      "request": {
+        "cardName": "Generic Aftermath Source",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{2}{B}",
+        "oracleText": "Aftermath (Cast this spell only from your graveyard. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.lowering",
+            "expectedContains": "an instant or sorcery half for aftermath"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-aftermath-foreign-reminder",
+      "request": {
+        "cardName": "Generic Aftermath Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Aftermath (Cast this spell only from your hand. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.reminder.body"
+          }
+        ]
+      }
+    }
+  ]
+}

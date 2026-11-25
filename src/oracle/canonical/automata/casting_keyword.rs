@@ -6,7 +6,7 @@
 //! ```text
 //! Line      := LEXEME Parameter ["."] [ "(" Reminder ")" ]
 //! Parameter := ε                         (conspire, gravestorm, paradigm,
-//!                                          retrace, jump-start)
+//!                                          retrace, jump-start, aftermath)
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem,
 //!                                          emerge, sneak, bestow)
@@ -42,6 +42,9 @@ use crate::oracle::syntax::recognize_entities;
 /// A casting keyword row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CastingKeyword {
+    /// CR 702.127a: the half of a split card castable only from a graveyard,
+    /// exiled whenever it leaves the stack after that cast.
+    Aftermath,
     Awaken,
     /// CR 702.103a.
     Bestow,
@@ -111,6 +114,13 @@ struct Definition {
 }
 
 const DEFINITIONS: &[Definition] = &[
+    Definition {
+        keyword: CastingKeyword::Aftermath,
+        lexeme: "aftermath",
+        rules_section: "702.127a",
+        parameter: Parameter::None,
+        reminders: &["Cast this spell only from your graveyard. Then exile it."],
+    },
     Definition {
         keyword: CastingKeyword::Awaken,
         lexeme: "awaken",

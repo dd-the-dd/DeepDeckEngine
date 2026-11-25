@@ -4071,6 +4071,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || suspend_ability_supported(&rule["ability"])
                 || mayhem_ability_supported(&rule["ability"])
                 || keyword_programs::madness_ability_supported(&rule["ability"])
+                || keyword_programs::aftermath_ability_supported(&rule["ability"])
                 || value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
                 || escape_ability_supported(&rule["ability"])
                 || blitz_ability_supported(&rule["ability"])
@@ -17291,9 +17292,10 @@ impl GameEngine {
                         .decisions
                         .insert("xValue".to_string(), Value::from(0));
                 }
-                if !self.select_resolution_alternative_cost(
+                if !self.prepare_resolution_cast_declaration(
                     card,
                     &player_id,
+                    source_zone,
                     &mut declaration.decisions,
                 ) {
                     continue;
@@ -17945,6 +17947,11 @@ impl GameEngine {
                         .decisions
                         .insert("exileOnLeaveStack".to_string(), Value::Bool(true));
                 }
+                keyword_programs::mark_aftermath_exile(
+                    &card.definition,
+                    source_zone,
+                    &mut declaration.decisions,
+                );
                 if *source_zone == "graveyard"
                     && let Some(source_id) = self.arcade_gannon_source_for_card(&player.id, card)
                 {

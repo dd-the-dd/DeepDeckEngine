@@ -642,6 +642,81 @@ pub(super) fn cascade_trigger_rule(source_mana_value: i32) -> Value {
 }
 
 // ---------------------------------------------------------------------------
+// Aftermath (CR 702.127a)
+
+/// `Aftermath` on one half of a split card (CR 702.127a).
+pub(super) fn aftermath_ability_supported(value: &Value) -> bool {
+    value_kind(value) == Some("aftermath")
+}
+
+/// Whether a (face) definition carries aftermath among its own rules.
+fn has_aftermath(definition: &CardDefinition) -> bool {
+    definition.printed_rules().iter().any(|rule| {
+        value_kind(rule) == Some("keywordAbility") && aftermath_ability_supported(&rule["ability"])
+    })
+}
+
+/// Whether a whole split card has a half with aftermath: the card may be
+/// cast from its owner's graveyard by that half (CR 702.127a).
+pub(super) fn split_card_has_aftermath(definition: &CardDefinition) -> bool {
+    super::split_face_definitions(definition)
+        .iter()
+        .any(has_aftermath)
+}
+
+/// CR 702.127a: a half with aftermath cast from a graveyard is exiled
+/// instead of going anywhere else whenever it leaves the stack.
+pub(super) fn mark_aftermath_exile(
+    definition: &CardDefinition,
+    source_zone: &str,
+    decisions: &mut BTreeMap<String, Value>,
+) {
+    if source_zone == "graveyard" && has_aftermath(definition) {
+        decisions.insert("exileOnLeaveStack".to_string(), Value::Bool(true));
+    }
+}
+
+impl GameEngine {
+    /// CR 702.127a: the half with aftermath can't be cast from any zone
+    /// other than a graveyard, and the other half of that card is cast from
+    /// a graveyard only through a route other than aftermath (a flashback
+    /// or a casting permission naming the card).
+    pub(super) fn aftermath_cast_allowed(
+        &self,
+        player_id: &str,
+        card: &CardInstance,
+        source_zone: &str,
+    ) -> bool {
+        if has_aftermath(&card.definition) {
+            return source_zone == "graveyard";
+        }
+        if source_zone != "graveyard" {
+            return true;
+        }
+        let Some(whole) = card.printed_definition.as_ref() else {
+            return true;
+        };
+        if !split_card_has_aftermath(whole) {
+            return true;
+        }
+        let Some(player) = self
+            .state
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+        else {
+            return false;
+        };
+        let mut whole_card = card.clone();
+        whole_card.definition = whole.clone();
+        !matches!(
+            self.casting_route(player, &whole_card, source_zone, false),
+            None | Some(super::casting_permission_modes::CastingRoute::Aftermath)
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Madness (CR 702.35a)
 
 /// The decision detail a madness exile records on the replaced graveyard
@@ -855,12 +930,28 @@ impl GameEngine {
         });
     }
 
+    /// The keyword rules of one resolution-time cast declaration of `card`
+    /// from `source_zone`: an aftermath half cast from a graveyard is exiled
+    /// when it leaves the stack (CR 702.127a), and an alternative cost a
+    /// resolution-time permission grants is selected. Returns `false` for a
+    /// declaration that can't be cast this way.
+    pub(super) fn prepare_resolution_cast_declaration(
+        &self,
+        card: &CardInstance,
+        player_id: &str,
+        source_zone: &str,
+        decisions: &mut BTreeMap<String, Value>,
+    ) -> bool {
+        mark_aftermath_exile(&card.definition, source_zone, decisions);
+        self.select_resolution_alternative_cost(card, player_id, decisions)
+    }
+
     /// Selects the alternative cost a resolution-time permission grants for
     /// `card` (CR 118.9): the declaration pays it instead of the mana cost.
     /// Returns `false` for a declaration that already chose another base,
     /// since only one alternative cost applies to a spell (CR 118.9a).
     /// Without such a permission the declaration is unchanged.
-    pub(super) fn select_resolution_alternative_cost(
+    fn select_resolution_alternative_cost(
         &self,
         card: &CardInstance,
         player_id: &str,

@@ -648,6 +648,17 @@ fn lower_casting_keyword(
             })
         }
         CastingKeyword::Gravestorm => json!({ "kind": "gravestorm" }),
+        // CR 702.127a: three static abilities of one split-card half: it may
+        // be cast from a graveyard, from no other zone, and a graveyard cast
+        // is exiled whenever it leaves the stack. The runtime reads them
+        // from the half that carries the keyword.
+        CastingKeyword::Aftermath => {
+            cursor.require(
+                spell_face(face_type_line),
+                "an instant or sorcery half for aftermath (CR 702.127a)",
+            )?;
+            json!({ "kind": "aftermath" })
+        }
         // CR 702.174a: an optional promise as the spell is cast; the
         // runtime has the chosen opponent draw a card first.
         CastingKeyword::GiftACard => json!({ "kind": "giftCard", "optional": true }),
