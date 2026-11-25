@@ -2350,6 +2350,26 @@ fn read_static_subject_reading(
             possessive,
         });
     }
+    // A sentence-initial word the name resolver could not link (`Nonblack
+    // creatures`, `Face-down creatures you control`) is a source reference
+    // only when no object collection reads it: a linked name or `this NOUN`
+    // stays a source reference.
+    let linked_source =
+        source_reference_starts_at(cursor.position(), cursor.peek(), input.name_links, None);
+    if !linked_source
+        && source_reference_starts_at(
+            cursor.position(),
+            cursor.peek(),
+            input.name_links,
+            input.name_resolution_failure,
+        )
+    {
+        let mut trial = cursor.clone();
+        if let Ok(subject) = read_static_collection_subject(&mut trial) {
+            *cursor = trial;
+            return Ok(subject);
+        }
+    }
     if source_reference_starts_at(
         cursor.position(),
         cursor.peek(),
@@ -2365,6 +2385,13 @@ fn read_static_subject_reading(
             possessive: false,
         });
     }
+    read_static_collection_subject(cursor)
+}
+
+/// `[each | all] COLLECTION`: the shared object collection as the subject.
+fn read_static_collection_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticObjectSubject> {
     cursor.enter("static.continuous.subject.collection");
     // `each` distributes over a singular noun; `all` and a bare collection
     // are plural. Both denote universal membership (no choice).
