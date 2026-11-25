@@ -3309,6 +3309,12 @@ impl ConditionalScopes {
                     cursor.enter("lower.action-result.condition");
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
                 })?;
+                bind_condition_action_result_quantities(
+                    cursor,
+                    previous.action_starts,
+                    previous.effects.as_mut_slice(),
+                    &mut condition,
+                )?;
                 self.conditions[index] = Some(condition);
             }
         }
@@ -3397,6 +3403,12 @@ impl ConditionalScopes {
                     cursor.enter("lower.action-result.condition");
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
                 })?;
+                bind_condition_action_result_quantities(
+                    cursor,
+                    previous.action_starts,
+                    previous.effects.as_mut_slice(),
+                    &mut condition,
+                )?;
                 self.conditions[index] = Some(condition);
                 if conditional.replaced_first().is_none() {
                     self.before[index] = Some(collections.clone());
@@ -3791,6 +3803,72 @@ fn install_action_result_quantities(
         effects
             .iter_mut()
             .for_each(|effect| bind_action_result_quantity(effect, reader, &quantity, &bound));
+    }
+    Ok(())
+}
+
+/// Binds each action-result quantity a sentence condition reads (`If excess
+/// damage was dealt this way`, CR 120.4a, 608.2c) to the nearest earlier
+/// action of the program lowered so far that records it in one top-level
+/// runtime action, as `install_action_result_quantities` does for the
+/// actions' own arguments. The condition is lowered where its sentence
+/// begins, so its producers precede it; none, or several candidates in the
+/// nearest producer, fail explicitly.
+fn bind_condition_action_result_quantities(
+    cursor: &mut OracleTokenCursor<'_>,
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+    condition: &mut Value,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let mut pending = Vec::new();
+    collect_action_result_quantities(condition, &mut pending);
+    for (reader, quantity) in pending {
+        cursor.enter("lower.action-result.condition-quantity");
+        let kind = ActionResultQuantity::from_ir_name(&quantity)
+            .ok_or_else(|| cursor.fail("a known action-result quantity"))?;
+        let earliest = if kind.is_anaphor() {
+            reader.saturating_sub(1)
+        } else {
+            0
+        };
+        let producer = (earliest..reader).rev().find_map(|index| {
+            let (from, _) = *action_starts.get(index)?;
+            // The last lowered action ends with the program lowered so far.
+            let to = action_starts
+                .get(index + 1)
+                .map_or(effects.len(), |(to, _)| *to);
+            let producers = (from..to)
+                .filter_map(|position| {
+                    let field = kind.produced_by(effects[position]["kind"].as_str()?)?;
+                    super::resolution_object_choice::number_choice_produces(&effects[position])
+                        .then_some((position, field))
+                })
+                .collect::<Vec<_>>();
+            (!producers.is_empty()).then_some((index, producers))
+        });
+        let Some((producer_index, producers)) = producer else {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor
+                    .fail("an earlier action of this program that produces the restated quantity"),
+            ));
+        };
+        let [(position, field)] = producers.as_slice() else {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("one top-level runtime action recording the restated quantity"),
+            ));
+        };
+        let binding = match effects[*position]
+            .get(field.ir_field())
+            .and_then(Value::as_str)
+        {
+            Some(existing) => existing.to_owned(),
+            None => {
+                let binding = action_result_binding(producer_index);
+                effects[*position][field.ir_field()] = json!(binding);
+                binding
+            }
+        };
+        bind_action_result_quantity(condition, reader, &quantity, &field.reader(&binding));
     }
     Ok(())
 }

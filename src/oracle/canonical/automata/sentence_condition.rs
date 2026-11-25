@@ -437,6 +437,11 @@ fn read_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
+    // Compare: the excess damage an earlier damage action of the program
+    // dealt (`If excess damage was dealt this way`, CR 120.4a).
+    if super::excess_damage_condition_starts(cursor) {
+        return super::recognize_excess_damage_condition_atom(cursor);
+    }
     // Compare over the resolving ability's own record: `this is the third
     // time this ability has resolved this turn`, `this ability has been
     // activated four or more times this turn` (`ability_history.rs`).
