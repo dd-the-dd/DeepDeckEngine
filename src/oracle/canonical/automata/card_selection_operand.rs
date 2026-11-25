@@ -3,9 +3,9 @@ use super::card_collection_operand::{
     CardCollectionReferenceNode, CollectionOperandAttempt, try_recognize_card_collection_reference,
 };
 use super::{
-    ChosenObjectQuantity, NumericExpression, ObjectDeterminer, ObjectKind, ObjectPredicate,
-    ObjectQueryContext, RecognizedEffectFragment, recognize_object_determiner,
-    recognize_object_noun_query,
+    ChosenObjectQuantity, NumericAtom, NumericExpression, ObjectDeterminer, ObjectKind,
+    ObjectPredicate, ObjectQueryContext, RecognizedEffectFragment, continue_unrelated_predicate,
+    recognize_object_determiner, recognize_object_noun_query,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -142,6 +142,27 @@ pub(in crate::oracle::canonical) fn recognize_this_way_verb(
     };
     trial.consume_phrase(&["this", "way"])?;
     Ok(verb)
+}
+
+/// The postnominal items after the collection a selection chooses from
+/// (`a card from it with mana value 4 or greater`, `a creature card from
+/// among them with flying`): the shared object-query list continued after
+/// the location the selection read, composed with the predicate read before
+/// it. A bare collection (`one of them`) has no head to continue.
+fn continue_selection_predicate(
+    trial: &mut OracleTokenCursor<'_>,
+    predicate: Option<ObjectPredicate>,
+    quantity: &CardSelectionQuantityNode,
+) -> MachineResult<Option<ObjectPredicate>> {
+    let Some(head) = predicate else {
+        return Ok(None);
+    };
+    trial.enter("collection.selection.postnominal");
+    let plural = !matches!(
+        quantity,
+        CardSelectionQuantityNode::Exactly(NumericExpression::Atom(NumericAtom::Integer(1)))
+    );
+    continue_unrelated_predicate(trial, ObjectQueryContext::ORDINARY, head, plural).map(Some)
 }
 
 pub(in crate::oracle::canonical) type CardSelectionOperandAttempt =
@@ -293,6 +314,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             Some(query.predicate().clone())
         };
         if zone_source {
+            let predicate = continue_selection_predicate(&mut trial, predicate, &quantity)?;
             return Ok(CardSelectionOperandNode {
                 quantity,
                 predicate,
@@ -301,6 +323,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             });
         }
         if linked_source {
+            let predicate = continue_selection_predicate(&mut trial, predicate, &quantity)?;
             return Ok(CardSelectionOperandNode {
                 quantity,
                 predicate,
@@ -330,6 +353,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             from == CardCollectionReferenceNode::Antecedent,
             "the antecedent collection after of/from among",
         )?;
+        let predicate = continue_selection_predicate(&mut trial, predicate, &quantity)?;
         Ok(CardSelectionOperandNode {
             quantity,
             predicate,

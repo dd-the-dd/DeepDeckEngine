@@ -7,7 +7,8 @@ use super::source_sacrifice::atomic_action::{
     selection_method::recognize_acting_player_choice_marker,
 };
 use super::{
-    NumericExpression, ObjectQueryNode, SacrificeEffectNode, SacrificeOperandOwner, SelectionCount,
+    NumericAtom, NumericExpression, ObjectQueryContext, ObjectQueryNode, SacrificeEffectNode,
+    SacrificeOperandOwner, SelectionCount, continue_unrelated_predicate,
     recognize_selected_sacrifice_operand,
 };
 
@@ -38,12 +39,24 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_sacrifice_action_
     cursor.enter("player-sacrifice.chooser");
     let explicit_choice = recognize_acting_player_choice_marker(cursor)?;
     let SacrificeEffectNode::Selected {
-        object,
+        mut object,
         count: SelectionCount::Exactly(count),
     } = action.operand
     else {
         return Err(cursor.fail("a selected sacrifice operand with a stated count"));
     };
+    if explicit_choice {
+        // `a creature of their choice with flying`: the shared postnominal
+        // list of the operand continues after the chooser marker.
+        cursor.enter("player-sacrifice.postnominal");
+        let plural = !matches!(count, NumericExpression::Atom(NumericAtom::Integer(1)));
+        object.predicate = continue_unrelated_predicate(
+            cursor,
+            ObjectQueryContext::ORDINARY,
+            object.predicate,
+            plural,
+        )?;
+    }
     cursor.enter("player-sacrifice.complete");
     Ok(PlayerSacrificeActionNode {
         count,

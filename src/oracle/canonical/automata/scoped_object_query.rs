@@ -59,7 +59,7 @@ impl ScopedObjectQueryNode {
 pub(in crate::oracle::canonical) fn recognize_scoped_object_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ScopedObjectQueryNode> {
-    let objects = recognize_related_object_collection(cursor)?;
+    let mut objects = recognize_related_object_collection(cursor)?;
     cursor.require(
         !objects.objects.exclude_source,
         "a zone collection without a source exclusion",
@@ -82,6 +82,18 @@ pub(in crate::oracle::canonical) fn recognize_scoped_object_query(
         let zones = recognize_card_zone_list(cursor)?;
         (ObjectKind::Card, zones, Some(holders))
     };
+    if domain == ObjectKind::Card {
+        // `cards in your hand with mana value 4 or greater`: the shared
+        // postnominal list of the cards continues after their zone (CR
+        // 400.1); a player relation there is no holder and fails.
+        cursor.enter("query.zone.postnominal");
+        objects.objects.predicate = continue_unrelated_predicate(
+            cursor,
+            ObjectQueryContext::ORDINARY,
+            objects.objects.predicate,
+            true,
+        )?;
+    }
     cursor.enter("query.zone.domain");
     cursor.require(
         objects.objects.predicate.is_in_domain(domain),
@@ -154,6 +166,15 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
             | ObjectRelation::Related(_)
             | ObjectRelation::CastFrom(_),
         ) => false,
+        // A printed numeric characteristic of a card compared with a
+        // literal (`with mana value 4 or greater`): the count's card filter
+        // reads the candidate's printed value (CR 109.4, 202.3).
+        ObjectPredicate::NumericComparison { right, .. } => {
+            matches!(
+                right.as_ref(),
+                NumericExpression::Atom(NumericAtom::Integer(_))
+            )
+        }
         ObjectPredicate::IsCommander
         | ObjectPredicate::IsToken
         | ObjectPredicate::CharacteristicBatch(_)
@@ -167,8 +188,7 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ChosenColor
         | ObjectPredicate::Qualifier(_)
-        | ObjectPredicate::ObjectKind(ObjectKind::Permanent | ObjectKind::Spell)
-        | ObjectPredicate::NumericComparison { .. } => false,
+        | ObjectPredicate::ObjectKind(ObjectKind::Permanent | ObjectKind::Spell) => false,
     }
 }
 
