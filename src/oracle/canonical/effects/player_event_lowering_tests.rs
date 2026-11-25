@@ -113,6 +113,11 @@ fn the_first_time_each_turn_reads_the_turn_history_of_life_events() {
         event("Whenever you gain life for the first time each turn, draw a card."),
         json!({"kind": "lifeGained", "player": controller(), "firstTimeEachTurn": true})
     );
+    // Whispering Snitch: a named keyword action keyed by its action id.
+    assert_eq!(
+        event("Whenever you surveil for the first time each turn, draw a card.")["firstTimeEachTurn"],
+        true
+    );
     assert_eq!(
         event("Whenever you lose life for the first time each turn, draw a card."),
         json!({"kind": "lifeLost", "player": controller(), "firstTimeEachTurn": true})

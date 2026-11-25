@@ -139,7 +139,7 @@ fn lower_outcome(
 
 /// The runtime event kinds whose matcher evaluates `firstTimeEachTurn`
 /// against the turn history of the acting player (`previous_turn_events.rs`).
-const FIRST_OCCURRENCE_KINDS: [&str; 2] = ["lifeGained", "lifeLost"];
+const FIRST_OCCURRENCE_KINDS: [&str; 3] = ["lifeGained", "lifeLost", "abilityPerformed"];
 
 /// `for the first time each turn` on a lowered player event: only the first
 /// occurrence of that event this turn triggers. The runtime history keys

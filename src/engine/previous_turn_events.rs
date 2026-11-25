@@ -22,16 +22,42 @@ use super::*;
 /// The marker a first-occurrence trigger leaves in the action log.
 const FIRST_OCCURRENCE_MARKER: &str = "firstOccurrenceTriggered";
 
-/// The event kinds whose occurrences the log records with their acting
-/// player under the same kind, and whether one occurrence records a batch
-/// of simultaneous records before it is published.
-const LOGGED_PLAYER_EVENT_KINDS: [(&str, bool); 2] = [("lifeGained", false), ("lifeLost", true)];
+/// How the action log records one player event kind under the same kind
+/// with its acting player.
+#[derive(Clone, Copy)]
+struct LoggedPlayerEvent {
+    kind: &'static str,
+    /// One occurrence records a batch of simultaneous records before it is
+    /// published.
+    batched: bool,
+    /// A detail field the record shares with the pattern (the named
+    /// keyword action of `abilityPerformed`).
+    key: Option<&'static str>,
+}
 
-fn logged_player_event_kind(kind: &str) -> Option<bool> {
-    LOGGED_PLAYER_EVENT_KINDS
+const LOGGED_PLAYER_EVENTS: [LoggedPlayerEvent; 3] = [
+    LoggedPlayerEvent {
+        kind: "lifeGained",
+        batched: false,
+        key: None,
+    },
+    LoggedPlayerEvent {
+        kind: "lifeLost",
+        batched: true,
+        key: None,
+    },
+    LoggedPlayerEvent {
+        kind: "abilityPerformed",
+        batched: false,
+        key: Some("abilityId"),
+    },
+];
+
+fn logged_player_event(kind: &str) -> Option<LoggedPlayerEvent> {
+    LOGGED_PLAYER_EVENTS
         .iter()
-        .find(|(logged, _)| *logged == kind)
-        .map(|(_, batched)| *batched)
+        .find(|logged| logged.kind == kind)
+        .copied()
 }
 
 /// `firstTimeEachTurn` is supported on a logged player event of the source
@@ -44,7 +70,7 @@ pub(super) fn first_occurrence_event_supported(event: &Value) -> bool {
         return false;
     };
     let controller = &event["player"];
-    if logged_player_event_kind(kind).is_none()
+    if logged_player_event(kind).is_none()
         || value_kind(controller) != Some("controllerOf")
         || value_kind(&controller["object"]) != Some("self")
     {
@@ -78,9 +104,11 @@ impl GameEngine {
         if event["firstTimeEachTurn"].as_bool() != Some(true) {
             return false;
         }
-        let Some(kind) = value_kind(event).map(str::to_string) else {
+        let Some(logged_event) = value_kind(event).and_then(logged_player_event) else {
             return true;
         };
+        let kind = logged_event.kind;
+        let key = logged_event.key.map(|field| (field, event[field].clone()));
         // The supported relation names the source controller.
         let player_id = source.controller.clone();
         let turn = self.state.turn_number;
@@ -93,6 +121,9 @@ impl GameEngine {
                 logged.turn_number == turn
                     && logged.kind == kind
                     && logged.player_id.as_deref() == Some(player_id.as_str())
+                    && key
+                        .as_ref()
+                        .is_none_or(|(field, value)| logged.detail[*field] == *value)
             })
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
@@ -100,9 +131,8 @@ impl GameEngine {
         let Some(&latest) = records.last() else {
             return true;
         };
-        let batched = logged_player_event_kind(&kind).unwrap_or(false);
         let mut run_start = latest;
-        while batched && run_start > 0 {
+        while logged_event.batched && run_start > 0 {
             let previous = &self.state.events[run_start - 1];
             if previous.turn_number != turn || previous.kind != kind {
                 break;
