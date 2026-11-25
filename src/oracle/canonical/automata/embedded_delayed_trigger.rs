@@ -8,6 +8,9 @@
 //!              | "if" BoundObject "would leave the battlefield" ","
 //!                                         -- replacement over the object (614.1a)
 //!              | "the next time" ChosenSourceDamage Lifetime "," -- shield (615.7)
+//! Reflexive   := "when" ("you" ActiveVerb | Quantity Noun "is"|"are" Verbed)
+//!                 "this" "way" ","  -- the program's outcome (CR 603.12),
+//!                                    -- never a created rule (`action_result.rs`)
 //! DelayedEvent := BoundObject ("dies" | "leaves the battlefield")
 //!               | "you" "next" "cast" SpellQuery
 //!               | "you" "cast" "your" "next" SpellQuery
@@ -262,7 +265,11 @@ fn specialized_event_follows(cursor: &OracleTokenCursor<'_>) -> bool {
 pub(in crate::oracle::canonical) fn effect_created_rule_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    if super::outcome_connector_at(cursor, 0).is_some() {
+    // `When you discard a nonland card this way,` is the reflexive ability
+    // of the instruction before it (CR 603.12), also owned by the program.
+    if super::outcome_connector_at(cursor, 0).is_some()
+        || super::reflexive_result_connector_at(cursor, 0).is_some()
+    {
         return false;
     }
     // `Until end of turn, whenever EVENT,`: the preposed lifetime of a

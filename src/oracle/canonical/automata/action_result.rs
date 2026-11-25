@@ -122,6 +122,19 @@ impl ActionResultVerb {
         }
     }
 
+    /// True when the lowered runtime action `effect` runs this verb and its
+    /// `bind` records exactly the objects it affected: a kind of
+    /// `runtime_kinds`, or a card move whose destination is exile (`exile
+    /// the top two cards of your library`, `exile target player's
+    /// graveyard`, CR 701.13a), whose `bind` records the moved cards.
+    pub(in crate::oracle::canonical) fn records_result(self, effect: &serde_json::Value) -> bool {
+        match effect["kind"].as_str() {
+            Some(kind) if self.runtime_kinds().contains(&kind) => true,
+            Some("moveCards") => self == Self::Exiled && effect["to"]["kind"] == "exile",
+            _ => false,
+        }
+    }
+
     /// Whether the affected objects keep their characteristics where the
     /// action put them (a card moved between card zones), so a restated
     /// card noun can be re-read on the bound objects. A permanent that left
@@ -492,11 +505,17 @@ pub(in crate::oracle::canonical) fn action_result_verb_produced_by(
                     ..
                 })
         ),
-        ActionResultVerb::Exiled => matches!(
-            effect,
-            LocalEffectNode::TargetCardZoneChange(node)
-                if node.action == CardZoneChangeAction::Exile
-        ),
+        ActionResultVerb::Exiled => match effect {
+            LocalEffectNode::TargetCardZoneChange(node) => {
+                node.action == CardZoneChangeAction::Exile
+            }
+            // `exile the top two cards of your library`, `exile all creature
+            // cards from target player's graveyard`: a card move to exile.
+            LocalEffectNode::CardAction(super::CardActionNode::Move { destination, .. }) => {
+                destination.zone == super::CardZoneName::Exile
+            }
+            _ => false,
+        },
         ActionResultVerb::Sacrificed => matches!(
             effect,
             LocalEffectNode::Sacrifice(SacrificeEffectNode::Selected { .. })
@@ -681,6 +700,189 @@ pub(in crate::oracle::canonical) fn recognize_active_action_result_condition_ato
         operator,
         right: ConditionNumber::Integer(value),
     }))
+}
+
+/// `When you VERB a|an|one or more NOUN this way,` / `When a|an|one or more
+/// NOUN is|are VERBed this way,`: a reflexive triggered ability (CR 603.12)
+/// whose event is the earlier instruction's own action, restricted to the
+/// objects that action affected that satisfy the noun. It triggers once,
+/// when at least one such object exists.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ReflexiveResultNode {
+    pub verb: ActionResultVerb,
+    pub predicate: ObjectPredicate,
+    /// `one or more`: one trigger for any number of objects. `a`/`an`: the
+    /// singular event, which a single affected object makes unambiguous.
+    pub one_or_more: bool,
+}
+
+/// Lexical: the width (with its comma) of a reflexive result connector at
+/// `offset`, or `None`. It commits nothing.
+pub(in crate::oracle::canonical) fn reflexive_result_connector_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<usize> {
+    let word = |index: usize| cursor.peek_ahead(offset + index);
+    let is = |index: usize, expected: &str| {
+        word(index).is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !is(0, "when") {
+        return None;
+    }
+    let this = (1..20)
+        .take_while(|index| word(*index).is_some_and(|raw| raw != "." && raw != ","))
+        .find(|index| is(*index, "this") && is(index + 1, "way") && is(index + 2, ","))?;
+    let active = is(1, "you")
+        && word(2)
+            .and_then(ActionResultVerb::from_active_word)
+            .is_some();
+    let passive = this >= 3
+        && word(this - 1)
+            .and_then(ActionResultVerb::from_word)
+            .is_some()
+        && (is(this - 2, "is") || is(this - 2, "are"));
+    (active || passive).then_some(this + 3)
+}
+
+/// Reads a reflexive result connector (`reflexive_result_connector_at`),
+/// its comma included. The noun is the shared object collection bounded
+/// before `this way` (active) or the copula (passive); it names no
+/// controller, and the verb is a restated action verb.
+pub(in crate::oracle::canonical) fn recognize_reflexive_result_connector(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ReflexiveResultNode> {
+    cursor.enter("reflexive-result.connector");
+    let width = reflexive_result_connector_at(cursor, 0).ok_or_else(|| {
+        cursor.fail("`When you VERB OBJECTS this way,` or `When OBJECTS are VERBed this way,`")
+    })?;
+    let this = cursor.position() + width - 3;
+    cursor.consume("when")?;
+    let active = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"));
+    let mut verb = None;
+    if active {
+        cursor.enter("reflexive-result.active.verb");
+        cursor.consume("you")?;
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        verb = Some(
+            ActionResultVerb::from_active_word(&raw)
+                .ok_or_else(|| cursor.fail("a restated action verb"))?,
+        );
+        cursor.consume(&raw)?;
+    }
+    cursor.enter("reflexive-result.quantity");
+    let one_or_more = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("one"))
+    {
+        cursor.consume_phrase(&["one", "or", "more"])?;
+        true
+    } else {
+        let article = cursor
+            .peek()
+            .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+            .ok_or_else(|| cursor.fail("`a`, `an` or `one or more`"))?
+            .to_owned();
+        cursor.consume(&article)?;
+        false
+    };
+    cursor.enter("reflexive-result.objects");
+    let noun_end = if active { this } else { this - 2 };
+    let query = cursor.bounded(noun_end, recognize_object_collection)?;
+    cursor.require(
+        !query.exclude_source && query.controller.is_none() && query.predicate.has_nominal_head(),
+        "a nominal object phrase without a controller relation",
+    )?;
+    if !active {
+        cursor.enter("reflexive-result.passive.verb");
+        let copula = if one_or_more { "are" } else { "is" };
+        cursor.consume(copula)?;
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        verb = Some(
+            ActionResultVerb::from_word(&raw)
+                .ok_or_else(|| cursor.fail("a restated past participle"))?,
+        );
+        cursor.consume(&raw)?;
+    }
+    cursor.enter("reflexive-result.this-way");
+    cursor.consume_phrase(&["this", "way"])?;
+    cursor.consume(",")?;
+    Ok(ReflexiveResultNode {
+        verb: verb.expect("the active or passive verb was read"),
+        predicate: query.predicate,
+        one_or_more,
+    })
+}
+
+/// Words a restated object may use in place of the producer's own words:
+/// anaphors and articles naming the same object (`the card` for `it`, `a
+/// card` for `a Food card`).
+const RESTATED_OBJECT_WORDS: &[&str] = &[
+    "it", "them", "the", "that", "those", "a", "an", "card", "cards",
+];
+
+/// `If you don't VERB RESTATEMENT [this way] ,` at `offset`: the declined
+/// outcome of the producer written between the absolute positions
+/// `producer_start` and `producer_end`, restating its instruction instead of
+/// writing a bare `If you don't` (`If you don't put the card into your hand,`
+/// after `you may reveal it and put it into your hand`; `If you don't draw a
+/// card this way,` after `draw a card if ...`, CR 608.2c). The restated verb
+/// is a verb of the producer, and every other restated word is one of the
+/// producer's words after that verb or an anaphor or article naming the
+/// same object: `If you don't put it into your graveyard` after `put it into
+/// your hand` restates nothing. Returns the connector's width with its comma.
+/// Lexical lookahead only; it commits nothing.
+pub(in crate::oracle::canonical) fn restated_declined_connector_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+    producer_start: usize,
+    producer_end: usize,
+) -> Option<usize> {
+    let word = |index: usize| cursor.peek_ahead(offset + index);
+    let is = |index: usize, expected: &str| {
+        word(index).is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !(is(0, "if")
+        && is(1, "you")
+        && word(2).is_some_and(|raw| raw.replace('\u{2019}', "'").eq_ignore_ascii_case("don't")))
+    {
+        return None;
+    }
+    let lemma = word(3)
+        .and_then(super::lookup_effect_verb)
+        .filter(|(_, forms)| forms.contains(&super::VerbForm::Base))
+        .map(|(entry, _)| entry.lemma)?;
+    // The restatement ends at the connector's comma, within its sentence.
+    let comma = (4..24)
+        .take_while(|index| word(*index).is_some_and(|raw| raw != "."))
+        .find(|index| word(*index) == Some(","))?;
+    let mut restated = (4..comma).filter_map(word).collect::<Vec<_>>();
+    if restated.len() >= 2
+        && restated[restated.len() - 2].eq_ignore_ascii_case("this")
+        && restated[restated.len() - 1].eq_ignore_ascii_case("way")
+    {
+        restated.truncate(restated.len() - 2);
+    }
+    // The producer's words after its first verb of the same lemma.
+    let first = producer_start.max(cursor.position());
+    let producer = (first..producer_end)
+        .filter_map(|position| cursor.peek_ahead(position - cursor.position()))
+        .collect::<Vec<_>>();
+    let verb = producer.iter().position(|raw| {
+        super::lookup_effect_verb(raw).is_some_and(|(entry, _)| entry.lemma == lemma)
+    })?;
+    let available = producer[verb + 1..]
+        .iter()
+        .map(|raw| raw.to_ascii_lowercase())
+        .collect::<std::collections::BTreeSet<_>>();
+    restated
+        .iter()
+        .all(|raw| {
+            let raw = raw.to_ascii_lowercase();
+            available.contains(&raw) || RESTATED_OBJECT_WORDS.contains(&raw.as_str())
+        })
+        .then_some(comma + 1)
 }
 
 #[cfg(test)]

@@ -62,6 +62,8 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         outcome,
         body,
         otherwise,
+        scope,
+        result,
     } = step
     {
         let action = lower(cursor, action.inner_sequence())?;
@@ -73,6 +75,8 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         return lower_action_outcome(
             cursor,
             permission.as_ref(),
+            *scope,
+            result.as_ref(),
             action,
             *outcome,
             body,
@@ -86,6 +90,7 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         outcome,
         body,
         otherwise: Some(otherwise),
+        ..
     } = step
     {
         let body = lower(cursor, body.inner_sequence())?;
@@ -137,51 +142,149 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
     wrap_lowered_effect_program(cursor, step, lowered).map_err(program_failure)
 }
 
-/// The one instruction an outcome observes, validated against its body: the
+/// The instruction an outcome observes (CR 608.2c, 603.12): one measured
+/// primitive (`action`) or an instruction group (`actions`): the shared
+/// effect sequence of the producing sentence, whose choices and actions the
+/// runtime measures together (`reveal a Dinosaur card from your hand`,
+/// `exile two cards from your graveyard`, `discard your hand and draw two
+/// cards`).
+#[derive(Clone, Debug)]
+enum MeasuredInstruction {
+    Single(Value),
+    Group(Vec<Value>),
+}
+
+impl MeasuredInstruction {
+    fn effects(&self) -> &[Value] {
+        match self {
+            Self::Single(instruction) => std::slice::from_ref(instruction),
+            Self::Group(members) => members,
+        }
+    }
+
+    /// Installs the instruction on its outcome effect.
+    fn install(self, effect: &mut Value) {
+        match self {
+            Self::Single(instruction) => effect["action"] = instruction,
+            Self::Group(members) => effect["actions"] = Value::Array(members),
+        }
+    }
+}
+
+/// The role one lowered member plays in a measured instruction group; the
+/// contract mirrors the runtime's `measured_group_supported`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GroupMemberRole {
+    /// A choice a later member acts on (`chooseCards`, `choosePermanents`):
+    /// it must choose the number the instruction asks for.
+    Selection,
+    /// A bound value or an always-performed bookkeeping step.
+    Neutral,
+    /// An action whose performance the runtime measures.
+    Measured,
+}
+
+fn group_member_role(member: &Value) -> Option<GroupMemberRole> {
+    match member["kind"].as_str() {
+        Some("chooseCards" | "choosePermanents") if member["id"].is_string() => {
+            Some(GroupMemberRole::Selection)
+        }
+        Some("bind") if member["id"].is_string() => Some(GroupMemberRole::Neutral),
+        Some("shuffleZone" | "shuffleLibrariesHolding" | "recordLibrarySearch") => {
+            Some(GroupMemberRole::Neutral)
+        }
+        Some("revealCards") => member["cards"]
+            .is_object()
+            .then_some(GroupMemberRole::Measured),
+        Some("discardCards") if member.get("cards").is_some() => member["cards"]
+            .is_object()
+            .then_some(GroupMemberRole::Measured),
+        Some("sacrificePermanents") if member.get("objects").is_some() => member["objects"]
+            .is_object()
+            .then_some(GroupMemberRole::Measured),
+        _ => optional_action_measured(member).then_some(GroupMemberRole::Measured),
+    }
+}
+
+/// The measured instruction of a lowered producing sentence: one measured
+/// primitive, a disjunction of measured groups, or a group of members that
+/// all have a role and at least one measured action. `None` otherwise.
+fn measured_instruction_of(effects: &[Value]) -> Option<MeasuredInstruction> {
+    if let [instruction] = effects
+        && (optional_action_measured(instruction) || measured_disjunction(instruction))
+    {
+        return Some(MeasuredInstruction::Single(instruction.clone()));
+    }
+    let roles = effects
+        .iter()
+        .map(group_member_role)
+        .collect::<Option<Vec<_>>>()?;
+    roles
+        .contains(&GroupMemberRole::Measured)
+        .then(|| MeasuredInstruction::Group(effects.to_vec()))
+}
+
+/// `sacrifice an artifact or discard a card` (`chooseOneEffect`): the
+/// performer chooses one option; each option is its own measured group.
+fn measured_disjunction(instruction: &Value) -> bool {
+    instruction["kind"] == "chooseOneEffect"
+        && instruction["options"].as_array().is_some_and(|options| {
+            options.len() >= 2
+                && options.iter().all(|option| {
+                    option["effects"]
+                        .as_array()
+                        .is_some_and(|effects| measured_instruction_of(effects).is_some())
+                })
+        })
+}
+
+/// The instruction an outcome observes, validated against its body: the
 /// runtime must measure its performance, the body must be nonempty, and the
 /// two independently lowered sentences must not shadow each other's results.
 fn measured_outcome_instruction(
     cursor: &mut OracleTokenCursor<'_>,
-    action: &LoweredEffectSequence,
+    action: &[Value],
     body: &LoweredEffectSequence,
     role: OutcomeInstructionRole,
-) -> MachineResult<Value> {
+) -> MachineResult<MeasuredInstruction> {
     let (count, measured, effects, names) = match role {
         OutcomeInstructionRole::Optional => (
-            "exactly one optional instruction",
+            "an optional instruction",
             "an optional instruction whose performance the runtime measures",
             "a nonempty optional-action outcome program",
             "distinct local results across the optional action and its outcome",
         ),
         OutcomeInstructionRole::Mandatory => (
-            "exactly one outcome-producing instruction",
+            "an outcome-producing instruction",
             "an instruction whose performance the runtime measures",
             "a nonempty outcome program",
             "distinct local results across the instruction and its outcome",
         ),
     };
-    let [instruction] = action.effects.as_slice() else {
-        return Err(cursor.fail(count));
-    };
-    if !optional_action_measured(instruction) {
+    cursor.require(!action.is_empty(), count)?;
+    let Some(instruction) = measured_instruction_of(action) else {
         return Err(cursor.engine_gap(
             crate::oracle::canonical::engine_gap::EngineGap::MeasuredPerformance,
             measured,
         ));
-    }
+    };
     cursor.enter(match role {
         OutcomeInstructionRole::Optional => "lower.program.optional-action.effects",
         OutcomeInstructionRole::Mandatory => "lower.program.reflexive-action.effects",
     });
     cursor.require(!body.effects.is_empty(), effects)?;
-    let instruction_names = local_result_names(instruction);
+    let instruction_names = instruction
+        .effects()
+        .iter()
+        .flat_map(local_result_names)
+        .collect::<std::collections::BTreeSet<_>>();
     cursor.require(
         body.effects
             .iter()
             .all(|effect| local_result_names(effect).is_disjoint(&instruction_names)),
         names,
     )?;
-    Ok(instruction.clone())
+    Ok(instruction)
 }
 
 /// `optionalEffects{chooseOneEffect}`: the performer may perform one of the
@@ -234,25 +337,265 @@ enum OutcomeInstructionRole {
 /// An instruction producer and its outcome body. With a permission the
 /// performer chooses (`optionalAction`); without one the mandatory
 /// instruction runs and its measured performance gates the body
-/// (`performAction`).
+/// (`performAction`). A producer that extends over earlier sentences (whose
+/// antecedents its own sentence reads) runs them first, unmeasured: the
+/// outcome observes only its final instruction.
 fn lower_action_outcome(
     cursor: &mut OracleTokenCursor<'_>,
     permission: Option<&LocalPlayerReference>,
+    scope: ProducerScope,
+    result: Option<&ReflexiveResultNode>,
     action: LoweredEffectSequence,
     outcome: PerformanceOutcome,
     body: LoweredEffectSequence,
     otherwise: Option<LoweredEffectSequence>,
 ) -> MachineResult<LoweredEffectSequence> {
-    match permission {
-        Some(player) => lower_optional_action(cursor, player, action, outcome, body, otherwise),
-        None => {
-            cursor.enter("lower.program.reflexive-action.complement");
-            cursor.require(
-                otherwise.is_none(),
-                "one outcome of a mandatory instruction (its complement has no witness)",
-            )?;
-            lower_performed_action(cursor, action, outcome, body)
+    let LoweredEffectSequence {
+        decisions: mut declarations,
+        mut effects,
+    } = action;
+    let prefix = match scope {
+        ProducerScope::Sentence => Vec::new(),
+        ProducerScope::FinalInstruction => {
+            cursor.enter("lower.program.outcome.final-instruction");
+            // Only a node that wraps its whole sentence (a sentence condition
+            // or the sentence's own permission) is known to be that
+            // sentence's instruction; any other final effect may be one of
+            // several actions of the final sentence.
+            let last = effects
+                .pop()
+                .filter(|last| {
+                    matches!(
+                        last["kind"].as_str(),
+                        Some("conditional" | "optionalEffects")
+                    )
+                })
+                .ok_or_else(|| {
+                    cursor
+                        .fail("a final conditional or permission instruction the outcome observes")
+                })?;
+            std::mem::replace(&mut effects, vec![last])
         }
+    };
+    let player = match permission {
+        Some(player) => {
+            cursor.enter("lower.program.optional-action.actor");
+            Some(lower_optional_program_player(cursor, player)?)
+        }
+        None => None,
+    };
+    let optional = player.is_some();
+    let lowered = lower_gated_outcome(cursor, player, effects, result, outcome, body, otherwise)?;
+    declarations.extend(lowered.decisions);
+    cursor.enter(if optional {
+        "lower.program.optional-action.declarations"
+    } else {
+        "lower.program.reflexive-action.declarations"
+    });
+    require_distinct_declarations(
+        cursor,
+        &declarations,
+        "distinct declaration ids across the instruction and its outcome",
+    )?;
+    let mut program = prefix;
+    program.extend(lowered.effects);
+    Ok(LoweredEffectSequence {
+        decisions: declarations,
+        effects: program,
+    })
+}
+
+/// The producer's lowered instruction and the outcome it gates. A producing
+/// sentence gated by its own condition (`If it's a land card, you may put it
+/// onto the battlefield.`, `Then if you control four or more Treasures,
+/// sacrifice this Saga.`) performs nothing when the condition is false, so
+/// that branch runs the declined outcome (CR 608.2c). A permission written
+/// inside the producing sentence (`If COND, you may ACTION.`) is the
+/// optional instruction's own.
+fn lower_gated_outcome(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: Option<Value>,
+    effects: Vec<Value>,
+    result: Option<&ReflexiveResultNode>,
+    outcome: PerformanceOutcome,
+    body: LoweredEffectSequence,
+    otherwise: Option<LoweredEffectSequence>,
+) -> MachineResult<LoweredEffectSequence> {
+    if player.is_none()
+        && let [gate] = effects.as_slice()
+        && gate["kind"] == "conditional"
+        && gate["else"].as_array().is_some_and(Vec::is_empty)
+        && let Some(then) = gate["then"].as_array().filter(|then| !then.is_empty())
+    {
+        cursor.enter("lower.program.outcome.gated-producer");
+        let when_false = match outcome {
+            PerformanceOutcome::Declined => Some(body.effects.clone()),
+            PerformanceOutcome::Performed | PerformanceOutcome::Reflexive => otherwise
+                .as_ref()
+                .map(|otherwise| otherwise.effects.clone()),
+        };
+        let mut gate = gate.clone();
+        let inner =
+            lower_gated_outcome(cursor, None, then.clone(), result, outcome, body, otherwise)?;
+        gate["then"] = Value::Array(inner.effects);
+        gate["else"] = Value::Array(when_false.unwrap_or_default());
+        return Ok(LoweredEffectSequence {
+            decisions: inner.decisions,
+            effects: vec![gate],
+        });
+    }
+    // One player decides; a population's permission (`each opponent may`)
+    // has no single outcome and stays a measured-performance failure.
+    if player.is_none()
+        && let [optional] = effects.as_slice()
+        && optional["kind"] == "optionalEffects"
+        && optional.get("revealSource").is_none()
+        && optional["player"].is_object()
+        && !matches!(
+            optional["player"]["kind"].as_str(),
+            Some("opponentsOf" | "eachPlayer" | "chosenTargets" | "eachOpponent")
+        )
+        && let Some(inner) = optional["effects"].as_array()
+    {
+        cursor.enter("lower.program.outcome.inner-permission");
+        if let Some(result) = result {
+            return lower_reflexive_result(
+                cursor,
+                Some(optional["player"].clone()),
+                inner.clone(),
+                result,
+                body,
+            );
+        }
+        return lower_optional_action(
+            cursor,
+            optional["player"].clone(),
+            inner.clone(),
+            outcome,
+            body,
+            otherwise,
+        );
+    }
+    if let Some(result) = result {
+        return lower_reflexive_result(cursor, player, effects, result, body);
+    }
+    match player {
+        Some(player) => lower_optional_action(cursor, player, effects, outcome, body, otherwise),
+        None => lower_performed_action(cursor, effects, outcome, body, otherwise),
+    }
+}
+
+/// `INSTRUCTION. When you VERB [one or more] NOUN this way, BODY.` (CR
+/// 603.12): the instruction runs as written (it is not gated on its own
+/// performance), the action of the restated verb records the objects it
+/// affected, and a reflexive ability is created when at least one of them
+/// satisfies the noun. The reflexive ability declares its own targets when
+/// it is put on the stack. With a permission, the whole block is the
+/// performer's optional instruction.
+fn lower_reflexive_result(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: Option<Value>,
+    mut effects: Vec<Value>,
+    result: &ReflexiveResultNode,
+    body: LoweredEffectSequence,
+) -> MachineResult<LoweredEffectSequence> {
+    cursor.enter("lower.program.reflexive-result.producer");
+    // The nearest action of the instruction that runs the restated verb.
+    let position = effects
+        .iter()
+        .rposition(|member| reflexive_result_produced_by(result.verb, member))
+        .ok_or_else(|| {
+            cursor.fail("an action of the instruction that the reflexive event restates")
+        })?;
+    cursor.require(
+        result.one_or_more || affects_one_object(&effects[position]),
+        "a single affected object for a singular reflexive event (`a`/`an`), or `one or more`",
+    )?;
+    let objects = action_result_objects(&mut effects[position], position)
+        .map_err(|expected| cursor.fail(expected))?;
+    cursor.enter("lower.program.reflexive-result.objects");
+    let restated = if result.predicate == ObjectPredicate::ObjectKind(ObjectKind::Card) {
+        objects
+    } else if result.verb.preserves_card_characteristics()
+        && result.predicate.is_in_domain(ObjectKind::Card)
+    {
+        json!({
+            "kind": "filterObjects",
+            "objects": objects,
+            "where": lower_card_object_predicate(&result.predicate),
+        })
+    } else {
+        return Err(cursor.fail("a restated card noun the affected cards keep readable"));
+    };
+    cursor.enter("lower.program.reflexive-result.body");
+    cursor.require(!body.effects.is_empty(), "a nonempty reflexive ability")?;
+    let producer_names = effects
+        .iter()
+        .flat_map(local_result_names)
+        .collect::<std::collections::BTreeSet<_>>();
+    cursor.require(
+        body.effects
+            .iter()
+            .all(|effect| local_result_names(effect).is_disjoint(&producer_names)),
+        "distinct local results across the instruction and its reflexive ability",
+    )?;
+    let reflexive = reflexive_trigger(&player.clone().unwrap_or_else(controller), body);
+    effects.push(json!({
+        "kind": "conditional",
+        "condition": {
+            "kind": "compare",
+            "left": { "kind": "countObjects", "objects": restated },
+            "operator": ">=",
+            "right": { "kind": "integer", "value": 1 },
+        },
+        "then": [reflexive],
+        "else": [],
+    }));
+    let effects = match player {
+        Some(player) => vec![json!({
+            "kind": "optionalEffects",
+            "player": player,
+            "effects": effects,
+        })],
+        None => effects,
+    };
+    Ok(LoweredEffectSequence {
+        decisions: Vec::new(),
+        effects,
+    })
+}
+
+/// True when `member` runs the action `verb` restates and records the
+/// objects it affected in its `bind` (the shared action-result contract).
+fn reflexive_result_produced_by(verb: ActionResultVerb, member: &Value) -> bool {
+    match (verb, member["kind"].as_str()) {
+        (ActionResultVerb::Discarded, Some("discardCards"))
+        | (ActionResultVerb::Milled, Some("mill"))
+        | (ActionResultVerb::Revealed, Some("revealCards"))
+        | (ActionResultVerb::Exiled, Some("exileTargetCards"))
+        | (ActionResultVerb::Sacrificed, Some("sacrificePermanents" | "sacrificePermanent"))
+        | (ActionResultVerb::Destroyed, Some("destroyPermanent")) => true,
+        // A card move whose destination is exile (CR 701.13a).
+        (ActionResultVerb::Exiled, Some("moveCards")) => member["to"]["kind"] == "exile",
+        _ => false,
+    }
+}
+
+/// True when the action affects at most one object: a literal count of one,
+/// or one declared target.
+fn affects_one_object(member: &Value) -> bool {
+    let one = json!({ "kind": "integer", "value": 1 });
+    match member["kind"].as_str() {
+        Some("discardCards" | "mill" | "sacrificePermanents") => {
+            member.get("cards").is_none()
+                && member.get("objects").is_none()
+                && member["count"] == one
+        }
+        Some("sacrificePermanent" | "destroyPermanent") => member["permanent"].is_object(),
+        Some("revealCards" | "exileTargetCards" | "moveCards") => {
+            member["cards"]["kind"] == "chosenTarget"
+        }
+        _ => false,
     }
 }
 
@@ -269,31 +612,40 @@ fn complementary_effects(
     }
 }
 
-/// `performAction{action, onPerformed}`: the mandatory instruction runs, and
-/// only its measured performance runs the outcome. `If you do` keeps the
-/// body's declarations on the enclosing ability (CR 608.2c); a reflexive
-/// ability declares its own targets when it is put on the stack (CR 603.12).
+/// `performAction{action|actions, onPerformed, onDeclined}`: the mandatory
+/// instruction runs, and its measured performance selects the outcome.
+/// `If you do` keeps the body's declarations on the enclosing ability (CR
+/// 608.2c); a reflexive ability declares its own targets when it is put on
+/// the stack (CR 603.12). The returned declarations are the outcomes' own.
 fn lower_performed_action(
     cursor: &mut OracleTokenCursor<'_>,
-    action: LoweredEffectSequence,
+    action: Vec<Value>,
     outcome: PerformanceOutcome,
     body: LoweredEffectSequence,
+    otherwise: Option<LoweredEffectSequence>,
 ) -> MachineResult<LoweredEffectSequence> {
     cursor.enter("lower.program.reflexive-action.action");
     let instruction =
         measured_outcome_instruction(cursor, &action, &body, OutcomeInstructionRole::Mandatory)?;
-    let mut decisions = action.decisions;
-    let performed = match outcome {
-        PerformanceOutcome::Performed => {
+    if let Some(otherwise) = otherwise.as_ref() {
+        measured_outcome_instruction(
+            cursor,
+            &action,
+            otherwise,
+            OutcomeInstructionRole::Mandatory,
+        )?;
+    }
+    let mut decisions = Vec::new();
+    let (performed, declined) = match outcome {
+        PerformanceOutcome::Performed | PerformanceOutcome::Declined => {
             decisions.extend(body.decisions);
-            body.effects
+            let otherwise = otherwise.map(|otherwise| {
+                decisions.extend(otherwise.decisions);
+                otherwise.effects
+            });
+            complementary_effects(outcome, body.effects, otherwise)
         }
-        PerformanceOutcome::Reflexive => vec![reflexive_trigger(&controller(), body)],
-        PerformanceOutcome::Declined => {
-            return Err(cursor.fail(
-                "an `If you do` or `When you do` outcome; a mandatory instruction has no declined branch",
-            ));
-        }
+        PerformanceOutcome::Reflexive => (vec![reflexive_trigger(&controller(), body)], None),
     };
     cursor.enter("lower.program.reflexive-action.declarations");
     require_distinct_declarations(
@@ -301,13 +653,17 @@ fn lower_performed_action(
         &decisions,
         "distinct declaration ids across the instruction and its outcome",
     )?;
+    let mut effect = json!({
+        "kind": "performAction",
+        "onPerformed": performed,
+    });
+    instruction.install(&mut effect);
+    if let Some(declined) = declined {
+        effect["onDeclined"] = Value::Array(declined);
+    }
     Ok(LoweredEffectSequence {
         decisions,
-        effects: vec![json!({
-            "kind": "performAction",
-            "action": instruction,
-            "onPerformed": performed,
-        })],
+        effects: vec![effect],
     })
 }
 
@@ -364,6 +720,19 @@ fn optional_action_measured(instruction: &Value) -> bool {
         ) => instruction["permanent"].is_object(),
         Some("returnToOwnersHand") => instruction["object"].is_object(),
         Some("moveCards" | "exileTargetCards") => instruction["cards"].is_object(),
+        // Some damage was dealt (CR 120.1); prevented damage is not.
+        Some("dealDamage") => instruction["recipient"].is_object(),
+        Some("loseLife") => single_player(&instruction["player"]),
+        // The permanent is controlled by the new controller afterwards.
+        Some("gainControlPermanent") => {
+            instruction["permanent"].is_object() && instruction["controller"].is_object()
+        }
+        // The attachment became attached to the recipient (CR 701.3b).
+        Some("attachPermanent") => {
+            instruction["attachment"].is_object() && instruction["to"].is_object()
+        }
+        // The object was still the permanent the effect applied to.
+        Some("modifyPowerToughness" | "grantKeyword") => instruction["object"].is_object(),
         _ => false,
     }
 }
@@ -373,14 +742,12 @@ fn optional_action_measured(instruction: &Value) -> bool {
 /// declares its own when it is put on the stack (CR 603.12).
 fn lower_optional_action(
     cursor: &mut OracleTokenCursor<'_>,
-    player: &LocalPlayerReference,
-    action: LoweredEffectSequence,
+    player: Value,
+    action: Vec<Value>,
     outcome: PerformanceOutcome,
     body: LoweredEffectSequence,
     otherwise: Option<LoweredEffectSequence>,
 ) -> MachineResult<LoweredEffectSequence> {
-    cursor.enter("lower.program.optional-action.actor");
-    let player = lower_optional_program_player(cursor, player)?;
     cursor.enter("lower.program.optional-action.action");
     // Both sentences were lowered independently; a runtime binding or
     // decision produced by the instruction must not be shadowed by its outcome.
@@ -389,7 +756,7 @@ fn lower_optional_action(
     if let Some(otherwise) = otherwise.as_ref() {
         measured_outcome_instruction(cursor, &action, otherwise, OutcomeInstructionRole::Optional)?;
     }
-    let mut decisions = action.decisions;
+    let mut decisions = Vec::new();
     let (performed, declined) = match outcome {
         PerformanceOutcome::Performed | PerformanceOutcome::Declined => {
             decisions.extend(body.decisions);
@@ -410,9 +777,9 @@ fn lower_optional_action(
     let mut effect = json!({
         "kind": "optionalAction",
         "player": player,
-        "action": instruction,
         "onPerformed": performed,
     });
+    instruction.install(&mut effect);
     if let Some(declined) = declined {
         effect["onDeclined"] = Value::Array(declined);
     }
@@ -444,7 +811,22 @@ fn lower_offered_action(
         action.decisions.is_empty() && instruction.get("performer").is_none(),
         "an offered instruction without declarations, performed by the offered player",
     )?;
-    if !optional_action_measured(instruction) {
+    // An offer keeps the witnesses it was proven with; the witnesses added
+    // for a performer's own instruction (damage, life loss, control, attach,
+    // a modified object) are not offered to other players yet.
+    if !optional_action_measured(instruction)
+        || matches!(
+            instruction["kind"].as_str(),
+            Some(
+                "dealDamage"
+                    | "loseLife"
+                    | "gainControlPermanent"
+                    | "attachPermanent"
+                    | "modifyPowerToughness"
+                    | "grantKeyword"
+            )
+        )
+    {
         return Err(cursor.engine_gap(
             crate::oracle::canonical::engine_gap::EngineGap::MeasuredPerformance,
             "an offered instruction whose performance the runtime measures",
@@ -614,6 +996,7 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
             outcome,
             body,
             otherwise,
+            ..
         } => {
             cursor.enter("lower.program.optional-cost.complement");
             cursor.require(

@@ -3159,11 +3159,9 @@ fn install_action_result_bindings(
         ) else {
             return Err(cursor.fail("a lowered producing action").into());
         };
-        let mut producers = effects[from..to].iter_mut().filter(|effect| {
-            effect["kind"]
-                .as_str()
-                .is_some_and(|kind| verb.runtime_kinds().contains(&kind))
-        });
+        let mut producers = effects[from..to]
+            .iter_mut()
+            .filter(|effect| verb.records_result(effect));
         let (Some(producer), None) = (producers.next(), producers.next()) else {
             return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                 cursor.fail("one top-level runtime action recording the restated objects"),

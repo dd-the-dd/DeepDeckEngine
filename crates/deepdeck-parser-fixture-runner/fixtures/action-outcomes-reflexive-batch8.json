@@ -1,0 +1,888 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch8/action-outcomes-reflexive",
+  "cases": [
+    {
+      "id": "exact-priest-of-the-wakening-sun-reveal-group",
+      "request": {
+        "cardName": "Priest of the Wakening Sun",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{W}",
+        "oracleText": "At the beginning of your upkeep, you may reveal a Dinosaur card from your hand. If you do, you gain 2 life.\n{3}{W}{W}, Sacrifice this creature: Search your library for a Dinosaur card, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/actions/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/actions/1/kind",
+                "equals": "revealCards"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gallia-random-discard-group",
+      "request": {
+        "cardName": "Gallia of the Endless Dance",
+        "typeLine": "Legendary Creature — Satyr",
+        "manaCost": "{R}{G}",
+        "oracleText": "Haste\nOther Satyrs you control get +1/+1 and have haste.\nWhenever you attack with three or more creatures, you may discard a card at random. If you do, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-aegis-sculptor-exile-two-group",
+      "request": {
+        "cardName": "Aegis Sculptor",
+        "typeLine": "Creature — Bird Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nAt the beginning of your upkeep, you may exile two cards from your graveyard. If you do, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-kroxa-and-kunoros-exile-five-reflexive",
+      "request": {
+        "cardName": "Kroxa and Kunoros",
+        "typeLine": "Legendary Creature — Elder Giant Dog",
+        "manaCost": "{3}{R}{W}{B}",
+        "oracleText": "Vigilance, menace, lifelink\nWhenever Kroxa and Kunoros enters or attacks, you may exile five cards from your graveyard. When you do, return target creature card from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-uncover-the-moon-letters-bound-x-draw",
+      "request": {
+        "cardName": "Uncover the Moon-Letters",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{U}",
+        "oracleText": "Whenever you cast a noncreature spell, you may draw X cards, where X is the amount of mana spent to cast that spell. If you do, discard two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/actions/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/0/actions/1/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "discardCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ambergris-discard-hand-and-draw-reflexive",
+      "request": {
+        "cardName": "Ambergris, Agent of Tyranny",
+        "typeLine": "Legendary Creature — Dwarf Cleric",
+        "manaCost": "{2}{B}{R}",
+        "oracleText": "Haste\nWhenever Ambergris, Agent of Tyranny attacks, you may discard your hand and draw two cards. When you do, target creature an opponent controls gets -X/-X until end of turn, where X is the number of cards you've discarded this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-manhole-missile-put-from-hand-on-bottom",
+      "request": {
+        "cardName": "Manhole Missile",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Manhole Missile deals 3 damage to target creature. You may put a card from your hand on the bottom of your library. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-metathran-aerostat-put-from-hand",
+      "request": {
+        "cardName": "Metathran Aerostat",
+        "typeLine": "Creature — Metathran",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flying\n{X}{U}: You may put a creature card with mana value X from your hand onto the battlefield. If you do, return this creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-elfhame-sanctuary-search-group",
+      "request": {
+        "cardName": "Elfhame Sanctuary",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "At the beginning of your upkeep, you may search your library for a basic land card, reveal that card, put it into your hand, then shuffle. If you do, you skip your draw step this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-entrails-feaster-do-and-dont",
+      "request": {
+        "cardName": "Entrails Feaster",
+        "typeLine": "Creature — Zombie Cat",
+        "manaCost": "{B}",
+        "oracleText": "At the beginning of your upkeep, you may exile a creature card from a graveyard. If you do, put a +1/+1 counter on this creature. If you don't, tap this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-fugitive-of-the-judoon-two-exiles",
+      "request": {
+        "cardName": "Fugitive of the Judoon",
+        "typeLine": "Enchantment — Saga",
+        "manaCost": "{4}{G}",
+        "oracleText": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Create a 1/1 white Human creature token with ward {2} and a 4/4 white Alien Rhino creature token.\nII — Investigate.\nIII — You may exile a Human you control and an artifact you control. If you do, search your library for a Doctor card, put it onto the battlefield, then shuffle.",
+        "layout": "saga",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-farrels-zealot-damage-witness",
+      "request": {
+        "cardName": "Farrel's Zealot",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Whenever this creature attacks and isn't blocked, you may have it deal 3 damage to target creature. If you do, this creature assigns no combat damage this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "dealDamage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-laccolith-grunt-damage-witness",
+      "request": {
+        "cardName": "Laccolith Grunt",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever this creature becomes blocked, you may have it deal damage equal to its power to target creature. If you do, this creature assigns no combat damage this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-ob-nixilis-life-loss-witness",
+      "request": {
+        "cardName": "Ob Nixilis, the Fallen",
+        "typeLine": "Legendary Creature — Demon",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Landfall — Whenever a land you control enters, you may have target player lose 3 life. If you do, put three +1/+1 counters on Ob Nixilis.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "loseLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-novel-nunchaku-attach-witness",
+      "request": {
+        "cardName": "Novel Nunchaku",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this Equipment enters, attach it to target creature you control. When you do, equipped creature fights up to one target creature an opponent controls. (Each deals damage equal to its power to the other.)\nEquipped creature gets +1/+1 and has trample.\nEquip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "performAction"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "attachPermanent"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "createReflexiveTrigger"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-reckless-detective-disjunctive-instruction",
+      "request": {
+        "cardName": "Reckless Detective",
+        "typeLine": "Creature — Devil Detective",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever this creature attacks, you may sacrifice an artifact or discard a card. If you do, draw a card and this creature gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "chooseOneEffect"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-taborax-gated-permission",
+      "request": {
+        "cardName": "Taborax, Hope's Demise",
+        "typeLine": "Legendary Creature — Demon Cleric",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nTaborax has lifelink as long as it has five or more +1/+1 counters on it.\nWhenever another nontoken creature you control dies, put a +1/+1 counter on Taborax. If that creature was a Cleric, you may draw a card. If you do, you lose 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-fishing-gear-extended-producer-if-you-dont",
+      "request": {
+        "cardName": "Fishing Gear",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{3}",
+        "oracleText": "Whenever equipped creature deals combat damage to a player, exile the top card of that player's library. If it's a permanent card, you may put it onto the battlefield under your control. If you don't, create a 1/1 blue Fish creature token.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-courier-of-comestibles-restated-dont",
+      "request": {
+        "cardName": "Courier of Comestibles",
+        "typeLine": "Creature — Human Citizen",
+        "manaCost": "{1}{G}",
+        "oracleText": "When this creature enters, you may search your library for a Food card, reveal it, put it into your hand, then shuffle. If you don't put a card into your hand this way, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/onPerformed",
+                "equals": []
+              },
+              {
+                "pointer": "/effects/0/onDeclined/0/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-trade-route-envoy-restated-dont-after-gated-draw",
+      "request": {
+        "cardName": "Trade Route Envoy",
+        "typeLine": "Creature — Dog Soldier",
+        "manaCost": "{3}{G}",
+        "oracleText": "When this creature enters, draw a card if you control a creature with a counter on it. If you don't draw a card this way, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/kind",
+                "equals": "performAction"
+              },
+              {
+                "pointer": "/effects/0/then/0/onDeclined/0/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/effects/0/else/0/kind",
+                "equals": "putCounters"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-talions-messenger-reflexive-discard",
+      "request": {
+        "cardName": "Talion's Messenger",
+        "typeLine": "Creature — Faerie Noble",
+        "manaCost": "{2}{U}",
+        "oracleText": "Flying\nWhenever you attack with one or more Faeries, draw a card, then discard a card. When you discard a card this way, put a +1/+1 counter on target Faerie you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-teo-reflexive-nonland-discard",
+      "request": {
+        "cardName": "Teo, Spirited Glider",
+        "typeLine": "Legendary Creature — Human Pilot Ally",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWhenever one or more creatures you control with flying attack, draw a card, then discard a card. When you discard a nonland card this way, put a +1/+1 counter on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-seven-of-nine-reflexive-nonland-discard",
+      "request": {
+        "cardName": "Seven of Nine, Tertiary Adjunct",
+        "typeLine": "Legendary Artifact Creature — Borg",
+        "manaCost": "{2}{U}",
+        "oracleText": "That Is Irrelevant — {T}: Draw a card, then discard a card. When you discard a nonland card this way, put two charge counters on up to one target artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-bonehoard-dracosaur-exiled-land-this-way",
+      "request": {
+        "cardName": "Bonehoard Dracosaur",
+        "typeLine": "Creature — Dinosaur Dragon",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Flying, first strike\nAt the beginning of your upkeep, exile the top two cards of your library. You may play them this turn. If you exiled a land card this way, create a 3/1 red Dinosaur creature token. If you exiled a nonland card this way, create a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-necromancers-covenant-for-each-card-exiled",
+      "request": {
+        "cardName": "Necromancer's Covenant",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}{B}{B}",
+        "oracleText": "When this enchantment enters, exile all creature cards from target player's graveyard, then create a 2/2 black Zombie creature token for each card exiled this way.\nZombies you control have lifelink.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-honor-the-fallen-for-each-card-exiled",
+      "request": {
+        "cardName": "Honor the Fallen",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Exile all creature cards from all graveyards. You gain 1 life for each card exiled this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "actionResult:0"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-optional-exile-group-gates-a-draw",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature attacks, you may exile two creature cards from your graveyard. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/actions/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-reflexive-mill-one-or-more-creature-cards",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature attacks, mill two cards. When you mill one or more creature cards this way, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "mill"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/then/0/kind",
+                "equals": "createReflexiveTrigger"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-disjunction-reflexive-target",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may discard a card or sacrifice a creature. When you do, destroy target artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "chooseOneEffect"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "createReflexiveTrigger"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-extended-gated-permission-if-you-dont",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, look at the top card of your library. If it's a land card, you may put it onto the battlefield. If you don't, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtTopCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/then/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/1/then/0/onDeclined/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/1/else/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-life-loss-reflexive",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may have target player lose 2 life. When you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "loseLife"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "createReflexiveTrigger"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unmeasured-scry-group",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may scry 2. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.measured-performance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-reflexive-result-without-its-producer",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, draw a card. When you discard a card this way, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.program.reflexive-result.producer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-singular-reflexive-after-a-plural-mill",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, mill two cards. When you mill a creature card this way, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.program.reflexive-result.producer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-restatement-names-another-destination",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may put a card from your hand on the bottom of your library. If you don't put it into your graveyard, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-dont-after-a-mandatory-instruction",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, draw a card. If you don't, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-when-you-do-without-an-instruction",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "When you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-reflexive-result-anaphor-needs-its-antecedent",
+      "request": {
+        "cardName": "Outcome Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, mill a card. When you mill a creature card this way, return it to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}
