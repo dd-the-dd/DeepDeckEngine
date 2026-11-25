@@ -19,7 +19,7 @@ use super::{
     recognize_ordinary_sacrifice_effect, recognize_quantified_player_action,
     recognize_referenced_draw_effect, recognize_scry_effect, recognize_set_ability_loss_effect,
     recognize_source_zone_move_effect, recognize_surveil_effect,
-    recognize_target_card_zone_change_effect, recognize_transform_source_effect,
+    recognize_target_card_zone_change_effect, recognize_transform_effect,
     recognize_untap_permanent_effect, recognize_zone_change_effect_with_policy,
     recognize_zone_change_with_regeneration_amendment_with_support,
     source_or_anaphor_reference_starts_at, source_reference_starts_at,
@@ -3453,8 +3453,10 @@ fn recognize_imperative_frame(
         VerbLemma::Earthbend => recognize_earthbend_action(cursor).map(LocalEffectNode::Earthbend),
         VerbLemma::Search => super::recognize_library_search_action(cursor)
             .map(LocalEffectNode::ControllerLibrarySearch),
-        VerbLemma::Transform => recognize_transform_source_effect(cursor, name_links, name_failure)
-            .map(LocalEffectNode::TransformPermanent),
+        VerbLemma::Transform => {
+            recognize_transform_effect(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::TransformPermanent)
+        }
         // `double strike` is the keyword (CR 702.4), never the doubling action.
         VerbLemma::Double
             if !cursor

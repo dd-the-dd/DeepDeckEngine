@@ -320,7 +320,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             Local(singular_permanent_target(&node.target, effect_index))
         }
         LocalEffectNode::TransformPermanent(node) => {
-            Local(Some(PermanentEffectReference::Source(node.permanent)))
+            Local(subject_after_operand(&node.permanent, effect_index))
         }
         LocalEffectNode::PlayerAction(node) => match &node.action {
             super::SingularPlayerAction::Life(_) => previous,
@@ -1002,6 +1002,7 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
         LocalEffectNode::Attach(node) => &node.recipient,
+        LocalEffectNode::TransformPermanent(node) => &node.permanent,
         LocalEffectNode::Choose(node) => {
             return node
                 .permanent_targets()

@@ -1792,7 +1792,9 @@ pub(in crate::oracle::canonical) struct SurveilEffectNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct TransformPermanentEffectNode {
-    pub permanent: LocalObjectReference,
+    /// The shared permanent operand (CR 701.28a): the source, a bound
+    /// reference, declared targets, a collection or a resolution choice.
+    pub permanent: PermanentOperandNode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

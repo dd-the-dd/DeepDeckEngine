@@ -300,6 +300,7 @@ fn lower_local_effect_sequence_with_collections(
             | LocalEffectNode::TapPermanents(_)
             | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::ControlChange(_)
+            | LocalEffectNode::TransformPermanent(_)
             | LocalEffectNode::TemporaryKeywordGrant(_) => ordinary_action_targets(effect)
                 .into_iter()
                 .flat_map(|targets| targets.slots.iter())
@@ -1638,6 +1639,24 @@ fn lower_local_effect_sequence_with_collections(
                         "permanent": object,
                         "duration": duration.clone(),
                     }));
+                }
+            }
+            // CR 701.28a: each operand permanent transforms; the source keeps
+            // the IR of the targetless lowering.
+            LocalEffectNode::TransformPermanent(transform) => {
+                cursor.enter("lower.transform.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &transform.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                for object in objects {
+                    effects.push(json!({"kind": "transformPermanent", "object": object}));
                 }
             }
             LocalEffectNode::TapPermanents(tap) => {

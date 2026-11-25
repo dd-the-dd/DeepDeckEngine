@@ -329,6 +329,104 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-progenitor-exarch-transform-declared-incubator",
+      "request": {
+        "cardName": "Progenitor Exarch",
+        "typeLine": "Creature — Phyrexian Cat Cleric",
+        "manaCost": "{X}{X}{W}",
+        "oracleText": "When this creature enters, incubate 3 X times. (To incubate 3, create an Incubator token with three +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)\n{T}: Transform target Incubator token you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sunder-the-gateway-transform-chosen-incubator",
+      "request": {
+        "cardName": "Sunder the Gateway",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Choose one —\n• Destroy target nontoken artifact or enchantment an opponent controls. Incubate 2. (Create an Incubator token with two +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)\n• Incubate 2, then transform an Incubator token you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-waxing-moon-transform-up-to-one-target",
+      "request": {
+        "cardName": "Waxing Moon",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Transform up to one target Werewolf you control. Creatures you control gain trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-transform-every-incubator-collection",
+      "request": {
+        "cardName": "Incubator Sweep Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Transform all Incubator tokens you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "transformPermanent"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "eachPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-transform-target-player-is-no-permanent",
+      "request": {
+        "cardName": "Transform Player Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Transform target player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

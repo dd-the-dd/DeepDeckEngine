@@ -158,6 +158,7 @@ pub(in crate::oracle::canonical) fn ordinary_action_targets(
         LocalEffectNode::UntapRestriction(node) => &node.objects,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
+        LocalEffectNode::TransformPermanent(node) => &node.permanent,
         _ => return None,
     };
     match operand {

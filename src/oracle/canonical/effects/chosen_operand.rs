@@ -35,6 +35,7 @@ fn action_permanent_operands(effect: &LocalEffectNode) -> Vec<&PermanentOperandN
         LocalEffectNode::PermanentKeywordAction(node) => vec![&node.targets],
         LocalEffectNode::ControlChange(node) => vec![&node.objects],
         LocalEffectNode::Attach(node) => vec![&node.attachment, &node.recipient],
+        LocalEffectNode::TransformPermanent(node) => vec![&node.permanent],
         // Damage and fight declare their own slots outside these operands;
         // a chosen operand there has no free key and stays unlowered.
         _ => Vec::new(),
