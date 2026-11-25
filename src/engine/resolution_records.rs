@@ -36,6 +36,7 @@ const DEPARTURE_EVENT: &str = "permanentLeftBattlefield";
 const SUM_PERMANENTS: &str = "sumPermanentProperty";
 const COUNT_COMPARED: &str = "countPlayersComparedWithController";
 const COUNT_AT_EXTREMUM: &str = "countPlayersAtExtremum";
+const HIGHEST_COMMANDER_TAX: &str = "highestCommanderTax";
 const QUANTIFIED_PLAYER: &str = "quantifiedPlayer";
 const MAX_DEPTH: usize = 64;
 
@@ -191,6 +192,7 @@ pub(super) fn resolution_record_supported(expression: &Value) -> Option<bool> {
             matches!(expression["extremum"].as_str(), Some("greatest" | "least"))
                 && member_measure_supported(&expression["value"])
         }
+        HIGHEST_COMMANDER_TAX => player_reference_supported(&expression["player"]),
         _ => return None,
     })
 }
@@ -385,7 +387,10 @@ impl GameEngine {
         player_id: &str,
     ) -> Option<Option<i32>> {
         let kind = value_kind(expression)?;
-        if !matches!(kind, SUM_PERMANENTS | COUNT_COMPARED | COUNT_AT_EXTREMUM) {
+        if !matches!(
+            kind,
+            SUM_PERMANENTS | COUNT_COMPARED | COUNT_AT_EXTREMUM | HIGHEST_COMMANDER_TAX
+        ) {
             return None;
         }
         if resolution_record_supported(expression) != Some(true) {
@@ -394,8 +399,24 @@ impl GameEngine {
         Some(match kind {
             SUM_PERMANENTS => self.permanent_property_total(expression, player_id),
             COUNT_COMPARED => self.players_compared_with_controller(expression, player_id),
+            HIGHEST_COMMANDER_TAX => self.highest_commander_tax(player_id),
             _ => self.players_at_extremum(expression),
         })
+    }
+
+    /// The greatest commander tax among the commanders `player_id` owns
+    /// (CR 903.8: {2} for each previous cast from the command zone); zero
+    /// without a commander.
+    fn highest_commander_tax(&self, player_id: &str) -> Option<i32> {
+        let casts = self
+            .state
+            .commanders
+            .iter()
+            .filter(|commander| commander.owner_id == player_id)
+            .map(|commander| commander.casts_from_command_zone)
+            .max()
+            .unwrap_or(0);
+        i32::try_from(casts).ok()?.checked_mul(2)
     }
 
     /// One member's measure: `quantifiedPlayer` read as `player_id`.

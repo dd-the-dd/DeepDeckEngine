@@ -361,6 +361,12 @@ fn recognize_primary(
         {
             return super::recognize_greatest_property_among(cursor);
         }
+        // `your highest commander tax among your commanders` (CR 903.8).
+        if query_context.kind.reads_definition_families()
+            && super::highest_commander_tax_starts(cursor)
+        {
+            return super::recognize_highest_commander_tax(cursor);
+        }
         // `the difference`: the amount by which the preceding condition's
         // comparison holds (`comparison_difference.rs`).
         if query_context.kind == NumericReadKind::Definition

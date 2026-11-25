@@ -463,6 +463,9 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// One measure of the ability's controller (`the difference` reads the
     /// cards in your hand of the comparison it restates).
     ControllerMeasure(super::PlayerStateMeasure),
+    /// `your highest commander tax among your commanders` (CR 903.8): the
+    /// greatest tax among the controller's commanders, zero without one.
+    HighestCommanderTax,
 }
 
 /// The per-turn record of the resolving ability itself (CR 113.3, 602.1,
@@ -564,6 +567,7 @@ impl NumericQuantity {
             | Self::PlayersComparedWithController { .. }
             | Self::PlayersAtExtremum { .. }
             | Self::ControllerMeasure(_)
+            | Self::HighestCommanderTax
             | Self::Counters {
                 holder: CounterHolder::Source,
                 ..
@@ -589,6 +593,7 @@ impl NumericQuantity {
             | Self::PlayersComparedWithController { .. }
             | Self::PlayersAtExtremum { .. }
             | Self::ControllerMeasure(_)
+            | Self::HighestCommanderTax
             | Self::Counters { .. } => false,
         }
     }
@@ -615,7 +620,8 @@ impl NumericQuantity {
             | Self::PropertyTotal(_)
             | Self::PlayersComparedWithController { .. }
             | Self::PlayersAtExtremum { .. }
-            | Self::ControllerMeasure(_) => false,
+            | Self::ControllerMeasure(_)
+            | Self::HighestCommanderTax => false,
         }
     }
 }
@@ -782,6 +788,39 @@ pub(in crate::oracle::canonical) fn recognize_whichever_is_greater_close(
     cursor.consume_phrase(&[",", "whichever", "is", "greater"])?;
     Ok(NumericExpression::Quantity(Box::new(
         NumericQuantity::Greatest(vec![left, right]),
+    )))
+}
+
+const HIGHEST_COMMANDER_TAX: &[&str] = &[
+    "your",
+    "highest",
+    "commander",
+    "tax",
+    "among",
+    "your",
+    "commanders",
+];
+
+/// Lexical lookahead for `your highest commander tax among your commanders`.
+pub(in crate::oracle::canonical) fn highest_commander_tax_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    HIGHEST_COMMANDER_TAX
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| word_is(cursor, offset, word))
+}
+
+/// `your highest commander tax among your commanders` (CR 903.8): the
+/// commander record of the controller's commanders, read as their greatest
+/// tax.
+pub(in crate::oracle::canonical) fn recognize_highest_commander_tax(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.commander-tax.highest");
+    cursor.consume_phrase(HIGHEST_COMMANDER_TAX)?;
+    Ok(NumericExpression::Quantity(Box::new(
+        NumericQuantity::HighestCommanderTax,
     )))
 }
 

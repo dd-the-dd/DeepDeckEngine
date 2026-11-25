@@ -351,3 +351,39 @@ fn a_restated_removal_is_tested_on_its_departure_record() {
     colored["where"] = json!({ "kind": "colorContains", "value": "R" });
     assert_eq!(resolution_record_supported(&colored), Some(false));
 }
+
+#[test]
+fn the_highest_commander_tax_reads_the_owner_commander_record() {
+    let mut engine = engine();
+    let tax = json!({
+        "kind": "highestCommanderTax",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+    });
+    assert_eq!(resolution_record_supported(&tax), Some(true));
+    // Without a commander, no tax was ever added.
+    assert_eq!(
+        engine.controller_relative_record(&tax, "player-0"),
+        Some(Some(0))
+    );
+    for (id, owner, casts) in [
+        ("a", "player-0", 1),
+        ("b", "player-0", 2),
+        ("c", "player-1", 5),
+    ] {
+        engine.state.commanders.push(CommanderState {
+            card_instance_id: id.to_string(),
+            name: id.to_string(),
+            owner_id: owner.to_string(),
+            casts_from_command_zone: casts,
+        });
+    }
+    // CR 903.8: {2} for each previous cast of the most cast commander.
+    assert_eq!(
+        engine.controller_relative_record(&tax, "player-0"),
+        Some(Some(4))
+    );
+    assert_eq!(
+        engine.controller_relative_record(&tax, "player-1"),
+        Some(Some(10))
+    );
+}

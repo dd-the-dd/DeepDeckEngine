@@ -873,6 +873,99 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-tax-draw-highest-commander-tax",
+      "request": {
+        "cardName": "Tax Draw",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Draw cards equal to your highest commander tax among your commanders. (For example, if you've cast your one commander from your command zone twice, draw four cards.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/count/kind",
+                "equals": "highestCommanderTax"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tax-bolt-highest-commander-tax",
+      "request": {
+        "cardName": "Tax Bolt",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Tax Bolt deals damage to any target equal to your highest commander tax among your commanders. (For example, if you've cast your one commander from your command zone twice, it deals 4 damage.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tax-hounds-highest-commander-tax",
+      "request": {
+        "cardName": "Tax Hounds",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Create X 1/1 white Dog creature tokens, where X is your highest commander tax among your commanders. (For example, if you've cast your one commander from your command zone twice, create four tokens.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-commander-tax-of-one-commander",
+      "request": {
+        "cardName": "Single Tax Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Draw cards equal to your commander tax.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

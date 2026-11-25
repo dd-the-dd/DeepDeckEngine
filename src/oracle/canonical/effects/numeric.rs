@@ -796,6 +796,11 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
             "operator": operator.ir_operator(),
             "value": lower_player_measure(measure, json!({ "kind": "quantifiedPlayer" })),
         })),
+        // CR 903.8: the greatest tax among the controller's commanders.
+        NumericQuantity::HighestCommanderTax => Some(json!({
+            "kind": "highestCommanderTax",
+            "player": controller(),
+        })),
         // One measure of the ability's controller.
         NumericQuantity::ControllerMeasure(measure) => {
             Some(lower_player_measure(measure, controller()))
