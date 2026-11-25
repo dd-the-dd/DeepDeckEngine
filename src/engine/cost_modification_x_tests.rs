@@ -227,7 +227,8 @@ fn next_spell_reduction_applies_to_one_cast_and_is_consumed() {
         &effect,
         &stack_object(&source, BTreeMap::new()),
         &BTreeMap::new(),
-    );
+    )
+    .expect("the one-shot modifier is installed");
     let spell = definition("spell", "Instant", Vec::new());
     assert_eq!(e.one_shot_casting_cost_reduction("player-1", &spell), 0);
     assert_eq!(e.one_shot_casting_cost_reduction("player-0", &spell), 2);
@@ -248,12 +249,14 @@ fn next_spell_reduction_snapshots_x_and_every_pending_rule_names_the_cast() {
         &next_spell_reduction(json!({ "kind": "decisionResult", "decisionId": "xValue" })),
         &stack_object(&source, decisions),
         &BTreeMap::new(),
-    );
+    )
+    .expect("the one-shot modifier is installed");
     e.install_one_shot_modifier(
         &next_spell_reduction(json!({ "kind": "integer", "value": 1 })),
         &stack_object(&source, BTreeMap::new()),
         &BTreeMap::new(),
-    );
+    )
+    .expect("the one-shot modifier is installed");
     let spell = definition("spell", "Sorcery", Vec::new());
     assert_eq!(e.one_shot_casting_cost_reduction("player-0", &spell), 4);
     assert_eq!(
@@ -262,4 +265,25 @@ fn next_spell_reduction_snapshots_x_and_every_pending_rule_names_the_cast() {
         2
     );
     assert_eq!(e.one_shot_casting_cost_reduction("player-0", &spell), 0);
+}
+
+/// A reduction whose amount cannot be evaluated (an X with no recorded
+/// value) is an explicit engine error, never a silent reduction of 0.
+#[test]
+fn an_unevaluated_next_spell_reduction_is_refused_not_zero() {
+    let mut e = engine();
+    let source = card_instance("player-0", &definition("muse", "Creature", Vec::new()), 902);
+    let installed = e.install_one_shot_modifier(
+        &next_spell_reduction(json!({ "kind": "decisionResult", "decisionId": "xValue" })),
+        &stack_object(&source, BTreeMap::new()),
+        &BTreeMap::new(),
+    );
+    assert!(installed.is_err());
+    let spell = definition("spell", "Sorcery", Vec::new());
+    assert_eq!(e.one_shot_casting_cost_reduction("player-0", &spell), 0);
+    assert!(
+        e.consume_one_shot_spell_cast_modifier("player-0", &spell)
+            .is_empty(),
+        "no pending rule was installed"
+    );
 }

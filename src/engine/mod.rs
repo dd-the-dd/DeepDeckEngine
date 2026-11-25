@@ -8033,7 +8033,9 @@ impl GameEngine {
 
     #[cfg(test)]
     fn put_card_into_graveyard(&mut self, player_index: usize, card: CardInstance) -> bool {
-        let destination = self.prepare_graveyard_destination(player_index, &card);
+        let destination = self
+            .prepare_graveyard_destination(player_index, &card)
+            .expect("test-only raw placement requires an unambiguous replacement");
         self.commit_graveyard_destination(player_index, card, destination)
             .expect("test-only raw placement requires an unambiguous replacement")
     }
@@ -8043,6 +8045,18 @@ impl GameEngine {
         player_id: &str,
         count: usize,
         source_controller: Option<&str>,
+    ) -> Result<Vec<String>, EngineError> {
+        self.mill_cards_with(player_id, count, source_controller, None)
+    }
+
+    /// `mill_cards` with the chooser of each milled card's CR 616.1 order
+    /// between graveyard-destination replacements with different outcomes.
+    fn mill_cards_with(
+        &mut self,
+        player_id: &str,
+        count: usize,
+        source_controller: Option<&str>,
+        mut provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<Vec<String>, EngineError> {
         let player_index = self.player_index(player_id)?;
         let count = count.saturating_mul(self.mill_factor(player_id).max(1) as usize);
@@ -8056,8 +8070,14 @@ impl GameEngine {
             else {
                 break;
             };
-            let (card, graveyard_destination) =
-                self.take_zone_card_for_graveyard(player_index, "library", card_index)?;
+            let (card, graveyard_destination) = self.take_zone_card_for_graveyard_with(
+                player_index,
+                "library",
+                card_index,
+                provider
+                    .as_mut()
+                    .map(|provider| &mut **provider as &mut dyn DecisionProvider),
+            )?;
             let card_id = card.instance_id.clone();
             if self.put_owned_card_into_prepared_graveyard(
                 player_index,

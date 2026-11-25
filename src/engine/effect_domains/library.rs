@@ -175,7 +175,12 @@ impl GameEngine {
                         "mill.count",
                     )?
                     .max(0) as usize;
-                let milled = self.mill_cards(&player_id, count, Some(&stack_object.controller))?;
+                let milled = self.mill_cards_with(
+                    &player_id,
+                    count,
+                    Some(&stack_object.controller),
+                    Some(&mut *provider as &mut dyn DecisionProvider),
+                )?;
                 if let Some(binding_id) = effect["bind"].as_str() {
                     bindings.insert(binding_id.to_string(), RuntimeBinding::Objects(milled));
                 }

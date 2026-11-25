@@ -671,10 +671,11 @@ fn recognize_departure_replacement(
 ) -> MachineResult<DepartureReplacementNode> {
     cursor.enter("replacement.departure.lifetime.preposed");
     let preposed = if departure_word_at(cursor, 0, "until") {
-        cursor.consume_phrase(&["until", "end", "of", "turn", ","])?;
-        true
+        let lifetime = super::embedded_delayed_trigger::recognize_created_rule_lifetime(cursor)?;
+        cursor.consume(",")?;
+        Some(lifetime)
     } else {
-        false
+        None
     };
     cursor.enter("replacement.departure.introducer");
     cursor.consume("if")?;
@@ -683,16 +684,15 @@ fn recognize_departure_replacement(
     commit.commit();
     cursor.enter("replacement.departure.lifetime");
     let postposed = if departure_word_at(cursor, 0, "this") {
-        cursor.consume_phrase(&["this", "turn"])?;
-        true
+        Some(super::embedded_delayed_trigger::recognize_created_rule_lifetime(cursor)?)
     } else {
-        false
+        None
     };
     cursor.require(
-        !(preposed && postposed),
+        !(preposed.is_some() && postposed.is_some()),
         "one lifetime for the created replacement",
     )?;
-    let lifetime = (preposed || postposed).then_some(CreatedRuleLifetime::ThisTurn);
+    let lifetime = preposed.or(postposed);
     cursor.enter("replacement.departure.separator");
     cursor.consume(",")?;
     let destination = recognize_departure_program(cursor, &subject, name_links, name_failure)?;

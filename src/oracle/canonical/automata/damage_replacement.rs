@@ -655,15 +655,7 @@ fn recognize_damage_prevention(
 pub(in crate::oracle::canonical) fn created_damage_replacement_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    let offset = if ["until", "end", "of", "turn", ","]
-        .iter()
-        .enumerate()
-        .all(|(offset, word)| ahead_is(cursor, offset, word))
-    {
-        5
-    } else {
-        0
-    };
+    let offset = super::embedded_delayed_trigger::preposed_lifetime_width(cursor).unwrap_or(0);
     if !ahead_is(cursor, offset, "if") {
         return false;
     }
@@ -711,10 +703,13 @@ fn recognize_created_damage_replacement(
     committed: &mut bool,
 ) -> MachineResult<DamageReplacementNode> {
     cursor.enter("replacement.created-damage.lifetime");
-    let preposed = peek_is(cursor, "until");
-    if preposed {
-        cursor.consume_phrase(&["until", "end", "of", "turn", ","])?;
-    }
+    let preposed = if peek_is(cursor, "until") {
+        let lifetime = super::embedded_delayed_trigger::recognize_created_rule_lifetime(cursor)?;
+        cursor.consume(",")?;
+        Some(lifetime)
+    } else {
+        None
+    };
     cursor.enter("replacement.created-damage.envelope");
     cursor.consume("if")?;
     let comma = (0..)
@@ -734,12 +729,21 @@ fn recognize_created_damage_replacement(
     })?;
     *committed = true;
     cursor.enter("replacement.created-damage.lifetime.postposed");
-    if postposed {
-        cursor.consume_phrase(&["this", "turn"])?;
-    }
+    let postposed = if postposed {
+        Some(super::embedded_delayed_trigger::recognize_created_rule_lifetime(cursor)?)
+    } else {
+        None
+    };
     cursor.require(
-        preposed != postposed,
+        preposed.is_some() != postposed.is_some(),
         "exactly one lifetime: `Until end of turn,` or `this turn`",
+    )?;
+    // The created damage replacement lasts through this turn only; any
+    // other created-rule lifetime is refused explicitly.
+    cursor.enter("replacement.created-damage.lifetime.this-turn");
+    cursor.require(
+        preposed.or(postposed) == Some(super::CreatedRuleLifetime::ThisTurn),
+        "a created damage replacement lasting this turn",
     )?;
     cursor.enter("replacement.damage-event.separator");
     cursor.consume(",")?;

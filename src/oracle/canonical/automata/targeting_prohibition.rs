@@ -123,7 +123,13 @@ fn branch_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
         if recognize_object_predicate_atom(&mut ahead, AcceptedForms::SingularOnly).is_err() {
             return false;
         }
-        if word_at(&ahead, 0, "or") && ahead.advance_to(ahead.position() + 1).is_err() {
+        // Only `or` coordinates characteristics here; adjacent ones are not
+        // a union.
+        if word_at(&ahead, 0, "or") {
+            if ahead.advance_to(ahead.position() + 1).is_err() {
+                return false;
+            }
+        } else if !(word_at(&ahead, 0, "spells") || word_at(&ahead, 0, "abilities")) {
             return false;
         }
     }
@@ -195,6 +201,16 @@ fn recognize_optional_characteristics(
             cursor.consume("or")?;
             continue;
         }
+        // Adjacent characteristics (`white artifact spells`) are an
+        // intersection, not a union; this reader refuses them explicitly.
+        cursor.enter("static.targeting-prohibition.characteristic-sequence");
+        cursor.require(
+            word_at(cursor, 0, "spells")
+                || word_at(cursor, 0, "abilities")
+                || word_at(cursor, 0, "sources")
+                || word_at(cursor, 0, "or"),
+            "characteristics coordinated by `or` (adjacent characteristics are unsupported)",
+        )?;
     }
     Ok(match atoms.len() {
         0 => None,

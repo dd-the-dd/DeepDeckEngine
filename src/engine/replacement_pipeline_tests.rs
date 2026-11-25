@@ -113,20 +113,28 @@ fn ordering_policies_are_explicit() {
         )
         .unwrap();
     assert_eq!(applied, vec!["a".to_string()]);
-    let mut unique = 0;
+    // A real choice without a chooser is an explicit refusal, never a pick.
+    let mut unchosen = 0;
     let error = e
         .run_replacement_pipeline(
             &proposals,
-            &mut unique,
-            &ReplacementOrder::RequireUnique {
-                ambiguity: "two replacements".into(),
+            &mut unchosen,
+            &ReplacementOrder::AffectedChooses {
+                player_id: "player-0",
+                request_prefix: "test-replacement",
+                decision_key: "testReplacementId",
             },
-            &mut provider,
+            &mut RequiredReplacementChoiceProvider(None),
             |_, _| true,
             |_, _| Ok(()),
         )
         .unwrap_err();
-    assert!(error.to_string().contains("two replacements"));
+    assert!(
+        error
+            .to_string()
+            .contains("requires an explicit decision provider")
+    );
+    assert_eq!(unchosen, 0);
     assert!(provider.0.is_empty());
 }
 
@@ -168,27 +176,11 @@ fn graveyard_destination_proposals_share_one_precedence() {
         "sourceCardInstanceId": "spell-source",
     }));
     let selected = e
-        .select_graveyard_destination_replacement(
-            &opponent_card,
-            "player-1",
-            &modifiers,
-            &ReplacementOrder::FirstProposed,
-        )
+        .select_graveyard_destination_replacement(&opponent_card, "player-1", &modifiers, None)
         .unwrap()
         .expect("a replacement applies");
     assert!(matches!(
         selected.program.origin,
         GraveyardReplacementOrigin::SpecificCard { .. }
     ));
-    assert!(
-        e.select_graveyard_destination_replacement(
-            &opponent_card,
-            "player-1",
-            &modifiers,
-            &ReplacementOrder::RequireUnique {
-                ambiguity: "ambiguous".into()
-            },
-        )
-        .is_err()
-    );
 }

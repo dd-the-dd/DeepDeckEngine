@@ -202,8 +202,11 @@ fn sacrifice_destination_planning_has_no_destruction_prevention() {
     );
 }
 
+/// Two replacements with one outcome (both exile the permanent) produce the
+/// same event: the first in precedence applies without a choice (CR 616.1),
+/// and planning mutates nothing.
 #[test]
-fn ambiguous_destination_is_rejected_before_any_mutation() {
+fn equivalent_destinations_plan_without_a_choice_or_mutation() {
     let mut e = engine();
     let card = add(&mut e, 0, 0, "recipient", "Creature");
     for source in ["first", "second"] {
@@ -213,17 +216,19 @@ fn ambiguous_destination_is_rejected_before_any_mutation() {
             "cardInstanceId":card.instance_id,"sourceCardInstanceId":source}));
     }
     let before = serde_json::to_value(&e.state).unwrap();
-    let result = e.plan_graveyard_departure(
-        &card,
-        &e.battlefield_static_modifiers(),
-        GraveyardMoveCause::Sacrifice,
-    );
-    assert!(
-        result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("sacrifice batch has multiple graveyard destination replacements")
-    );
+    let plan = e
+        .plan_graveyard_departure(
+            &card,
+            &e.battlefield_static_modifiers(),
+            GraveyardMoveCause::Sacrifice,
+        )
+        .expect("equivalent replacements need no chooser");
+    assert!(matches!(
+        plan.outcome,
+        PlannedGraveyardOutcome::MoveTo(FrozenGraveyardDestination::Exile {
+            ref replacement_source_id,
+            ..
+        }) if replacement_source_id == "first"
+    ));
     assert_eq!(serde_json::to_value(&e.state).unwrap(), before);
 }
