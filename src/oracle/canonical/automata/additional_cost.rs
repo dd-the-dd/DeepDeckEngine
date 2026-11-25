@@ -291,7 +291,16 @@ fn chosen_objects(
                     "objects chosen by the caster (a random casting payment has no casting schema)",
                 ));
             }
-            let count = literal_count(cursor, chosen.count)?;
+            // A number the caster chooses while casting (`exile any number
+            // of black cards from your hand`) has no casting declaration.
+            let Some(count) = chosen.count.exact() else {
+                cursor.enter("additional-cost.action.chosen-quantity");
+                return Err(cursor.engine_gap(
+                    crate::oracle::canonical::engine_gap::EngineGap::AdditionalCostAction,
+                    "a stated number of objects chosen while casting (a number the caster chooses has no casting declaration)",
+                ));
+            };
+            let count = literal_count(cursor, count)?;
             Ok((count, chosen.filter))
         }
         PaymentObjectsNode::Source(_) => {

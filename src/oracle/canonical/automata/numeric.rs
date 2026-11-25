@@ -28,7 +28,12 @@ pub(in crate::oracle::canonical) fn recognize_that_many_event_value(
         // Without an event quantity the antecedent is the result of an
         // earlier action of the same program (CR 608.2c); the program
         // lowering binds it or fails explicitly.
-        None => super::action_result_anaphor(cursor, quantity.eq_ignore_ascii_case("much")),
+        // The first action of an activation restates its payer-chosen
+        // cost number (`Remove any number of counters: ... that many`).
+        None => match super::cost_chosen_amount_anaphor(cursor) {
+            Some(amount) => Ok(amount),
+            None => super::action_result_anaphor(cursor, quantity.eq_ignore_ascii_case("much")),
+        },
     }
 }
 
@@ -434,6 +439,10 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// opponents who control an artifact`, `for each player who lost life
     /// this turn`, CR 102.1-102.3), read by the shared player-set grammar.
     Players(super::PlayerPopulationQueryNode),
+    /// The number the payer chose while paying a cost of this activation
+    /// (`for each storage counter removed this way`, CR 601.2h via 602.2b):
+    /// the activation's `costChosenAmount` declaration (`quantity_slot.rs`).
+    CostChosenAmount,
 }
 
 /// Where a counter query reads counters.
@@ -491,6 +500,7 @@ impl NumericQuantity {
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
             | Self::Players(_)
+            | Self::CostChosenAmount
             | Self::Counters {
                 holder: CounterHolder::Source,
                 ..
@@ -511,6 +521,7 @@ impl NumericQuantity {
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
             | Self::Players(_)
+            | Self::CostChosenAmount
             | Self::Counters { .. } => false,
         }
     }
@@ -532,7 +543,8 @@ impl NumericQuantity {
             | Self::DistinctCardValues { .. }
             | Self::ManaSymbolsAmongCards { .. }
             | Self::ActingPlayerCards { .. }
-            | Self::Players(_) => false,
+            | Self::Players(_)
+            | Self::CostChosenAmount => false,
         }
     }
 }

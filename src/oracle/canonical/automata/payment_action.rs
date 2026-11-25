@@ -15,13 +15,16 @@
 //!                  CardCount (mill N card(s)), KeywordAmount (blight N)
 //! CounterHolder := SourceRef | ("a" | "an") QUERY | "among" QUERY
 //! Selection     := SourceRef
-//!                | Quantity ["other"] ["untapped"] QUERY ["at" "random"]
+//!                | CostQuantity ["other"] ["untapped"] QUERY ["at" "random"]
 //! SourceRef     := "this" NOUN   (shared source reference reader)
 //!                | NAME          (the card's own name, linked by the name
 //!                                 resolver and installed by the cost parent)
 //!                | "it"          (after an earlier action of the same list
 //!                                 named the source)
 //! Quantity      := "a" | "an" | NUMBER | "X" | "another"
+//! CostQuantity  := Quantity | ChosenRange       (`quantity_slot.rs`: `any
+//!                  number of`, `one or more`, `up to N`, a number the payer
+//!                  chooses while paying, CR 601.2h)
 //! ```
 //!
 //! The quantity slot is the shared numeric atom: a literal or the variable X.
@@ -54,10 +57,11 @@ use super::source_sacrifice::atomic_action::{
 };
 use super::{ArgumentFrame, VerbLemma, recognize_operand_verb};
 use super::{
-    CollectionSelectionMethod, CostConnector, CostSequenceNode, NumericAtom, ObjectControllerScope,
-    ObjectKind, ObjectPredicate, ObjectQueryNode, ResourcePaymentNode, positive_literal,
-    positive_quantity, quantity_is_plural, recognize_counter_name, recognize_mana_cost,
-    recognize_object_query, recognize_pay_life_cost_with_verb, recognize_player_counter_payment,
+    CollectionSelectionMethod, CostConnector, CostQuantity, CostSequenceNode, NumericAtom,
+    ObjectControllerScope, ObjectKind, ObjectPredicate, ObjectQueryNode, ResourcePaymentNode,
+    positive_literal, positive_quantity, quantity_is_plural, recognize_cost_quantity,
+    recognize_counter_name, recognize_mana_cost, recognize_object_query,
+    recognize_pay_life_cost_with_verb, recognize_player_counter_payment,
     recognize_search_card_selector, recognize_source_reference, recognize_tap_self_cost,
 };
 
@@ -110,10 +114,11 @@ pub(in crate::oracle::canonical) struct PutCountersPaymentNode {
 
 /// Counters removed while paying a cost. The counter kind and the holder are
 /// independent children; the cost parent decides which combinations its
-/// engine schema represents.
+/// engine schema represents. The count is exact or chosen by the payer
+/// (`remove any number of storage counters`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct RemoveCountersPaymentNode {
-    pub count: NumericAtom,
+    pub count: CostQuantity,
     /// `None`: counters of any kinds, chosen by the payer while paying.
     pub counter: Option<CounterName>,
     pub holder: CounterHolderNode,
@@ -176,8 +181,9 @@ pub(in crate::oracle::canonical) enum PaymentSourceNoun {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ChosenPaymentObjectsNode {
-    /// The shared numeric atom: a literal or the variable X.
-    pub count: NumericAtom,
+    /// A literal, the variable X, or a number the payer chooses while
+    /// paying (`any number of`, `one or more`, `up to N`).
+    pub count: CostQuantity,
     /// `another` / `other`: the source cannot be one of the chosen objects.
     pub exclude_source: bool,
     pub filter: PaymentObjectFilter,
@@ -821,9 +827,12 @@ fn recognize_chosen_objects(
         .is_some_and(|raw| raw.eq_ignore_ascii_case("another"));
     let count = if another {
         cursor.consume("another")?;
-        NumericAtom::Integer(1)
+        CostQuantity::Exactly(NumericAtom::Integer(1))
     } else {
-        positive_quantity(cursor, "`a`, `an`, `another`, X or a positive quantity")?
+        recognize_cost_quantity(
+            cursor,
+            "`a`, `an`, `another`, X, a positive quantity or `any number of`",
+        )?
     };
     // `two other untapped creatures`: `other` carries the same exclusion.
     let other = !another
@@ -853,7 +862,7 @@ fn recognize_chosen_objects(
             ),
             OperandDomain::Card => {
                 cursor.enter("cost.payment.card-query");
-                let filter = recognize_search_card_selector(cursor, quantity_is_plural(count))?;
+                let filter = recognize_search_card_selector(cursor, count.is_plural())?;
                 cursor.require(
                     filter.supports_domain(ObjectKind::Card),
                     "a card-domain payment operand",
@@ -970,7 +979,10 @@ fn recognize_counter_removal(
     antecedent: SourceAntecedent,
 ) -> MachineResult<RemoveCountersPaymentNode> {
     cursor.enter("cost.payment.remove.quantity");
-    let count = positive_quantity(cursor, "`a`, `an`, X or a positive counter quantity")?;
+    let count = recognize_cost_quantity(
+        cursor,
+        "`a`, `an`, X, a positive counter quantity or `any number of`",
+    )?;
     cursor.enter("cost.payment.remove.kind");
     let is_counter_noun =
         |raw: &str| raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters");
@@ -980,7 +992,11 @@ fn recognize_counter_removal(
         Some(recognize_counter_name(cursor)?)
     };
     cursor.enter("cost.payment.remove.noun");
-    cursor.consume(counter_noun(count))?;
+    cursor.consume(if count.is_plural() {
+        "counters"
+    } else {
+        "counter"
+    })?;
     cursor.enter("cost.payment.remove.relation");
     cursor.consume("from")?;
     cursor.enter("cost.payment.remove.holder");

@@ -138,6 +138,11 @@ fn recognize_counted_collection(
     if mana_spent_colors_starts(cursor, color_noun) {
         return recognize_mana_spent_colors(cursor, color_noun);
     }
+    // `storage counter removed this way`, `cards exiled this way` before any
+    // earlier action: the number this activation's cost chose (CR 601.2h).
+    if cost_chosen_amount_reference_starts(cursor) {
+        return recognize_cost_chosen_amount_reference(cursor);
+    }
     // `cards revealed this way`: the objects an earlier action affected.
     if !distinct_measure_among_starts(cursor) && action_result_reference_starts(cursor) {
         return recognize_action_result_count(cursor);

@@ -15,13 +15,13 @@ use crate::oracle::syntax::ResolvedNameLink;
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CollectionSelectionMethod, CostConnector, CostListGrammar, CounterHolderNode,
-    DesignatedPaymentObjects, DiscardSelfCostNode, ExileSelfCostNode, ExileSelfSourceZone,
-    ManaCostNode, NumericAtom, ObjectPredicate, ObjectQueryNode, PayLifeCostNode,
-    PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode, PaymentOriginZone,
-    PaymentSourceNoun, PlayerCounterPaymentNode, RemoveCountersPaymentNode, ResourcePaymentNode,
-    SacrificeSelfCostNode, TapObjectsCostNode, TapSelfCostNode, literal_quantity,
-    object_predicate_uses_x, recognize_cost_sequence,
+    ChosenAmountBounds, CollectionSelectionMethod, CostAmountVerb, CostChosenAmountSlot,
+    CostConnector, CostListGrammar, CostQuantity, CounterHolderNode, DesignatedPaymentObjects,
+    DiscardSelfCostNode, ExileSelfCostNode, ExileSelfSourceZone, ManaCostNode, NumericAtom,
+    ObjectPredicate, ObjectQueryNode, PayLifeCostNode, PaymentActionNode, PaymentObjectFilter,
+    PaymentObjectsNode, PaymentOriginZone, PaymentSourceNoun, PlayerCounterPaymentNode,
+    RemoveCountersPaymentNode, ResourcePaymentNode, SacrificeSelfCostNode, TapObjectsCostNode,
+    TapSelfCostNode, literal_quantity, object_predicate_uses_x, recognize_cost_sequence,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -114,12 +114,43 @@ impl ChosenXAction {
     }
 }
 
+/// How many objects a chosen-objects cost acts on: the value the activating
+/// player announces as X (CR 107.3a, 601.2b via 602.2b), or a number the
+/// payer chooses while paying (`any number of`, `one or more`, `up to N`,
+/// CR 601.2h), declared as the activation's `costChosenAmount`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ChosenObjectsAmount {
+    AnnouncedX,
+    PayerChosen(ChosenAmountBounds),
+}
+
+impl ChosenObjectsAmount {
+    /// The amount of a counted chosen-objects cost, when it is not a literal.
+    fn of(count: CostQuantity) -> Option<Self> {
+        match count {
+            CostQuantity::Exactly(NumericAtom::VariableX) => Some(Self::AnnouncedX),
+            CostQuantity::Chosen(bounds) => Some(Self::PayerChosen(bounds)),
+            CostQuantity::Exactly(NumericAtom::Integer(_)) => None,
+        }
+    }
+
+    /// The declared number the choice's quantity reads.
+    pub(in crate::oracle::canonical) fn decision_id(self) -> &'static str {
+        match self {
+            Self::AnnouncedX => "xValue",
+            Self::PayerChosen(_) => super::COST_CHOSEN_AMOUNT,
+        }
+    }
+}
+
 /// X objects chosen while paying, X being the value the activating player
-/// announces (CR 107.3a, 601.2b via 602.2b): one declared choice of exactly
-/// X objects, paid by one cost over the whole choice.
+/// announces (CR 107.3a, 601.2b via 602.2b) or a number the payer chooses
+/// while paying (CR 601.2h): one declared choice of exactly that many
+/// objects, paid by one cost over the whole choice.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ChosenXCostNode {
     pub action: ChosenXAction,
+    pub amount: ChosenObjectsAmount,
     pub filter: PaymentObjectFilter,
     /// The card zone the chosen cards are in (hand or graveyard); `None`
     /// for permanents.
@@ -169,11 +200,12 @@ pub(in crate::oracle::canonical) struct ChosenCounterPlacementCostNode {
 
 /// Counters removed from the ability's source (on the battlefield). An
 /// unnamed kind is one counter whose kind is declared while paying. The
-/// count is a literal or this activation's chosen X.
+/// count is a literal, this activation's announced X, or a number of
+/// counters of a named kind the payer chooses while paying.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SourceCounterRemovalCostNode {
     pub counter: Option<CounterName>,
-    pub count: NumericAtom,
+    pub count: CostQuantity,
     pub cost_index: usize,
 }
 
@@ -274,8 +306,64 @@ impl ActivationCostSequenceNode {
             LocalActivationCostNode::RemoveSourceCounters(removal) => {
                 removal.count == NumericAtom::VariableX
             }
-            LocalActivationCostNode::ChosenX(_) => true,
+            LocalActivationCostNode::ChosenX(chosen) => {
+                chosen.amount == ChosenObjectsAmount::AnnouncedX
+            }
             _ => false,
+        })
+    }
+
+    /// The bounds of the number the payer chooses while paying, if a cost
+    /// of this activation has one (CR 601.2h via 602.2b). The cost sequence
+    /// admits at most one such cost.
+    pub(in crate::oracle::canonical) fn cost_chosen_amount(&self) -> Option<ChosenAmountBounds> {
+        self.costs.iter().find_map(|cost| match cost {
+            LocalActivationCostNode::RemoveSourceCounters(removal) => removal.count.chosen(),
+            LocalActivationCostNode::ChosenX(ChosenXCostNode {
+                amount: ChosenObjectsAmount::PayerChosen(bounds),
+                ..
+            }) => Some(*bounds),
+            _ => None,
+        })
+    }
+
+    /// What a later `for each counter removed this way`, `the number of
+    /// cards exiled this way` or `that many` restates: the verb and the
+    /// noun of the cost whose number the payer chose.
+    pub(in crate::oracle::canonical) fn cost_chosen_amount_slot(
+        &self,
+    ) -> Option<CostChosenAmountSlot> {
+        self.costs.iter().find_map(|cost| match cost {
+            LocalActivationCostNode::RemoveSourceCounters(removal)
+                if removal.count.chosen().is_some() =>
+            {
+                Some(CostChosenAmountSlot {
+                    verb: CostAmountVerb::Removed,
+                    counter: removal.counter.clone(),
+                    predicate: None,
+                })
+            }
+            LocalActivationCostNode::ChosenX(ChosenXCostNode {
+                amount: ChosenObjectsAmount::PayerChosen(_),
+                action,
+                filter,
+                ..
+            }) => Some(CostChosenAmountSlot {
+                verb: match action {
+                    ChosenXAction::Sacrifice => CostAmountVerb::Sacrificed,
+                    ChosenXAction::Tap => CostAmountVerb::Tapped,
+                    ChosenXAction::Return => CostAmountVerb::Returned,
+                    ChosenXAction::Discard => CostAmountVerb::Discarded,
+                    ChosenXAction::Exile => CostAmountVerb::Exiled,
+                    ChosenXAction::Reveal => CostAmountVerb::Revealed,
+                },
+                counter: None,
+                predicate: Some(match filter {
+                    PaymentObjectFilter::Permanents(object) => object.predicate.clone(),
+                    PaymentObjectFilter::Cards(predicate) => predicate.clone(),
+                }),
+            }),
+            _ => None,
         })
     }
 
@@ -380,6 +468,26 @@ pub(in crate::oracle::canonical) fn recognize_activation_cost_sequence(
         .map(|(cost_index, payment)| activation_cost_from_payment(cursor, payment, cost_index))
         .collect::<MachineResult<Vec<_>>>()?;
     let costs = ActivationCostSequenceNode { costs, connectors };
+    // One declared `costChosenAmount` per activation: two payer-chosen
+    // numbers would need two producers a restatement could not tell apart.
+    cursor.enter("activation.cost-chosen-amount.single");
+    cursor.require(
+        costs
+            .costs
+            .iter()
+            .filter(|cost| match cost {
+                LocalActivationCostNode::RemoveSourceCounters(removal) => {
+                    removal.count.chosen().is_some()
+                }
+                LocalActivationCostNode::ChosenX(chosen) => {
+                    chosen.amount != ChosenObjectsAmount::AnnouncedX
+                }
+                _ => false,
+            })
+            .count()
+            <= 1,
+        "at most one cost whose number the payer chooses while paying",
+    )?;
     if costs.costs.iter().any(|cost| {
         matches!(
             cost,
@@ -472,9 +580,10 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 !object_predicate_uses_x(&object.predicate),
                 "no {X} in the tapped-permanent predicate",
             )?;
-            if chosen.count == NumericAtom::VariableX {
+            if let Some(amount) = ChosenObjectsAmount::of(chosen.count) {
                 return Ok(chosen_x_cost(
                     ChosenXAction::Tap,
+                    amount,
                     PaymentObjectFilter::Permanents(object),
                     None,
                     chosen.exclude_source,
@@ -515,7 +624,7 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
             let PaymentObjectFilter::Permanents(object) = chosen.filter else {
                 return Err(cursor.fail("a permanent operand"));
             };
-            if chosen.count == NumericAtom::VariableX {
+            if let Some(amount) = ChosenObjectsAmount::of(chosen.count) {
                 cursor.enter("activation.selected-sacrifice.numeric-context");
                 cursor.require(
                     !object_predicate_uses_x(&object.predicate),
@@ -523,6 +632,7 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 )?;
                 return Ok(chosen_x_cost(
                     ChosenXAction::Sacrifice,
+                    amount,
                     PaymentObjectFilter::Permanents(object),
                     None,
                     chosen.exclude_source,
@@ -559,11 +669,12 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 !object_predicate_uses_x(&filter),
                 "no {X} in the discarded-card predicate",
             )?;
-            if chosen.count == NumericAtom::VariableX
+            if let Some(amount) = ChosenObjectsAmount::of(chosen.count)
                 && chosen.method == CollectionSelectionMethod::Choice
             {
                 return Ok(chosen_x_cost(
                     ChosenXAction::Discard,
+                    amount,
                     PaymentObjectFilter::Cards(filter),
                     Some(PaymentOriginZone::Hand),
                     false,
@@ -625,9 +736,10 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 chosen.method == CollectionSelectionMethod::Choice,
                 "payer-chosen exiled cards (a random cost exile is unsupported)",
             )?;
-            if chosen.count == NumericAtom::VariableX {
+            if let Some(amount) = ChosenObjectsAmount::of(chosen.count) {
                 return Ok(chosen_x_cost(
                     ChosenXAction::Exile,
+                    amount,
                     PaymentObjectFilter::Cards(filter),
                     Some(zone),
                     chosen.exclude_source,
@@ -725,9 +837,10 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 !object_predicate_uses_x(&object.predicate),
                 "no {X} in the returned-permanent predicate",
             )?;
-            if chosen.count == NumericAtom::VariableX {
+            if let Some(amount) = ChosenObjectsAmount::of(chosen.count) {
                 return Ok(chosen_x_cost(
                     ChosenXAction::Return,
+                    amount,
                     PaymentObjectFilter::Permanents(object),
                     None,
                     chosen.exclude_source,
@@ -810,9 +923,10 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 !object_predicate_uses_x(&filter),
                 "no {X} in the revealed-card predicate",
             )?;
-            if chosen.count == NumericAtom::VariableX {
+            if let Some(amount) = ChosenObjectsAmount::of(chosen.count) {
                 return Ok(chosen_x_cost(
                     ChosenXAction::Reveal,
+                    amount,
                     PaymentObjectFilter::Cards(filter),
                     Some(PaymentOriginZone::Hand),
                     false,
@@ -867,10 +981,20 @@ fn activation_counter_removal(
                 noun == PaymentSourceNoun::Permanent,
                 "a permanent source noun",
             )?;
+            // A payer-chosen number of counters (`remove any number of
+            // storage counters`) is counted in one named kind: unnamed
+            // counters of several kinds would be a chosen distribution.
+            if count.chosen().is_some() {
+                cursor.enter("activation.remove-counters.chosen-kind");
+                cursor.require(
+                    counter.is_some(),
+                    "a named counter kind for a number of counters chosen while paying",
+                )?;
+            }
             // Several unnamed counters may be of several kinds: each removed
             // counter is chosen, so they are a distribution on the source.
             if counter.is_none() && count != NumericAtom::Integer(1) {
-                let count = literal_counter_count(cursor, count)?;
+                let count = literal_cost_counter_count(cursor, count)?;
                 return Ok(LocalActivationCostNode::RemoveControlledCounters(
                     ControlledCounterRemovalCostNode {
                         holder: CounterDistributionHolder::Source,
@@ -879,8 +1003,9 @@ fn activation_counter_removal(
                     },
                 ));
             }
-            // Counters of one named kind on the source: a literal count or
-            // the activation's chosen X (`Remove X +1/+1 counters`).
+            // Counters of one named kind on the source: a literal count, the
+            // activation's announced X (`Remove X +1/+1 counters`) or the
+            // number the payer chooses (`Remove any number of ...`).
             Ok(LocalActivationCostNode::RemoveSourceCounters(
                 SourceCounterRemovalCostNode {
                     counter,
@@ -900,7 +1025,7 @@ fn activation_counter_removal(
             controlled_counter_removal(cursor, object, counter, 1)
         }
         CounterHolderNode::Among(object) => {
-            let count = literal_counter_count(cursor, count)?;
+            let count = literal_cost_counter_count(cursor, count)?;
             controlled_counter_removal(cursor, object, counter, count)
         }
     }
@@ -908,6 +1033,7 @@ fn activation_counter_removal(
 
 fn chosen_x_cost(
     action: ChosenXAction,
+    amount: ChosenObjectsAmount,
     filter: PaymentObjectFilter,
     zone: Option<PaymentOriginZone>,
     exclude_source: bool,
@@ -915,6 +1041,7 @@ fn chosen_x_cost(
 ) -> LocalActivationCostNode {
     LocalActivationCostNode::ChosenX(ChosenXCostNode {
         action,
+        amount,
         filter,
         zone,
         exclude_source,
@@ -922,21 +1049,41 @@ fn chosen_x_cost(
     })
 }
 
-/// A declared object choice is enumerated with a literal cardinality: the
-/// engine's `chooseObjects` declaration takes an exact literal quantity, so a
-/// chosen-X number of objects is a typed engine gap, never approximated.
+/// A declared object choice of the schemas that take one choice per object
+/// is enumerated with a literal cardinality; X or a payer-chosen number is
+/// read before by the chosen-objects schema, and any other quantity (a
+/// random discard of a chosen number) is a typed engine gap, never
+/// approximated.
 fn declared_object_count(
     cursor: &mut OracleTokenCursor<'_>,
-    count: NumericAtom,
+    count: CostQuantity,
     state: &'static str,
 ) -> MachineResult<i64> {
-    literal_quantity(count).ok_or_else(|| {
+    count.literal().ok_or_else(|| {
         cursor.enter(state);
         cursor.engine_gap(
             crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
             "a literal number of objects chosen while paying (a declaration of X chosen objects has no engine schema)",
         )
     })
+}
+
+/// Distributed removal pays a literal number of counters: a payer-chosen
+/// number is counted only in one named kind on the source.
+fn literal_cost_counter_count(
+    cursor: &mut OracleTokenCursor<'_>,
+    count: CostQuantity,
+) -> MachineResult<i64> {
+    match count {
+        CostQuantity::Exactly(atom) => literal_counter_count(cursor, atom),
+        CostQuantity::Chosen(_) => {
+            cursor.enter("activation.counters.chosen-distribution");
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
+                "a literal number of counters distributed while paying (a payer-chosen distribution has no engine schema)",
+            ))
+        }
+    }
 }
 
 /// Counter placement and distributed removal pay a literal number of counters.
