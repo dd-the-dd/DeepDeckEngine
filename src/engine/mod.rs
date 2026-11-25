@@ -170,6 +170,8 @@ mod mana_discovery_session;
 #[cfg(test)]
 mod mana_legacy_test_adapter;
 mod mana_payment;
+mod evasion_exception;
+mod static_damage_prevention;
 mod static_modifier_site;
 mod static_object_prohibitions;
 mod static_player_permissions;
@@ -5395,6 +5397,12 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = player_static_modifiers::modifier_supported(modifier) {
+        return supported;
+    }
+    if let Some(supported) = static_damage_prevention::modifier_supported(modifier) {
+        return supported;
+    }
+    if let Some(supported) = evasion_exception::modifier_supported(modifier) {
         return supported;
     }
     if let Some(supported) = GameEngine::static_keyword_loss_supported(modifier) {
@@ -37034,6 +37042,7 @@ impl GameEngine {
             .iter()
             .any(|(keyword, subtype)| {
                 self.permanent_has_keyword(attacker, keyword)
+                    && !self.block_evasion_ignored(attacker, keyword)
                     && defending_player_index.is_some_and(|player_index| {
                         self.state.players[player_index]
                             .battlefield

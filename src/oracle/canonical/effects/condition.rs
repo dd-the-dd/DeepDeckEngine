@@ -557,6 +557,7 @@ fn history_event_kind(event: HistoryEvent) -> Value {
         HistoryEvent::LandPlayed => "landPlayed",
         HistoryEvent::CardsPutIntoGraveyard => "cardsEnteredGraveyard",
         HistoryEvent::CombatPhaseStarted => "combatPhaseStarted",
+        HistoryEvent::CrimeCommitted => "crimeCommitted",
     };
     json!(kind)
 }

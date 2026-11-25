@@ -28,6 +28,7 @@
 //!            | ("doesn't" | "don't") "untap during" OWNER "untap step"
 //!            | ("loses" | "lose") "all abilities"
 //!            | "can attack as though" PRONOUN "didn't have defender"
+//!            | "can be blocked as though" PRONOUN "didn't have" LANDWALK
 //!            | ("assigns" | "assign") "combat damage equal to" PRONOUN
 //!              "toughness rather than" PRONOUN "power"
 //!            | "can't have counters put on" PRONOUN
@@ -65,7 +66,8 @@
 //! form or a predicate verb extends this frame once for every combination.
 use super::super::*;
 use crate::oracle::characteristic_vocabulary::{
-    AcceptedForms, lookup_permanent_card_type, type_line_has_permanent_card_type,
+    AcceptedForms, lookup_landwalk_word, lookup_permanent_card_type,
+    type_line_has_permanent_card_type,
 };
 use crate::oracle::syntax::AbilityInput;
 
@@ -89,7 +91,8 @@ pub(in crate::oracle::canonical) fn try_parse_static_continuous_effect(
     }
     let mut cursor = OracleTokenCursor::new("static-continuous-effect", input.tokens);
     let mut committed = false;
-    match read_static_continuous_effect(&mut cursor, input, &mut committed) {
+    let mut zone_of_function = None;
+    match read_static_continuous_effect(&mut cursor, input, &mut committed, &mut zone_of_function) {
         Ok((modifiers, condition)) => {
             let trace = cursor
                 .transitions()
@@ -100,7 +103,7 @@ pub(in crate::oracle::canonical) fn try_parse_static_continuous_effect(
             let mut rule = json!({
                 "kind": "staticAbility",
                 "source": self_ref(),
-                "activeWhile": active_while_battlefield(),
+                "activeWhile": active_while_static_zone(zone_of_function),
                 "modifiers": modifiers,
             });
             if let Some(condition) = &condition {
@@ -129,37 +132,148 @@ pub(in crate::oracle::canonical) fn try_parse_static_continuous_effect(
     }
 }
 
+/// The leading gates of a static ability (CR 611.3a, 113.6): any number of
+/// `during …` turn conditions and `as long as …` conditions, each closed by
+/// its comma, joined by `and`. `as long as SOURCE is in your graveyard`
+/// declares the source's zone of function instead of a condition the engine
+/// evaluates on the battlefield.
+#[derive(Clone, Debug, Default)]
+pub(in crate::oracle::canonical) struct LeadingStaticCondition {
+    pub condition: Option<StaticConditionNode>,
+    /// The static zone of function (`graveyard`) the condition declares.
+    pub zone_of_function: Option<&'static str>,
+}
+
+/// `as long as this card is in your graveyard [and …]` (CR 113.6, 604.3): the
+/// width of the source reference and its zone phrase at the cursor, when the
+/// atom closes the clause or is followed by `and`.
+fn source_graveyard_declaration_width(
+    cursor: &OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+) -> Option<usize> {
+    if !source_reference_starts_at(
+        cursor.position(),
+        cursor.peek(),
+        input.name_links,
+        input.name_resolution_failure,
+    ) {
+        return None;
+    }
+    let mut trial = cursor.clone();
+    recognize_source_reference(&mut trial, input.name_links, input.name_resolution_failure).ok()?;
+    let reference_width = trial.position() - cursor.position();
+    let zone_phrase = ["is", "in", "your", "graveyard"];
+    let zone_matches = zone_phrase
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| word_in(trial.peek_ahead(offset), &[*word]));
+    let closes = trial
+        .peek_ahead(zone_phrase.len())
+        .is_some_and(|raw| raw == "," || raw.eq_ignore_ascii_case("and"));
+    (zone_matches && closes).then_some(reference_width + zone_phrase.len())
+}
+
+/// Reads every leading gate of a static ability with its comma. A failure
+/// after `as long as`, `during` or (when the caller admits it) `if` is
+/// committed: the frame owns the gate.
+pub(in crate::oracle::canonical) fn read_leading_static_conditions(
+    cursor: &mut OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+    committed: &mut bool,
+    allow_if: bool,
+) -> MachineResult<LeadingStaticCondition> {
+    let mut conditions = Vec::new();
+    let mut zone_of_function = None;
+    loop {
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("during"))
+        {
+            // `during` introduces a turn condition of the whole static ability.
+            *committed = true;
+        }
+        if let Some(turn_condition) = recognize_optional_turn_condition(cursor)? {
+            conditions.push(turn_condition);
+        } else if as_long_as_starts(cursor) {
+            cursor.enter("static.continuous.leading-condition");
+            cursor.consume_phrase(&["as", "long", "as"])?;
+            *committed = true;
+            if let Some(width) = source_graveyard_declaration_width(cursor, input) {
+                // CR 113.6: the parent declares the source's zone of
+                // function; the engine reads the static ability only while
+                // the card is in that zone.
+                cursor.enter("static.continuous.leading-condition.zone-of-function");
+                cursor.require(
+                    zone_of_function.is_none(),
+                    "one zone of function for the static ability",
+                )?;
+                cursor.advance_to(cursor.position() + width)?;
+                zone_of_function = Some("graveyard");
+                if word_in(cursor.peek(), &["and"]) {
+                    cursor.consume("and")?;
+                } else {
+                    cursor.enter("static.continuous.leading-condition.separator");
+                    cursor.consume(",")?;
+                    continue;
+                }
+            }
+            // `it` before the subject is not yet bound to the source.
+            conditions.push(recognize_static_condition_for(
+                cursor,
+                condition_context(input, false),
+                condition_subject(input, false),
+            )?);
+        } else if allow_if && word_in(cursor.peek(), &["if"]) {
+            // `If CONDITION, BODY` of a static body (the caller excluded a
+            // replaced event `if … would`): the same continuously
+            // evaluated gate as `as long as`.
+            cursor.enter("static.continuous.leading-condition");
+            cursor.consume("if")?;
+            *committed = true;
+            conditions.push(recognize_static_condition_for(
+                cursor,
+                condition_context(input, false),
+                condition_subject(input, false),
+            )?);
+        } else {
+            break;
+        }
+        cursor.enter("static.continuous.leading-condition.separator");
+        cursor.consume(",")?;
+    }
+    let condition = match conditions.len() {
+        0 => None,
+        1 => conditions.pop(),
+        _ => Some(BooleanConditionNode::And(conditions)),
+    };
+    Ok(LeadingStaticCondition {
+        condition,
+        zone_of_function,
+    })
+}
+
+/// The `activeWhile` of a static rule functioning from `zone` (CR 113.6).
+pub(in crate::oracle::canonical) fn active_while_static_zone(zone: Option<&str>) -> Value {
+    match zone {
+        None => active_while_battlefield(),
+        Some(zone) => json!({
+            "kind": "inZone",
+            "object": self_ref(),
+            "zone": { "kind": zone },
+        }),
+    }
+}
+
 fn read_static_continuous_effect(
     cursor: &mut OracleTokenCursor<'_>,
     input: &AbilityInput<'_>,
     committed: &mut bool,
+    zone_of_function: &mut Option<&'static str>,
 ) -> MachineResult<(Vec<Value>, Option<StaticConditionNode>)> {
     recognize_optional_ability_word_envelope(cursor)?;
-    let mut condition = None;
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("during"))
-    {
-        // `during` introduces a turn condition of the whole static ability.
-        *committed = true;
-    }
-    if let Some(turn_condition) = recognize_optional_turn_condition(cursor)? {
-        condition = Some(turn_condition);
-        cursor.enter("static.continuous.leading-condition.separator");
-        cursor.consume(",")?;
-    } else if as_long_as_starts(cursor) {
-        cursor.enter("static.continuous.leading-condition");
-        cursor.consume_phrase(&["as", "long", "as"])?;
-        *committed = true;
-        // `it` before the subject is not yet bound to the source.
-        condition = Some(recognize_static_condition_for(
-            cursor,
-            condition_context(input, false),
-            condition_subject(input, false),
-        )?);
-        cursor.enter("static.continuous.leading-condition.separator");
-        cursor.consume(",")?;
-    }
+    let leading = read_leading_static_conditions(cursor, input, committed, false)?;
+    *zone_of_function = leading.zone_of_function;
+    let condition = leading.condition;
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
@@ -395,6 +509,8 @@ struct StaticObjectSubject {
     /// `enchanted creature's`: a possessed noun of the object starts the
     /// predicate (`activated abilities can't be activated`).
     possessive: bool,
+    /// `it's`: the subject pronoun carried the copula of the first predicate.
+    contracted_copula: bool,
 }
 
 fn read_subject_predicates(
@@ -423,7 +539,30 @@ fn read_static_subject_list(
     condition: Option<&StaticConditionNode>,
 ) -> MachineResult<Vec<StaticSubjectItem>> {
     // `As long as this creature is equipped, it ...`: the condition's object.
-    if let Some(reference) = recognize_condition_pronoun_subject(cursor, condition)? {
+    // `it's` contracts that pronoun with the copula of the first predicate
+    // (`As long as NAME has a slumber counter on it, it's a land`).
+    let contracted_copula = condition.is_some() && word_in(cursor.peek(), &["it's"]);
+    let reference = if contracted_copula {
+        cursor.enter("static.condition-antecedent.contracted-pronoun");
+        let reference = condition
+            .and_then(condition_object_antecedent)
+            .filter(|reference| {
+                matches!(
+                    reference,
+                    PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_)
+                )
+            });
+        let reference = cursor.require_value(
+            reference,
+            "a leading condition about the source or its attached permanent for `it's`",
+        )?;
+        let raw = cursor.peek().unwrap_or_default().to_string();
+        cursor.consume(&raw)?;
+        Some(reference)
+    } else {
+        recognize_condition_pronoun_subject(cursor, condition)?
+    };
+    if let Some(reference) = reference {
         let objects = cursor.require_value(
             bound_permanent_reference_value(reference, &[]),
             "a static subject the condition's object lowers to",
@@ -433,6 +572,7 @@ fn read_static_subject_list(
             predicate: None,
             number: TypeChangeNumber::Singular,
             possessive: false,
+            contracted_copula,
         })]);
     }
     let mut items = Vec::new();
@@ -585,8 +725,9 @@ fn read_player_predicates(
         cursor.consume(".")?;
         break;
     }
-    if keywords && cursor.peek() == Some("(") {
-        // CR 207.2: the reminder of a granted player keyword.
+    if (keywords || condition.is_some()) && cursor.peek() == Some("(") {
+        // CR 207.2: the reminder of a granted player keyword or of the
+        // condition's term.
         read_closing_reminder(cursor)?;
     }
     cursor.enter("static.continuous.complete");
@@ -656,7 +797,7 @@ fn read_object_predicates(
     // `Enchanted creature's activated abilities …`: the possessed noun is
     // read without a pronoun; `It's a Dragon …`: the copula is contracted.
     let mut possessed_start = subject.possessive;
-    let mut contracted_copula = false;
+    let mut contracted_copula = subject.contracted_copula;
     loop {
         cursor.enter("static.continuous.predicate");
         let verb = cursor
@@ -823,6 +964,24 @@ fn read_object_predicates(
                     modifiers
                         .push(json!({ "kind": "goadAttachedPermanent", "attachment": self_ref() }));
                     goaded = true;
+                } else if all_creature_types_follow(cursor) {
+                    // CR 205.3m: every creature type, in the creature
+                    // subtype class (layer 4); the objects keep their card
+                    // types and other subtypes.
+                    cursor.enter("static.continuous.all-creature-types");
+                    *committed = true;
+                    let quantifier = cursor.peek().unwrap_or_default().to_string();
+                    cursor.consume(&quantifier)?;
+                    cursor.consume("creature")?;
+                    let noun = cursor.peek().unwrap_or_default().to_string();
+                    cursor.consume(&noun)?;
+                    modifiers.push(json!({
+                        "kind": "modifySubtypeSet",
+                        "objects": objects.clone(),
+                        "subtypeClass": "creature",
+                        "mode": "all",
+                    }));
+                    changes_types = true;
                 } else if word_in(cursor.peek(), &["the"])
                     && word_in(cursor.peek_ahead(1), &["chosen"])
                 {
@@ -895,7 +1054,11 @@ fn read_object_predicates(
                 cursor.consume(&verb)?;
                 *committed = true;
                 cursor.enter("static.continuous.ability-loss");
-                if word_in(cursor.peek(), &["all"]) {
+                if word_in(cursor.peek(), &["all"]) && word_in(cursor.peek_ahead(1), &["other"]) {
+                    // `loses all other abilities, card types, and creature
+                    // types`: what the same effect does not itself give.
+                    read_other_characteristic_loss(cursor, objects, &modifiers)?;
+                } else if word_in(cursor.peek(), &["all"]) {
                     cursor.consume_phrase(&["all", "abilities"])?;
                     modifiers
                         .push(json!({ "kind": "loseAllAbilities", "objects": objects.clone() }));
@@ -912,6 +1075,33 @@ fn read_object_predicates(
                 read_prohibition_word(cursor)?;
                 cursor.consume_phrase(&["have", "or", "gain"])?;
                 modifiers.push(read_keyword_loss(cursor, objects)?);
+            }
+            Some(StaticPredicateHead::Ability)
+                if word_in(cursor.peek_ahead(1), &["be"])
+                    && word_in(cursor.peek_ahead(2), &["blocked"])
+                    && word_in(cursor.peek_ahead(3), &["as"]) =>
+            {
+                // `can be blocked as though they didn't have swampwalk`
+                // (CR 702.14): the objects keep the keyword; only its
+                // blocking restriction is ignored.
+                cursor.consume("can")?;
+                *committed = true;
+                cursor.enter("static.continuous.evasion-exception");
+                cursor.consume_phrase(&["be", "blocked", "as", "though"])?;
+                read_subject_pronoun(cursor, subject_number)?;
+                read_negated_have(cursor)?;
+                cursor.enter("static.continuous.evasion-exception.keyword");
+                let landwalk = cursor.require_value(
+                    cursor.peek().and_then(lookup_landwalk_word),
+                    "a landwalk keyword whose evasion is ignored (CR 702.14)",
+                )?;
+                let raw = cursor.peek().unwrap_or_default().to_string();
+                cursor.consume(&raw)?;
+                modifiers.push(json!({
+                    "kind": "ignoreBlockEvasion",
+                    "objects": objects.clone(),
+                    "keyword": landwalk.keyword,
+                }));
             }
             Some(StaticPredicateHead::Ability) => {
                 cursor.consume("can")?;
@@ -1074,7 +1264,14 @@ fn read_object_predicates(
             "a protection granted to the enchanted permanent before the Aura exception",
         )?;
     }
-    if (!granted.is_empty() || changes_types || goaded) && cursor.peek() == Some("(") {
+    // A gated ability may close with the reminder of its condition's term
+    // (`(Each {U} in the mana costs of permanents you control counts toward
+    // your devotion to blue.)`, CR 700.5).
+    let conditioned = sentences
+        .iter()
+        .any(|sentence| sentence.condition.is_some());
+    if (!granted.is_empty() || changes_types || goaded || conditioned) && cursor.peek() == Some("(")
+    {
         // CR 207.2: reminder text of a granted keyword or of a type change
         // (`They're still affected by summoning sickness.`) has no rules meaning.
         // Only one trailing, balanced parenthetical that closes the ability is
@@ -1321,6 +1518,71 @@ fn read_chosen_type_addition(
         "object": self_ref(),
         "choice": chosen_creature_type(),
     }))
+}
+
+/// `all other ITEM (("," | "and" | ", and") ITEM)*` after `lose(s)`, ITEM :=
+/// `card types` | `creature types` | `abilities`. `other` names what the
+/// same effect gives: the card types or creature types it sets already
+/// replace the prior ones (CR 205.1a-b), so those items confirm the setting
+/// change they follow and add no modifier. Keeping the abilities the same
+/// effect grants while removing every other one needs a layer-6 order the
+/// engine does not apply to a static ability loss: that item fails
+/// explicitly instead of dropping the granted abilities.
+fn read_other_characteristic_loss(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &Value,
+    modifiers: &[Value],
+) -> MachineResult<()> {
+    cursor.consume_phrase(&["all", "other"])?;
+    let sets = |kind: &str, check: &dyn Fn(&Value) -> bool| {
+        modifiers.iter().any(|modifier| {
+            modifier["kind"] == kind && modifier["objects"] == *objects && check(modifier)
+        })
+    };
+    loop {
+        cursor.enter("static.continuous.ability-loss.other");
+        if word_in(cursor.peek(), &["card"]) {
+            cursor.consume_phrase(&["card", "types"])?;
+            cursor.require(
+                sets("setCardTypes", &|_| true),
+                "card types set by the same effect before `all other card types` (CR 205.1a)",
+            )?;
+        } else if word_in(cursor.peek(), &["creature"]) {
+            cursor.consume_phrase(&["creature", "types"])?;
+            cursor.require(
+                sets("modifySubtypeSet", &|modifier| {
+                    modifier["subtypeClass"] == "creature" && modifier["mode"] == "replace"
+                }),
+                "creature types set by the same effect before `all other creature types` (CR 205.1b)",
+            )?;
+        } else {
+            cursor.enter("static.continuous.ability-loss.other-abilities");
+            return Err(cursor.fail(
+                "`card types` or `creature types` (a static loss that keeps the abilities the same effect grants needs a layer-6 order the engine does not apply, CR 613.7)",
+            ));
+        }
+        let width = match cursor.peek() {
+            Some(",") if word_in(cursor.peek_ahead(1), &["and"]) => 2,
+            Some(",") => 1,
+            Some(raw) if raw.eq_ignore_ascii_case("and") => 1,
+            _ => break,
+        };
+        if !word_in(cursor.peek_ahead(width), &["abilities", "card", "creature"]) {
+            break;
+        }
+        for _ in 0..width {
+            let raw = cursor.peek().unwrap_or_default().to_string();
+            cursor.consume(&raw)?;
+        }
+    }
+    Ok(())
+}
+
+/// `every creature type` / `all creature types` after a copula (CR 205.3m).
+fn all_creature_types_follow(cursor: &OracleTokenCursor<'_>) -> bool {
+    let every = word_in(cursor.peek(), &["every"]) && word_in(cursor.peek_ahead(2), &["type"]);
+    let all = word_in(cursor.peek(), &["all"]) && word_in(cursor.peek_ahead(2), &["types"]);
+    (every || all) && word_in(cursor.peek_ahead(1), &["creature"])
 }
 
 /// `isn't a TYPE` (CR 205.1a): a source that is not that card type while
@@ -1817,6 +2079,9 @@ impl StaticPredicateHead {
             Self::Combat
                 | Self::ModifyStats
                 | Self::Grant
+                | Self::AbilityLoss
+                | Self::NegatedCopula(_)
+                | Self::NegatedDo
                 | Self::Copula(_)
                 | Self::CounterProhibition
                 | Self::PassiveProhibition
@@ -2167,7 +2432,10 @@ pub(in crate::oracle::canonical) fn static_continuous_frame_failure(
     }
     let mut cursor = OracleTokenCursor::new("static-continuous-effect", input.tokens);
     let mut committed = false;
-    let failure = read_static_continuous_effect(&mut cursor, input, &mut committed).err()?;
+    let mut zone_of_function = None;
+    let failure =
+        read_static_continuous_effect(&mut cursor, input, &mut committed, &mut zone_of_function)
+            .err()?;
     let reached_predicate = cursor
         .transitions()
         .iter()
@@ -2381,6 +2649,7 @@ fn read_static_subject_reading(
                 predicate: Some(ObjectPredicate::Subtype(subtype)),
                 number: TypeChangeNumber::Singular,
                 possessive: false,
+                contracted_copula: false,
             });
         }
         let word = attachment.expect("checked attachment word");
@@ -2401,6 +2670,7 @@ fn read_static_subject_reading(
             predicate: noun_type,
             number: TypeChangeNumber::Singular,
             possessive,
+            contracted_copula: false,
         });
     }
     // A sentence-initial word the name resolver could not link (`Nonblack
@@ -2436,6 +2706,7 @@ fn read_static_subject_reading(
             predicate: None,
             number: TypeChangeNumber::Singular,
             possessive: false,
+            contracted_copula: false,
         });
     }
     read_static_collection_subject(cursor)
@@ -2466,6 +2737,7 @@ fn read_static_collection_subject(
         predicate: Some(query.predicate),
         number,
         possessive: false,
+        contracted_copula: false,
     })
 }
 
