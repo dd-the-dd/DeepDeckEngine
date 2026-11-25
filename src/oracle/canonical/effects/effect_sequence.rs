@@ -200,6 +200,28 @@ pub(in crate::oracle::canonical) fn try_lower_local_effect_sequence_with_context
     }
 }
 
+/// The same lowering over a caller-owned card-collection scope: an outcome
+/// body reads the cards its producing instruction observed (CR 608.2c).
+pub(in crate::oracle::canonical) fn try_lower_local_effect_sequence_with_collections(
+    cursor: &mut OracleTokenCursor<'_>,
+    sequence: &EffectSequenceNode,
+    context: EffectSequenceLoweringContext,
+    collections: &mut CardCollectionMemory,
+) -> EffectSequenceLoweringAttempt {
+    match lower_local_effect_sequence_with_collections(cursor, sequence, context, collections) {
+        Ok(lowered) => EffectSequenceLoweringAttempt::Lowered(lowered),
+        Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure)) => {
+            EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure)
+        }
+        Err(EffectSequenceLoweringFailure::FailedSupport(failure)) => {
+            EffectSequenceLoweringAttempt::FailedSupport(failure)
+        }
+        Err(EffectSequenceLoweringFailure::FailedInvariant(failure)) => {
+            EffectSequenceLoweringAttempt::FailedInvariant(failure)
+        }
+    }
+}
+
 /// Whether the next action that reads or replaces the card-collection scope
 /// reads it through a lexical reference (`that card`, `it`, `them`).
 fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {

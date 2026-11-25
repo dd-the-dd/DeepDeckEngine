@@ -57,6 +57,32 @@ fn recognize_exiled_with_source(trial: &mut OracleTokenCursor<'_>) -> Result<(),
     trial.consume(&noun)
 }
 
+/// `of them`, `of those cards`, `of the [revealed|exiled] cards` after `the
+/// rest`: the restated whole collection whose remainder is named. It names
+/// no other basis than the observed collection, so the role stays the
+/// remainder; the lowerer proves the preceding selection.
+fn recognize_restated_remainder_basis(
+    trial: &mut OracleTokenCursor<'_>,
+) -> Result<(), MachineFailure> {
+    trial.enter("collection.reference.remainder-basis");
+    trial.consume("of")?;
+    match trial.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("them") => trial.consume("them"),
+        Some("those") => trial.consume_phrase(&["those", "cards"]),
+        Some("the") => {
+            trial.consume("the")?;
+            if trial.peek().is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
+            }) {
+                let verb = trial.peek().unwrap_or("revealed").to_owned();
+                trial.consume(&verb)?;
+            }
+            trial.consume("cards")
+        }
+        _ => Err(trial.fail("`them`, `those cards` or `the [revealed] cards` after `the rest of`")),
+    }
+}
+
 pub(in crate::oracle::canonical) enum CollectionOperandAttempt<T> {
     NotClaimed,
     Recognized(RecognizedEffectFragment<T>),
@@ -137,6 +163,28 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
             }
             CardCollectionReferenceNode::Linked
         }
+        // `all revealed cards [not cast this way]`, `all exiled cards`: the
+        // universal restatement of `the revealed|exiled cards`.
+        Some("all")
+            if trial.peek_ahead(1).is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
+            }) && trial
+                .peek_ahead(2)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("cards")) =>
+        {
+            let verb = trial
+                .peek_ahead(1)
+                .unwrap_or("revealed")
+                .to_ascii_lowercase();
+            if let Err(f) = trial.consume_phrase(&["all", verb.as_str(), "cards"]) {
+                return CollectionOperandAttempt::FailedCommitted(f);
+            }
+            if verb == "revealed" {
+                CardCollectionReferenceNode::Revealed
+            } else {
+                CardCollectionReferenceNode::Exiled
+            }
+        }
         Some("all") => {
             // `all other cards revealed this way` is the remainder role again.
             if let Err(f) = trial.consume_phrase(&["all", "other", "cards"]) {
@@ -163,6 +211,15 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
             match trial.peek().map(str::to_ascii_lowercase).as_deref() {
                 Some("rest") => {
                     if let Err(f) = trial.consume("rest") {
+                        return CollectionOperandAttempt::FailedCommitted(f);
+                    }
+                    // `the rest of the revealed cards|of the cards|of them`:
+                    // the remainder with its whole collection restated.
+                    if trial
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
+                        && let Err(f) = recognize_restated_remainder_basis(&mut trial)
+                    {
                         return CollectionOperandAttempt::FailedCommitted(f);
                     }
                     CardCollectionReferenceNode::Remainder

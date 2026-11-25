@@ -723,6 +723,21 @@ impl CardCollectionMemory {
             self.mention(value.clone());
             return Ok(value);
         }
+        if let CardOperandNode::RestatedAntecedent { predicate } = operand {
+            // `those land cards`: the plural antecedent itself, whose
+            // producing filter is exactly the restated query. Any other
+            // antecedent (an unfiltered look, another query) fails here
+            // rather than being filtered or widened silently.
+            let (value, maximum) =
+                self.reference(cursor, CardCollectionReferenceNode::Antecedent)?;
+            cursor.require(
+                value_kind_name(&value) == Some("filterObjects")
+                    && value.get("where") == Some(&lower_card_object_predicate(predicate)),
+                "a restated card query naming exactly the filter of the plural antecedent",
+            )?;
+            self.mention((value.clone(), maximum));
+            return Ok((value, maximum));
+        }
         if let CardOperandNode::Targets(target) = operand {
             validate_object_predicate_numeric_expressions(&target.predicate, declarations)
                 .map_err(|error| cursor.fail(error.expectation()))?;
@@ -926,7 +941,22 @@ impl CardCollectionMemory {
             }
             return Ok(value);
         };
-        let (from, source_maximum) = self.reference(cursor, selection.from)?;
+        let (from, source_maximum) = match &selection.quantity {
+            // `all [QUERY] cards revealed|exiled this way` restates the whole
+            // collection the producing action observed (CR 608.2c), never
+            // the narrower focus a later selection or a reveal-until match
+            // left (`reveal cards until you reveal two creature cards. Put
+            // all creature cards revealed this way ... and the rest ...`).
+            CardSelectionQuantityNode::All { via: Some(_), .. }
+                if selection.from == CardCollectionReferenceNode::Antecedent =>
+            {
+                let view = self.view.clone().ok_or_else(|| {
+                    cursor.fail("an observed card collection in the current lexical scope")
+                })?;
+                (view, self.view_maximum)
+            }
+            _ => self.reference(cursor, selection.from)?,
+        };
         if self.complement_basis.as_ref().map(|(basis, _)| basis) != Some(&from) {
             self.complement_basis = Some((from.clone(), source_maximum));
             self.complement_exclusions.clear();
@@ -1755,6 +1785,9 @@ impl CardCollectionMemory {
                 self.view_from_library_top = true;
                 self.view_library_of_controller = true;
                 self.view_verb = Some(CardCollectionVerb::Revealed);
+                // `the revealed cards` / `all revealed cards` name every
+                // card this reveal revealed, matching or not (CR 701.20a).
+                self.last_revealed = Some((bound(&id), None));
                 self.selected.push(matching.clone());
                 self.complement_exclusions.push(matching.clone());
                 self.mention((matching, maximum));
@@ -2082,7 +2115,9 @@ impl CardCollectionMemory {
                 if destination.zone != CardZoneName::Library
                     && matches!(
                         operand,
-                        CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                        CardOperandNode::Reference(_)
+                            | CardOperandNode::RestatedAntecedent { .. }
+                            | CardOperandNode::Selection(_)
                     )
                 {
                     self.view_library_of_controller = false;
@@ -2096,7 +2131,9 @@ impl CardCollectionMemory {
                         self.view_from_library_top
                             && matches!(
                                 operand,
-                                CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                                CardOperandNode::Reference(_)
+                                    | CardOperandNode::RestatedAntecedent { .. }
+                                    | CardOperandNode::Selection(_)
                             ),
                         "cards this program observed in a library, moved back to that library",
                     )?;
@@ -2211,7 +2248,8 @@ impl CardCollectionMemory {
                         // The cards a resolution choice chose (a search's
                         // found cards): identities fixed by the choice.
                         CardOperandNode::Reference(_) if is_choice_result(&cards) => true,
-                        CardOperandNode::Reference(_) => {
+                        CardOperandNode::Reference(_)
+                        | CardOperandNode::RestatedAntecedent { .. } => {
                             (self.view_verb == Some(CardCollectionVerb::Exiled)
                                 && self.view_zone == Some(CardZoneName::Exile))
                                 // The library cards this program looked at or
@@ -2493,6 +2531,7 @@ fn moved_cards_owned_by_controller(operand: &CardOperandNode) -> bool {
         }
         CardOperandNode::Reference(_)
         | CardOperandNode::ObjectAntecedent { .. }
+        | CardOperandNode::RestatedAntecedent { .. }
         | CardOperandNode::Selection(_)
         | CardOperandNode::LibraryTop(_)
         | CardOperandNode::CardCopies { .. }

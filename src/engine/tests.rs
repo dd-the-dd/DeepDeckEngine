@@ -41,6 +41,10 @@ mod rebound_runtime;
 mod object_to_zone_frame_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/zone_move_collections_runtime.rs"]
+mod zone_move_collections_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/effect_coordination_runtime.rs"]
 mod effect_coordination_runtime;
 

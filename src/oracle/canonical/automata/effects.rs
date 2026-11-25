@@ -710,6 +710,17 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
             }
             ZoneChangeState::Target => {
                 cursor.enter("effect.zone-change.target");
+                if support == ZoneChangeTargetSupport::TargetCollection
+                    && matches!(
+                        action,
+                        Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand))
+                    )
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("to"))
+                {
+                    return recognize_preposed_owner_hand_return(cursor);
+                }
                 let targets = if support == ZoneChangeTargetSupport::TargetCollection {
                     // The shared verb operand: a reference, declared targets
                     // (with typed counts), card targets from an explicit
@@ -814,16 +825,27 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                             position,
                         )));
                         cursor.enter("effect.zone-change.library.owner");
-                        cursor.consume("its")?;
-                        let owner = cursor
+                        if cursor
                             .peek()
-                            .filter(|raw| {
-                                raw.eq_ignore_ascii_case("owner's")
-                                    || raw.eq_ignore_ascii_case("owner\u{2019}s")
-                            })
-                            .map(ToOwned::to_owned)
-                            .ok_or_else(|| cursor.fail("`owner's`"))?;
-                        cursor.consume(&owner)?;
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+                        {
+                            // `put target permanent you own on the bottom of
+                            // your library`: a permanent goes to its owner's
+                            // library whatever possessive is written (CR
+                            // 400.3), the same destination as `its owner's`.
+                            cursor.consume("your")?;
+                        } else {
+                            cursor.consume("its")?;
+                            let owner = cursor
+                                .peek()
+                                .filter(|raw| {
+                                    raw.eq_ignore_ascii_case("owner's")
+                                        || raw.eq_ignore_ascii_case("owner\u{2019}s")
+                                })
+                                .map(ToOwned::to_owned)
+                                .ok_or_else(|| cursor.fail("`owner's`"))?;
+                            cursor.consume(&owner)?;
+                        }
                         cursor.consume("library")?;
                         if into {
                             cursor.enter("effect.zone-change.library.beneath-top");
@@ -1040,6 +1062,52 @@ fn recognize_untargeted_zone_change(
             ))
         }
     }
+}
+
+/// `return to its|their owner's|owners' hand(s) QUANTIFIED-PERMANENTS`
+/// (`Return to their owners' hands all creatures with toughness 2 or
+/// less`): a heavy quantified operand written after its destination. The
+/// same two children as the ordinary order, reversed: the owner-hand
+/// destination, then the shared object-to-zone operand, which must be a
+/// universal collection or a resolution selection (a declared target is
+/// never shifted). `their owners' hands` agrees with a plural operand; a
+/// singular possessive admits a distributive `each` (CR 400.3: each
+/// permanent goes to its own owner's hand).
+fn recognize_preposed_owner_hand_return(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LocalEffectNode> {
+    cursor.enter("effect.zone-change.preposed-destination");
+    let plural_destination = cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("their"));
+    recognize_owner_hand_destination(cursor, plural_destination)?;
+    cursor.enter("effect.zone-change.preposed-destination.operand");
+    let operand =
+        recognize_verb_object_operand(cursor, VerbObjectOperandExpectation::OBJECT_TO_ZONE)?;
+    cursor.enter("effect.zone-change.preposed-destination.agreement");
+    cursor.require(
+        !plural_destination || operand.is_plural(),
+        "a plural operand after `their owners' hands`",
+    )?;
+    let operand = match operand {
+        VerbObjectOperandNode::Collection { objects, .. } => super::PermanentSelectionOperandNode {
+            bounds: None,
+            query: objects,
+        },
+        VerbObjectOperandNode::Selection(operand) => operand,
+        _ => {
+            return Err(cursor.fail(
+                "a universal permanent collection or a resolution choice after a preposed destination",
+            ));
+        }
+    };
+    Ok(LocalEffectNode::SelectedPermanents(
+        super::SelectedPermanentsEffectNode {
+            action: super::SelectedPermanentAction::ReturnToOwnerHand,
+            operand,
+            until: None,
+        },
+    ))
 }
 
 /// `to its|their owner's|owners' hand(s)` (CR 400.3): the possessive
