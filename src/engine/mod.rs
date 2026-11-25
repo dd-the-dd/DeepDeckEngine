@@ -33260,25 +33260,14 @@ impl GameEngine {
         decisions.insert(choice_key, Value::Bool(chosen));
         // CR 608.2c, 603.12: the outcome follows whether the instruction was
         // actually performed, measured by its prepared witness.
-        let performed = if chosen {
-            let witness = self.prepare_optional_action_witness(
-                &effect["action"],
-                stack_object,
-                bindings,
-                decisions,
-            );
-            let first_event = self.state.events.len();
-            self.execute_effects(
-                &Value::Array(vec![effect["action"].clone()]),
+        let performed = chosen
+            && self.run_measured_instruction(
+                effect,
                 stack_object,
                 bindings,
                 decisions,
                 provider,
             )?;
-            self.optional_action_was_performed(&witness, first_event)
-        } else {
-            false
-        };
         if performed {
             self.execute_effects(
                 &effect["onPerformed"],
@@ -33296,42 +33285,6 @@ impl GameEngine {
             Some(stack_object.card.instance_id.clone()),
             json!({ "chosen": chosen, "performed": performed, "stackId": stack_object.id }),
         );
-        Ok(())
-    }
-
-    /// Runs a mandatory instruction and, only when its prepared witness shows
-    /// it was actually performed (CR 603.12), the dependent outcome effects.
-    fn execute_performed_action<P: DecisionProvider>(
-        &mut self,
-        effect: &Value,
-        stack_object: &StackObject,
-        bindings: &mut BTreeMap<String, RuntimeBinding>,
-        decisions: &mut BTreeMap<String, Value>,
-        provider: &mut P,
-    ) -> Result<(), EngineError> {
-        let witness = self.prepare_optional_action_witness(
-            &effect["action"],
-            stack_object,
-            bindings,
-            decisions,
-        );
-        let first_event = self.state.events.len();
-        self.execute_effects(
-            &Value::Array(vec![effect["action"].clone()]),
-            stack_object,
-            bindings,
-            decisions,
-            provider,
-        )?;
-        if self.optional_action_was_performed(&witness, first_event) {
-            self.execute_effects(
-                &effect["onPerformed"],
-                stack_object,
-                bindings,
-                decisions,
-                provider,
-            )?;
-        }
         Ok(())
     }
 
