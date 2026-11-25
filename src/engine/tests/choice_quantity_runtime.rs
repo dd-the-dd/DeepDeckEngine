@@ -281,3 +281,66 @@ fn up_to_n_bounds_the_selection_and_that_many_restates_it() {
     assert_eq!(remaining(&engine, "Creature"), 1);
     assert_eq!(engine.state.players[0].hand.len(), 2);
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_permanent_chosen_at_random_is_picked_by_the_game_and_the_rest_destroyed() {
+    let rule = rules(
+        "Last One Standing",
+        "Sorcery",
+        "{1}{B}{R}",
+        "Choose a creature at random, then destroy the rest.",
+    )
+    .remove(0);
+    let mut engine = engine();
+    let spell = card_instance("player-0", &definition("last-one-standing", "Sorcery"), 900);
+    engine.state.players[0].battlefield = (0..2)
+        .map(|index| {
+            card_instance(
+                "player-0",
+                &definition(&format!("ally-{index}"), "Creature — Human"),
+                901 + index,
+            )
+        })
+        .collect();
+    engine.state.players[1].battlefield = (0..2)
+        .map(|index| {
+            card_instance(
+                "player-1",
+                &definition(&format!("foe-{index}"), "Creature — Orc"),
+                911 + index,
+            )
+        })
+        .collect();
+    let stack = stack_object(spell, &rule);
+    // No player decides a random pick: a provider asked anything fails.
+    struct NoChoice;
+    impl DecisionProvider for NoChoice {
+        fn choose(
+            &mut self,
+            _state: &GameState,
+            request: &EngineDecisionRequest,
+        ) -> Result<usize, EngineError> {
+            Err(EngineError::new(format!(
+                "a random pick asked a player: {}",
+                request.id
+            )))
+        }
+    }
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut NoChoice,
+    )
+    .expect("the compiled program executes");
+    let survivors = engine
+        .state
+        .players
+        .iter()
+        .map(|player| player.battlefield.len())
+        .sum::<usize>();
+    assert_eq!(survivors, 1);
+}

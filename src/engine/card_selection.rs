@@ -87,6 +87,19 @@ pub(super) fn literal_selection_minimum(effect: &Value) -> Option<usize> {
         .and_then(|count| usize::try_from(count.max(0)).ok())
 }
 
+/// `count` members picked at random among `candidates` (CR 608.2d: the
+/// game, not a player, makes the choice), in candidate order.
+pub(super) fn random_selection(
+    engine: &mut GameEngine,
+    mut candidates: Vec<String>,
+    count: usize,
+) -> Vec<String> {
+    use rand::seq::SliceRandom;
+    candidates.shuffle(&mut engine.rng);
+    candidates.truncate(count);
+    candidates
+}
+
 /// Bounded previews of every selection of `minimum..=maximum` members.
 /// They are previews, not the legal domain: a direct response may pick any
 /// subset of the candidates within the bounds.

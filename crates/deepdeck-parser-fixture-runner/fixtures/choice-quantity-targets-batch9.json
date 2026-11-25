@@ -590,6 +590,84 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-last-one-standing-creature-at-random-destroy-the-rest",
+      "request": {
+        "cardName": "Last One Standing",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Choose a creature at random, then destroy the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/0/selection",
+                "equals": {
+                  "kind": "random"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "recombination-land-you-control-at-random-sacrifice-the-rest",
+      "request": {
+        "cardName": "Random Keep Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Choose a land you control at random, then sacrifice the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-random-range-has-no-random-size",
+      "request": {
+        "cardName": "Random Range Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Choose up to two creatures at random, then destroy the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "choose.domain.object.selection"
+          }
+        ]
+      }
     }
   ]
 }
