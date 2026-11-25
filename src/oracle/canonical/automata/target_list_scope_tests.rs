@@ -1,5 +1,6 @@
 //! Target lists, distributive subjects and permission scopes, proved from
 //! the shared target-list child up to the complete card IR.
+use super::super::ObjectQualifier;
 use super::*;
 use crate::oracle::syntax::recognize_entities;
 use crate::oracle::{OracleCardParseRequest, parse_oracle_card_native};
@@ -162,4 +163,51 @@ fn a_permission_owns_its_sentence_and_the_next_sentence_is_unconditional() {
     assert_eq!(effects[0]["kind"], "optionalEffects");
     assert_eq!(effects[0]["effects"].as_array().unwrap().len(), 1);
     assert!(effects.len() > 1, "the return is outside the permission");
+}
+
+fn target_list(text: &str) -> MachineResult<TargetListNode> {
+    let tokens = recognize_entities(text);
+    let mut cursor = OracleTokenCursor::new("target-list-tail", &tokens);
+    let list = recognize_target_list(&mut cursor)?;
+    cursor.finish()?;
+    Ok(list)
+}
+
+#[test]
+fn any_target_that_isnt_a_characteristic_is_a_player_or_permanent_union() {
+    // CR 115.4: players stay candidates; damageable permanents lose the
+    // excluded characteristic.
+    let list = target_list("any target that isn't a Dragon").unwrap();
+    let TargetSelector::Union(branches) = &list.slots[0].selector else {
+        panic!("a player/permanent union: {list:?}");
+    };
+    assert_eq!(branches[0], TargetSelector::Player(PlayerPredicate::Any));
+    let TargetSelector::Object(ObjectPredicate::Intersection(operands)) = &branches[1] else {
+        panic!("a damageable permanent branch: {branches:?}");
+    };
+    assert!(matches!(operands[1], ObjectPredicate::Not(_)));
+    // Sibling: the uncontracted copula reads the same exception.
+    assert_eq!(
+        target_list("any target that is not a Dragon").unwrap(),
+        list
+    );
+    // Near miss: another controller in the excluded characteristic.
+    assert!(target_list("any target that isn't a Dragon you control").is_err());
+}
+
+#[test]
+fn a_set_constraint_needs_a_slot_that_may_declare_several_objects() {
+    let list = target_list("two target creatures controlled by different players").unwrap();
+    let TargetSelector::Object(predicate) = &list.slots[0].selector else {
+        panic!("an object slot: {list:?}");
+    };
+    let (_, constraints) = predicate
+        .split_set_constraints()
+        .expect("a top-level set constraint");
+    assert_eq!(constraints, vec![ObjectQualifier::DistinctControllers]);
+    // Near miss: one declared object has no set to constrain.
+    let tokens = recognize_entities("target creature controlled by different players");
+    let mut cursor = OracleTokenCursor::new("target-list-set-near-miss", &tokens);
+    let failure = recognize_target_list(&mut cursor).unwrap_err();
+    assert_eq!(failure.state, "target-list.slot.set-constraint");
 }

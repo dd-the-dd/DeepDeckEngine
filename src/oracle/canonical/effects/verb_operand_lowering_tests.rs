@@ -111,3 +111,36 @@ fn a_collection_reads_an_opponent_population_and_requires_a_declared_x() {
         json!({"kind":"opponentsOf", "player":controller()})
     );
 }
+
+#[test]
+fn an_unbounded_tap_choice_lowers_to_the_shared_choice_and_the_tap_action() {
+    let effect = LocalEffectNode::SelectedPermanents(SelectedPermanentsEffectNode {
+        action: SelectedPermanentAction::Tap,
+        operand: PermanentSelectionOperandNode {
+            bounds: Some(TargetCount {
+                minimum: NumericExpression::from(0),
+                maximum: TargetCountBound::Unbounded,
+            }),
+            query: ObjectQueryNode {
+                predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
+                controller: Some(ObjectControllerScope::AbilityController),
+                exclude_source: false,
+            },
+        },
+        until: None,
+    });
+    let lowered = lower_targetless_local_effects(&effect, TargetlessDeclarationSupport::None, None)
+        .expect("an unbounded choice lowers");
+    assert_eq!(lowered[0]["kind"], "choosePermanents");
+    assert_eq!(lowered[0]["minimum"], json!({"kind":"integer", "value":0}));
+    // No sentinel: the battlefield population bounds the choice from above.
+    assert_eq!(
+        lowered[0]["maximum"],
+        json!({"kind":"countPermanents", "allPlayers":true})
+    );
+    assert_eq!(lowered[1]["kind"], "tapPermanent");
+    assert_eq!(
+        lowered[1]["permanent"],
+        decision_result("selectedPermanents")
+    );
+}

@@ -1,0 +1,606 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "operand-tails-batch8",
+  "cases": [
+    {
+      "id": "reveillark-exact-literal-power-card-targets",
+      "request": {
+        "cardName": "Reveillark",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{4}{W}",
+        "oracleText": "Flying\nWhen this creature leaves the battlefield, return up to two target creature cards with power 2 or less from your graveyard to the battlefield.\nEvoke {5}{W} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "revive-exact-color-card-target",
+      "request": {
+        "cardName": "Revive",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Return target green card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "crypt-angel-exact-color-union-card-target",
+      "request": {
+        "cardName": "Crypt Angel",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{4}{B}",
+        "oracleText": "Flying, protection from white\nWhen this creature enters, return target blue or red creature card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "reborn-hope-exact-color-quantity-card-target",
+      "request": {
+        "cardName": "Reborn Hope",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}{W}",
+        "oracleText": "Return target multicolored card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "vivid-revival-exact-plural-color-quantity-card-targets",
+      "request": {
+        "cardName": "Vivid Revival",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{G}",
+        "oracleText": "Return up to three target multicolored cards from your graveyard to your hand. Exile Vivid Revival.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "smile-at-death-exact-up-to-literal-power",
+      "request": {
+        "cardName": "Smile at Death",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "At the beginning of your upkeep, return up to two target creature cards with power 2 or less from your graveyard to the battlefield. Put a +1/+1 counter on each of those creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "vesperlark-exact-literal-power-leaves-trigger",
+      "request": {
+        "cardName": "Vesperlark",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{W}",
+        "oracleText": "Flying\nWhen this creature leaves the battlefield, return target creature card with power 1 or less from your graveyard to the battlefield.\nEvoke {1}{W} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "fiendish-panda-exact-source-power-mana-value-bound",
+      "request": {
+        "cardName": "Fiendish Panda",
+        "typeLine": "Creature — Bear Demon",
+        "manaCost": "{2}{W}{B}",
+        "oracleText": "Whenever you gain life, put a +1/+1 counter on this creature.\nWhen this creature dies, return another target non-Bear creature card with mana value less than or equal to this creature's power from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "gurgling-anointer-exact-source-power-dies-lki",
+      "request": {
+        "cardName": "Gurgling Anointer",
+        "typeLine": "Creature — Phyrexian Horror",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nWhenever you draw your second card each turn, put a +1/+1 counter on this creature.\nWhen this creature dies, return another target creature card with mana value less than or equal to this creature's power from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "winter-soldier-reborn-avenger-exact-named-source-power",
+      "request": {
+        "cardName": "Winter Soldier, Reborn Avenger",
+        "typeLine": "Legendary Creature — Human Soldier Hero",
+        "manaCost": "{4}{W}",
+        "oracleText": "Whenever Winter Soldier attacks, return target creature card with mana value less than or equal to Winter Soldier's power from your graveyard to the battlefield. If a Hero enters this way, it enters with an additional +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "grim-return-exact-zone-history-any-graveyard",
+      "request": {
+        "cardName": "Grim Return",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Choose target creature card in a graveyard that was put there from the battlefield this turn. Put that card onto the battlefield under your control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "brought-back-exact-zone-history-plural",
+      "request": {
+        "cardName": "Brought Back",
+        "typeLine": "Instant",
+        "manaCost": "{W}{W}",
+        "oracleText": "Choose up to two target permanent cards in your graveyard that were put there from the battlefield this turn. Return them to the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "continue-exact-zone-history-up-to-four",
+      "request": {
+        "cardName": "Continue?",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Choose up to four target creature cards in your graveyard that were put there from the battlefield this turn. Return them to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "salvager-of-ruin-exact-zone-history-permanent-card",
+      "request": {
+        "cardName": "Salvager of Ruin",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{3}",
+        "oracleText": "Sacrifice this creature: Choose target permanent card in your graveyard that was put there from the battlefield this turn. Return it to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "othelm-sigardian-outcast-exact-zone-history-activated",
+      "request": {
+        "cardName": "Othelm, Sigardian Outcast",
+        "typeLine": "Legendary Creature — Human",
+        "manaCost": "{1}{G}{W}",
+        "oracleText": "{2}, {T}: Choose target creature card in your graveyard that was put there from the battlefield this turn. Return it to the battlefield tapped.\nPartner—Friends forever (You can have two commanders if both have this ability.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "moira-urborg-haunt-exact-zone-history-return-to-battlefield-first",
+      "request": {
+        "cardName": "Moira, Urborg Haunt",
+        "typeLine": "Legendary Creature — Spirit Wizard",
+        "manaCost": "{2}{B}",
+        "oracleText": "Menace\nWhenever Moira deals combat damage to a player, return to the battlefield target creature card in your graveyard that was put there from the battlefield this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "marshaling-the-troops-exact-tap-any-number-gain-life",
+      "request": {
+        "cardName": "Marshaling the Troops",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Tap any number of untapped creatures you control. You gain 4 life for each creature tapped this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "harmony-of-nature-exact-tap-any-number-sibling",
+      "request": {
+        "cardName": "Harmony of Nature",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Tap any number of untapped creatures you control. You gain 4 life for each creature tapped this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "devout-invocation-exact-tap-any-number-token-count",
+      "request": {
+        "cardName": "Devout Invocation",
+        "typeLine": "Sorcery",
+        "manaCost": "{6}{W}",
+        "oracleText": "Tap any number of untapped creatures you control. Create a 4/4 white Angel creature token with flying for each creature tapped this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "orphans-of-the-wheat-exact-tap-any-number-stat-bonus",
+      "request": {
+        "cardName": "Orphans of the Wheat",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever this creature attacks, tap any number of untapped creatures you control. This creature gets +1/+1 until end of turn for each creature tapped this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "barrel-down-sokenzan-exact-return-any-number-twice-count",
+      "request": {
+        "cardName": "Barrel Down Sokenzan",
+        "typeLine": "Instant — Arcane",
+        "manaCost": "{2}{R}",
+        "oracleText": "Sweep — Return any number of Mountains you control to their owner's hand. Barrel Down Sokenzan deals damage to target creature equal to twice the number of Mountains returned this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "plow-through-reito-exact-return-any-number-stat-bonus",
+      "request": {
+        "cardName": "Plow Through Reito",
+        "typeLine": "Instant — Arcane",
+        "manaCost": "{1}{W}",
+        "oracleText": "Sweep — Return any number of Plains you control to their owner's hand. Target creature gets +1/+1 until end of turn for each Plains returned this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sink-into-takenuma-exact-return-any-number-discard-count",
+      "request": {
+        "cardName": "Sink into Takenuma",
+        "typeLine": "Sorcery — Arcane",
+        "manaCost": "{3}{B}",
+        "oracleText": "Sweep — Return any number of Swamps you control to their owner's hand. Target player discards a card for each Swamp returned this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "charge-across-the-araba-exact-return-any-number-collection-bonus",
+      "request": {
+        "cardName": "Charge Across the Araba",
+        "typeLine": "Instant — Arcane",
+        "manaCost": "{4}{W}",
+        "oracleText": "Sweep — Return any number of Plains you control to their owner's hand. Creatures you control get +1/+1 until end of turn for each Plains returned this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wrathful-red-dragon-exact-any-target-that-isnt",
+      "request": {
+        "cardName": "Wrathful Red Dragon",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Flying\nWhenever a Dragon you control is dealt damage, it deals that much damage to any target that isn't a Dragon.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wrathful-raptors-exact-any-target-that-isnt-sibling",
+      "request": {
+        "cardName": "Wrathful Raptors",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{4}{R}",
+        "oracleText": "Trample\nWhenever a Dinosaur you control is dealt damage, it deals that much damage to any target that isn't a Dinosaur.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "run-away-together-exact-distinct-controllers-pair",
+      "request": {
+        "cardName": "Run Away Together",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose two target creatures controlled by different players. Return those creatures to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "untap-up-to-two-lands-that-arent-forests-sibling",
+      "request": {
+        "cardName": "Operand Tail Untap Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Untap up to two lands that aren't Forests.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "return-any-number-islands-draw-sibling",
+      "request": {
+        "cardName": "Operand Tail Return Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Return any number of Islands you control to their owner's hand. Draw a card for each Island returned this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "tap-one-or-more-artifacts-gain-life-sibling",
+      "request": {
+        "cardName": "Operand Tail Tap Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Tap one or more untapped artifacts you control. You gain 1 life for each artifact tapped this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "card-target-color-quantity-and-toughness-sibling",
+      "request": {
+        "cardName": "Operand Tail Card Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}: Return target multicolored creature card with toughness 3 or less from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "destroy-two-artifacts-distinct-controllers-sibling",
+      "request": {
+        "cardName": "Operand Tail Set Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Destroy two target artifacts controlled by different players.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "any-target-that-isnt-a-goblin-sibling",
+      "request": {
+        "cardName": "Operand Tail Damage Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{R}",
+        "oracleText": "{T}: This creature deals 1 damage to any target that isn't a Goblin.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exile-zone-history-artifact-card-sibling",
+      "request": {
+        "cardName": "Operand Tail History Probe",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Exile target artifact card from a graveyard that was put there from the battlefield this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "untap-any-number-of-target-lands-keeps-target-path",
+      "request": {
+        "cardName": "Operand Tail Target Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Untap any number of target lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "return-any-number-of-target-creatures-keeps-target-path",
+      "request": {
+        "cardName": "Operand Tail Bounce Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Return any number of target creatures to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-single-target-distinct-controllers",
+      "request": {
+        "cardName": "Operand Tail Singular Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Tap target creature controlled by different players.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "traceContainsState": "target-list.slot.set-constraint"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-zone-history-from-library",
+      "request": {
+        "cardName": "Operand Tail Library History Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Return target creature card in your graveyard that was put there from your library this turn to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "traceContainsState": "card-target.tail"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-card-target-chosen-type-stays-refused",
+      "request": {
+        "cardName": "Operand Tail Chosen Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Return target creature card of the chosen type from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "traceContainsState": "card-target.query-capability"
+          }
+        ]
+      }
+    }
+  ]
+}

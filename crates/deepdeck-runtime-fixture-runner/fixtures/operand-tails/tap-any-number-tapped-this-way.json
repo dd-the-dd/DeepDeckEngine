@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "operand-tails/tap-any-number-tapped-this-way",
+  "seed": 80801,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "choosePermanents",
+        "id": "effect0:selectedPermanents",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              { "kind": "not", "operand": { "kind": "isTapped" } }
+            ]
+          },
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "minimum": { "kind": "integer", "value": 0 },
+        "maximum": { "kind": "countPermanents", "allPlayers": true }
+      },
+      {
+        "kind": "tapPermanent",
+        "permanent": { "kind": "decisionResult", "decisionId": "effect0:selectedPermanents" },
+        "bind": "actionResult0"
+      },
+      {
+        "kind": "gainLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": {
+          "kind": "multiply",
+          "left": { "kind": "integer", "value": 4 },
+          "right": {
+            "kind": "countObjects",
+            "objects": { "kind": "boundObjects", "binding": "actionResult0" }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tapping player",
+        "life": 20,
+        "hand": [
+          {
+            "id": "troops-spell",
+            "name": "Troops Probe",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{W}"
+          }
+        ],
+        "battlefield": [
+          { "id": "first-ready", "name": "First Ready", "typeLine": "Creature - Test", "power": "1", "toughness": "1" },
+          { "id": "second-ready", "name": "Second Ready", "typeLine": "Creature - Test", "power": "1", "toughness": "1" },
+          { "id": "third-ready", "name": "Third Ready", "typeLine": "Creature - Test", "power": "1", "toughness": "1" },
+          { "id": "already-tapped", "name": "Already Tapped", "typeLine": "Creature - Test", "power": "1", "toughness": "1", "tapped": true },
+          { "id": "ready-land", "name": "Ready Land", "typeLine": "Land", "manaCost": "" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "life": 20,
+        "battlefield": [
+          { "id": "opponent-ready", "name": "Opponent Ready", "typeLine": "Creature - Test", "power": "2", "toughness": "2" }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "troops-spell"
+  },
+  "decisions": [
+    { "kind": "selectCards", "count": 2, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 28 },
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 20 },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "first-ready", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "second-ready", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "third-ready", "equals": false },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "ready-land", "equals": false },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "opponent-ready", "equals": false },
+    { "kind": "eventCount", "eventKind": "permanentTapped", "equals": 2 }
+  ]
+}
