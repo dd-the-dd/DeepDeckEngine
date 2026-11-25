@@ -53,3 +53,52 @@ fn a_repeated_modifier_is_rejected() {
     let failure = result.expect_err("duplicate turn owner");
     assert_eq!(failure.state, "event.modifier.turn-owner");
 }
+
+#[test]
+fn distributive_turn_owners_name_the_same_relation_for_every_turn() {
+    for (text, owner, distributive) in [
+        (
+            "during each opponent's turn, draw a card.",
+            EventTurnOwner::OpponentTurn,
+            true,
+        ),
+        (
+            "during each of your turns, draw a card.",
+            EventTurnOwner::ControllerTurn,
+            true,
+        ),
+        (
+            "during an opponent's turn, draw a card.",
+            EventTurnOwner::OpponentTurn,
+            false,
+        ),
+        (
+            "during your turn, draw a card.",
+            EventTurnOwner::ControllerTurn,
+            false,
+        ),
+    ] {
+        let tokens = recognize_oracle_entities(text);
+        let mut cursor = OracleTokenCursor::new("turn-owner-test", &tokens);
+        assert!(turn_owner_modifier_starts(&cursor), "{text}");
+        let read = recognize_turn_owner_period(&mut cursor).expect(text);
+        assert_eq!(read, (owner, distributive), "{text}");
+        assert_eq!(cursor.peek(), Some(","), "{text}");
+    }
+    // `each player's turn` names no turn owner relation.
+    let tokens = recognize_oracle_entities("during each player's turn, draw a card.");
+    let cursor = OracleTokenCursor::new("turn-owner-test", &tokens);
+    assert!(!turn_owner_modifier_starts(&cursor));
+}
+
+#[test]
+fn the_shared_tail_leaves_event_slot_qualifiers_to_their_frame() {
+    for text in [
+        "without dying, draw a card.",
+        "other than the battlefield, draw a card.",
+    ] {
+        let (result, next) = tail(text);
+        assert!(result.expect("empty tail").is_empty(), "{text}");
+        assert_ne!(next.as_deref(), Some(","), "{text}");
+    }
+}
