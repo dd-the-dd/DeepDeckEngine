@@ -514,6 +514,11 @@ fn lower_local_effect_sequence_with_collections(
     let mut pending_choice_remainder = Vec::<Value>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
+        program_iteration_lowering::bind_iteration_members(
+            &sequence.iterations,
+            effect_index,
+            &mut target_bindings,
+        );
         declare_query_possessor_targets(
             cursor,
             &mut effects,
@@ -1171,6 +1176,12 @@ fn lower_local_effect_sequence_with_collections(
             // CR 500.8: phases added to this turn after a named phase.
             LocalEffectNode::AdditionalPhases(node) => {
                 effects.push(lower_additional_phases(node));
+            }
+            // CR 608.2c: the rule drafter resolves the repeated process.
+            LocalEffectNode::RepeatProcess(node) => {
+                effects.push(program_iteration_lowering::lower_repeat_process(
+                    cursor, node,
+                )?);
             }
             LocalEffectNode::Retarget(node) => {
                 let id = format!("retargetObject{effect_index}");
@@ -3154,6 +3165,14 @@ fn lower_local_effect_sequence_with_collections(
         &declared_player_targets,
         &mut effects,
     )?;
+    program_iteration_lowering::apply_iteration_frames(
+        cursor,
+        &sequence.iterations,
+        &mut target_bindings,
+        &mut action_starts,
+        &mut decisions,
+        &mut effects,
+    )?;
     conditional_scopes.wrap(cursor, sequence, &action_starts, &decisions, &mut effects)?;
     apply_where_x_bindings(
         cursor,
@@ -4051,6 +4070,10 @@ mod preposed_duration_tests;
 
 #[path = "delayed_frame_lowering.rs"]
 mod delayed_frame_lowering;
+
+#[path = "program_iteration_lowering.rs"]
+mod program_iteration_lowering;
+pub(in crate::oracle::canonical) use program_iteration_lowering::wrap_repeated_processes;
 
 #[path = "effect_alternatives.rs"]
 mod effect_alternatives;

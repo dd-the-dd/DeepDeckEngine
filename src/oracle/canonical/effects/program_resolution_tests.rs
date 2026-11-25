@@ -34,6 +34,7 @@ fn with_effects(effects: Vec<LocalEffectNode>) -> EffectSequenceNode {
         conditionals: Vec::new(),
         unless: Vec::new(),
         delayed: Vec::new(),
+        iterations: Vec::new(),
     }
 }
 

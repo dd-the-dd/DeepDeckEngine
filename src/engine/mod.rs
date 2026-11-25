@@ -233,6 +233,7 @@ mod player_quantifier;
 mod player_query;
 mod player_static_modifiers;
 mod previous_turn_events;
+mod program_iteration;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
@@ -4660,6 +4661,9 @@ pub fn effect_supported(effect: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = player_iteration::player_iteration_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = program_iteration::program_iteration_supported(effect) {
         return supported;
     }
     if let Some(supported) = myriad::myriad_effect_supported(effect) {
@@ -33624,6 +33628,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_player_iteration(effect, stack_object, bindings, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_program_iteration(effect, stack_object, bindings, decisions, provider)? {
             return Ok(());
         }
         if self.execute_offered_action(effect, stack_object, bindings, decisions, provider)? {

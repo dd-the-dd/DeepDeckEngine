@@ -85,6 +85,7 @@ fn permanent_only_candidates_stay_exact_and_invalid_sequence_nodes_fail_safely()
         conditionals: vec![],
         unless: vec![],
         delayed: vec![],
+        iterations: vec![],
     };
     let mut cursor = OracleTokenCursor::new("return-invalid-node", &[]);
     assert!(lower_local_effect_sequence(&mut cursor, &invalid).is_err());

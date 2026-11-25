@@ -309,6 +309,21 @@ struct SequenceMemory {
     /// a later `that player` / `they` names the same event player (CR
     /// 603.2, 506.2), even in a frame whose event names no other player.
     event_player_named: bool,
+    /// The `For each PLAYER|of SET,` frame of the sentence being read.
+    open_iteration: Option<OpenIteration>,
+    /// Closed iteration frames in written order (CR 608.2c).
+    iterations: Vec<super::IterationFrameNode>,
+}
+
+/// A distributive frame whose body sentence is being read. The antecedents
+/// the body shadows are restored when its sentence closes.
+#[derive(Clone)]
+struct OpenIteration {
+    first_effect: usize,
+    domain: super::IterationDomain,
+    shadowed_player_target: Option<PlayerTargetBinding>,
+    shadowed_scope: super::PermanentSubjectScope,
+    shadowed_target: Option<TargetBinding>,
 }
 
 /// The elided verb of a finite clause: its lemma, the written form its
@@ -394,9 +409,29 @@ impl SequenceMemory {
         }
     }
 
+    /// Closes the iteration frame of the sentence just read and restores
+    /// the antecedents its body shadowed. A frame without a body action is
+    /// refused by the caller before the sentence closes.
+    fn close_iteration(&mut self) {
+        if let Some(open) = self.open_iteration.take() {
+            self.iterations.push(super::IterationFrameNode {
+                first_effect: open.first_effect,
+                end_effect: self.effects.len(),
+                domain: open.domain,
+            });
+            self.last_player_target = open.shadowed_player_target;
+            if let super::IterationDomain::DeclaredObjects(_) = open.domain {
+                // The member named by the body is no antecedent after it.
+                self.permanent_subject_scope = open.shadowed_scope;
+                self.last_target = open.shadowed_target;
+            }
+        }
+    }
+
     fn into_sequence(mut self) -> EffectSequenceNode {
         self.close_conditional_branch();
         self.close_sentence_delay();
+        self.close_iteration();
         EffectSequenceNode {
             effects: self.effects,
             connectors: self.connectors,
@@ -404,6 +439,7 @@ impl SequenceMemory {
             conditionals: self.conditionals,
             unless: self.unless,
             delayed: self.delayed,
+            iterations: self.iterations,
         }
     }
 
@@ -710,6 +746,16 @@ fn recognize_effect_sequence_attempt_scoped(
                 action_context.permanent_subject_scope = memory.permanent_subject_scope;
                 action_context.current_effect_index = Some(effect_index);
                 action_context.frame.event_player |= memory.event_player_named;
+                // Inside `For each PLAYER, ...` the iterated member is the
+                // nearest player antecedent: the event's player is not.
+                if let Some(OpenIteration {
+                    domain: super::IterationDomain::Players(_),
+                    ..
+                }) = &memory.open_iteration
+                {
+                    action_context.frame.event_player = false;
+                    action_context.frame.defending_player = false;
+                }
                 action_context.verb_chain_subject = match (
                     memory.connectors.last(),
                     memory.effects.last(),
@@ -843,12 +889,15 @@ fn recognize_effect_sequence_attempt_scoped(
                             .map(|binding| super::PlayerBinding(binding.effect_index)),
                         subject: None,
                         effect_index: Some(effect_index),
-                        objects: super::permanent_subject::prior_object_set(&memory.effects),
+                        objects: iterated_object_set(&memory),
                         ..super::BindingEnvironment::default()
                     },
                 )));
                 super::publish_installed_program_antecedents(cursor, &memory.effects);
                 super::publish_installed_unless_payer(cursor, &memory.unless);
+                if let Some(open) = &memory.open_iteration {
+                    install_iteration_environment(cursor, open.domain);
+                }
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
@@ -1952,11 +2001,45 @@ fn recognize_effect_sequence_attempt_scoped(
                                 && for_each_count_starts(cursor)
                             {
                                 // `For each opponent, ...`: a population of
-                                // players is the distributive frame, not a
-                                // countable; its explicit failure names why.
-                                if let Some(width) = player_population_width(cursor) {
+                                // players is the distributive frame of the
+                                // sentence, not a countable (CR 608.2c). Only
+                                // a parent that lowers program ranges reads
+                                // it; any other names why it fails.
+                                if let Some((_, width)) =
+                                    super::player_iteration_population_at(cursor)
+                                {
                                     attempt_frame.commit();
-                                    return Err(player_iteration_failure(cursor, width));
+                                    if !context.sentence_conditionals {
+                                        return Err(player_iteration_failure(cursor, width));
+                                    }
+                                    let population =
+                                        super::recognize_player_iteration_introducer(cursor)?;
+                                    open_iteration(
+                                        &mut memory,
+                                        super::IterationDomain::Players(population),
+                                    );
+                                    attempt_frame.clear();
+                                    // The body's actions read the member:
+                                    // their environment is built again.
+                                    continue 'sequence;
+                                }
+                                // `For each of them|those NOUNS, ...`: one pass
+                                // per object of the set the previous action
+                                // declared; the body names that member.
+                                if context.sentence_conditionals
+                                    && super::member_iteration_starts(cursor)
+                                {
+                                    attempt_frame.commit();
+                                    let anaphor =
+                                        super::recognize_member_iteration_introducer(cursor)?;
+                                    let binding =
+                                        resolve_iterated_set(cursor, &memory.effects, &anaphor)?;
+                                    open_iteration(
+                                        &mut memory,
+                                        super::IterationDomain::DeclaredObjects(binding),
+                                    );
+                                    attempt_frame.clear();
+                                    continue 'sequence;
                                 }
                                 let mut trial = cursor.clone();
                                 let count = recognize_preposed_for_each(&mut trial)?;
@@ -2700,6 +2783,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         memory.current_player_subject = None;
                         memory.sentence_duration = None;
                         memory.close_sentence_delay();
+                        memory.close_iteration();
                         if !sentence_closed_by_quote {
                             cursor.consume(".")?;
                         }
@@ -3040,6 +3124,20 @@ fn recognize_effect_sequence_attempt_scoped(
                             "an action that owns its repetition (`investigate twice`); this action is not repeated as a whole",
                         ));
                     }
+                    // `it explores, then it explores again`: `again` marks
+                    // an action that restates an earlier action of the
+                    // program; it adds no instruction of its own.
+                    Some("again") if restates_earlier_action(&memory.effects) => {
+                        cursor.enter("sequence.again");
+                        cursor.consume("again")?;
+                        SequenceState::ConnectorOrEnd
+                    }
+                    Some("again") => {
+                        cursor.enter("sequence.again.antecedent");
+                        return Err(cursor.fail(
+                            "an action restating an earlier action of this program before `again`",
+                        ));
+                    }
                     _ => return Err(cursor.fail("`and`, `then`, or sentence terminator")),
                 }
             }
@@ -3263,6 +3361,12 @@ fn recognize_effect(
             context,
         )
         .map(LocalEffectNode::PreventDamage);
+    }
+    // `repeat this process [once | N more times]` (CR 608.2c): a step of
+    // program control; the process is the program read before it.
+    if super::repeat_process_starts(cursor) {
+        attempt_frame.commit();
+        return super::recognize_repeat_process(cursor).map(LocalEffectNode::RepeatProcess);
     }
     // `After this phase, there is an additional combat phase` (CR 500.8).
     if super::additional_phases_start(cursor) {
@@ -4299,24 +4403,110 @@ fn performed_agreement_of_player(
     }
 }
 
-/// Token width of `for each opponent|player|other player ,` at the cursor.
-fn player_population_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
-    let is = |offset: usize, word: &str| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+/// Opens the distributive frame of the sentence being read (CR 608.2c).
+/// A player population shadows the program's player antecedents; a set of
+/// declared objects makes its member the singular object antecedent of the
+/// body (`that creature`, `it`).
+fn open_iteration(memory: &mut SequenceMemory, domain: super::IterationDomain) {
+    let open = OpenIteration {
+        first_effect: memory.effects.len(),
+        domain,
+        shadowed_player_target: memory.last_player_target.take(),
+        shadowed_scope: memory.permanent_subject_scope,
+        shadowed_target: memory.last_target,
     };
-    if !(is(0, "for") && is(1, "each")) {
-        return None;
+    if let super::IterationDomain::DeclaredObjects(binding) = domain {
+        memory.permanent_subject_scope = super::PermanentSubjectScope::Local(Some(
+            super::PermanentEffectReference::Target(binding),
+        ));
+        memory.last_target = Some(binding);
     }
-    let width = if is(2, "opponent") || is(2, "player") {
-        3
-    } else if is(2, "other") && is(3, "player") {
-        4
-    } else {
-        return None;
+    memory.open_iteration = Some(open);
+}
+
+/// The environment of an action inside `For each PLAYER, ...`: `that
+/// player`, `that opponent` and `they` name the member being iterated, the
+/// player slot the lowering binds to each member in turn. No earlier player
+/// declaration, unless payer or event player is a nearer antecedent.
+fn install_iteration_environment(
+    cursor: &mut OracleTokenCursor<'_>,
+    domain: super::IterationDomain,
+) {
+    let super::IterationDomain::Players(_) = domain else {
+        return;
     };
-    is(width, ",").then_some(width + 1)
+    let mut environment = super::installed_binding_environment(cursor);
+    environment.acting_player = true;
+    environment.player = None;
+    environment.player_target = None;
+    environment.unless_payer = None;
+    environment.frame.event_player = false;
+    environment.frame.defending_player = false;
+    cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+}
+
+/// The object set the preceding action produced. After an iteration frame
+/// whose body ends with it, the action was performed once per member: the
+/// set is plural whatever number one pass stated (`For each of them, create
+/// a token ... . Exile those tokens ...`).
+fn iterated_object_set(memory: &SequenceMemory) -> Option<super::ObjectSetAntecedent> {
+    let mut set = super::permanent_subject::prior_object_set(&memory.effects)?;
+    if memory
+        .iterations
+        .last()
+        .is_some_and(|frame| frame.end_effect == memory.effects.len())
+    {
+        set.number = super::GrammaticalNumber::Plural;
+    }
+    Some(set)
+}
+
+/// The plural target slot `them` / `those NOUNS` names: the set the
+/// immediately preceding action declared (CR 115.1, 608.2c). A set of
+/// created tokens or a queried collection has no member reference here, and
+/// a nominal must follow from the slot's selector; both fail explicitly.
+fn resolve_iterated_set(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &[LocalEffectNode],
+    anaphor: &super::IteratedSetAnaphor,
+) -> MachineResult<TargetBinding> {
+    cursor.enter("sequence.for-each-member.antecedent");
+    let set = super::permanent_subject::prior_object_set(effects)
+        .ok_or_else(|| cursor.fail("a set of objects the preceding action declared"))?;
+    let binding = match set.denotes {
+        super::ObjectSetDenotation::Bound(super::PermanentEffectReference::TargetSet(binding)) => {
+            binding
+        }
+        _ => {
+            return Err(cursor.fail(
+                "a plural target slot the preceding action declared, iterated member by member",
+            ));
+        }
+    };
+    if let super::IteratedSetAnaphor::Nominal(asserted) = anaphor {
+        cursor.enter("sequence.for-each-member.nominal-agreement");
+        let selector = cursor.require_value(
+            set.selector.as_ref(),
+            "the declared selector of the iterated set",
+        )?;
+        cursor.require(
+            super::nominal_restates_selector(selector, asserted),
+            "a nominal implied by the iterated set's declared selector",
+        )?;
+    }
+    Ok(binding)
+}
+
+/// True when the last action read restates an earlier action of the same
+/// program: the same action (`proliferate, then proliferate again`), or the
+/// same kind of action on the object the earlier one named (`Target creature
+/// you control explores, then it explores again`).
+fn restates_earlier_action(effects: &[LocalEffectNode]) -> bool {
+    effects.split_last().is_some_and(|(last, earlier)| {
+        earlier.iter().any(|action| {
+            action == last || std::mem::discriminant(action) == std::mem::discriminant(last)
+        })
+    })
 }
 
 /// CR 608.2c: `For each PLAYER, BODY` repeats the body once per player of

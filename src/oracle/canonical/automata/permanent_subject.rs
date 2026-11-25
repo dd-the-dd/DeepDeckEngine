@@ -387,6 +387,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::AdditionalPhases(_)
+        | LocalEffectNode::RepeatProcess(_)
         | LocalEffectNode::Retarget(_)
         | LocalEffectNode::Amass(_)
         | LocalEffectNode::EmpowerJace(_)

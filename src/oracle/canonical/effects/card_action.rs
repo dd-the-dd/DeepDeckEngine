@@ -2532,6 +2532,8 @@ fn lower_event_bound_player(player: &BoundPlayerReference) -> Option<Value> {
         BoundPlayerReference::EventSpellController => {
             Some(json!({"kind":"controllerOf", "object":{"kind":"triggeringStackObject"}}))
         }
+        // The member of an enclosing player iteration, bound by its loop.
+        BoundPlayerReference::ActingPlayer => Some(json!({"kind": ACTING_PLAYER})),
         _ => None,
     }
 }

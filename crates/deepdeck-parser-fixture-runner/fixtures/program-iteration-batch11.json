@@ -1,0 +1,853 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch11/program-iteration",
+  "cases": [
+    {
+      "id": "exact-endless-ranks-of-hydra-one-token-per-opponent",
+      "request": {
+        "cardName": "Endless Ranks of HYDRA",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "For each opponent, you create a 2/1 black Villain creature token with menace.\nWhenever your commander enters or attacks, you may pay {1}{B}. If you do, return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "event.became-target.subject.article"
+          }
+        ],
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/players/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-player-creates-a-token",
+      "request": {
+        "cardName": "Iteration Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "For each player, you create a 1/1 white Human creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/players/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponent-token-attacking-that-player",
+      "request": {
+        "cardName": "Iteration Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever you attack, for each opponent, create a 1/1 black Ninja creature token that's tapped and attacking that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/attackingDefender/kind",
+                "equals": "player"
+              },
+              {
+                "pointer": "/effects/0/effects/0/attackingDefender/player/kind",
+                "equals": "boundValue"
+              },
+              {
+                "pointer": "/effects/0/effects/0/attackingDefender/player/id",
+                "equals": "iteratedPlayer0"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponent-token-attacking-that-opponent-or-planeswalker",
+      "request": {
+        "cardName": "Iteration Probe",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Whenever this creature attacks, for each opponent, you create a 2/2 green Boar creature token that's tapped and attacking that opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/attackingDefender/player/kind",
+                "equals": "boundValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dismantling-wave-one-target-per-opponent",
+      "request": {
+        "cardName": "Dismantling Wave",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "For each opponent, destroy up to one target artifact or enchantment that player controls.\nCycling {6}{W}{W} ({6}{W}{W}, Discard this card: Draw a card.)\nWhen you cycle this card, destroy all artifacts and enchantments.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/0/objects/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/kind",
+                "equals": "countOpponents"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/controller/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/declaration/decisions/0/selectionConstraint/kind",
+                "equals": "distinctPermanentControllers"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bilbos-burglaring-one-target-per-opponent",
+      "request": {
+        "cardName": "Bilbo's Burglaring",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "For each opponent, gain control of up to one target artifact that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/selectionConstraint/kind",
+                "equals": "distinctPermanentControllers"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-player-up-to-one-target-tapped",
+      "request": {
+        "cardName": "Iteration Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "For each player, tap up to one target creature that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/kind",
+                "equals": "countPlayers"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exact-target-per-opponent",
+      "request": {
+        "cardName": "Frenzied Gorespawn Probe",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{4}{R}",
+        "oracleText": "When this creature enters, for each opponent, goad target creature that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.for-each-player.per-player-targets"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-per-player-target-in-a-graveyard",
+      "request": {
+        "cardName": "Sepulchral Probe",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{5}{B}{B}{B}",
+        "oracleText": "When this creature enters, for each opponent, you may put up to one target creature card from that player's graveyard onto the battlefield under your control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-twinflame-copy-of-each-member",
+      "request": {
+        "cardName": "Twinflame",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Strive — This spell costs {2}{R} more to cast for each target beyond the first.\nChoose any number of target creatures you control. For each of them, create a token that's a copy of that creature, except it has haste. Exile those tokens at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-dominion-infiltration-copy-of-each-member",
+      "request": {
+        "cardName": "Dominion Infiltration",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}{R}{R}",
+        "oracleText": "Choose X target creatures your opponents control. For each of them, create a token that's a copy of that creature, except it has changeling. Those tokens gain haste. Exile those tokens at the beginning of the next end step. (They're every creature type.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "iteratedObject1"
+              },
+              {
+                "pointer": "/effects/0/collect/bind",
+                "equals": "createdTokens"
+              },
+              {
+                "pointer": "/effects/0/effects/0/token/object/kind",
+                "equals": "boundValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-hate-mirage-those-creatures",
+      "request": {
+        "cardName": "Hate Mirage",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Choose up to two target creatures you don't control. For each of those creatures, create a token that's a copy of that creature. Those tokens gain haste. Exile them at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/0/collect/bind",
+                "equals": "createdTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-code-combination-member-controller-gains-life",
+      "request": {
+        "cardName": "Member Relation Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose up to two target creatures. For each of those creatures, its controller gains 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-each-of-them-without-a-set-antecedent",
+      "request": {
+        "cardName": "Member Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. For each of them, create a token that's a copy of that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.for-each-member.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-those-nominal-not-implied-by-the-set",
+      "request": {
+        "cardName": "Member Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose up to two target creatures. For each of those artifacts, create a token that's a copy of that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.for-each-member.nominal-agreement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-clone-legion-queried-set-remains",
+      "request": {
+        "cardName": "Clone Legion",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}{U}{U}",
+        "oracleText": "For each creature target player controls, create a token that's a copy of that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-oko-the-ringleader-queried-set-remains",
+      "request": {
+        "cardName": "Oko, the Ringleader",
+        "typeLine": "Legendary Planeswalker — Oko",
+        "manaCost": "{2}{G}{U}",
+        "oracleText": "At the beginning of combat on your turn, Oko becomes a copy of up to one target creature you control until end of turn, except he has hexproof.\n+1: Draw two cards. If you've committed a crime this turn, discard a card. Otherwise, discard two cards.\n−1: Create a 3/3 green Elk creature token.\n−5: For each other nonland permanent you control, create a token that's a copy of that permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 3,
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-soul-of-eternity-encore-relative-requirement-remains",
+      "request": {
+        "cardName": "Soul of Eternity",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{5}{W}{W}",
+        "oracleText": "Soul of Eternity's power and toughness are each equal to your life total.\nEncore {7}{W}{W} ({7}{W}{W}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "keyword.template.expansion",
+            "messageContains": "sequence.connector-or-end"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cultivator-colossus-repeat-this-process",
+      "request": {
+        "cardName": "Cultivator Colossus",
+        "typeLine": "Creature — Plant Beast",
+        "manaCost": "{4}{G}{G}{G}",
+        "oracleText": "Trample\nCultivator Colossus's power and toughness are each equal to the number of lands you control.\nWhen this creature enters, you may put a land card from your hand onto the battlefield tapped. If you do, draw a card and repeat this process.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatableProcess"
+              },
+              {
+                "pointer": "/effects/0/process",
+                "equals": "repeatedProcess"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-primal-surge-repeat-in-outcome",
+      "request": {
+        "cardName": "Primal Surge",
+        "typeLine": "Sorcery",
+        "manaCost": "{8}{G}{G}",
+        "oracleText": "Exile the top card of your library. If it's a permanent card, you may put it onto the battlefield. If you do, repeat this process.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatableProcess"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zimone-and-dina-repeat-once",
+      "request": {
+        "cardName": "Zimone and Dina",
+        "typeLine": "Legendary Creature — Human Dryad",
+        "manaCost": "{B}{G}{U}",
+        "oracleText": "Whenever you draw your second card each turn, target opponent loses 2 life and you gain 2 life.\n{T}, Sacrifice another creature: Draw a card. You may put a land card from your hand onto the battlefield tapped. If you control eight or more lands, repeat this process once.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatableProcess"
+              },
+              {
+                "pointer": "/effects/0/maxRepeats/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-countryside-crusher-repeat-in-conditional",
+      "request": {
+        "cardName": "Countryside Crusher",
+        "typeLine": "Creature — Giant Warrior",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "At the beginning of your upkeep, reveal the top card of your library. If it's a land card, put it into your graveyard and repeat this process.\nWhenever a land card is put into your graveyard from anywhere, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatableProcess"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tyrant-of-discord-repeat-after-result-condition",
+      "request": {
+        "cardName": "Tyrant of Discord",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{4}{R}{R}{R}",
+        "oracleText": "When this creature enters, target opponent chooses a permanent they control at random and sacrifices it. If a nonland permanent is sacrificed this way, repeat this process.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatableProcess"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-hoarders-greed-repeat-after-clash",
+      "request": {
+        "cardName": "Hoarder's Greed",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "You lose 2 life and draw two cards, then clash with an opponent. If you win, repeat this process. (Each clashing player reveals the top card of their library, then puts that card on their choice of the top or bottom. A player wins if their card had a greater mana value.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatableProcess"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-torment-of-hailfire-following-process-body-remains",
+      "request": {
+        "cardName": "Torment of Hailfire",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{B}{B}",
+        "oracleText": "Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-repeat-the-following-process",
+      "request": {
+        "cardName": "Repeat Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{B}",
+        "oracleText": "Repeat the following process X times. Each opponent loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatEffects"
+              },
+              {
+                "pointer": "/effects/0/count/kind",
+                "equals": "decisionResult"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-repeat-for-another-process",
+      "request": {
+        "cardName": "Invoke Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target opponent sacrifices a creature of their choice. Then repeat this process for an enchantment and a planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.repeat-process.complete"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-repeat-inside-a-quoted-ability-without-steps",
+      "request": {
+        "cardName": "Quoted Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Create a 1/1 white Spirit creature token with \"Whenever this creature attacks, repeat this process.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-jadelight-ranger-explores-again",
+      "request": {
+        "cardName": "Jadelight Ranger",
+        "typeLine": "Creature — Merfolk Scout Ranger",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "When this creature enters, it explores, then it explores again. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on this creature, then put the card back or put it into your graveyard. Then repeat this process.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-roalesk-proliferates-again",
+      "request": {
+        "cardName": "Roalesk, Apex Hybrid",
+        "typeLine": "Legendary Creature — Human Mutant",
+        "manaCost": "{2}{G}{G}{U}",
+        "oracleText": "Flying, trample\nWhen Roalesk enters, put two +1/+1 counters on another target creature you control.\nWhen Roalesk dies, proliferate, then proliferate again. (Choose any number of permanents and/or players, then give each another counter of each kind already there. Then do it again.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "proliferate"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-again-without-a-restated-action",
+      "request": {
+        "cardName": "Again Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card, then scry 1 again.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.again.antecedent"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -945,6 +945,7 @@ pub(in crate::oracle::canonical) fn lower_recognized_add_led_activation(
     let mut conditionals = Vec::new();
     let mut unless = Vec::new();
     let mut delayed = Vec::new();
+    let mut iterations = Vec::new();
     if let Some(followup) = ability.followup {
         cursor.enter("activation.mana.program.followup");
         if let Err(failure) = cursor.require(
@@ -974,6 +975,12 @@ pub(in crate::oracle::canonical) fn lower_recognized_add_led_activation(
         );
         unless.extend(followup.unless.into_iter().map(|frame| frame.shifted(1)));
         delayed.extend(followup.delayed.into_iter().map(|frame| frame.shifted(1)));
+        iterations.extend(
+            followup
+                .iterations
+                .into_iter()
+                .map(|frame| frame.shifted(1)),
+        );
         effects.extend(followup.effects);
     }
     lower_contextual_effect_program(
@@ -987,6 +994,7 @@ pub(in crate::oracle::canonical) fn lower_recognized_add_led_activation(
             conditionals,
             unless,
             delayed,
+            iterations,
         },
     )
 }
