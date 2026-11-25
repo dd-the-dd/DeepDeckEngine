@@ -158,6 +158,29 @@ impl ManaCostNode {
         })
     }
 
+    /// The generic amount and the whole-symbol counts, in `W U B R G C`
+    /// order, of a cost made only of generic and whole colored or colorless
+    /// symbols (a cost-reduction delta, CR 118.7). X, hybrid, Phyrexian and
+    /// snow symbols are `None`.
+    pub(in crate::oracle::canonical) fn generic_and_whole_symbol_counts(
+        &self,
+    ) -> Option<(i32, [u8; 6])> {
+        let mut generic = 0_i32;
+        let mut counts = [0_u8; 6];
+        for raw in &self.symbols {
+            let symbol = raw.strip_prefix('{')?.strip_suffix('}')?;
+            if !symbol.is_empty() && symbol.bytes().all(|byte| byte.is_ascii_digit()) {
+                generic = generic.checked_add(symbol.parse::<i32>().ok()?)?;
+                continue;
+            }
+            let index = ["W", "U", "B", "R", "G", "C"]
+                .iter()
+                .position(|letter| symbol.eq_ignore_ascii_case(letter))?;
+            counts[index] = counts[index].checked_add(1)?;
+        }
+        Some((generic, counts))
+    }
+
     pub(in crate::oracle::canonical) fn contains_variable_x(&self) -> bool {
         self.symbols
             .iter()

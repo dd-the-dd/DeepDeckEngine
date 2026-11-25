@@ -1672,6 +1672,20 @@ pub(super) struct CastingCostReductionNode {
     pub condition: Option<SentenceConditionNode>,
     /// Object query matched against the spell's chosen targets (`if it targets ...`).
     pub target_query: Option<ObjectQueryNode>,
+    /// The colored part of the delta (`{W}{B} less`, `{G} less for each`),
+    /// applied `times` times (CR 118.7b-c); `amount` keeps the generic part.
+    pub colored: Option<ColoredReductionNode>,
+}
+
+/// The colored symbols of a cost-reduction delta.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ColoredReductionNode {
+    /// Counts in `W U B R G C` order.
+    pub counts: [u8; 6],
+    pub times: NumericExpression,
+    /// False for `This effect reduces only the amount of colored mana you
+    /// pay`; otherwise the excess reduces generic mana (CR 118.7b-c).
+    pub excess_reduces_generic: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

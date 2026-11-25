@@ -1,0 +1,719 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch9/cost-modification-x",
+  "cases": [
+    {
+      "id": "exact-ghalta-primal-hunger-x-reduction-where-total-power",
+      "request": {
+        "cardName": "Ghalta, Primal Hunger",
+        "typeLine": "Legendary Creature — Elder Dinosaur",
+        "manaCost": "{10}{G}{G}",
+        "oracleText": "This spell costs {X} less to cast, where X is the total power of creatures you control.\nTrample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "reduceOwnGenericCastingCost" },
+              { "pointer": "/modifiers/0/amount/kind", "equals": "sumPowers" },
+              { "pointer": "/activeWhile/zone/kind", "equals": "stackOrCast" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-the-great-henge-x-reduction-where-greatest-power",
+      "request": {
+        "cardName": "The Great Henge",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{7}{G}{G}",
+        "oracleText": "This spell costs {X} less to cast, where X is the greatest power among creatures you control.\n{T}: Add {G}{G}. You gain 2 life.\nWhenever a nontoken creature you control enters, put a +1/+1 counter on it and draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "reduceOwnGenericCastingCost" },
+              { "pointer": "/modifiers/0/amount/kind", "equals": "greatestPower" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-marshmist-titan-devotion-amount-with-its-reminder",
+      "request": {
+        "cardName": "Marshmist Titan",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{6}{B}",
+        "oracleText": "This spell costs {X} less to cast, where X is your devotion to black. (Each {B} in the mana costs of permanents you control counts toward your devotion to black.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/amount/kind", "equals": "devotion" },
+              { "pointer": "/modifiers/0/amount/color", "equals": "Black" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-devotion-reminder-of-another-color-fails",
+      "request": {
+        "cardName": "Mismatched Devotion Probe",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{6}{B}",
+        "oracleText": "This spell costs {X} less to cast, where X is your devotion to black. (Each {W} in the mana costs of permanents you control counts toward your devotion to white.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "state": "reminder.devotion.symbol" }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-x-reduction-without-definition-fails",
+      "request": {
+        "cardName": "Undefined Reduction Probe",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{6}{B}",
+        "oracleText": "This spell costs {X} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "state": "casting-reduction.where-x" }
+        ]
+      }
+    },
+    {
+      "id": "sibling-spell-set-x-reduction-where-count-composes",
+      "request": {
+        "cardName": "Wizard Reduction Sibling",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Instant and sorcery spells you cast cost {X} less to cast, where X is the number of Wizards you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "reduceCastingCost" },
+              { "pointer": "/modifiers/0/player/kind", "equals": "controllerOf" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-artifact-spells-per-wizard-composes",
+      "request": {
+        "cardName": "Artifact Wizard Sibling",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Artifact spells you cast cost {1} less to cast for each Wizard you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "reduceCastingCost" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-helm-of-awakening-every-caster",
+      "request": {
+        "cardName": "Helm of Awakening",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Spells cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "reduceCastingCost" },
+              { "pointer": "/modifiers/0/player/kind", "equals": "eachPlayer" },
+              { "pointer": "/modifiers/0/amount/value", "equals": 1 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-arcane-melee-every-caster-with-spell-filter",
+      "request": {
+        "cardName": "Arcane Melee",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{U}",
+        "oracleText": "Instant and sorcery spells cost {2} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/player/kind", "equals": "eachPlayer" },
+              { "pointer": "/modifiers/0/amount/value", "equals": 2 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-edgewalker-colored-only-reduction",
+      "request": {
+        "cardName": "Edgewalker",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "Cleric spells you cast cost {W}{B} less to cast. This effect reduces only the amount of colored mana you pay. (For example, if you cast a Cleric spell with mana cost {1}{W}, it costs {1} to cast.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "reduceCastingCost" },
+              { "pointer": "/modifiers/0/amount/value", "equals": 0 },
+              { "pointer": "/modifiers/0/coloredMana/symbols", "equals": ["W", "B"] },
+              { "pointer": "/modifiers/0/coloredMana/times/value", "equals": 1 },
+              { "pointer": "/modifiers/0/coloredMana/excessReducesGeneric", "equals": false }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-khalni-hydra-colored-reduction-per-permanent",
+      "request": {
+        "cardName": "Khalni Hydra",
+        "typeLine": "Creature — Hydra",
+        "manaCost": "{G}{G}{G}{G}{G}{G}{G}{G}",
+        "oracleText": "This spell costs {G} less to cast for each green creature you control.\nTrample",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "reduceOwnGenericCastingCost" },
+              { "pointer": "/modifiers/0/amount/value", "equals": 0 },
+              { "pointer": "/modifiers/0/coloredMana/symbols", "equals": ["G"] },
+              { "pointer": "/modifiers/0/coloredMana/excessReducesGeneric", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stormwing-entity-mixed-delta-with-condition",
+      "request": {
+        "cardName": "Stormwing Entity",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "This spell costs {2}{U} less to cast if you've cast an instant or sorcery spell this turn.\nFlying\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhen this creature enters, scry 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/amount/value", "equals": 2 },
+              { "pointer": "/modifiers/0/coloredMana/symbols", "equals": ["U"] }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-default-colored-reduction-reminder",
+      "request": {
+        "cardName": "Goblin Reduction Sibling",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{2}{R}",
+        "oracleText": "Goblin spells you cast cost {R} less to cast. (If it doesn't require {R}, it costs {1} less to cast.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/coloredMana/symbols", "equals": ["R"] },
+              { "pointer": "/modifiers/0/coloredMana/excessReducesGeneric", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-colored-only-policy-names-another-color",
+      "request": {
+        "cardName": "Wrong Policy Probe",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "Cleric spells you cast cost {W}{B} less to cast. This effect reduces only the amount of green mana you pay.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "state": "casting-reduction.colored-policy" }
+        ]
+      }
+    },
+    {
+      "id": "exact-mental-modulation-during-your-turn",
+      "request": {
+        "cardName": "Mental Modulation",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "This spell costs {1} less to cast during your turn.\nTap target artifact or creature.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/amount/value", "equals": 1 },
+              { "pointer": "/modifiers/0/condition/kind", "equals": "duringControllerTurn" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kioras-dismissal-strive-increase",
+      "request": {
+        "cardName": "Kiora's Dismissal",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Strive — This spell costs {U} more to cast for each target beyond the first.\nReturn any number of target enchantments to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "increaseOwnCastingCost" },
+              { "pointer": "/modifiers/0/manaCost", "equals": "{U}" },
+              { "pointer": "/modifiers/0/per", "equals": "targetBeyondFirst" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-own-increase-without-a-supported-unit-fails",
+      "request": {
+        "cardName": "Unit Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "This spell costs {1} more to cast for each creature you control.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "state": "own-spell-cost-increase.unit" }
+        ]
+      }
+    },
+    {
+      "id": "exact-walking-ballista-entry-reads-cast-x",
+      "request": {
+        "cardName": "Walking Ballista",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{X}{X}",
+        "oracleText": "This creature enters with X +1/+1 counters on it.\n{4}: Put a +1/+1 counter on this creature.\nRemove a +1/+1 counter from this creature: It deals 1 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "replacementEffect"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gadwick-enters-trigger-reads-cast-x",
+      "request": {
+        "cardName": "Gadwick, the Wizened",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{X}{U}{U}{U}",
+        "oracleText": "When Gadwick enters, draw X cards.\nWhenever you cast a blue spell, tap target nonland permanent an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/event/kind", "equals": "enterBattlefield" },
+              { "pointer": "/effects/0/count/decisionId", "equals": "xValue" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-arboreal-alliance-token-power-reads-cast-x",
+      "request": {
+        "cardName": "Arboreal Alliance",
+        "typeLine": "Enchantment",
+        "manaCost": "{X}{G}{G}",
+        "oracleText": "When this enchantment enters, create an X/X green Treefolk creature token.\nWhenever you attack with one or more Elves, populate. (Create a token that's a copy of a creature token you control.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          { "index": 0, "status": "canonical", "abilityType": "triggeredAbility" }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-enters-trigger-x-without-a-producer",
+      "request": {
+        "cardName": "Producerless Entry Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "code": "oracle_context_binding_failure", "state": "binding.x-value.source" }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attack-trigger-does-not-read-cast-x",
+      "request": {
+        "cardName": "Attack X Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{X}{U}",
+        "oracleText": "Whenever this creature attacks, draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "code": "oracle_context_binding_failure", "state": "binding.x-value.source" }
+        ]
+      }
+    },
+    {
+      "id": "exact-starport-security-conditional-activation-reduction",
+      "request": {
+        "cardName": "Starport Security",
+        "typeLine": "Artifact Creature — Robot Soldier",
+        "manaCost": "{W}",
+        "oracleText": "{3}{W}, {T}: Tap another target creature. This ability costs {2} less to activate if you control a creature with a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              { "pointer": "/activationCostModifiers/0/kind", "equals": "reduceManaCost" },
+              { "pointer": "/activationCostModifiers/0/amount/value", "equals": 2 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-baru-where-x-activation-reduction",
+      "request": {
+        "cardName": "Baru, Wurmspeaker",
+        "typeLine": "Legendary Creature — Human Druid",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Wurms you control get +2/+2 and have trample.\n{7}{G}, {T}: Create a 4/4 green Wurm creature token. This ability costs {X} less to activate, where X is the greatest power among Wurms you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              { "pointer": "/manaCostReduction/kind", "equals": "greatestPower" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-activation-reduction-during-your-turn",
+      "request": {
+        "cardName": "Turn Reduction Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}: Tap target creature. This ability costs {1} less to activate during your turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/activationCostModifiers/0/condition/kind", "equals": "duringControllerTurn" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-quicksilver-power-up-gendered-reminder",
+      "request": {
+        "cardName": "Quicksilver, Brash Blur",
+        "typeLine": "Legendary Creature — Mutant Hero",
+        "manaCost": "{R}",
+        "oracleText": "If Quicksilver, Brash Blur is in your opening hand, you may begin the game with him on the battlefield.\nHaste\nPower-up — {4}{R}: Put a +1/+1 counter and a double strike counter on Quicksilver. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          { "index": 2, "status": "canonical", "abilityType": "activatedAbility" }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-power-up-pronouns-disagree",
+      "request": {
+        "cardName": "Pronoun Probe",
+        "typeLine": "Creature — Mutant Hero",
+        "manaCost": "{R}",
+        "oracleText": "Power-up — {4}{R}: Put a +1/+1 counter on this creature. (Activate each power-up ability only once. Reduce the cost by his mana cost if it entered this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "state": "activation.keyword-reminder.power-up-reduction" }
+        ]
+      }
+    },
+    {
+      "id": "exact-hardened-berserker-next-spell-reduction",
+      "request": {
+        "cardName": "Hardened Berserker",
+        "typeLine": "Creature — Human Berserker",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever this creature attacks, the next spell you cast this turn costs {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "installOneShotModifier" },
+              { "pointer": "/effects/0/apply/kind", "equals": "reduceCastingCost" },
+              { "pointer": "/effects/0/apply/amount/value", "equals": 1 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-maelstrom-muse-next-spell-x-reduction-at-resolution",
+      "request": {
+        "cardName": "Maelstrom Muse",
+        "typeLine": "Creature — Djinn Wizard",
+        "manaCost": "{1}{U}{U/R}{R}",
+        "oracleText": "Flying\nWhenever this creature attacks, the next instant or sorcery spell you cast this turn costs {X} less to cast, where X is this creature's power as this ability resolves.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "bind" },
+              { "pointer": "/effects/1/apply/amount/kind", "equals": "boundValue" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-next-spell-x-reduction-without-definition",
+      "request": {
+        "cardName": "Next Spell X Probe",
+        "typeLine": "Creature — Human Berserker",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever this creature attacks, the next spell you cast this turn costs {X} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 0, "code": "oracle_context_binding_failure", "state": "binding.x-value.source" }
+        ]
+      }
+    }
+  ]
+}

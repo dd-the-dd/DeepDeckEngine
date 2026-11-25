@@ -52,9 +52,17 @@ fn read_reduction(
     *owned = true; // The typed cost-adjustment subject/verb, never cursor distance.
     if let CastingReductionSubject::SpellSet(query) = &subject {
         cursor.enter("static.spell-cost-reduction.caster-scope");
+        // `Spells cost {1} less` names every caster (CR 601.2f applies to
+        // each spell); `your opponents cast` names the opponents.
         cursor.require(
-            query.caster == Some(SpellCasterScope::AbilityController),
-            "spells cast by the ability controller",
+            matches!(
+                query.caster,
+                None | Some(
+                    SpellCasterScope::AbilityController
+                        | SpellCasterScope::OpponentOfAbilityController
+                )
+            ),
+            "spells cast by every player, the ability controller or its opponents",
         )?;
         cursor.require(
             crate::oracle::canonical::effects::domain_filter_is_representable(&query.predicate),
@@ -72,16 +80,41 @@ fn read_reduction(
         return Err(cursor.fail("a reduction direction"));
     }
     cursor.enter("static.spell-cost-reduction.cost");
-    let fixed = cost
-        .fixed_generic_amount()
-        .filter(|n| *n > 0)
-        .ok_or_else(|| cursor.fail("one positive generic mana symbol without X or colored mana"))?;
+    let (fixed, colored_counts) = match ReductionDelta::of(&cost) {
+        Some(ReductionDelta::Generic(fixed)) => (fixed, None),
+        // `{X} less to cast, where X is EXPR` (CR 107.3): the postposed
+        // definition is the whole reduction amount, read by the shared
+        // numeric grammar; no other amount or condition follows it.
+        Some(ReductionDelta::Variable) => {
+            cursor.enter("casting-reduction.direction");
+            cursor.consume_phrase(&["less", "to", "cast"])?;
+            cursor.enter("casting-reduction.where-x");
+            cursor.require(
+                where_x_definition_starts(cursor),
+                "`, where X is` defining the {X} reduction",
+            )?;
+            let amount = recognize_where_x_definition(cursor)?;
+            return finish_reduction(cursor, subject, amount, None, None, None);
+        }
+        // `{W}{B} less`, `{2}{U} less`, `{G} less for each ...`: a delta
+        // with colored symbols (CR 118.7b-c).
+        None => {
+            let (generic, counts) = cost
+                .generic_and_whole_symbol_counts()
+                .filter(|(_, counts)| counts.iter().any(|count| *count > 0))
+                .ok_or_else(|| {
+                    cursor.fail("a reduction of generic and whole colored mana symbols, or {X}")
+                })?;
+            (generic, Some(counts))
+        }
+    };
     cursor.enter("casting-reduction.direction");
     cursor.consume_phrase(&["less", "to", "cast"])?;
     let fixed_amount_only = !cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("for"));
-    let amount = if !fixed_amount_only {
+    // `for each QUERY` multiplies the whole delta, generic and colored.
+    let multiplier = if !fixed_amount_only {
         let checkpoint = cursor.checkpoint();
         let count = match read_zone_query_count(cursor) {
             // A read zone the casting-cost reader cannot evaluate fails here;
@@ -112,37 +145,89 @@ fn read_reduction(
                 }
             }
         };
-        if fixed == 1 {
-            count
-        } else {
-            NumericExpression::multiply(NumericExpression::from(i64::from(fixed)), count)
-        }
+        Some(count)
     } else {
-        NumericExpression::from(i64::from(fixed))
+        None
     };
-    let mut target_query = None;
-    let condition = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("if"))
-    {
-        cursor.enter("casting-reduction.condition.subject");
-        cursor.require(
-            matches!(subject, CastingReductionSubject::CurrentSpell),
-            "this spell as the subject of a conditional reduction",
-        )?;
-        cursor.require(
-            fixed_amount_only,
-            "a fixed reduction amount before a condition",
-        )?;
+    let amount = match &multiplier {
+        Some(_) if fixed == 0 => NumericExpression::from(0_i64),
+        Some(count) if fixed == 1 => count.clone(),
+        Some(count) => {
+            NumericExpression::multiply(NumericExpression::from(i64::from(fixed)), count.clone())
+        }
+        None => NumericExpression::from(i64::from(fixed)),
+    };
+    let colored = colored_counts.map(|counts| ColoredReductionNode {
+        counts,
+        times: multiplier
+            .clone()
+            .unwrap_or_else(|| NumericExpression::from(1_i64)),
+        excess_reduces_generic: true,
+    });
+    let (condition, target_query) = match recognize_cost_adjustment_condition(cursor)? {
+        None => (None, None),
+        Some(condition) => {
+            cursor.enter("casting-reduction.condition.subject");
+            cursor.require(
+                fixed_amount_only,
+                "a fixed reduction amount before a condition",
+            )?;
+            match condition {
+                CostAdjustmentCondition::Sentence(condition) => (Some(condition), None),
+                CostAdjustmentCondition::Targets(query) => {
+                    cursor.require(
+                        matches!(subject, CastingReductionSubject::CurrentSpell)
+                            && colored.is_none(),
+                        "this spell as the subject of a generic target-conditioned reduction",
+                    )?;
+                    (None, Some(query))
+                }
+            }
+        }
+    };
+    finish_reduction(cursor, subject, amount, condition, target_query, colored)
+}
+
+/// The condition gating a cost adjustment (CR 601.2f, 602.2b), read after
+/// `less to cast|activate`. Every form is evaluated when the total cost is
+/// determined, after targets are chosen (CR 601.2c).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CostAdjustmentCondition {
+    /// `if COND`, `as long as COND`, `during your turn`: one Boolean program
+    /// of the shared condition language, read without sequence antecedents.
+    Sentence(SentenceConditionNode),
+    /// `if it targets a QUERY`: matched against the chosen targets.
+    Targets(ObjectQueryNode),
+}
+
+/// Reads the optional condition of a cost adjustment. Nothing is consumed
+/// when no condition introducer follows.
+pub(in crate::oracle::canonical) fn recognize_cost_adjustment_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<CostAdjustmentCondition>> {
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    cursor.enter("cost-adjustment.condition.introducer");
+    if word(cursor, 0, "during") && word(cursor, 1, "your") && word(cursor, 2, "turn") {
+        // `during your turn` is the proposition `it's your turn` (CR 500.1).
+        cursor.consume_phrase(&["during", "your", "turn"])?;
+        return Ok(Some(CostAdjustmentCondition::Sentence(
+            BooleanConditionNode::Atom(ConditionAtom::TurnOwnership(
+                ControllerTurnPropositionNode {
+                    is_controller_turn: true,
+                },
+            )),
+        )));
+    }
+    if word(cursor, 0, "as") && word(cursor, 1, "long") && word(cursor, 2, "as") {
+        cursor.consume_phrase(&["as", "long", "as"])?;
+    } else if word(cursor, 0, "if") {
         cursor.consume("if")?;
-        if cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
-            && cursor
-                .peek_ahead(1)
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("targets"))
-        {
-            // The spell's targets are chosen (CR 601.2c) before its total cost (601.2f).
+        if word(cursor, 0, "it") && word(cursor, 1, "targets") {
+            // The targets are chosen (CR 601.2c) before the total cost (601.2f).
             cursor.consume_phrase(&["it", "targets"])?;
             cursor.enter("casting-reduction.condition.target-query");
             let article = cursor
@@ -159,32 +244,70 @@ fn read_reduction(
                     && query.predicate.has_nominal_head(),
                 "a controller-free permanent predicate for the targeted object",
             )?;
-            target_query = Some(query);
-            None
-        } else {
-            cursor.enter("casting-reduction.condition.boolean-program");
-            // The spell's cost is determined before any effect introduces an
-            // object, so the shared atoms see no sequence antecedent.
-            let effects = EffectRecognitionContext::default();
-            let context = SentenceConditionContext {
-                name_links: &[],
-                name_failure: None,
-                effects: &effects,
-                card_target: None,
-                card_focus: false,
-                departed_targets: &[],
-            };
-            Some(recognize_boolean_condition_list_before_separator(
-                cursor,
-                |cursor| recognize_sentence_condition_atom(cursor, &context),
-            )?)
+            return Ok(Some(CostAdjustmentCondition::Targets(query)));
         }
     } else {
-        None
+        return Ok(None);
+    }
+    cursor.enter("casting-reduction.condition.boolean-program");
+    // The cost is determined before any effect introduces an object, so the
+    // shared atoms see no sequence antecedent.
+    let effects = EffectRecognitionContext::default();
+    let context = SentenceConditionContext {
+        name_links: &[],
+        name_failure: None,
+        effects: &effects,
+        card_target: None,
+        card_focus: false,
+        departed_targets: &[],
     };
+    let condition = recognize_boolean_condition_list_before_separator(cursor, |cursor| {
+        recognize_sentence_condition_atom(cursor, &context)
+    })?;
+    Ok(Some(CostAdjustmentCondition::Sentence(condition)))
+}
+
+/// The reduction delta printed between `cost(s)` and `less`: one positive
+/// generic symbol, or `{X}` whose value a postposed definition supplies.
+/// Colored and mixed deltas are refused by the caller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ReductionDelta {
+    Generic(i32),
+    Variable,
+}
+
+impl ReductionDelta {
+    pub(in crate::oracle::canonical) fn of(cost: &ManaCostNode) -> Option<Self> {
+        match cost.generic_payment_expression()? {
+            NumericExpression::Atom(NumericAtom::Integer(value)) if value > 0 => {
+                i32::try_from(value).ok().map(Self::Generic)
+            }
+            NumericExpression::Atom(NumericAtom::VariableX) => Some(Self::Variable),
+            _ => None,
+        }
+    }
+}
+
+fn finish_reduction(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: CastingReductionSubject,
+    amount: NumericExpression,
+    condition: Option<SentenceConditionNode>,
+    target_query: Option<ObjectQueryNode>,
+    mut colored: Option<ColoredReductionNode>,
+) -> MachineResult<CastingCostReductionNode> {
     cursor.enter("casting-reduction.terminator");
     cursor.consume(".")?;
-    if let CastingReductionSubject::SpellSet(query) = &subject {
+    if let Some(colored) = colored.as_mut() {
+        recognize_colored_reduction_policy(cursor, colored)?;
+    }
+    // A trailing reminder restates either the amount's rule (devotion), the
+    // colored-reduction rule, or a characteristic batch of the spell subject.
+    if matches!(amount, NumericExpression::Devotion(_)) {
+        recognize_optional_amount_reminder(cursor, &amount)?;
+    } else if let Some(colored) = &colored {
+        recognize_optional_colored_reduction_reminder(cursor, colored)?;
+    } else if let CastingReductionSubject::SpellSet(query) = &subject {
         recognize_optional_batch_reminder_for(cursor, &query.predicate)?;
     }
     cursor.enter("casting-reduction.complete");
@@ -194,14 +317,128 @@ fn read_reduction(
         amount,
         condition,
         target_query,
+        colored,
     })
+}
+
+const COLOR_WORDS: [&str; 5] = ["white", "blue", "black", "red", "green"];
+
+/// `This effect reduces only the amount of colored|COLOR mana you pay.`
+/// overrides CR 118.7b-c: an excess no longer reduces generic mana. A color
+/// word must be the delta's only color.
+fn recognize_colored_reduction_policy(
+    cursor: &mut OracleTokenCursor<'_>,
+    colored: &mut ColoredReductionNode,
+) -> MachineResult<()> {
+    let starts = ["this", "effect", "reduces", "only"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        });
+    if !starts {
+        return Ok(());
+    }
+    cursor.enter("casting-reduction.colored-policy");
+    cursor.consume_phrase(&["this", "effect", "reduces", "only", "the", "amount", "of"])?;
+    let word = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| cursor.fail("colored or the delta's color"))?;
+    let named = if word == "colored" {
+        true
+    } else {
+        match COLOR_WORDS.iter().position(|color| *color == word) {
+            Some(index) => colored
+                .counts
+                .iter()
+                .enumerate()
+                .all(|(other, count)| (other == index) == (*count > 0)),
+            None => false,
+        }
+    };
+    cursor.require(named, "colored or the delta's only color")?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.consume_phrase(&["mana", "you", "pay", "."])?;
+    colored.excess_reduces_generic = false;
+    Ok(())
+}
+
+/// The reminder of a colored reduction restates its rule: `(This can reduce
+/// generic costs.)` and `(If it doesn't require {C}, it costs {1} less to
+/// cast.)` the default CR 118.7b; `(For example, if you cast a SPELL with
+/// mana cost COST, it costs COST to cast.)` the colored-only policy.
+fn recognize_optional_colored_reduction_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    colored: &ColoredReductionNode,
+) -> MachineResult<()> {
+    if cursor.peek() != Some("(") {
+        return Ok(());
+    }
+    cursor.enter("reminder.colored-reduction");
+    cursor.consume("(")?;
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(cursor, 0, "this") {
+        cursor.require(
+            colored.excess_reduces_generic,
+            "the default colored reduction rule",
+        )?;
+        cursor.consume_phrase(&["this", "can", "reduce", "generic", "costs", "."])?;
+    } else if word(cursor, 0, "if") {
+        cursor.require(
+            colored.excess_reduces_generic,
+            "the default colored reduction rule",
+        )?;
+        cursor.consume_phrase(&["if", "it"])?;
+        cursor.require(
+            cursor
+                .peek()
+                .is_some_and(|raw| raw.replace('\u{2019}', "'").eq_ignore_ascii_case("doesn't")),
+            "doesn't",
+        )?;
+        cursor.advance_to(cursor.position() + 1)?;
+        cursor.consume("require")?;
+        recognize_mana_cost(cursor)?;
+        cursor.consume_phrase(&[",", "it", "costs"])?;
+        recognize_mana_cost(cursor)?;
+        cursor.consume_phrase(&["less", "to", "cast", "."])?;
+    } else {
+        cursor.require(
+            !colored.excess_reduces_generic,
+            "the colored-only reduction rule",
+        )?;
+        cursor.consume_phrase(&["for", "example", ",", "if", "you", "cast"])?;
+        let article = cursor
+            .peek()
+            .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+            .ok_or_else(|| cursor.fail("an example spell introduced by a/an"))?
+            .to_string();
+        cursor.consume(&article)?;
+        recognize_object_query(cursor)?;
+        cursor.consume_phrase(&["with", "mana", "cost"])?;
+        recognize_mana_cost(cursor)?;
+        cursor.consume_phrase(&[",", "it", "costs"])?;
+        recognize_mana_cost(cursor)?;
+        cursor.consume_phrase(&["to", "cast", "."])?;
+    }
+    cursor.enter("reminder.colored-reduction.close");
+    cursor.consume(")")
 }
 
 /// The counted amount ends at the reduction terminator or its condition.
 fn reduction_amount_complete(cursor: &OracleTokenCursor<'_>) -> bool {
-    cursor
-        .peek()
-        .is_some_and(|raw| raw == "." || raw.eq_ignore_ascii_case("if"))
+    cursor.peek().is_some_and(|raw| {
+        raw == "."
+            || ["if", "as", "during"]
+                .iter()
+                .any(|word| raw.eq_ignore_ascii_case(word))
+    })
 }
 
 /// `for each|every QUERY` over a card zone or the battlefield (`on the`).

@@ -135,6 +135,149 @@ fn remove_generic_mana_from_components(costs: &mut [String], amount: i32) {
     }
 }
 
+/// One colored reduction of a spell's total cost (CR 118.7b-c): `amount`
+/// mana of `symbol` (`W`, `U`, `B`, `R`, `G` or `C`). The part exceeding the
+/// cost's component of that type reduces its generic component unless the
+/// rule says it reduces only colored mana.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ColoredCastingReduction {
+    pub symbol: String,
+    pub amount: i32,
+    pub excess_reduces_generic: bool,
+}
+
+const COLORED_REDUCTION_SYMBOLS: [&str; 6] = ["W", "U", "B", "R", "G", "C"];
+
+/// Shape of a reduction modifier's `coloredMana` field: the symbols of one
+/// delta, how many times it applies, and the excess policy.
+pub(super) fn colored_reduction_supported(reduction: &Value) -> bool {
+    reduction.as_object().is_some_and(|fields| {
+        fields
+            .keys()
+            .all(|key| matches!(key.as_str(), "symbols" | "times" | "excessReducesGeneric"))
+    }) && reduction["symbols"].as_array().is_some_and(|symbols| {
+        !symbols.is_empty()
+            && symbols.iter().all(|symbol| {
+                symbol
+                    .as_str()
+                    .is_some_and(|symbol| COLORED_REDUCTION_SYMBOLS.contains(&symbol))
+            })
+    }) && numeric_expression_supported(&reduction["times"])
+        && reduction["excessReducesGeneric"].is_boolean()
+}
+
+/// The colored reductions one `coloredMana` field gives when its delta
+/// applies `times` times.
+pub(super) fn colored_casting_reductions(
+    reduction: &Value,
+    times: i32,
+) -> Result<Vec<ColoredCastingReduction>, EngineError> {
+    if !colored_reduction_supported(reduction) {
+        return Err(EngineError::new("unsupported colored casting reduction"));
+    }
+    let times = times.max(0);
+    let excess_reduces_generic = reduction["excessReducesGeneric"].as_bool() == Some(true);
+    let mut counts = BTreeMap::<String, i32>::new();
+    for symbol in reduction["symbols"].as_array().into_iter().flatten() {
+        let symbol = symbol.as_str().unwrap_or_default().to_string();
+        let count = counts.entry(symbol).or_default();
+        *count = count
+            .checked_add(times)
+            .ok_or_else(|| EngineError::new("colored casting reduction exceeds i32"))?;
+    }
+    Ok(counts
+        .into_iter()
+        .filter(|(_, amount)| *amount > 0)
+        .map(|(symbol, amount)| ColoredCastingReduction {
+            symbol,
+            amount,
+            excess_reduces_generic,
+        })
+        .collect())
+}
+
+/// Removes each colored reduction from the cost components (CR 118.7b-c)
+/// and returns the generic reduction its excess adds. A component symbol
+/// that is hybrid or Phyrexian in the reduced color has no rule here and is
+/// refused rather than guessed.
+fn apply_colored_casting_reductions(
+    costs: &mut [String],
+    reductions: &[ColoredCastingReduction],
+) -> Result<i32, EngineError> {
+    let mut excess = 0_i32;
+    for reduction in reductions {
+        let mut remaining = reduction.amount;
+        for cost in costs.iter_mut() {
+            if remaining == 0 {
+                break;
+            }
+            let mut symbols = parse_mana_symbols(cost);
+            if symbols.iter().any(|symbol| {
+                symbol.contains('/') && symbol.split('/').any(|part| part == reduction.symbol)
+            }) {
+                return Err(EngineError::new(
+                    "a colored cost reduction of a hybrid or Phyrexian symbol is unsupported",
+                ));
+            }
+            let before = symbols.len();
+            symbols.retain(|symbol| {
+                if remaining > 0 && *symbol == reduction.symbol {
+                    remaining -= 1;
+                    false
+                } else {
+                    true
+                }
+            });
+            if symbols.len() != before {
+                *cost = symbols
+                    .iter()
+                    .map(|symbol| format!("{{{symbol}}}"))
+                    .collect::<String>();
+            }
+        }
+        if reduction.excess_reduces_generic {
+            excess = excess
+                .checked_add(remaining)
+                .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?;
+        }
+    }
+    Ok(excess)
+}
+
+/// `This spell costs COST more to cast for each target beyond the first`
+/// (CR 601.2f; strive, CR 702.108): a fixed mana increase of the spell's own
+/// total cost, counted on the targets chosen before that cost (CR 601.2c).
+pub(super) fn own_casting_increase_supported(modifier: &Value) -> bool {
+    value_kind(modifier) == Some("increaseOwnCastingCost")
+        && modifier.as_object().is_some_and(|fields| {
+            fields
+                .keys()
+                .all(|key| matches!(key.as_str(), "kind" | "manaCost" | "per"))
+        })
+        && modifier["manaCost"]
+            .as_str()
+            .is_some_and(|cost| parse_fixed_mana_requirement_checked(cost).is_some())
+        && modifier["per"].as_str() == Some("targetBeyondFirst")
+}
+
+/// The increases a spell's own `increaseOwnCastingCost` rules add for the
+/// targets of one casting declaration: one copy of the cost for each chosen
+/// target after the first.
+pub(super) fn own_target_count_increases(
+    card: &CardDefinition,
+    targets: &BTreeMap<String, TargetRef>,
+) -> Vec<String> {
+    let beyond_first = targets.len().saturating_sub(1);
+    card.printed_rules()
+        .iter()
+        .filter(|rule| casting_static_rule_supported(rule))
+        .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
+        .filter(|modifier| own_casting_increase_supported(modifier))
+        .filter_map(|modifier| modifier["manaCost"].as_str())
+        .flat_map(|cost| std::iter::repeat_n(cost.to_string(), beyond_first))
+        .collect()
+}
+
 fn finalize_casting_mana_components(
     mut costs: Vec<String>,
     x_value: i64,
@@ -397,16 +540,19 @@ impl GameEngine {
         }
     }
 
-    fn checked_casting_generic_reduction(
+    /// The generic reduction total and the colored reductions (CR 118.7b-c)
+    /// of the spell's own and global cost-reduction rules (CR 601.2f).
+    fn checked_casting_reductions(
         &self,
         card: &CardDefinition,
         controller_id: &str,
         decisions: &BTreeMap<String, Value>,
         casting_source: Option<&CardInstance>,
-    ) -> Result<i32, EngineError> {
+    ) -> Result<(i32, Vec<ColoredCastingReduction>), EngineError> {
         let context =
             cost_query::CastingQueryContext::spell(card, controller_id, decisions, casting_source);
         let mut total = 0_i32;
+        let mut colored = Vec::new();
         for modifier in card
             .printed_rules()
             .iter()
@@ -432,27 +578,36 @@ impl GameEngine {
             total = total
                 .checked_add(amount)
                 .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?;
+            if let Some(reduction) = modifier.get("coloredMana") {
+                let times = self.checked_cost_query_numeric(
+                    &reduction["times"],
+                    &context,
+                    "own colored casting reduction multiplier",
+                )?;
+                colored.extend(colored_casting_reductions(reduction, times)?);
+            }
         }
-        total
-            .checked_add(
-                self.checked_global_casting_cost_reduction(
-                    controller_id,
-                    card,
-                    decisions
-                        .get("castSourceZone")
-                        .and_then(Value::as_str)
-                        .unwrap_or("hand"),
-                    decisions,
-                    casting_source,
-                )?,
-            )
+        let (global, global_colored) = self.checked_global_casting_cost_reductions(
+            controller_id,
+            card,
+            decisions
+                .get("castSourceZone")
+                .and_then(Value::as_str)
+                .unwrap_or("hand"),
+            decisions,
+            casting_source,
+        )?;
+        colored.extend(global_colored);
+        let generic = total
+            .checked_add(global)
             .and_then(|total| {
                 total.checked_add(keyword_programs::alternative_cost_generic_reduction(
                     decisions,
                 ))
             })
             .map(|amount| amount.max(0))
-            .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))
+            .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?;
+        Ok((generic, colored))
     }
 
     pub(super) fn checked_casting_mana_costs_for_base_components(
@@ -477,11 +632,19 @@ impl GameEngine {
         );
         base_components.extend(caller_increases);
 
+        // CR 601.2f: base or alternative plus increases, then reductions
+        // (colored first, CR 118.7b-c spilling into generic), then floors;
+        // Delve is a payment substitution applied after the total is locked.
+        let (generic_reduction, colored_reductions) =
+            self.checked_casting_reductions(card, controller_id, decisions, casting_source)?;
+        let colored_excess =
+            apply_colored_casting_reductions(&mut base_components, &colored_reductions)?;
         let mut finalized = finalize_casting_mana_components(
             base_components,
             decisions.get("xValue").and_then(Value::as_i64).unwrap_or(0),
-            self.checked_casting_generic_reduction(card, controller_id, decisions, casting_source)?
+            generic_reduction
                 .checked_add(caller_generic_reduction.max(0))
+                .and_then(|total| total.checked_add(colored_excess))
                 .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?,
             self.minimum_casting_mana(controller_id, card),
         );
@@ -555,3 +718,10 @@ impl GameEngine {
 ))]
 #[path = "casting_cost_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "cost_modification_x_tests.rs"]
+mod cost_modification_x_tests;

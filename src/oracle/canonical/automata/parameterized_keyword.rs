@@ -432,6 +432,7 @@ pub(in crate::oracle::canonical) fn affinity_reduction(
         })),
         condition: None,
         target_query: None,
+        colored: None,
     }
 }
 

@@ -709,18 +709,15 @@ fn parse_existing_native_rule(
         };
     }
 
+    // A narrow zone-change shape: any other body (or a failure) belongs to
+    // the shared activated program, which reads the same reduction frame.
     if ability_kind == "activatedAbility"
         && claims_promoted_labeled_activated_zone_change_family(input)
+        && let Ok(draft) = parse_promoted_labeled_activated_zone_change(input)
     {
-        return match parse_promoted_labeled_activated_zone_change(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
+        return CanonicalParseOutcome::Parsed {
+            draft,
+            recognizer: RecognizerProvenance::Native,
         };
     }
 
