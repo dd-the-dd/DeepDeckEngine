@@ -7,12 +7,24 @@ use super::super::*;
 /// Returns one modifier per characteristic change, or the unsupported part.
 /// `objects_are_lands` is the parent's proof that every affected object is a
 /// land, which a replacing land-subtype change requires (CR 305.7).
+///
+/// - CR 205.1b: `in addition to its other types`, or a change that names an
+///   `artifact creature`, retains every prior card type and subtype; each
+///   named type is added (`addCardType`, `addSubtype`).
+/// - CR 205.1a: otherwise the named card types replace the object's card
+///   types (`setCardTypes`); the engine then drops every registered subtype
+///   that no longer corresponds to a card type (CR 205.3d).
+/// - CR 205.1b, 305.7: named subtypes without retention replace the
+///   subtypes of their own class: creature types (`modifySubtypeSet`
+///   `replace`), or one basic land type of a land (`setLandSubtype`, which
+///   also replaces the land's rules text).
 pub(in crate::oracle::canonical) fn lower_continuous_type_change(
     objects: &Value,
     objects_are_lands: bool,
     node: &TypeChangeCharacteristicsNode,
 ) -> Result<Vec<Value>, &'static str> {
-    let additive = node.retention == TypeChangeRetention::InAdditionToOtherTypes;
+    let additive = node.retention == TypeChangeRetention::InAdditionToOtherTypes
+        || names_artifact_creature(&node.card_types);
     let mut modifiers = Vec::new();
     for supertype in &node.supertypes {
         // CR 205.4: a supertype is added; no supertype-setting form exists.
@@ -31,22 +43,21 @@ pub(in crate::oracle::canonical) fn lower_continuous_type_change(
             "objects": objects.clone(),
         }));
     }
-    if !node.card_types.is_empty() && !additive {
-        // CR 205.1a: setting card types replaces the old ones; only the
-        // additive form has a battlefield primitive.
-        return Err("`in addition to its other types` after a card-type change");
-    }
-    for card_type in &node.card_types {
-        if matches!(card_type, ObjectCardType::Kindred) {
-            return Err("a card type the additive type-change primitive supports");
-        }
-        modifiers.push(json!({
-            "kind": "addCardType",
-            "objects": objects.clone(),
-            "cardType": card_type.ir_name(),
-        }));
+    if node
+        .card_types
+        .iter()
+        .any(|card_type| matches!(card_type, ObjectCardType::Kindred))
+    {
+        return Err("a card type the type-change primitives support");
     }
     if additive {
+        for card_type in &node.card_types {
+            modifiers.push(json!({
+                "kind": "addCardType",
+                "objects": objects.clone(),
+                "cardType": card_type.ir_name(),
+            }));
+        }
         for subtype in &node.subtypes {
             modifiers.push(json!({
                 "kind": "addSubtype",
@@ -55,29 +66,80 @@ pub(in crate::oracle::canonical) fn lower_continuous_type_change(
             }));
         }
     } else {
-        match node.subtypes.as_slice() {
-            [] => {}
-            // CR 305.7: a land whose subtype is set to a basic land type loses
-            // its other land types and rules-text abilities and has the
-            // intrinsic mana ability of the new type.
-            [TypeChangeSubtype::BasicLand(subtype)]
-                if node.card_types.is_empty() && objects_are_lands =>
-            {
-                modifiers.push(json!({
-                    "kind": "setLandSubtype",
-                    "objects": objects.clone(),
-                    "subtype": subtype.ir_name(),
-                }));
-            }
-            _ => {
-                return Err(
-                    "one basic land subtype replacing the subtypes of lands, or `in addition to`",
-                );
-            }
+        if !node.card_types.is_empty() {
+            modifiers.push(json!({
+                "kind": "setCardTypes",
+                "objects": objects.clone(),
+                "cardTypes": node
+                    .card_types
+                    .iter()
+                    .map(|card_type| card_type.ir_name())
+                    .collect::<Vec<_>>(),
+            }));
         }
+        // After a card-type change the objects are lands exactly when the
+        // new card types include Land.
+        let lands = if node.card_types.is_empty() {
+            objects_are_lands
+        } else {
+            node.card_types.contains(&ObjectCardType::Land)
+        };
+        modifiers.extend(lower_replacing_subtypes(objects, lands, &node.subtypes)?);
     }
     if modifiers.is_empty() {
         return Err("a type-change characteristic with a battlefield primitive");
+    }
+    Ok(modifiers)
+}
+
+/// CR 205.1b: `[creature types] artifact creature` retains every prior card
+/// type and subtype.
+fn names_artifact_creature(card_types: &[ObjectCardType]) -> bool {
+    card_types.contains(&ObjectCardType::Artifact) && card_types.contains(&ObjectCardType::Creature)
+}
+
+/// Named subtypes without retention, one replacement per subtype class
+/// (CR 205.1b): creature types replace the creature types; one basic land
+/// type replaces a land's land types (CR 305.7).
+fn lower_replacing_subtypes(
+    objects: &Value,
+    objects_are_lands: bool,
+    subtypes: &[TypeChangeSubtype],
+) -> Result<Vec<Value>, &'static str> {
+    let creature = subtypes
+        .iter()
+        .filter(|subtype| matches!(subtype, TypeChangeSubtype::Creature(_)))
+        .map(|subtype| subtype.ir_name())
+        .collect::<Vec<_>>();
+    let land = subtypes
+        .iter()
+        .filter_map(|subtype| match subtype {
+            TypeChangeSubtype::BasicLand(subtype) => Some(*subtype),
+            TypeChangeSubtype::Creature(_) => None,
+        })
+        .collect::<Vec<_>>();
+    let mut modifiers = Vec::new();
+    if !creature.is_empty() {
+        modifiers.push(json!({
+            "kind": "modifySubtypeSet",
+            "objects": objects.clone(),
+            "subtypeClass": "creature",
+            "mode": "replace",
+            "subtypes": creature,
+        }));
+    }
+    match land.as_slice() {
+        [] => {}
+        [subtype] if objects_are_lands => modifiers.push(json!({
+            "kind": "setLandSubtype",
+            "objects": objects.clone(),
+            "subtype": subtype.ir_name(),
+        })),
+        _ => {
+            return Err(
+                "one basic land subtype replacing the subtypes of lands, or `in addition to`",
+            );
+        }
     }
     Ok(modifiers)
 }
@@ -99,9 +161,6 @@ pub(in crate::oracle::canonical) fn lower_continuous_characteristic_complement(
         || node.copy_name.is_some()
         || node.chosen_subtype.is_some()
         || node.duration.is_some()
-        || node.characteristics.all_creature_types
-        || node.characteristics.loses_all_abilities
-        || !node.characteristics.lost_keywords.is_empty()
         || node.characteristics.base_power.is_some()
         || node.characteristics.switches_power_toughness
     {
@@ -118,7 +177,41 @@ pub(in crate::oracle::canonical) fn lower_continuous_characteristic_complement(
             TypeChangeRetention::ReplacesSameClass
         },
     };
-    let mut modifiers = lower_continuous_type_change(objects, objects_are_lands, &types)?;
+    let mut modifiers = if types.supertypes.is_empty()
+        && types.subtypes.is_empty()
+        && types.card_types.is_empty()
+    {
+        // `is a 3/3 with flying` states no type; the other characteristics
+        // are read below.
+        Vec::new()
+    } else {
+        lower_continuous_type_change(objects, objects_are_lands, &types)?
+    };
+    if node.characteristics.all_creature_types {
+        // CR 205.3m: every creature type, in the creature subtype class.
+        modifiers.push(json!({
+            "kind": "modifySubtypeSet",
+            "objects": objects.clone(),
+            "subtypeClass": "creature",
+            "mode": "all",
+        }));
+    }
+    if node.characteristics.loses_all_abilities {
+        // CR 613.1f: layer 6, on the same objects.
+        modifiers.push(json!({ "kind": "loseAllAbilities", "objects": objects.clone() }));
+    }
+    if !node.characteristics.lost_keywords.is_empty() {
+        modifiers.push(json!({
+            "kind": "loseKeywords",
+            "objects": objects.clone(),
+            "keywords": node
+                .characteristics
+                .lost_keywords
+                .iter()
+                .map(|keyword| keyword.canonical_name())
+                .collect::<Vec<_>>(),
+        }));
+    }
     match &node.colors {
         None => {}
         Some(ColorComplementNode::Colors(colors)) => modifiers.push(json!({

@@ -821,6 +821,13 @@ fn read_object_predicates(
                     modifiers
                         .push(json!({ "kind": "goadAttachedPermanent", "attachment": self_ref() }));
                     goaded = true;
+                } else if word_in(cursor.peek(), &["the"])
+                    && word_in(cursor.peek_ahead(1), &["chosen"])
+                {
+                    modifiers.push(read_chosen_type_addition(
+                        cursor, objects, number, committed,
+                    )?);
+                    changes_types = true;
                 } else if let Some(modifier) =
                     read_optional_color_predicate(cursor, objects, committed)?
                 {
@@ -1133,6 +1140,8 @@ fn modifier_takes_own_condition(modifier: &Value) -> bool {
                 | "preventCounters"
                 | "allowAttackWithDefender"
                 | "removeCardTypeWhile"
+                | "setCardTypes"
+                | "modifySubtypeSet"
         )
     )
 }
@@ -1234,6 +1243,43 @@ fn resolve_sentence_conditions(
         "a condition while the card type is removed (`as long as …, it isn't a TYPE`)",
     )?;
     Ok((modifiers, None))
+}
+
+/// `is the chosen type in addition to its other types` (CR 205.1b, 205.3m):
+/// the source adds the creature type stored as it entered (the entry
+/// choice's `chosenCreatureType` binding, validated with the card). Only the
+/// source itself has an engine primitive for the stored type.
+fn read_chosen_type_addition(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &Value,
+    number: TypeChangeNumber,
+    committed: &mut bool,
+) -> MachineResult<Value> {
+    cursor.enter("static.continuous.chosen-type");
+    cursor.consume_phrase(&["the", "chosen"])?;
+    *committed = true;
+    if word_in(cursor.peek(), &["creature"]) {
+        cursor.consume("creature")?;
+    }
+    cursor.consume("type")?;
+    cursor.enter("static.continuous.chosen-type.retention");
+    cursor.consume_phrase(&["in", "addition", "to"])?;
+    read_possessive(cursor, number)?;
+    cursor.consume("other")?;
+    if word_in(cursor.peek(), &["creature"]) {
+        cursor.consume("creature")?;
+    }
+    cursor.consume("types")?;
+    cursor.enter("static.continuous.chosen-type.object");
+    cursor.require(
+        *objects == self_ref(),
+        "the source itself taking the chosen creature type",
+    )?;
+    Ok(json!({
+        "kind": "addChosenSubtype",
+        "object": self_ref(),
+        "choice": chosen_creature_type(),
+    }))
 }
 
 /// `isn't a TYPE` (CR 205.1a): a source that is not that card type while

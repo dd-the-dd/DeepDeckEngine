@@ -5953,6 +5953,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && numeric_expression_supported(&modifier["count"])
         }
         Some("nonbasicLandsBecomeMountains") => condition_supported(&modifier["condition"]),
+        Some("setCardTypes" | "modifySubtypeSet") => {
+            GameEngine::static_type_modifier_supported(modifier)
+        }
         _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }
@@ -10750,14 +10753,17 @@ impl GameEngine {
                 });
         // CR 205.1a: the latest card-type set recorded on this object replaces
         // its printed card types; later additive effects still add theirs.
-        let base_has_type = effect_domains::marker_card_types(&permanent.definition).map_or_else(
-            || has_card_type(&permanent.definition, card_type),
-            |types| {
-                types
-                    .iter()
-                    .any(|value| value.eq_ignore_ascii_case(card_type))
-            },
-        );
+        let base_has_type = self
+            .static_card_type_set(permanent)
+            .or_else(|| effect_domains::marker_card_types(&permanent.definition))
+            .map_or_else(
+                || has_card_type(&permanent.definition, card_type),
+                |types| {
+                    types
+                        .iter()
+                        .any(|value| value.eq_ignore_ascii_case(card_type))
+                },
+            );
         if !base_has_type && !temporarily_added && !continuously_added {
             return false;
         }
@@ -10857,6 +10863,9 @@ impl GameEngine {
                     .is_some_and(|symbol| !self.permanent_color_symbols(permanent).contains(symbol))
             }),
             Some("subtypeContains") => filter["value"].as_str().is_some_and(|subtype| {
+                if let Some(member) = self.static_subtype_membership(permanent, subtype) {
+                    return member;
+                }
                 let set_subtypes =
                     self.battlefield_static_modifiers()
                         .iter()
