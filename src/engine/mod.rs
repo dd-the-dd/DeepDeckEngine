@@ -18335,6 +18335,7 @@ impl GameEngine {
                     decisions.insert("spendManaAsAnyType".to_string(), Value::Bool(true));
                 }
                 if let Some(permission) = permission {
+                    Self::carry_permission_graveyard_exile(permission, &mut decisions);
                     decisions.insert(
                         "exileOnLeaveStack".to_string(),
                         Value::Bool(permission["exileOnLeaveStack"].as_bool().unwrap_or(false)),
@@ -26039,6 +26040,7 @@ impl GameEngine {
                     decisions: stack_decisions,
                     targets: stack_targets.clone(),
                 });
+                self.install_permitted_cast_graveyard_exile(&action.decisions, &card_id);
                 if matches!(
                     movement_source.zone,
                     card_zone_transition::ObjectZone::Graveyard(_)

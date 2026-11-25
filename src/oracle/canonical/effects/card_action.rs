@@ -899,7 +899,17 @@ impl CardCollectionMemory {
                 unreachable!()
             };
             let value = self.reference(cursor, *reference)?;
-            self.mention(value.clone());
+            if *reference == CardCollectionReferenceNode::Remainder
+                && !value.1.is_some_and(|maximum| maximum <= 1)
+            {
+                // `exile one of them, then put the rest into their graveyard.
+                // You may cast that card`: the plural remainder is a
+                // complement, never the antecedent of a singular pronoun, so
+                // the chosen card keeps its singular focus (CR 608.2c).
+                self.plural_focus = Some(value.clone());
+            } else {
+                self.mention(value.clone());
+            }
             return Ok(value);
         };
         let (from, source_maximum) = self.reference(cursor, selection.from)?;
@@ -1516,16 +1526,8 @@ impl CardCollectionMemory {
         }
         if let Some(replacement) = &permit.graveyard_exile {
             cursor.enter("lower.card-action.resolution-cast.graveyard-exile");
-            let mut lowered = json!({"graveyard": match replacement.graveyard {
-                CastGraveyardOwnerNode::Controller => "controller",
-                CastGraveyardOwnerNode::Any => "any",
-            }});
-            if let Some(predicate) = &replacement.predicate {
-                validate_object_predicate_numeric_expressions(predicate, declarations)
-                    .map_err(|error| cursor.fail(error.expectation()))?;
-                lowered["where"] = lower_card_object_predicate(predicate);
-            }
-            cast["exileInsteadOfGraveyard"] = lowered;
+            cast["exileInsteadOfGraveyard"] =
+                lower_cast_graveyard_exile(cursor, replacement, declarations)?;
         }
         effects.push(cast);
         if matches!(permit.cards, CardOperandNode::Selection(_)) {
@@ -1847,18 +1849,35 @@ impl CardCollectionMemory {
             CardActionNode::Permit(permit) => {
                 cursor.enter("lower.card-action.permit.window");
                 // A window permission is a player's later choice to cast;
-                // the frame's other slots have no runtime on it yet.
-                if permit.graveyard_exile.is_some()
-                    || matches!(
-                        permit.cost,
-                        CardCastCostNode::Alternative(_) | CardCastCostNode::AlternativeNonMana(_)
-                    )
-                {
+                // a substituted cost has no runtime on it yet.
+                if matches!(
+                    permit.cost,
+                    CardCastCostNode::Alternative(_) | CardCastCostNode::AlternativeNonMana(_)
+                ) {
                     return Err(cursor.engine_gap(
                         crate::oracle::canonical::engine_gap::EngineGap::PermissionWindow,
-                        "a later casting permission carrying a graveyard exile replacement or a substituted cost",
+                        "a later casting permission carrying a substituted cost",
                     ));
                 }
+                // `If that spell would be put into your graveyard, exile it
+                // instead.` (CR 614.1a): the replacement each spell cast
+                // through this permission carries, as a resolution-time cast
+                // carries it.
+                let graveyard_exile = match &permit.graveyard_exile {
+                    Some(replacement) => {
+                        cursor.enter("lower.card-action.permit.graveyard-exile");
+                        cursor.require(
+                            permit.verb == CardPermissionVerb::Cast,
+                            "a cast permission for the graveyard exile of its spells",
+                        )?;
+                        Some(lower_cast_graveyard_exile(
+                            cursor,
+                            replacement,
+                            declarations,
+                        )?)
+                    }
+                    None => None,
+                };
                 cursor.require(
                     matches!(
                         permit.cards,
@@ -1885,8 +1904,9 @@ impl CardCollectionMemory {
                             && permit.duration == Some(EffectDurationNode::UntilEndOfCurrentTurn)
                             && permit.window.is_none()
                             && !permit.without_paying_mana_cost()
-                            && !permit.mana_of_any_type,
-                        "every matching spell of your graveyard or exile, cast this turn at its usual cost",
+                            && !permit.mana_of_any_type
+                            && permit.graveyard_exile.is_none(),
+                        "every matching spell of your graveyard or exile, cast this turn at its usual cost, without a graveyard replacement",
                     )?;
                     let mut filter = json!({"kind":"canBeCastAsSpell"});
                     if let Some(predicate) = &query.predicate {
@@ -1996,6 +2016,9 @@ impl CardCollectionMemory {
                     "normalCostsApply":normal_costs_apply});
                 if permit.mana_of_any_type {
                     action["spendManaAsAnyType"] = json!(true);
+                }
+                if let Some(replacement) = graveyard_exile {
+                    action["exileInsteadOfGraveyard"] = replacement;
                 }
                 let mut grant = json!({"kind":"grantPermission", "player":controller(),
                     "action":action, "duration":duration});
@@ -2346,6 +2369,27 @@ pub(in crate::oracle::canonical) fn lower_entering_attack_policy(
         }
     };
     Some(json!({"kind":kind, "player":lower_event_bound_player(player)?}))
+}
+
+/// The graveyard exile replacement of the spells a cast frame casts (CR
+/// 614.1a): whose graveyard it watches and, for `a PREDICATE spell cast this
+/// way`, the cards it applies to. One lowering for a cast during resolution
+/// and for a later casting permission.
+fn lower_cast_graveyard_exile(
+    cursor: &OracleTokenCursor<'_>,
+    replacement: &CastGraveyardExileNode,
+    declarations: TargetlessDeclarationSupport,
+) -> MachineResult<Value> {
+    let mut lowered = json!({"graveyard": match replacement.graveyard {
+        CastGraveyardOwnerNode::Controller => "controller",
+        CastGraveyardOwnerNode::Any => "any",
+    }});
+    if let Some(predicate) = &replacement.predicate {
+        validate_object_predicate_numeric_expressions(predicate, declarations)
+            .map_err(|error| cursor.fail(error.expectation()))?;
+        lowered["where"] = lower_card_object_predicate(predicate);
+    }
+    Ok(lowered)
 }
 
 /// Every mana-value comparison of a card predicate has a runtime operand.

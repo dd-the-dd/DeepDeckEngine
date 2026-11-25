@@ -164,7 +164,7 @@ fn cast_any_number_supported(effect: &Value) -> bool {
 /// 614.1a) on the spells one resolution-time cast casts: whose graveyard
 /// (`controller`: only a spell the controller owns; `any`) and, for `a
 /// PREDICATE spell cast this way`, the cards it applies to.
-fn cast_graveyard_exile_supported(replacement: &Value) -> bool {
+pub(super) fn cast_graveyard_exile_supported(replacement: &Value) -> bool {
     matches!(
         replacement["graveyard"].as_str(),
         Some("controller" | "any")
@@ -989,13 +989,74 @@ impl GameEngine {
         stack_object: &StackObject,
         cast_card_id: Option<&str>,
     ) {
-        let replacement = &effect["exileInsteadOfGraveyard"];
-        if !replacement.is_object() {
-            return;
-        }
         let Some(card_id) = cast_card_id else {
             return;
         };
+        self.install_spell_graveyard_exile(
+            &effect["exileInsteadOfGraveyard"],
+            &stack_object.controller,
+            &stack_object.card.instance_id,
+            card_id,
+        );
+    }
+
+    /// The decision a cast through a granted permission carries when that
+    /// permission states the graveyard exile of its spells (CR 614.1a): the
+    /// replacement, the permitted player and the granting source.
+    pub(in super::super) fn carry_permission_graveyard_exile(
+        permission: &Value,
+        decisions: &mut BTreeMap<String, Value>,
+    ) {
+        if let Some(replacement) = permission.get("exileInsteadOfGraveyard") {
+            decisions.insert(
+                PERMITTED_CAST_GRAVEYARD_EXILE.to_string(),
+                json!({
+                    "replacement": replacement,
+                    "playerId": permission["playerId"],
+                    "sourceCardInstanceId": permission["sourceCardInstanceId"],
+                }),
+            );
+        }
+    }
+
+    /// Installs, once the spell cast through such a permission is on the
+    /// stack, the replacement of its graveyard destination.
+    pub(in super::super) fn install_permitted_cast_graveyard_exile(
+        &mut self,
+        decisions: &BTreeMap<String, Value>,
+        card_id: &str,
+    ) {
+        let Some(carried) = decisions.get(PERMITTED_CAST_GRAVEYARD_EXILE) else {
+            return;
+        };
+        let (Some(player_id), Some(source_id)) = (
+            carried["playerId"].as_str(),
+            carried["sourceCardInstanceId"].as_str(),
+        ) else {
+            return;
+        };
+        let (player_id, source_id) = (player_id.to_string(), source_id.to_string());
+        self.install_spell_graveyard_exile(
+            &carried["replacement"],
+            &player_id,
+            &source_id,
+            card_id,
+        );
+    }
+
+    /// The graveyard exile of one spell on the stack: `controller` is the
+    /// player whose graveyard `controller` watches, `source_card_id` the
+    /// object that created the replacement.
+    fn install_spell_graveyard_exile(
+        &mut self,
+        replacement: &Value,
+        controller: &str,
+        source_card_id: &str,
+        card_id: &str,
+    ) {
+        if !replacement.is_object() {
+            return;
+        }
         let Some(index) = self
             .state
             .stack
@@ -1007,7 +1068,7 @@ impl GameEngine {
         let spell = &self.state.stack[index];
         if is_spell_copy(&spell.card)
             || (replacement["graveyard"].as_str() == Some("controller")
-                && spell.card.owner != stack_object.controller)
+                && spell.card.owner != controller)
             || replacement
                 .get("where")
                 .is_some_and(|filter| !matches_card_filter(&spell.card.definition, filter))
@@ -1021,10 +1082,13 @@ impl GameEngine {
         self.state.rule_modifiers.push(json!({
             "kind": "exileSpecificCardInsteadOfGraveyard",
             "cardInstanceId": card_id,
-            "sourceCardInstanceId": stack_object.card.instance_id,
+            "sourceCardInstanceId": source_card_id,
         }));
     }
 }
+
+/// The action decision carrying a permission's graveyard exile to its cast.
+const PERMITTED_CAST_GRAVEYARD_EXILE: &str = "permittedCastGraveyardExile";
 
 #[cfg(all(
     test,
