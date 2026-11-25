@@ -350,7 +350,7 @@ fn a_shared_creature_type_reads_the_looked_at_card_against_the_source() {
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
-fn possessed_characteristics_and_kinship_compile_to_executable_rules() {
+fn possessed_characteristics_and_relations_compile_to_executable_rules() {
     // Each rule is asserted canonical and executable by `rules`.
     rules(
         "Ensign Harry Kim, Operations Officer",
@@ -362,10 +362,17 @@ fn possessed_characteristics_and_kinship_compile_to_executable_rules() {
         "Instant",
         "Hexgold Slash deals 2 damage to target creature. If that creature has toxic, Hexgold Slash deals 4 damage to that creature instead.",
     );
+    // A comparison with the source's own property, read on resolution.
     rules(
-        "Pyroclast Consul",
-        "Creature — Elemental Shaman",
-        "Kinship — At the beginning of your upkeep, you may look at the top card of your library. If it shares a creature type with this creature, you may reveal it. If you do, this creature deals 2 damage to each creature.",
+        "Sharp-Eyed Rookie",
+        "Creature — Human Detective",
+        "Whenever a creature you control enters, if its power is greater than this creature's power or its toughness is greater than this creature's toughness, put a +1/+1 counter on this creature and investigate.",
+    );
+    // A relation leaf over the looked-at card, prepared on resolution.
+    rules(
+        "Amareth, the Lustrous",
+        "Legendary Creature — Dragon",
+        "Whenever another permanent you control enters, look at the top card of your library. If it shares a card type with that permanent, you may reveal that card and put it into your hand.",
     );
     // No-code combination: an effect's exile result read like a cost's.
     rules(
