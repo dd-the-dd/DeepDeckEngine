@@ -425,6 +425,22 @@ impl SequenceMemory {
                 | LocalEffectNode::OptionalCardDeployment(_)
                 | LocalEffectNode::MoveCards(_)
                 | LocalEffectNode::ZoneBatch(_) => return false,
+                // `you may look at the top card of your library`: an
+                // optional block that opens a view introduces the looked-at
+                // card (a declined block leaves the view empty, CR 608.2c).
+                LocalEffectNode::OptionalSequence(body)
+                    if matches!(
+                        body.effects.first(),
+                        Some(LocalEffectNode::CardAction(
+                            super::CardActionNode::Look { .. } | super::CardActionNode::LookAt(_)
+                        ))
+                    ) && body
+                        .effects
+                        .iter()
+                        .all(|effect| matches!(effect, LocalEffectNode::CardAction(_))) =>
+                {
+                    return true;
+                }
                 // An optional block of card actions keeps the scope's
                 // singular result (lowering proves it is not replaced).
                 LocalEffectNode::OptionalSequence(body)

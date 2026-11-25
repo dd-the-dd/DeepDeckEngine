@@ -6,15 +6,68 @@
 //! has left the battlefield would need last-known information, which this
 //! condition does not capture: the checked path reports it instead of
 //! reading the new object in its new zone.
+//!
+//! An object a cost paid with (`the sacrificed creature`, `the discarded
+//! card`) is recorded by its paying cost when it is paid (`bindObjectAs`)
+//! and read from that record, as last known information (CR 608.2h). A
+//! relation leaf of the filter (`shares a creature type with this
+//! creature`) reads its anchor from the resolving ability first.
 use super::object_predicate::{DefinitionView, compare_integers, try_evaluate_predicate};
 use super::runtime_object_filter::ObjectFilterView;
 use super::*;
 
+/// The stack values a paying cost records for an object condition
+/// (`bindObjectAs`, CR 601.2h, 602.2b, 608.2h): the sacrificed permanent as
+/// it last existed on the battlefield, and the one discarded card.
+const COST_PAID_OBJECT_DECISIONS: [&str; 2] = ["sacrificedPermanentObject", "discardedCardObject"];
+
+/// `{ "kind": "decisionResult", "decisionId": <cost-paid object> }`.
+fn cost_paid_object_reference(reference: &Value) -> Option<&str> {
+    (value_kind(reference) == Some("decisionResult"))
+        .then(|| reference["decisionId"].as_str())
+        .flatten()
+        .filter(|id| COST_PAID_OBJECT_DECISIONS.contains(id))
+}
+
+/// The filter of an object condition: the shared permanent filter, whose
+/// relation leaves (`shares a creature type with this creature`) are
+/// prepared against the resolving ability before the object is tested.
+pub(super) fn object_condition_filter_supported(filter: &Value) -> bool {
+    super::object_relation_eval::filter_supported_with_relations(
+        filter,
+        object_condition_leaf_supported,
+    )
+}
+
+/// One leaf of an object condition. A comparison of the referenced object's
+/// property reads its other operand from the resolving ability, the
+/// source's own power or toughness included (`if it has greater power than
+/// this creature`, CR 608.2h), unlike a collection filter, whose candidates
+/// have no source binder. Every other leaf is the shared permanent filter's.
+fn object_condition_leaf_supported(leaf: &Value) -> bool {
+    if value_kind(leaf) == Some("compare")
+        && matches!(
+            value_kind(&leaf["left"]),
+            Some("powerOf" | "toughnessOf" | "manaValueOf")
+        )
+        && value_kind(&leaf["left"]["object"]) == Some("candidate")
+    {
+        return numeric_expression_supported(&leaf["right"])
+            && matches!(
+                leaf["operator"].as_str(),
+                Some(">=" | ">" | "<=" | "<" | "==")
+            );
+    }
+    permanent_filter_supported(leaf)
+}
+
 /// The object references an object condition accepts: the ability source,
 /// a target or bound singular reference, the object observed by an entry
-/// event, or a bound/decided collection that must hold at most one object.
+/// event, an object a cost of the ability paid with, or a bound/decided
+/// collection that must hold at most one object.
 pub(super) fn object_condition_reference_supported(reference: &Value) -> bool {
-    matches!(value_kind(reference), Some("self" | "abilitySource"))
+    cost_paid_object_reference(reference).is_some()
+        || matches!(value_kind(reference), Some("self" | "abilitySource"))
         || target_reference_supported(reference)
         || entry_observation::observed_object_reference_supported(reference)
         || (matches!(
@@ -30,8 +83,11 @@ enum ConditionSubject<'a> {
     Card(&'a CardInstance),
     /// The event's permanent after it left the battlefield, as the event
     /// record last saw it (CR 603.10a, 608.2h): its counters, combat state
-    /// and power/toughness captured when it died.
+    /// and power/toughness captured when it died. A permanent a cost
+    /// sacrificed is read the same way, from its cost record.
     LastKnown(LastKnownEventObject),
+    /// The card a cost discarded, as its cost record captured it.
+    RecordedCard(CardInstance),
     /// No object (no card looked at, an unchosen optional target): the
     /// object has no characteristic, so the condition is false.
     Absent,
@@ -77,7 +133,205 @@ fn last_known_event_object(
     })
 }
 
+/// The record a paying cost writes for its object: the object as it was
+/// when the cost was paid, and for a permanent its creature status and
+/// power/toughness then (CR 608.2h).
+fn cost_paid_object_record(
+    card: &CardInstance,
+    permanent: Option<(bool, i32, i32)>,
+) -> Option<Value> {
+    let mut record = json!({
+        "kind": "costPaidObject",
+        "card": serde_json::to_value(card).ok()?,
+        "permanent": permanent.is_some(),
+    });
+    if let Some((was_creature, power, toughness)) = permanent {
+        record["wasCreature"] = json!(was_creature);
+        record["power"] = json!(power);
+        record["toughness"] = json!(toughness);
+    }
+    Some(record)
+}
+
+/// The subject a cost record names: the sacrificed permanent's last known
+/// object, or the discarded card.
+fn recorded_cost_object<'a>(record: &Value) -> Result<ConditionSubject<'a>, EngineError> {
+    let malformed = || EngineError::new("a malformed cost-paid object record");
+    if value_kind(record) != Some("costPaidObject") {
+        return Err(malformed());
+    }
+    let card: CardInstance =
+        serde_json::from_value(record["card"].clone()).map_err(|_| malformed())?;
+    if record["permanent"].as_bool() != Some(true) {
+        return Ok(ConditionSubject::RecordedCard(card));
+    }
+    let integer = |key: &str| {
+        record[key]
+            .as_i64()
+            .and_then(|value| i32::try_from(value).ok())
+            .ok_or_else(malformed)
+    };
+    Ok(ConditionSubject::LastKnown(LastKnownEventObject {
+        was_creature: record["wasCreature"].as_bool().ok_or_else(malformed)?,
+        power: integer("power")?,
+        toughness: integer("toughness")?,
+        card,
+    }))
+}
+
 impl GameEngine {
+    /// Records the objects the costs of an activation or the additional
+    /// costs of a spell pay with, for the costs whose object a condition of
+    /// the same ability reads (`bindObjectAs`). Called before the costs are
+    /// paid: a sacrificed permanent is captured as it exists on the
+    /// battlefield, a chosen discarded card as the card it is. A random
+    /// discard is recorded once its payment selected the card
+    /// (`record_random_discard_cost_object`).
+    pub(super) fn record_cost_paid_objects(
+        &self,
+        costs: &Value,
+        targets: &BTreeMap<String, TargetRef>,
+        decisions: &mut BTreeMap<String, Value>,
+    ) {
+        for cost in costs.as_array().into_iter().flatten() {
+            let Some(binding) = cost["bindObjectAs"].as_str() else {
+                continue;
+            };
+            let record = match value_kind(cost) {
+                Some("sacrificePermanent") => cost["permanent"]["id"]
+                    .as_str()
+                    .and_then(|id| targets.get(id))
+                    .and_then(|target| match target {
+                        TargetRef::Permanent { instance_id } => {
+                            self.permanent_position(instance_id)
+                        }
+                        _ => None,
+                    })
+                    .and_then(|(player, index)| {
+                        let permanent = &self.state.players[player].battlefield[index];
+                        cost_paid_object_record(
+                            permanent,
+                            Some((
+                                self.permanent_is_creature(permanent),
+                                self.current_power(permanent),
+                                self.current_toughness(permanent),
+                            )),
+                        )
+                    }),
+                Some("discardCard") => cost["card"]["id"]
+                    .as_str()
+                    .and_then(|id| targets.get(id))
+                    .and_then(|target| match target {
+                        TargetRef::Card { instance_id } => {
+                            self.card_outside_battlefield(instance_id)
+                        }
+                        _ => None,
+                    })
+                    .and_then(|card| cost_paid_object_record(card, None)),
+                _ => None,
+            };
+            if let Some(record) = record {
+                decisions.insert(binding.to_string(), record);
+            }
+        }
+    }
+
+    /// The spell form of [`Self::record_cost_paid_objects`]: the additional
+    /// costs of the spell's own rules (CR 601.2b, 601.2h).
+    pub(super) fn record_casting_cost_paid_objects(
+        &self,
+        card: &CardDefinition,
+        targets: &BTreeMap<String, TargetRef>,
+        decisions: &mut BTreeMap<String, Value>,
+    ) {
+        for rule in card
+            .printed_rules()
+            .iter()
+            .filter(|rule| value_kind(rule) == Some("spellAbility"))
+        {
+            self.record_cost_paid_objects(
+                &rule["declaration"]["additionalCosts"],
+                targets,
+                decisions,
+            );
+        }
+    }
+
+    /// Records the one card a random discard cost of the activation that
+    /// was just put on the stack discarded (CR 701.9b), from the selection
+    /// its payment published, on that stack object.
+    pub(super) fn record_random_discard_cost_object(&mut self, rule: &Value) {
+        let Some(binding) = rule["costs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|cost| value_kind(cost) == Some("discardCards"))
+            .find_map(|cost| cost["bindObjectAs"].as_str())
+            .map(ToOwned::to_owned)
+        else {
+            return;
+        };
+        let Some(source_id) = self
+            .state
+            .stack
+            .last()
+            .map(|object| object.card.instance_id.clone())
+        else {
+            return;
+        };
+        // The payment of this activation published its selection after the
+        // previous activation was put on the stack.
+        let selected = self
+            .state
+            .events
+            .iter()
+            .rev()
+            .take_while(|event| event.kind != "activatedAbilityPutOnStack")
+            .find(|event| {
+                event.kind == "cardsRandomlySelected"
+                    && event.detail["reason"].as_str() == Some("cost")
+                    && event.card_instance_id.as_deref() == Some(source_id.as_str())
+            })
+            .and_then(|event| event.detail["cardIds"].as_array())
+            .and_then(|ids| match ids.as_slice() {
+                [id] => id.as_str().map(ToOwned::to_owned),
+                _ => None,
+            });
+        let Some(record) = selected
+            .as_deref()
+            .and_then(|id| self.card_outside_battlefield(id))
+            .and_then(|card| cost_paid_object_record(card, None))
+        else {
+            return;
+        };
+        if let Some(object) = self.state.stack.last_mut() {
+            object.decisions.insert(binding, record);
+        }
+    }
+
+    /// Prepares the relation leaves of an object condition's filter against
+    /// the resolving ability (CR 608.2b): the anchor's characteristic values
+    /// are read once, then the referenced object is tested.
+    fn prepare_object_condition_filter(
+        &self,
+        filter: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<Value, EngineError> {
+        if !super::object_relation_eval::filter_has_relation(filter) {
+            return Ok(filter.clone());
+        }
+        super::object_predicate::try_map_predicate_leaves(filter, 0, &mut |leaf| match value_kind(
+            leaf,
+        ) {
+            Some(kind) if super::object_relation_eval::is_relation_kind(kind) => {
+                self.prepare_object_relation(leaf, stack_object, bindings, decisions)
+            }
+            _ => Ok(leaf.clone()),
+        })
+    }
+
     fn permanent_or_card_view<'a>(&'a self, instance_id: &str) -> ConditionSubject<'a> {
         if let Some((player, index)) = self.permanent_position(instance_id) {
             return ConditionSubject::View(ObjectFilterView::Permanent(
@@ -97,6 +351,15 @@ impl GameEngine {
         bindings: &BTreeMap<String, RuntimeBinding>,
         decisions: &BTreeMap<String, Value>,
     ) -> Result<ConditionSubject<'a>, EngineError> {
+        if let Some(decision) = cost_paid_object_reference(reference) {
+            // CR 608.2h: the object the cost paid with, as its paying cost
+            // recorded it. A paid cost always records it; its absence is an
+            // error, never an object without characteristics.
+            let record = stack_object.decisions.get(decision).ok_or_else(|| {
+                EngineError::new("the cost-paid object its paying cost did not record")
+            })?;
+            return recorded_cost_object(record);
+        }
         match value_kind(reference) {
             Some("self" | "abilitySource") => {
                 if !source_lki::source_has_departed(stack_object)
@@ -200,20 +463,30 @@ impl GameEngine {
     ) -> Result<bool, EngineError> {
         let subject =
             self.object_condition_subject(&condition["object"], stack_object, bindings, decisions)?;
+        let filter = self.prepare_object_condition_filter(
+            &condition["where"],
+            stack_object,
+            bindings,
+            decisions,
+        )?;
         let (view, card) = match &subject {
             ConditionSubject::View(view) => (*view, None),
             ConditionSubject::Card(card) => (
                 ObjectFilterView::Definition(DefinitionView::new(&card.definition)),
                 Some(*card),
             ),
+            ConditionSubject::RecordedCard(card) => (
+                ObjectFilterView::Definition(DefinitionView::new(&card.definition)),
+                Some(card),
+            ),
             ConditionSubject::LastKnown(object) => {
-                return try_evaluate_predicate(&condition["where"], &mut |leaf| {
+                return try_evaluate_predicate(&filter, &mut |leaf| {
                     self.last_known_condition_leaf(object, leaf, stack_object, bindings, decisions)
                 });
             }
             ConditionSubject::Absent => return Ok(false),
         };
-        try_evaluate_predicate(&condition["where"], &mut |leaf| {
+        try_evaluate_predicate(&filter, &mut |leaf| {
             self.object_condition_leaf(view, card, leaf, stack_object, bindings, decisions)
         })
     }
