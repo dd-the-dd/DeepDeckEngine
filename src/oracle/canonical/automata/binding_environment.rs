@@ -1111,6 +1111,27 @@ fn lexical_antecedent_implies(
     antecedent_names(antecedent, &[nominal])
 }
 
+/// The failure states of a reference read without any antecedent in its
+/// lexical scope: a nominal or plural anaphor, a bound player, a possessive
+/// player relation, a condition pronoun, a genitive property, or an
+/// `instead` with no replaced sentence before it. Only these may be read
+/// again in an enclosing scope (a labeled spell paragraph continuing the
+/// paragraph before it, CR 207.2c, 608.2c); every other failure is the
+/// reference's own.
+pub(in crate::oracle::canonical) fn unresolved_antecedent_state(state: &str) -> bool {
+    matches!(
+        state,
+        "permanent.subject.nominal-anaphor.antecedent"
+            | "permanent.subject.object-set-anaphor.antecedent"
+            | "player-subject.bound.resolve"
+            | "player-subject.object-relation.antecedent"
+            | "condition.sentence.object.antecedent"
+            | "condition.sentence.object.card-antecedent"
+            | "numeric.genitive.antecedent"
+            | "condition.sentence.instead"
+    )
+}
+
 /// Lexical lookahead for `it` / `that NOUN` (a registered nominal that is
 /// not possessive). It proves no binding.
 pub(in crate::oracle::canonical) fn bound_object_reference_starts(
