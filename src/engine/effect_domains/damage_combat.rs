@@ -61,7 +61,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && card_filter_supported(&effect["where"])
                 && effect.get("excludeSource").is_none_or(Value::is_boolean)
         }
-        Some("untapAttackingPermanents" | "addCombatPhase") => true,
+        Some("untapAttackingPermanents") => true,
+        Some("addCombatPhase") => additional_phase::add_combat_phase_supported(effect),
         _ => false,
     }
 }
@@ -557,6 +558,10 @@ impl GameEngine {
                         );
                     }
                 }
+            }
+            // A written anchor names the phase the added phases follow.
+            Some("addCombatPhase") if effect.get("after").is_some() => {
+                self.schedule_added_combat_phase(effect);
             }
             Some("addCombatPhase") => {
                 self.state.rule_modifiers.push(json!({

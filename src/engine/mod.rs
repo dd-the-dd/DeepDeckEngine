@@ -93,6 +93,7 @@ fn positive_integer_compositions(
 
 mod ability_signals;
 mod activated_rule_execution;
+mod additional_phase;
 mod adventure;
 mod attack_defender_restriction;
 mod attack_tax;
@@ -127,6 +128,7 @@ mod defending_player_restriction;
 mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
+mod end_of_combat;
 mod event_batch;
 mod event_card_batch;
 mod event_model;
@@ -145,6 +147,7 @@ mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
 mod myriad;
+mod observed_state_events;
 mod regeneration;
 mod replacement_pipeline;
 mod trigger_multiplicity;
@@ -4917,6 +4920,9 @@ fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
     }
+    if let Some(supported) = observed_state_events::observed_state_event_supported(event) {
+        return supported;
+    }
     if let Some(supported) = player_event_matchers::player_outcome_event_supported(event) {
         return supported;
     }
@@ -5012,6 +5018,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                             | "postcombatMain"
                             | "endStep"
                             | "beginCombat"
+                            | "endOfCombat"
                     )
                 )
                 && event.get("firstOnly").is_none_or(Value::is_boolean)
@@ -5179,6 +5186,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 && event
                     .get("resultingCount")
                     .is_none_or(|count| integer_value(count).is_some_and(|count| count > 0))
+                && counter_placement::counter_occurrence_supported(event)
         }
         Some("controlledObjectBecameTarget") => player_reference_supported(&event["player"]),
         Some("stateConditionMet") => condition_supported(&event["condition"]),
@@ -22624,6 +22632,7 @@ impl GameEngine {
     }
 
     fn enqueue_individual_permanent_tapped_triggers(&mut self, source: &CardInstance) {
+        self.publish_observed_permanent_tapped(source);
         let triggers = self
             .effective_rules(&source)
             .iter()
@@ -37340,8 +37349,7 @@ impl GameEngine {
             declared_actions.push(action);
         }
         if attacks.is_empty() {
-            self.clear_combat_state();
-            return Ok(());
+            return self.end_combat_without_attackers(provider);
         }
         let attacker_ids = attacks.keys().cloned().collect::<Vec<_>>();
         self.record_event(
@@ -37626,7 +37634,7 @@ impl GameEngine {
         result?;
         self.record_attack_outcomes(&attacks, &blocks, combat_event_start);
         // The end of combat step (CR 511): delayed `at end of combat` triggers.
-        if self.fire_delayed_step_triggers("endOfCombat") > 0 {
+        if self.begin_end_of_combat_step() > 0 {
             self.run_priority_window(provider)?;
             if self.state.outcome.is_some() || self.force_end_turn {
                 self.clear_combat_state();
@@ -38484,6 +38492,9 @@ impl GameEngine {
         if self.state.outcome.is_some() {
             return Ok(());
         }
+        if self.run_phases_added_after_main_phase(provider)? {
+            return Ok(());
+        }
         let active_player_id = self.state.players[self.state.active_player].id.clone();
         let skip_combat = self.state.rule_modifiers.iter().position(|modifier| {
             value_kind(modifier) == Some("skipCombatNextTurn")
@@ -38528,6 +38539,9 @@ impl GameEngine {
                 return Ok(());
             }
         }
+        if self.run_phases_added_after_combat_phase(provider)? {
+            return Ok(());
+        }
         self.transition_to_step(GameStep::PostcombatMain);
         self.enqueue_step_triggers("postcombatMain");
         self.run_priority_window(provider)?;
@@ -38535,6 +38549,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.state.outcome.is_some() {
+            return Ok(());
+        }
+        if self.run_phases_added_after_main_phase(provider)? {
             return Ok(());
         }
         self.transition_to_step(GameStep::EndStep);
@@ -38626,7 +38643,8 @@ impl GameEngine {
         }
 
         self.run_priority_window(provider)?;
-        let forced_turn_end = self.finish_forced_turn(provider)?;
+        let forced_turn_end = self.finish_forced_turn(provider)?
+            || (self.state.outcome.is_none() && self.run_phases_added_after_main_phase(provider)?);
         if !forced_turn_end && self.state.outcome.is_none() {
             self.transition_to_step(GameStep::EndStep);
             self.enqueue_step_triggers("endStep");

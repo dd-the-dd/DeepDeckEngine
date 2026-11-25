@@ -2,20 +2,23 @@
 //! 513). The event composes two independent concepts:
 //!
 //! ```text
+//! StepClause := "at" "the" "beginning" "of" StepEvent
+//!             | "at" ["the"] "end" "of" "combat" ["on" TurnOwner "turn"]
 //! StepEvent  := TurnOwner StepName
 //!             | "each" StepName                        -- any player's step
 //!             | "each" "of" TurnOwner PluralStepName
 //!             | "the" StepName ["of" AttachedController]
 //!             | "each" "combat" | "combat" "on" TurnOwner "turn"
 //! TurnOwner  := "your" | "your opponents'" | "each player's" | "each opponent's"
-//! StepName   := "upkeep" | "draw step" | "end step"
+//! StepName   := "upkeep" | "draw step" | "end step" | "combat step"
 //!             | ("first" | "precombat") "main phase"
 //!             | "postcombat" "main phase"
 //!             | "second" "main phase"               -- main phase ordinal 2
+//! PluralStepName := ... | "main phases"             -- every main phase
 //! ```
 //!
 //! The owner names whose turn the step belongs to; the step name is shared by
-//! every owner. The temporal prefix and following comma remain parent-owned.
+//! every owner. The following comma remains parent-owned.
 use super::super::{MachineResult, OracleTokenCursor};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,6 +31,11 @@ pub(in crate::oracle::canonical) enum TurnStep {
     /// `second main phase`: the main phase with ordinal 2 in its turn
     /// (CR 505.1a), one particular postcombat main phase.
     SecondMain,
+    /// `each of your main phases`: every main phase of the turn, precombat
+    /// and postcombat (CR 505.1).
+    EachMainPhase,
+    /// `end of combat` (CR 511): the end of combat step of each combat phase.
+    EndOfCombat,
     EndStep,
 }
 
@@ -122,9 +130,21 @@ fn recognize_step_name(
         // ordinal rather than any postcombat main phase.
         ("second", false) => (TurnStep::SecondMain, &["main", "phase"]),
         ("second", true) => (TurnStep::SecondMain, &["main", "phases"]),
+        // `each of your main phases`: the main phases of the turn, without
+        // an ordinal or a precombat/postcombat qualifier (CR 505.1).
+        ("main", true) => (TurnStep::EachMainPhase, &["main", "phases"]),
+        // `your combat step`: the beginning of combat step of that turn's
+        // combat (CR 507).
+        ("combat", false)
+            if cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("step")) =>
+        {
+            (TurnStep::BeginCombat, &["combat", "step"])
+        }
         _ => {
             return Err(cursor.fail(
-                "upkeep, draw step, end step, first/precombat, second or postcombat main phase",
+                "upkeep, draw step, end step, combat step, first/precombat, second or postcombat main phase",
             ));
         }
     };
@@ -164,6 +184,40 @@ fn recognize_attached_controller(
     cursor.enter("event.step.attached-controller.relation");
     cursor.consume("controller")?;
     Ok(StepPlayerScope::AttachedPermanentController(nominal))
+}
+
+/// Recognizes a whole step clause head after which the trigger boundary
+/// follows: `at the beginning of STEP-EVENT`, or `at [the] end of combat
+/// [on TURN-OWNER turn]` (CR 511.2), the end of combat step whose
+/// beginning the clause names.
+pub(in crate::oracle::canonical) fn recognize_step_clause_head(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StepEventNode> {
+    cursor.enter("trigger.envelope.step-prefix");
+    cursor.consume("at")?;
+    let article = usize::from(word_at(cursor, 0, "the"));
+    if word_at(cursor, article, "end") && word_at(cursor, article + 1, "of") {
+        if article == 1 {
+            cursor.consume("the")?;
+        }
+        cursor.consume_phrase(&["end", "of", "combat"])?;
+        let player = if word_at(cursor, 0, "on") {
+            cursor.enter("event.step.end-of-combat.turn");
+            cursor.consume("on")?;
+            let player = recognize_turn_owner(cursor)?;
+            cursor.consume("turn")?;
+            player
+        } else {
+            StepPlayerScope::EachPlayer
+        };
+        cursor.enter("event.step.complete");
+        return Ok(StepEventNode {
+            step: TurnStep::EndOfCombat,
+            player,
+        });
+    }
+    cursor.consume_phrase(&["the", "beginning", "of"])?;
+    recognize_step_event(cursor)
 }
 
 /// Recognizes the player-owned turn-step phrase after `At the beginning of`.

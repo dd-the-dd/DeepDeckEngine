@@ -736,3 +736,58 @@ fn attack_tax_relative_clause_is_fully_typed() {
     );
     assert!(tokens.iter().all(|token| token.token_type != "unknown"));
 }
+
+fn label_token_types(text: &str) -> Vec<(String, String)> {
+    let tokens = recognize_entities(text);
+    let dash = tokens
+        .iter()
+        .position(|token| token.raw == "\u{2014}")
+        .expect("a labelled ability");
+    tokens[..dash]
+        .iter()
+        .map(|token| (token.raw.clone(), token.token_type.clone()))
+        .collect()
+}
+
+/// CR 207.2c: a capitalized label before a trigger word is a rules-free
+/// flavor word by its position, even when the lexicon knows its words or it
+/// contains punctuation (`Exile Cannon`, `Exterminate!`, `10,000 Needles`).
+#[test]
+fn labels_before_a_trigger_word_are_flavor_words_by_position() {
+    for text in [
+        "Exile Cannon \u{2014} When this creature enters from a graveyard, exile up to one target nonland permanent.",
+        "Exterminate! \u{2014} When this creature enters, destroy target creature an opponent controls.",
+        "10,000 Needles \u{2014} Whenever this creature attacks, it gets +9999/+0 until end of turn.",
+        "Flurry of Blows \u{2014} Whenever you cast your second spell each turn, put a +1/+1 counter on this creature.",
+        "Warp Blast \u{2014} When this creature enters, it deals X damage to any target.",
+    ] {
+        let label = label_token_types(text);
+        assert!(
+            label
+                .iter()
+                .all(|(_, token_type)| token_type == "abilityWord"),
+            "{text}: {label:?}"
+        );
+    }
+}
+
+/// A catalog mechanic name, a Saga chapter list, a cost dash and a label
+/// opening with a trigger word keep their meaning: none is a flavor word.
+#[test]
+fn mechanic_names_chapters_costs_and_trigger_heads_are_not_flavor_labels() {
+    for text in [
+        "Max speed \u{2014} Whenever this creature attacks, draw a card.",
+        "Equip \u{2014} Pay 3 life.",
+        "Kicker \u{2014} Sacrifice a creature.",
+        "II, III \u{2014} Whenever you cast a spell this turn, draw a card.",
+        "When this creature enters, choose one \u{2014}\n\u{2022} Draw a card.\n\u{2022} You gain 3 life.",
+    ] {
+        let label = label_token_types(text);
+        assert!(
+            label
+                .iter()
+                .any(|(_, token_type)| token_type != "abilityWord"),
+            "{text}: {label:?}"
+        );
+    }
+}

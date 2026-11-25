@@ -223,16 +223,27 @@ fn classify_ability_catalog_lexemes(tokens: &mut [RecognizedEntity]) {
 
 /// CR 207.2c: an italic label before an em dash at the start of an ability is
 /// an ability word or a flavor word, and has no rules meaning. Official
-/// ability words are already classified from the catalogue; a capitalized
-/// label that contains no lexicon lexeme and is not itself the name of a
-/// catalog mechanic (such as Exhaust or Power-up) is a flavor word and
-/// receives the same rules-free label class. Anything the catalogue knows is left alone so
-/// a mechanic with rules is never silently dropped.
+/// ability words are already classified from the catalogue; any other
+/// capitalized label is recognized by its position, not by its words:
+///
+/// ```text
+/// FlavorLabel := LabelWord (LabelWord | "!" | "?" | ",")* "—" Body
+/// ```
+///
+/// A label of plain words that the lexicon does not know is a flavor word
+/// before any body. A label whose words the lexicon also knows (`Exile
+/// Cannon`, `Warp Blast`, `Exterminate!`) is a flavor word only before a
+/// trigger word (CR 603.1), the one position where a label cannot be a cost
+/// or a mode header. A label that is exactly the name of a catalog mechanic
+/// (`Exhaust`, `Max speed`, `Kicker`, `Equip`) has rules even when the
+/// lexicon has no grammar for it yet (CR 702), and Saga chapter numerals
+/// number chapter abilities (CR 714.2b): neither is ever a flavor word, so a
+/// mechanic with rules is never silently dropped.
 fn classify_flavor_word_label(tokens: &mut [RecognizedEntity]) {
-    const MAX_LABEL_WORDS: usize = 6;
+    const MAX_LABEL_TOKENS: usize = 8;
     let Some(dash) = tokens
         .iter()
-        .take(MAX_LABEL_WORDS + 1)
+        .take(MAX_LABEL_TOKENS + 1)
         .position(|token| token.raw == "\u{2014}")
     else {
         return;
@@ -243,31 +254,64 @@ fn classify_flavor_word_label(tokens: &mut [RecognizedEntity]) {
             .all(|token| token.token_type == "abilityWord")
         || !tokens[0]
             .raw
-            .starts_with(|ch: char| ch.is_ascii_uppercase())
+            .starts_with(|ch: char| ch.is_ascii_uppercase() || ch.is_ascii_digit())
     {
         return;
     }
-    let plain_words = tokens[..dash].iter().all(|token| {
-        token.token_type != "separator"
-            && token.category != "boundary"
-            && token.raw.chars().any(|ch| ch.is_alphabetic())
+    let label = &tokens[..dash];
+    let label_word = |token: &RecognizedEntity| {
+        token.raw.chars().any(char::is_alphanumeric)
             && token.raw.chars().all(|ch| {
                 ch.is_alphanumeric() || matches!(ch, '\'' | '\u{2019}' | '-' | '.' | '!' | ',')
             })
+    };
+    // Exclamation and question marks, and the comma of a written number or
+    // an apposition, are punctuation inside the label's own words.
+    let label_punctuation =
+        |token: &RecognizedEntity| matches!(token.raw.as_str(), "!" | "?" | ",");
+    let well_formed = label_word(&label[0])
+        && label
+            .iter()
+            .all(|token| label_word(token) || label_punctuation(token))
+        // A label may end with `!` or `?`, never with a comma.
+        && label[dash - 1].raw != ",";
+    // `I, II —`: the Roman numerals of a Saga chapter list (CR 714.2b).
+    let chapter_numerals = label.iter().all(|token| {
+        token.raw == ","
+            || (!token.raw.is_empty() && token.raw.chars().all(|ch| matches!(ch, 'I' | 'V' | 'X')))
     });
-    // A label that is exactly the name of a catalog mechanic (`Exhaust`,
-    // `Max speed`, `Visit`, `Partner`) has rules even when the lexicon has no
-    // grammar for it yet (CR 702); it is never a flavor word.
-    let catalogue_lexeme = (0..dash)
-        .any(|position| match_longest_exact(tokens, position).is_some())
-        || match_catalog_mechanic(tokens, 0).is_some_and(|mechanic| mechanic.end_token == dash);
-    let typed_mechanic = tokens[..dash].iter().any(|token| {
+    let exact_mechanic =
+        match_catalog_mechanic(tokens, 0).is_some_and(|mechanic| mechanic.end_token == dash);
+    // A trigger word opens an ability's own event clause, never its label.
+    let opens_with_trigger_word = ["at", "when", "whenever"]
+        .iter()
+        .any(|word| label[0].raw.eq_ignore_ascii_case(word));
+    if !well_formed || chapter_numerals || exact_mechanic || opens_with_trigger_word {
+        return;
+    }
+    // A label of words only; punctuation inside it is read only before a
+    // trigger word, where no cost or mode header can stand.
+    let plain_words = label.iter().all(|token| {
+        token.token_type != "separator"
+            && token.category != "boundary"
+            && !label_punctuation(token)
+            && token.raw.chars().any(|ch| ch.is_alphabetic())
+    });
+    let catalogue_lexeme =
+        (0..dash).any(|position| match_longest_exact(tokens, position).is_some());
+    let typed_mechanic = label.iter().any(|token| {
         matches!(
             token.token_type.as_str(),
             "keywordWord" | "actionWord" | "abilityWord"
         )
     });
-    if !plain_words || catalogue_lexeme || typed_mechanic {
+    let lexically_plain = plain_words && !catalogue_lexeme && !typed_mechanic;
+    let before_trigger_word = tokens.get(dash + 1).is_some_and(|token| {
+        ["at", "when", "whenever"]
+            .iter()
+            .any(|word| token.raw.eq_ignore_ascii_case(word))
+    });
+    if !lexically_plain && !before_trigger_word {
         return;
     }
     for token in &mut tokens[..dash] {

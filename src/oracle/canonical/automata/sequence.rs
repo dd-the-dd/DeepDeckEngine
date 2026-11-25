@@ -3199,6 +3199,11 @@ fn recognize_effect(
         )
         .map(LocalEffectNode::PreventDamage);
     }
+    // `After this phase, there is an additional combat phase` (CR 500.8).
+    if super::additional_phases_start(cursor) {
+        attempt_frame.commit();
+        return super::recognize_additional_phases(cursor).map(LocalEffectNode::AdditionalPhases);
+    }
     if super::control_change_starts(cursor) {
         // `[you] gain control of` / `exchange control of` owns its verb frame;
         // `gain N life` never reaches this reader.

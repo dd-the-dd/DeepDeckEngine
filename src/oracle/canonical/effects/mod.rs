@@ -1,4 +1,5 @@
 mod ability_frame_claim;
+mod additional_phase;
 mod ability_loss_destroy;
 mod ability_signal;
 mod activated_top_card_delayed_draw;
@@ -155,6 +156,7 @@ mod zone_change_search;
 mod zone_change_token;
 
 pub(super) use ability_frame_claim::*;
+pub(super) use additional_phase::*;
 pub(super) use ability_loss_destroy::*;
 pub(super) use ability_signal::*;
 pub(super) use activated_top_card_delayed_draw::*;

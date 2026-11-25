@@ -59,6 +59,16 @@ fn compile_recognized_trigger_program(
             || type_line_has_permanent_card_type(input.face_type_line),
         "a permanent source face for this battlefield triggered ability",
     )?;
+    // CR 701.28: `transforms into FACE` is observed by the abilities of the
+    // face the permanent turned to, so FACE must print this ability.
+    cursor.enter("trigger.program.transformed-face");
+    cursor.require(
+        envelope
+            .event
+            .transformed_into()
+            .is_none_or(|face| face.eq_ignore_ascii_case(input.face_name)),
+        "`transforms into` naming the face that prints this ability",
+    )?;
     let event = lower_generic_trigger_event(cursor, &envelope.event)?;
     // `while CONDITION` / an unmatched turn owner: checked as the event
     // occurs (CR 603.2), never on resolution like the intervening `if`.

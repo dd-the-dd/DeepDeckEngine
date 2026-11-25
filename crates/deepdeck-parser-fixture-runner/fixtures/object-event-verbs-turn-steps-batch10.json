@@ -1,0 +1,920 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-event-verbs-turn-steps-batch10",
+  "cases": [
+    {
+      "id": "exact-lifetap-opponent-forest-becomes-tapped",
+      "request": {
+        "cardName": "Lifetap",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}{U}",
+        "oracleText": "Whenever a Forest an opponent controls becomes tapped, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentTapped"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/event/object/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-judge-of-currents-controlled-merfolk-becomes-tapped",
+      "request": {
+        "cardName": "Judge of Currents",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever a Merfolk you control becomes tapped, you may gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentTapped"
+              },
+              {
+                "pointer": "/event/object/controller/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wake-thrasher-controlled-permanent-becomes-untapped",
+      "request": {
+        "cardName": "Wake Thrasher",
+        "typeLine": "Creature — Merfolk Soldier",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever a permanent you control becomes untapped, this creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentUntapped"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mesmeric-orb-any-permanent-becomes-untapped",
+      "request": {
+        "cardName": "Mesmeric Orb",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a permanent becomes untapped, that permanent's controller mills a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentUntapped"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-deeproot-pilgrimage-one-or-more-become-tapped",
+      "request": {
+        "cardName": "Deeproot Pilgrimage",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever one or more nontoken Merfolk you control become tapped, create a 1/1 blue Merfolk creature token with hexproof.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledPermanentsTapped"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wildgrowth-walker-controlled-creature-explores",
+      "request": {
+        "cardName": "Wildgrowth Walker",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a creature you control explores, put a +1/+1 counter on this creature and you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "abilityPerformed"
+              },
+              {
+                "pointer": "/event/abilityId",
+                "equals": "explore"
+              },
+              {
+                "pointer": "/event/object/controller/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-vernal-bloom-forest-tapped-for-mana",
+      "request": {
+        "cardName": "Vernal Bloom",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}",
+        "oracleText": "Whenever a Forest is tapped for mana, its controller adds an additional {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledPermanentManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/anyPlayer",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-artifact-you-control-becomes-tapped",
+      "request": {
+        "cardName": "Tap Sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an artifact you control becomes tapped, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentTapped"
+              },
+              {
+                "pointer": "/event/object/controller/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-creature-explores",
+      "request": {
+        "cardName": "Explore Sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature an opponent controls explores, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "abilityPerformed"
+              },
+              {
+                "pointer": "/event/object/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-land-tapped-for-mana",
+      "request": {
+        "cardName": "Mana Sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a land an opponent controls is tapped for mana, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledPermanentManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-tapped-for-mana-is-not-becomes-tapped",
+      "request": {
+        "cardName": "Mana Near Miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a Forest is tapped for mana, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledPermanentManaAbilityActivated"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unsignalled-keyword-action",
+      "request": {
+        "cardName": "Endure Near Miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature you control endures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.object-event.keyword-action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-untap-batch",
+      "request": {
+        "cardName": "Untap Near Miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever one or more creatures you control become untapped, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.object-event.tap-transition"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fathom-mage-each-counter-put-on-source",
+      "request": {
+        "cardName": "Fathom Mage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{G}{U}",
+        "oracleText": "Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)\nWhenever a +1/+1 counter is put on this creature, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "countersPlaced"
+              },
+              {
+                "pointer": "/event/counter",
+                "equals": "+1/+1"
+              },
+              {
+                "pointer": "/event/perCounter",
+                "equals": true
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-robot-domination-third-plan-counter",
+      "request": {
+        "cardName": "Robot Domination",
+        "typeLine": "Enchantment — Plan",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever one or more creature cards are put into your graveyard from anywhere, you draw a card, lose 1 life, and put a plan counter on this enchantment.\nWhen the third plan counter is put on this enchantment, sacrifice it and create three 2/2 colorless Robot Villain artifact creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "countersPlaced"
+              },
+              {
+                "pointer": "/event/counter",
+                "equals": "plan"
+              },
+              {
+                "pointer": "/event/reachesCount",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-counter-put-on-controlled-creature",
+      "request": {
+        "cardName": "Counter Sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a +1/+1 counter is put on a creature you control, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/perCounter",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-heat-stroke-end-of-combat",
+      "request": {
+        "cardName": "Heat Stroke",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "At end of combat, destroy each creature that blocked or was blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stepBegan"
+              },
+              {
+                "pointer": "/event/step",
+                "equals": "endOfCombat"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-occupation-of-llanowar-your-combat-step",
+      "request": {
+        "cardName": "Occupation of Llanowar",
+        "typeLine": "Battle — Control Point",
+        "manaCost": "{1}{G}",
+        "oracleText": "(Any opponent may attack this battle. When an opponent defeats this, exile it, then put it onto the battlefield under that player's control with 4 defense counters. This is different from sieges!)\nAt the beginning of your combat step, put a +1/+1 counter on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stepBegan"
+              },
+              {
+                "pointer": "/event/step",
+                "equals": "beginCombat"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-end-of-combat-on-your-turn",
+      "request": {
+        "cardName": "Combat Sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "At the end of combat on your turn, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/step",
+                "equals": "endOfCombat"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-of-your-main-phases",
+      "request": {
+        "cardName": "Main Sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of each of your main phases, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/step",
+                "equals": "precombatMain"
+              },
+              {
+                "pointer": "/event/events/1/step",
+                "equals": "postcombatMain"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-end-of-turn-is-no-step",
+      "request": {
+        "cardName": "Turn Near Miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "At end of turn, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.step-prefix"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-relentless-assault-added-combat-and-main-phase",
+      "request": {
+        "cardName": "Relentless Assault",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Untap all creatures that attacked this turn. After this main phase, there is an additional combat phase followed by an additional main phase.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "addCombatPhase"
+              },
+              {
+                "pointer": "/effects/1/after",
+                "equals": "currentMainPhase"
+              },
+              {
+                "pointer": "/effects/1/followedByMainPhase",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-instant-added-combat-after-this-phase",
+      "request": {
+        "cardName": "Phase Sibling",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "You gain 1 life. After this phase, there is an additional combat phase.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "addCombatPhase"
+              },
+              {
+                "pointer": "/effects/1/after",
+                "equals": "currentPhase"
+              },
+              {
+                "pointer": "/effects/1/followedByMainPhase",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dalek-drone-exclaimed-label",
+      "request": {
+        "cardName": "Dalek Drone",
+        "typeLine": "Artifact Creature — Dalek",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Flying, menace\nExterminate! — When this creature enters, destroy target creature an opponent controls. That player loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "enterBattlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-monk-of-the-open-hand-label",
+      "request": {
+        "cardName": "Monk of the Open Hand",
+        "typeLine": "Creature — Elf Monk",
+        "manaCost": "{W}",
+        "oracleText": "Flurry of Blows — Whenever you cast your second spell each turn, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-jumbo-cactuar-numeric-label",
+      "request": {
+        "cardName": "Jumbo Cactuar",
+        "typeLine": "Creature — Plant",
+        "manaCost": "{5}{G}{G}",
+        "oracleText": "10,000 Needles — Whenever this creature attacks, it gets +9999/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-keyword-lexeme-label-before-trigger",
+      "request": {
+        "cardName": "Label Sibling",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{2}",
+        "oracleText": "Exile Sweep — Whenever a creature you control dies, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-mechanic-name-label-keeps-its-rules",
+      "request": {
+        "cardName": "Speed Near Miss",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{2}",
+        "oracleText": "Max speed — Whenever this creature attacks, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-transforms-into-own-face",
+      "request": {
+        "cardName": "Test Front // Test Back",
+        "typeLine": "Creature — Human // Creature — Werewolf",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "test-dfc:face-0",
+            "name": "Test Front",
+            "typeLine": "Creature — Human",
+            "manaCost": "{2}",
+            "oracleText": "Vigilance",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "test-dfc:face-1",
+            "name": "Test Back",
+            "typeLine": "Creature — Werewolf",
+            "manaCost": "",
+            "oracleText": "When this creature transforms into Test Back, you gain 3 life.",
+            "power": "4",
+            "toughness": "4"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentTransformed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-transforms-into-another-face",
+      "request": {
+        "cardName": "Other Front // Other Back",
+        "typeLine": "Creature — Human // Creature — Werewolf",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "other-dfc:face-0",
+            "name": "Other Front",
+            "typeLine": "Creature — Human",
+            "manaCost": "{2}",
+            "oracleText": "When this creature transforms into Other Back, you gain 3 life.",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "other-dfc:face-1",
+            "name": "Other Back",
+            "typeLine": "Creature — Werewolf",
+            "manaCost": "",
+            "oracleText": "Vigilance",
+            "power": "4",
+            "toughness": "4"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.program.transformed-face"
+          }
+        ]
+      }
+    }
+  ]
+}

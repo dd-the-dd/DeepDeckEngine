@@ -115,6 +115,18 @@ impl GenericTriggerEventNode {
         entering.then_some(TypedObservedEventObject::EnteringPermanent)
     }
 
+    /// The face a `transforms into FACE` event names (CR 701.28); the
+    /// ability parent requires it to be the face that prints the ability,
+    /// whose abilities are the ones read after the transformation.
+    pub(in crate::oracle::canonical) fn transformed_into(&self) -> Option<&str> {
+        match self {
+            Self::SourceTransition(event) => event.transformed_into.as_deref(),
+            Self::Conditioned { event, .. } => event.transformed_into(),
+            Self::Compound(members) => members.iter().find_map(Self::transformed_into),
+            _ => None,
+        }
+    }
+
     pub(in crate::oracle::canonical) fn observed_object_is_source(&self) -> bool {
         matches!(self, Self::SourceTransition(event) if event.event == SourceTriggerEventKind::Entered && !event.is_union())
             || matches!(
@@ -195,8 +207,13 @@ impl GenericTriggerEventNode {
             {
                 Some(EventNumericBinding::LifeLost)
             }
-            // The counters one placement put (CR 122.6).
-            Self::CounterPlacement(_) => Some(EventNumericBinding::CountersPut),
+            // The counters one placement put (CR 122.6); a singular counter
+            // occurrence names one counter, not an amount.
+            Self::CounterPlacement(event)
+                if event.occurrence == super::CounterPlacementOccurrence::Placement =>
+            {
+                Some(EventNumericBinding::CountersPut)
+            }
             // `one or more CREATURES you control attack`: the attackers the
             // one batch occurrence matched (CR 508.1, 603.2c).
             Self::Object(super::ObjectEventNode {
