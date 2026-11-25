@@ -9,16 +9,24 @@ fn lower_controller(scope: ObjectControllerScope) -> Value {
 
 fn lower_targeted_object_selector(selector: &TargetedObjectSelectorNode) -> Value {
     match selector.domain {
-        TargetedObjectDomain::Permanent => json!({
-            "kind": "permanents",
-            "controller": lower_controller(selector.controller),
-            "where": lower_permanent_object_predicate(&selector.predicate),
-        }),
-        TargetedObjectDomain::Spell => {
+        TargetedObjectDomain::Permanent => {
             let mut candidates = json!({
-                "kind": "spells",
-                "controller": lower_controller(selector.controller),
+                "kind": "permanents",
+                "where": lower_permanent_object_predicate(&selector.predicate),
             });
+            if let Some(controller) = selector.controller {
+                candidates["controller"] = lower_controller(controller);
+            }
+            if selector.exclude_source {
+                candidates["excludeSource"] = json!(true);
+            }
+            candidates
+        }
+        TargetedObjectDomain::Spell => {
+            let mut candidates = json!({"kind": "spells"});
+            if let Some(controller) = selector.controller {
+                candidates["controller"] = lower_controller(controller);
+            }
             if let Some(predicate) = lower_spell_object_predicate(&selector.predicate) {
                 candidates["where"] = predicate;
             }

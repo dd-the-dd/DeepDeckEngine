@@ -39,6 +39,11 @@ pub(in crate::oracle::canonical) enum EventTurnOwner {
 
 /// The clause-level modifiers after an event verb and its complement, in
 /// one typed record. Each modifier occurs at most once.
+///
+/// The first four slots are read by the shared tail in any event frame;
+/// the event-slot qualifiers (`without_dying`, `excluded_origin`) are read
+/// by [`read_event_qualifiers`] only after a frame that types them, so a
+/// subject kind that does not know a slot can never receive it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct EventModifierTail {
     /// `and isn't blocked` (CR 509.1h): the attacker became unblocked.
@@ -50,6 +55,12 @@ pub(in crate::oracle::canonical) struct EventModifierTail {
     /// `during combat` (CR 506.1): the event happens during the combat
     /// phase. Only a zone-change pattern that records the step evaluates it.
     pub during_combat: bool,
+    /// `leave(s) the battlefield without dying` (CR 700.4): the departure
+    /// is not a death, a matcher field of the same departure pattern.
+    pub without_dying: bool,
+    /// `put into a graveyard from anywhere other than ZONE`: the origin the
+    /// arrival must not come from (CR 400.3), a field of the same arrival.
+    pub excluded_origin: Option<&'static str>,
 }
 
 impl EventModifierTail {
@@ -58,6 +69,8 @@ impl EventModifierTail {
             && !self.first_time_each_turn
             && self.turn_owner.is_none()
             && !self.during_combat
+            && !self.without_dying
+            && self.excluded_origin.is_none()
     }
 
     /// The written name of the first modifier, for engine-gap diagnostics.
@@ -68,6 +81,10 @@ impl EventModifierTail {
             Some("`for the first time each turn`")
         } else if self.during_combat {
             Some("`during combat`")
+        } else if self.without_dying {
+            Some("`without dying`")
+        } else if self.excluded_origin.is_some() {
+            Some("`from anywhere other than`")
         } else {
             self.turn_owner.map(|owner| match owner {
                 EventTurnOwner::ControllerTurn => "`during your turn`",
@@ -87,37 +104,72 @@ fn opponent_possessive_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool
     word_at(cursor, offset, "opponent's") || word_at(cursor, offset, "opponent’s")
 }
 
-/// `during your turn` or `during an opponent's turn` starts at the cursor.
-/// A lexical probe that commits nothing.
+/// The written length of a turn owner after `during` at `offset`, or
+/// `None`: `your turn`, `an opponent's turn`, and the distributive `each of
+/// your turns` / `each opponent's turn` (CR 500.1). A lexical probe.
+fn turn_owner_phrase_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(usize, bool)> {
+    if word_at(cursor, offset, "your") && word_at(cursor, offset + 1, "turn") {
+        Some((2, false))
+    } else if word_at(cursor, offset, "an")
+        && opponent_possessive_at(cursor, offset + 1)
+        && word_at(cursor, offset + 2, "turn")
+    {
+        Some((3, false))
+    } else if word_at(cursor, offset, "each")
+        && opponent_possessive_at(cursor, offset + 1)
+        && word_at(cursor, offset + 2, "turn")
+    {
+        Some((3, true))
+    } else if word_at(cursor, offset, "each")
+        && word_at(cursor, offset + 1, "of")
+        && word_at(cursor, offset + 2, "your")
+        && word_at(cursor, offset + 3, "turns")
+    {
+        Some((4, true))
+    } else {
+        None
+    }
+}
+
+/// `during TURN-OWNER` starts at the cursor (`during your turn`, `during
+/// an opponent's turn`, `during each opponent's turn`, `during each of your
+/// turns`). A lexical probe that commits nothing.
 pub(in crate::oracle::canonical) fn turn_owner_modifier_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    word_at(cursor, 0, "during")
-        && ((word_at(cursor, 1, "your") && word_at(cursor, 2, "turn"))
-            || (word_at(cursor, 1, "an")
-                && opponent_possessive_at(cursor, 2)
-                && word_at(cursor, 3, "turn")))
+    word_at(cursor, 0, "during") && turn_owner_phrase_at(cursor, 1).is_some()
 }
 
-/// Reads `during your turn` or `during an opponent's turn` (CR 500.1).
+/// Reads a turn owner after `during` (CR 500.1). The distributive forms
+/// (`each opponent's turn`, `each of your turns`) name the same relation for
+/// every turn; the returned flag says one was written, so an ordinal parent
+/// (`your first spell during each opponent's turn`) knows its counting
+/// period is the turn.
+pub(in crate::oracle::canonical) fn recognize_turn_owner_period(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(EventTurnOwner, bool)> {
+    cursor.enter("event.modifier.turn-owner");
+    cursor.consume("during")?;
+    let (length, distributive) = turn_owner_phrase_at(cursor, 0).ok_or_else(|| {
+        cursor.fail(
+            "`your turn`, `an opponent's turn`, `each opponent's turn` or `each of your turns`",
+        )
+    })?;
+    let owner = if word_at(cursor, 0, "your") || word_at(cursor, 2, "your") {
+        EventTurnOwner::ControllerTurn
+    } else {
+        EventTurnOwner::OpponentTurn
+    };
+    cursor.advance_to(cursor.position() + length)?;
+    Ok((owner, distributive))
+}
+
+/// Reads `during your turn` or `during an opponent's turn` (CR 500.1), or
+/// one of their distributive forms.
 pub(in crate::oracle::canonical) fn recognize_turn_owner_modifier(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<EventTurnOwner> {
-    cursor.enter("event.modifier.turn-owner");
-    cursor.consume("during")?;
-    if word_at(cursor, 0, "your") {
-        cursor.consume_phrase(&["your", "turn"])?;
-        return Ok(EventTurnOwner::ControllerTurn);
-    }
-    cursor.consume("an")?;
-    let possessive = cursor
-        .peek()
-        .filter(|_| opponent_possessive_at(cursor, 0))
-        .ok_or_else(|| cursor.fail("`your turn` or `an opponent's turn`"))?
-        .to_string();
-    cursor.consume(&possessive)?;
-    cursor.consume("turn")?;
-    Ok(EventTurnOwner::OpponentTurn)
+    recognize_turn_owner_period(cursor).map(|(owner, _)| owner)
 }
 
 /// Reads `alone` after an attack verb (CR 506.5). Returns whether it was
@@ -248,6 +300,126 @@ pub(in crate::oracle::canonical) fn recognize_while_condition(
     super::recognize_boolean_condition_list_before_separator(cursor, |cursor| {
         super::recognize_condition_atom(cursor, &context)
     })
+}
+
+fn without_dying_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "without") && word_at(cursor, 1, "dying")
+}
+
+/// `other than ZONE` right after a written `from anywhere` (the arrival
+/// frame reads `from anywhere`; the exclusion is this qualifier's).
+fn excluded_origin_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let position = cursor.position();
+    let previous = cursor.token_slice(position.saturating_sub(2), position);
+    previous.len() == 2
+        && previous[0].raw.eq_ignore_ascii_case("from")
+        && previous[1].raw.eq_ignore_ascii_case("anywhere")
+        && word_at(cursor, 0, "other")
+        && word_at(cursor, 1, "than")
+}
+
+/// `during PERIOD` that the shared tail does not type (`during the declare
+/// attackers step`, `during your untap step`): a turn window of the shared
+/// window grammar. A lexical probe.
+fn step_window_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "during")
+        && !turn_owner_modifier_starts(cursor)
+        && !during_combat_starts(cursor)
+}
+
+/// Reads `other than ZONE` after `from anywhere` (CR 400.3): the zone an
+/// arriving card must not come from.
+fn recognize_excluded_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<&'static str> {
+    cursor.enter("event.qualifier.excluded-origin");
+    cursor.consume_phrase(&["other", "than"])?;
+    cursor.enter("event.qualifier.excluded-origin.zone");
+    if word_at(cursor, 0, "the") && word_at(cursor, 1, "battlefield") {
+        cursor.consume_phrase(&["the", "battlefield"])?;
+        return Ok("battlefield");
+    }
+    if word_at(cursor, 0, "exile") {
+        cursor.consume("exile")?;
+        return Ok("exile");
+    }
+    cursor.consume("your")?;
+    let zone = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("hand") => "hand",
+        Some("library") => "library",
+        _ => return Err(cursor.fail("the battlefield, exile, your hand or your library")),
+    };
+    cursor.consume(zone)?;
+    Ok(zone)
+}
+
+/// The event-slot qualifiers after a complete occurrence frame (S5): each
+/// is an independent typed slot of the event pattern, filled only on a
+/// frame that types it and lowered to the matcher field of that same
+/// pattern. A qualifier on any other frame fails explicitly; a qualifier
+/// that no matcher evaluates is an engine gap, never dropped.
+///
+/// ```text
+/// Qualifier := "without" "dying"                    -- a departure (CR 700.4)
+///            | "other" "than" ZONE                  -- after `from anywhere`
+///            | TurnWindow                           -- `during the STEP`
+/// ```
+///
+/// The legacy tail (`read_event_modifier_tail`) keeps the turn owner, the
+/// turn ordinal, `during combat` and `and isn't blocked`; the enclosing
+/// clause reads it after these qualifiers.
+pub(in crate::oracle::canonical) fn read_event_qualifiers(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut event: super::GenericTriggerEventNode,
+) -> MachineResult<super::GenericTriggerEventNode> {
+    loop {
+        if without_dying_starts(cursor) {
+            cursor.enter("event.qualifier.without-dying");
+            cursor.consume_phrase(&["without", "dying"])?;
+            let super::GenericTriggerEventNode::Object(node) = &mut event else {
+                return Err(
+                    cursor.fail("`without dying` after a permanent leaving the battlefield")
+                );
+            };
+            cursor.require(
+                node.verb == super::ObjectEventVerb::LeaveBattlefield,
+                "`without dying` after a permanent leaving the battlefield",
+            )?;
+            if node.modifiers.without_dying {
+                return Err(duplicate(cursor));
+            }
+            node.modifiers.without_dying = true;
+        } else if excluded_origin_starts(cursor) {
+            let zone = recognize_excluded_origin(cursor)?;
+            cursor.enter("event.qualifier.excluded-origin.frame");
+            let super::GenericTriggerEventNode::Object(node) = &mut event else {
+                return Err(cursor.fail("an origin exclusion after a card put into a graveyard"));
+            };
+            cursor.require(
+                matches!(node.verb, super::ObjectEventVerb::PutIntoGraveyard(_, None)),
+                "an origin exclusion after a card put into a graveyard from anywhere",
+            )?;
+            if node.modifiers.excluded_origin.is_some() {
+                return Err(duplicate(cursor));
+            }
+            node.modifiers.excluded_origin = Some(zone);
+        } else if step_window_starts(cursor) {
+            let window = super::recognize_turn_window(cursor, super::WindowSubject::AbilityPlayer)?;
+            let period = window
+                .steps
+                .steps()
+                .map(super::WindowStep::engine_name)
+                .collect::<Vec<_>>()
+                .join(" or ");
+            // The typed window is read; no event pattern records the step it
+            // happened in beyond `during combat`.
+            cursor.enter("event.qualifier.step-window");
+            return Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
+                &format!("an engine event matcher for an event during the {period} step"),
+            ));
+        } else {
+            return Ok(event);
+        }
+    }
 }
 
 /// Reads the modifier tail in written order. Tokens that start no modifier

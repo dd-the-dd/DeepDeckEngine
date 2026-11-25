@@ -80,6 +80,9 @@ pub(super) struct ZoneChangePattern<'a> {
     subject: SubjectRelation<'a>,
     filter: Option<(&'a Value, ObjectView)>,
     from: Option<&'a str>,
+    /// `from anywhere other than ZONE`: an origin the move must not have.
+    /// An unknown origin cannot satisfy it (as for a written origin).
+    from_not: Option<&'a str>,
     to: Option<&'a str>,
     /// `leaves the battlefield` without dying.
     without_dying: bool,
@@ -103,6 +106,7 @@ impl<'a> ZoneChangePattern<'a> {
             subject,
             filter: None,
             from: Some("battlefield"),
+            from_not: None,
             to: None,
             without_dying: false,
             nontoken: false,
@@ -218,7 +222,16 @@ fn died_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
 fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
     if !known_fields(
         event,
-        &["kind", "lemma", "subject", "from", "to", "aggregation"],
+        &[
+            "kind",
+            "lemma",
+            "subject",
+            "from",
+            "fromNot",
+            "to",
+            "aggregation",
+            "withoutDying",
+        ],
     ) || !event_batch::event_aggregation_supported(event)
     {
         return None;
@@ -228,7 +241,17 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
         return None;
     }
     let from = optional_str(event, "from")?;
+    let from_not = optional_str(event, "fromNot")?;
     let to = optional_str(event, "to")?;
+    let without_dying = optional_bool(event, "withoutDying")?;
+    // `without dying` qualifies a departure to any zone (CR 700.4); an
+    // origin exclusion qualifies a graveyard arrival without a written
+    // origin (the arrival record carries the zone the card left).
+    if (without_dying && (from != Some("battlefield") || to.is_some()))
+        || (from_not.is_some() && (from.is_some() || to != Some("graveyard")))
+    {
+        return None;
+    }
     let (subject, filter) = match value_kind(object)? {
         "self" => (SubjectRelation::Source, None),
         // The permanent the observer is attached to (CR 603.10a look-back).
@@ -310,7 +333,9 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
     Some(ZoneChangePattern {
         filter,
         from,
+        from_not,
         to,
+        without_dying,
         ..ZoneChangePattern::new(subject, group)
     })
 }
@@ -509,6 +534,9 @@ impl GameEngine {
             }
         };
         if pattern.from.is_some_and(|from| !from_matches(from))
+            || pattern
+                .from_not
+                .is_some_and(|excluded| record.from.is_none_or(|from| from == excluded))
             || pattern
                 .entry_tapped
                 .is_some_and(|tapped| tapped != object.tapped)

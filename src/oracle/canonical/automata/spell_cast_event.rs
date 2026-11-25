@@ -109,6 +109,9 @@ struct SpellCastEventFrame {
     targets: Option<SpellTargetsNode>,
     origin: Option<SpellOriginNode>,
     turn: Option<SpellTurnNode>,
+    /// The turn owner was written distributively (`during each opponent's
+    /// turn`), which names the turn as the ordinal's counting period.
+    distributive_turn: bool,
 }
 
 /// Reads `from [your|a] ZONE` or `from anywhere other than your hand`.
@@ -161,8 +164,11 @@ fn recognize_spell_targets(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
     let mut alternatives = Vec::new();
     loop {
         cursor.enter("event.spell-cast.target");
-        let target = if peek_word(cursor, 0, "this") {
-            super::recognize_source_reference(cursor, &[], None)?;
+        // `this creature` or the source's printed name (`a spell that
+        // targets Brigone`), through the installed name links.
+        let target = if peek_word(cursor, 0, "this") || super::current_source_name_at(cursor) {
+            let names = cursor.source_names().to_vec();
+            super::recognize_source_reference(cursor, &names, None)?;
             SpellTargetNode::Source
         } else if let Some(player) = super::try_recognize_event_actor_scope(cursor)? {
             SpellTargetNode::Player(player)
@@ -393,7 +399,9 @@ pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
                     frame.origin = Some(recognize_spell_origin(cursor)?);
                 }
                 if peek_word(cursor, 0, "during") {
-                    frame.turn = Some(super::recognize_turn_owner_modifier(cursor)?);
+                    let (owner, distributive) = super::recognize_turn_owner_period(cursor)?;
+                    frame.turn = Some(owner);
+                    frame.distributive_turn = distributive;
                 }
                 if frame.ordinal.is_some() {
                     SpellCastEventState::Period
@@ -403,7 +411,12 @@ pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
             }
             SpellCastEventState::Period => {
                 cursor.enter("event.spell-cast.ordinal-period");
-                cursor.consume_phrase(&["each", "turn"])?;
+                // `your first spell during each opponent's turn`: the
+                // distributive turn owner already names the counting period
+                // of the ordinal, the turn (CR 500.1).
+                if !(frame.distributive_turn && !peek_word(cursor, 0, "each")) {
+                    cursor.consume_phrase(&["each", "turn"])?;
+                }
                 SpellCastEventState::Complete
             }
             SpellCastEventState::Complete => {

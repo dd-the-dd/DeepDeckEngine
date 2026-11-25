@@ -3,8 +3,7 @@ use crate::oracle::syntax::recognize_entities;
 
 use super::{
     BecameTargetEventNode, ObjectControllerScope, OracleTokenCursor, TargetedObjectDomain,
-    TargetingControllerPolicy, TargetingStackKind, recognize_became_target_event,
-    recognize_targeting_stack_selector,
+    TargetingStackKind, recognize_became_target_event, recognize_targeting_stack_selector,
 };
 
 /// The clause child starts after the trigger word, which the event clause
@@ -34,9 +33,9 @@ fn permanent_and_spell_subjects_share_one_targeting_event() {
     assert_eq!(node.objects[0].domain, TargetedObjectDomain::Permanent);
     assert_eq!(node.objects[1].domain, TargetedObjectDomain::Spell);
     assert!(
-        node.objects
-            .iter()
-            .all(|selector| { selector.controller == ObjectControllerScope::AbilityController })
+        node.objects.iter().all(|selector| {
+            selector.controller == Some(ObjectControllerScope::AbilityController)
+        })
     );
     assert_eq!(
         node.targeting_stack.kinds,
@@ -79,16 +78,39 @@ fn dangling_subject_union_is_a_failure_at_the_missing_selector() {
 }
 
 #[test]
-fn object_selectors_require_a_targeting_controller_relation() {
-    let (failure, _) =
-        recognize("Whenever a creature you control becomes the target of a spell, draw a card.");
-    let failure = failure.expect_err("unscoped targeting source must fail");
+fn object_and_stack_controllers_are_optional_typed_relations() {
+    // Cowardice: any creature, a spell or ability of any player.
+    let (node, next) =
+        recognize("Whenever a creature becomes the target of a spell or ability, draw a card.");
+    let node = node.expect("unscoped targeting event parses");
+    assert_eq!(next.as_deref(), Some(","));
+    assert_eq!(node.objects[0].controller, None);
+    assert!(!node.objects[0].exclude_source);
+    assert_eq!(node.targeting_stack.controller, None);
 
-    assert_eq!(
-        failure.state,
-        "event.became-target.source-controller.subject"
+    // Cloud Cover: `another` excludes the source, each relation is its own.
+    let (node, _) = recognize(
+        "Whenever another permanent you control becomes the target of a spell or ability an opponent controls, draw a card.",
     );
-    assert_eq!(failure.actual.as_deref(), Some(","));
+    let node = node.expect("excluded subject parses");
+    assert!(node.objects[0].exclude_source);
+    assert_eq!(
+        node.objects[0].controller,
+        Some(ObjectControllerScope::AbilityController)
+    );
+    assert_eq!(
+        node.targeting_stack.controller,
+        Some(ObjectControllerScope::OpponentOfAbilityController)
+    );
+}
+
+#[test]
+fn another_spell_is_not_a_source_exclusion() {
+    let (failure, _) = recognize(
+        "Whenever another creature spell becomes the target of a spell or ability, draw a card.",
+    );
+    let failure = failure.expect_err("a spell is never the excluded source");
+    assert_eq!(failure.state, "event.became-target.subject.selector");
 }
 
 #[test]
@@ -106,9 +128,7 @@ fn the_source_observer_reads_an_optional_controller() {
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("targeting-stack-test", &tokens);
-        let node =
-            recognize_targeting_stack_selector(&mut cursor, TargetingControllerPolicy::Optional)
-                .expect(text);
+        let node = recognize_targeting_stack_selector(&mut cursor).expect(text);
         assert_eq!(node.controller, controller, "{text}");
         assert_eq!(cursor.peek(), Some(","), "{text}");
     }

@@ -353,10 +353,7 @@ fn recognize_source_event_verb(
         // a typed attribute; a source observer takes any controller.
         if super::targeting_frame_starts(cursor, 0) {
             super::consume_targeting_relation(cursor)?;
-            let stack = super::recognize_targeting_stack_selector(
-                cursor,
-                super::TargetingControllerPolicy::Optional,
-            )?;
+            let stack = super::recognize_targeting_stack_selector(cursor)?;
             modifiers.push(SourceEventModifier::TargetingStack(stack));
             return Ok(SourceEventVerb::BecameTarget);
         }
