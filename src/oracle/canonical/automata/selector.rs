@@ -3071,11 +3071,23 @@ fn recognize_stack_item_selector(
             }
             StackItemSelectorState::Complete => {
                 cursor.enter("selector.stack-item.complete");
-                return match frame.branches.len() {
-                    0 => Err(cursor.fail("a populated stack-item selector")),
-                    1 => Ok(frame.branches.pop().expect("one stack-item branch")),
-                    _ => Ok(StackItemPredicate::Union(frame.branches)),
+                let selector = match frame.branches.len() {
+                    0 => return Err(cursor.fail("a populated stack-item selector")),
+                    1 => frame.branches.pop().expect("one stack-item branch"),
+                    _ => StackItemPredicate::Union(frame.branches),
                 };
+                // `target spell or ability that targets you or a creature
+                // you control` (CR 115.1): the shared targets relation of
+                // the relative slot, over every branch of the selector.
+                return Ok(
+                    match super::recognize_stack_item_targets_relative(cursor)? {
+                        Some(targeted) => StackItemPredicate::Intersection(vec![
+                            selector,
+                            StackItemPredicate::Targets(targeted),
+                        ]),
+                        None => selector,
+                    },
+                );
             }
         };
     }

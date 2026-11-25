@@ -11,6 +11,12 @@
 //!           | ("was" | "were") "put" "there" "from" "the" "battlefield"
 //!             "this" "turn"                                      zone history
 //!           | Have "the" "same" Same "as" Anchor                  name relation
+//!           | BlockHistory Anchor "this" "turn"                  block pairs
+//!           | "dealt" ["combat"] "damage" "to" Anchor "this" "turn"
+//!           | ["is" | "are"] "attacking" "you" ["or" ("a" "planeswalker"
+//!             | "planeswalkers") "you" "control"]               attacked player
+//! BlockHistory := "blocked" | ("was" | "were") "blocked" "by"
+//!               | "blocked" "or" ("was" | "were") "blocked" "by"
 //! Have     := "has" | "have" | ("doesn't" | "don't") "have"
 //! Same     := "name" | "mana" "value"
 //! Past     := "entered" ["the" "battlefield"] | "attacked" | "blocked"
@@ -165,6 +171,211 @@ fn negated_past_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(Obj
     Some((fact, skip + 1))
 }
 
+/// `that's` (straight or curly apostrophe) at the cursor.
+fn contracted_relative_copula(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "that's") || word_at(cursor, 0, "that\u{2019}s")
+}
+
+/// `attacking you [or a planeswalker you control]` at `offset` (CR 508.1b,
+/// 506.3): the attacked player relative to the ability controller and
+/// whether the planeswalkers that player controls are attacked alternatives,
+/// with the phrase width. `attacking` before a noun (`attacking creatures
+/// you control`) is the status adjective and is not this relation.
+fn attacking_player_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(DamagedPlayer, bool, usize)> {
+    if !(word_at(cursor, offset, "attacking") && word_at(cursor, offset + 1, "you")) {
+        return None;
+    }
+    // `you` must end the player: `you control` would be another clause.
+    if ["control", "controls", "own", "cast", "don't", "do"]
+        .iter()
+        .any(|verb| word_at(cursor, offset + 2, verb))
+    {
+        return None;
+    }
+    let or = offset + 2;
+    let relation = if word_at(cursor, or, "or")
+        && word_at(cursor, or + 1, "a")
+        && word_at(cursor, or + 2, "planeswalker")
+    {
+        Some(or + 3)
+    } else if word_at(cursor, or, "or") && word_at(cursor, or + 1, "planeswalkers") {
+        Some(or + 2)
+    } else {
+        None
+    };
+    match relation {
+        Some(relation)
+            if word_at(cursor, relation, "you") && word_at(cursor, relation + 1, "control") =>
+        {
+            Some((
+                DamagedPlayer::AbilityController,
+                true,
+                relation + 2 - offset,
+            ))
+        }
+        _ => Some((DamagedPlayer::AbilityController, false, 2)),
+    }
+}
+
+/// `is|are attacking you` at `offset`: the copula of the attacked-player
+/// relation.
+fn copular_attack_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    (word_at(cursor, offset, "is") || word_at(cursor, offset, "are"))
+        && attacking_player_at(cursor, offset + 1).is_some()
+}
+
+/// Reads `attacking you [or a planeswalker you control]` into the attacked
+/// player relation of the candidate (CR 508.1b): the candidate is an
+/// attacking creature whose defender is that player or, when stated, a
+/// planeswalker that player controls. A creature attacking a planeswalker
+/// is not attacking its controller (CR 506.3).
+fn recognize_attacking_player(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relative-clause.attacking-player");
+    let (player, planeswalkers, width) = cursor.require_value(
+        attacking_player_at(cursor, 0),
+        "`attacking you` or `attacking you or a planeswalker you control`",
+    )?;
+    consume_words(cursor, width)?;
+    Ok(ObjectPredicate::Qualifier(
+        super::ObjectQualifier::AttackingPlayer {
+            player,
+            planeswalkers,
+        },
+    ))
+}
+
+/// `dealt [combat] damage to ANCHOR this turn` at `offset` (CR 120.1,
+/// 510.2): the damage relation of the candidate, as a source, to a definite
+/// object, with the width up to the anchor. A player recipient is the
+/// player relation (`dealt_damage_to_player_at`); a query anchor is not
+/// read, since the damage was dealt to the object that existed then.
+fn dealt_damage_to_object_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(&'static [ObjectRelationKind], usize)> {
+    if !word_at(cursor, offset, "dealt") {
+        return None;
+    }
+    let combat = word_at(cursor, offset + 1, "combat");
+    let damage = offset + 1 + usize::from(combat);
+    if !(word_at(cursor, damage, "damage") && word_at(cursor, damage + 1, "to")) {
+        return None;
+    }
+    let anchor = damage + 2;
+    if targeted_player_at(cursor, anchor).is_some() {
+        return None;
+    }
+    cursor_after(cursor, anchor)
+        .is_some_and(|trial| definite_anchor_starts(&trial))
+        .then_some((
+            if combat {
+                DEALT_COMBAT_DAMAGE_TO_THIS_TURN
+            } else {
+                DEALT_DAMAGE_TO_THIS_TURN
+            },
+            anchor - offset,
+        ))
+}
+
+/// The block-history relation at `offset` (CR 509.1, 509.1h): its relation
+/// kinds and the width of the verb phrase up to its anchor.
+///
+/// ```text
+/// BlockHistory := "blocked" Anchor                          the anchor attacked
+///               | ("was" | "were") "blocked" "by" Anchor     the anchor blocked
+///               | "blocked" "or" ("was" | "were") "blocked" "by" Anchor
+/// ```
+///
+/// The clause closes with `this turn`: the pairs are read from the turn's
+/// block declarations, so a pair whose creatures left combat still counts.
+/// `blocked this turn` (no anchor) stays the status history, and the
+/// coordination shares its one anchor (`that blocked or were blocked by
+/// it`). Only a definite anchor is read: a block pair is a fact of two
+/// object incarnations, and a query anchor would be evaluated on the
+/// current battlefield instead of the blocks that happened.
+fn block_history_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(&'static [ObjectRelationKind], usize)> {
+    let passive_at = |at: usize| {
+        (word_at(cursor, at, "was") || word_at(cursor, at, "were"))
+            && word_at(cursor, at + 1, "blocked")
+            && word_at(cursor, at + 2, "by")
+    };
+    if word_at(cursor, offset, "blocked")
+        && word_at(cursor, offset + 1, "or")
+        && passive_at(offset + 2)
+    {
+        return Some((BLOCKED_OR_BLOCKED_BY_THIS_TURN, 5));
+    }
+    if passive_at(offset) {
+        return Some((BLOCKED_BY_THIS_TURN, 3));
+    }
+    if word_at(cursor, offset, "blocked")
+        && !["by", "or", "and"]
+            .iter()
+            .any(|word| word_at(cursor, offset + 1, word))
+        && !(word_at(cursor, offset + 1, "this") && word_at(cursor, offset + 2, "turn"))
+        && cursor_after(cursor, offset + 1).is_some_and(|anchor| definite_anchor_starts(&anchor))
+    {
+        return Some((BLOCKED_THIS_TURN, 1));
+    }
+    None
+}
+
+/// Reads a block-history relation (`block_history_at`) with its definite
+/// anchor and its `this turn` window.
+fn recognize_block_history(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relative-clause.block-history");
+    let (kinds, width) = cursor.require_value(
+        block_history_at(cursor, 0),
+        "`blocked ANCHOR` or `was blocked by ANCHOR`",
+    )?;
+    consume_words(cursor, width)?;
+    let anchor = recognize_relation_anchor(cursor, true)?;
+    cursor.enter("selector.relative-clause.block-history.period");
+    cursor.consume_phrase(&["this", "turn"])?;
+    let mut members = kinds
+        .iter()
+        .map(|kind| {
+            ObjectPredicate::Relation(ObjectRelation::Related(RelatedObject {
+                kind: *kind,
+                anchor: anchor.clone(),
+            }))
+        })
+        .collect::<Vec<_>>();
+    Ok(if members.len() == 1 {
+        members.remove(0)
+    } else {
+        ObjectPredicate::Union(members)
+    })
+}
+
+/// `that targets PLAYER|a QUERY` after the stack-item selector of a declared
+/// target (`target spell or ability that targets you or a creature you
+/// control`, CR 115.1): the same targets relation the object query reads
+/// for a spell, applied to every stack object of the selector. A pure
+/// lookahead first; `None` when no such relative starts here, so the
+/// selector keeps its own end.
+pub(in crate::oracle::canonical) fn recognize_stack_item_targets_relative(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<TargetedObjects>> {
+    if !(is_relative_pronoun(cursor) && targets_clause_starts(cursor, 1)) {
+        return Ok(None);
+    }
+    cursor.enter("selector.stack-item.targets-relative");
+    consume_words(cursor, 1)?;
+    match recognize_targets_clause(cursor)? {
+        ObjectPredicate::Relation(ObjectRelation::Targets(targeted)) => Ok(Some(targeted)),
+        _ => Err(cursor.fail("the targets relation of a stack object")),
+    }
+}
+
 /// True when a relative clause this slot reads starts at the cursor. The
 /// `that targets ...` relation of a stack object is claimed only when the
 /// parent states that its query describes declared target candidates
@@ -198,6 +409,12 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
     {
         return true;
     }
+    if contracted_relative_copula(cursor) && attacking_player_at(cursor, 1).is_some() {
+        return true;
+    }
+    if is_relative_pronoun(cursor) && copular_attack_at(cursor, 1) {
+        return true;
+    }
     if is_relative_pronoun(cursor)
         && (copular_participle_at(cursor, 1).is_some()
             || share_verb_at(cursor, 1).is_some()
@@ -212,6 +429,8 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
                 .iter()
                 .any(|verb| word_at(cursor, 1, verb))
                 && status_after_copula(cursor, 2)
+            || block_history_at(cursor, 1).is_some()
+            || dealt_damage_to_object_at(cursor, 1).is_some()
             || past_fact_at(cursor, 1).is_some()
             || dealt_damage_to_player_at(cursor, 1).is_some()
             || negated_past_at(cursor, 1).is_some()
@@ -484,10 +703,21 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
             super::ObjectQualifier::DistinctControllers,
         ));
     }
+    if attacking_player_at(cursor, 0).is_some() {
+        // `each creature attacking you`: the reduced relative of the
+        // attacked player (CR 508.1b).
+        return recognize_attacking_player(cursor);
+    }
     if participial_relation_at(cursor, 0).is_some() {
         // `Equipment attached to that creature`, `each creature blocking
         // it`: a reduced relative clause, the participle with no pronoun.
         return recognize_participial_relation(cursor);
+    }
+    if contracted_relative_copula(cursor) && attacking_player_at(cursor, 1).is_some() {
+        // `target creature without flying that's attacking you`.
+        cursor.enter("selector.relative-clause.copular-attack");
+        consume_words(cursor, 1)?;
+        return recognize_attacking_player(cursor);
     }
     if contracted_copular_participle(cursor) {
         // `each Aura you control that's attached to a creature`.
@@ -512,6 +742,9 @@ pub(in crate::oracle::canonical) fn relative_predicate_starts(
 ) -> bool {
     copular_participle_at(cursor, 0).is_some()
         || share_verb_at(cursor, 0).is_some()
+        || block_history_at(cursor, 0).is_some()
+        || copular_attack_at(cursor, 0)
+        || dealt_damage_to_object_at(cursor, 0).is_some()
         || past_fact_at(cursor, 0).is_some()
         || negated_past_at(cursor, 0).is_some()
         || dealt_damage_to_player_at(cursor, 0).is_some()
@@ -563,6 +796,34 @@ pub(in crate::oracle::canonical) fn recognize_relative_predicate(
         } else {
             relation
         });
+    }
+    if copular_attack_at(cursor, 0) {
+        // `that is attacking you`: the present copula before the attacked
+        // player relation.
+        cursor.enter("selector.relative-clause.copular-attack");
+        consume_words(cursor, 1)?;
+        return recognize_attacking_player(cursor);
+    }
+    if let Some((kinds, width)) = dealt_damage_to_object_at(cursor, 0) {
+        // `each Vampire you control that dealt damage to that creature this
+        // turn`: the damage the candidate dealt to a definite object.
+        cursor.enter("selector.relative-clause.damage-to-object");
+        consume_words(cursor, width)?;
+        let anchor = recognize_relation_anchor(cursor, true)?;
+        cursor.enter("selector.relative-clause.damage-to-object.period");
+        cursor.consume_phrase(&["this", "turn"])?;
+        return Ok(ObjectPredicate::Relation(ObjectRelation::Related(
+            RelatedObject {
+                kind: kinds[0],
+                anchor,
+            },
+        )));
+    }
+    if block_history_at(cursor, 0).is_some() {
+        // `that blocked or were blocked by it this turn`, `that were blocked
+        // by that creature this turn`: block pairs of this turn with a
+        // definite anchor, read before the anchorless `blocked` status.
+        return recognize_block_history(cursor);
     }
     if let Some((history, width)) = zone_arrival_history_at(cursor, 0) {
         // `cards in your graveyard that were put there from the
@@ -954,6 +1215,16 @@ pub(in crate::oracle::canonical) enum ObjectRelationKind {
     /// The candidate is a creature tapped to pay the convoke cost of the
     /// anchor when it was cast (CR 702.51a, 702.51c).
     Convoked,
+    /// The candidate blocked the anchor this turn (CR 509.1): a block pair
+    /// of this turn's declarations whose blocker is this incarnation of the
+    /// candidate and whose attacker is the anchor.
+    BlockedThisTurn,
+    /// The anchor blocked the candidate this turn (CR 509.1, 509.1h).
+    BlockedByThisTurn,
+    /// The candidate dealt damage to the anchor this turn (CR 120.1).
+    DealtDamageToThisTurn,
+    /// The candidate dealt combat damage to the anchor this turn (CR 510.2).
+    DealtCombatDamageToThisTurn,
 }
 
 impl ObjectRelationKind {
@@ -964,6 +1235,10 @@ impl ObjectRelationKind {
             Self::BlockedBy => "blockedBy",
             Self::Shares(_) => "sharesCharacteristic",
             Self::Convoked => "convoked",
+            Self::BlockedThisTurn => "blockedAnchorThisTurn",
+            Self::BlockedByThisTurn => "blockedByAnchorThisTurn",
+            Self::DealtDamageToThisTurn => "dealtDamageToAnchorThisTurn",
+            Self::DealtCombatDamageToThisTurn => "dealtCombatDamageToAnchorThisTurn",
         }
     }
 }
@@ -984,7 +1259,11 @@ impl RelatedObject {
             ObjectRelationKind::AttachedTo
             | ObjectRelationKind::Blocking
             | ObjectRelationKind::BlockedBy
-            | ObjectRelationKind::Convoked => domain == ObjectKind::Permanent,
+            | ObjectRelationKind::Convoked
+            | ObjectRelationKind::BlockedThisTurn
+            | ObjectRelationKind::BlockedByThisTurn
+            | ObjectRelationKind::DealtDamageToThisTurn
+            | ObjectRelationKind::DealtCombatDamageToThisTurn => domain == ObjectKind::Permanent,
             ObjectRelationKind::Shares(_) => {
                 matches!(domain, ObjectKind::Permanent | ObjectKind::Card)
             }
@@ -997,6 +1276,16 @@ const BLOCKING: &[ObjectRelationKind] = &[ObjectRelationKind::Blocking];
 const BLOCKED_BY: &[ObjectRelationKind] = &[ObjectRelationKind::BlockedBy];
 const BLOCKING_OR_BLOCKED_BY: &[ObjectRelationKind] =
     &[ObjectRelationKind::Blocking, ObjectRelationKind::BlockedBy];
+const BLOCKED_THIS_TURN: &[ObjectRelationKind] = &[ObjectRelationKind::BlockedThisTurn];
+const BLOCKED_BY_THIS_TURN: &[ObjectRelationKind] = &[ObjectRelationKind::BlockedByThisTurn];
+const DEALT_DAMAGE_TO_THIS_TURN: &[ObjectRelationKind] =
+    &[ObjectRelationKind::DealtDamageToThisTurn];
+const DEALT_COMBAT_DAMAGE_TO_THIS_TURN: &[ObjectRelationKind] =
+    &[ObjectRelationKind::DealtCombatDamageToThisTurn];
+const BLOCKED_OR_BLOCKED_BY_THIS_TURN: &[ObjectRelationKind] = &[
+    ObjectRelationKind::BlockedThisTurn,
+    ObjectRelationKind::BlockedByThisTurn,
+];
 
 /// The participle of a reduced relative clause at `offset`: its relation
 /// kinds (two for `blocking or blocked by`) and its token width.
@@ -1058,6 +1347,9 @@ fn definite_anchor_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 pub(in crate::oracle::canonical) fn participial_relation_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
+    if attacking_player_at(cursor, 0).is_some() {
+        return true;
+    }
     let Some((kinds, width)) = participial_relation_at(cursor, 0) else {
         return false;
     };

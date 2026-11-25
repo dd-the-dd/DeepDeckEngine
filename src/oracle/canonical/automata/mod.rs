@@ -1556,6 +1556,9 @@ pub(super) enum StackItemPredicate {
     Ability(StackAbilityKind),
     Spell,
     Colorless,
+    /// `that targets you or a creature you control` (CR 115.1): one of the
+    /// stack object's targets is a listed player or permanent.
+    Targets(TargetedObjects),
     Intersection(Vec<StackItemPredicate>),
     Union(Vec<StackItemPredicate>),
 }

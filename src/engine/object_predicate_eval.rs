@@ -53,7 +53,7 @@ fn role_matches(role: Option<&str>, player_id: &str, controller_id: &str) -> boo
 
 /// `{"kind":"targets", "players"?, "permanents"?}` (CR 115.1): at least one
 /// alternative, each with a role or filter this module evaluates.
-fn targets_atom_supported(atom: &Value) -> bool {
+pub(super) fn targets_atom_supported(atom: &Value) -> bool {
     let players = atom.get("players");
     let permanents = atom.get("permanents");
     (players.is_some() || permanents.is_some())
@@ -286,7 +286,7 @@ impl GameEngine {
 
     /// CR 115.1: one of the object's chosen targets is a listed player or a
     /// battlefield permanent matching the listed controller and filter.
-    fn stack_object_targets_match(
+    pub(super) fn stack_object_targets_match(
         &self,
         object: &StackObject,
         atom: &Value,
