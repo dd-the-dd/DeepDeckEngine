@@ -2628,6 +2628,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
     if integer_value(expression).is_some() {
         return true;
     }
+    if let Some(supported) = random_outcome::random_outcome_value_supported(expression) {
+        return supported;
+    }
     if let Some(supported) = object_relation_eval::related_count_supported(expression) {
         return supported;
     }
@@ -31105,6 +31108,9 @@ impl GameEngine {
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
+        if let Some(value) = random_outcome::random_outcome_value(expression, bindings) {
+            return Some(value);
+        }
         if let Some(value) = self.bound_object_numeric_read(expression, bindings, decisions) {
             return value;
         }
@@ -31809,6 +31815,7 @@ impl GameEngine {
             Some(
                 "boundObjects"
                     | "boundValue"
+                    | "randomOutcomeValue"
                     | "countBoundObjects"
                     | "decisionResult"
                     | "countDecisionCardsMatching"

@@ -599,7 +599,10 @@ pub(in crate::oracle::canonical) const COIN_FLIP_BINDING: &str = "randomOutcome:
 pub(in crate::oracle::canonical) const DIE_ROLL_BINDING: &str = "randomOutcome:dieRoll";
 pub(in crate::oracle::canonical) const CLASH_BINDING: &str = "randomOutcome:clash";
 
-/// The runtime reader of one quantity of the latest outcome.
+/// The runtime reader of one quantity of the latest outcome. It reads 0 when
+/// no outcome of that kind happened while the program resolves (an optional
+/// flip that was declined won and lost no flip, CR 705.2; no die showed a
+/// face, and every face of a die is at least 1, CR 706.1).
 pub(in crate::oracle::canonical) fn lower_random_result_quantity(
     quantity: RandomResultQuantity,
 ) -> Value {
@@ -611,7 +614,7 @@ pub(in crate::oracle::canonical) fn lower_random_result_quantity(
         RandomResultQuantity::CoinsTails => format!("{COIN_FLIP_BINDING}:tails"),
         RandomResultQuantity::ClashWon => CLASH_BINDING.to_string(),
     };
-    bound(&id)
+    json!({ "kind": "randomOutcomeValue", "binding": id })
 }
 
 /// CR 701.30b: `clash with an opponent` means "choose an opponent; you and

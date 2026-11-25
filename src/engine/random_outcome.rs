@@ -54,6 +54,34 @@ pub(super) fn random_outcome_effect_supported(effect: &Value) -> Option<bool> {
     }
 }
 
+/// `Some(...)` for the reader of an outcome quantity.
+pub(super) fn random_outcome_value_supported(expression: &Value) -> Option<bool> {
+    (value_kind(expression) == Some("randomOutcomeValue")).then(|| {
+        expression["binding"]
+            .as_str()
+            .is_some_and(|id| !id.is_empty())
+    })
+}
+
+/// The value of an outcome quantity: the latest outcome its binding
+/// recorded, or 0 when no outcome of that kind happened while the program
+/// resolves (a declined `you may flip a coin` won and lost no flip, CR
+/// 705.2; no die was rolled, and every face of a die is at least 1, CR
+/// 706.1). `None` for any other expression.
+pub(super) fn random_outcome_value(
+    expression: &Value,
+    bindings: &BTreeMap<String, RuntimeBinding>,
+) -> Option<i32> {
+    if value_kind(expression) != Some("randomOutcomeValue") {
+        return None;
+    }
+    let id = expression["binding"].as_str()?;
+    Some(match bindings.get(id) {
+        Some(RuntimeBinding::Integer(value)) => *value,
+        _ => 0,
+    })
+}
+
 /// The outcome of one coin flip (CR 705.2-705.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct CoinFlip {

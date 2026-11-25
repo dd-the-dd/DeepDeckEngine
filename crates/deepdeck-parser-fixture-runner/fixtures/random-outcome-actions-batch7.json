@@ -48,8 +48,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip"
                   },
                   "right": {
                     "kind": "integer",
@@ -67,8 +67,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip:lost"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip:lost"
                   },
                   "right": {
                     "kind": "integer",
@@ -123,8 +123,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip"
                   },
                   "right": {
                     "kind": "integer",
@@ -138,8 +138,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip:lost"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip:lost"
                   },
                   "right": {
                     "kind": "integer",
@@ -194,8 +194,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip:lost"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip:lost"
                   },
                   "right": {
                     "kind": "integer",
@@ -250,8 +250,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip"
                   },
                   "right": {
                     "kind": "integer",
@@ -306,8 +306,8 @@
                   "kind": "compare",
                   "operator": ">=",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip:heads"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip:heads"
                   },
                   "right": {
                     "kind": "integer",
@@ -321,8 +321,8 @@
                   "kind": "compare",
                   "operator": ">=",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip:tails"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip:tails"
                   },
                   "right": {
                     "kind": "integer",
@@ -421,8 +421,8 @@
               {
                 "pointer": "/effects/1/amount",
                 "equals": {
-                  "kind": "boundValue",
-                  "id": "randomOutcome:dieRoll"
+                  "kind": "randomOutcomeValue",
+                  "binding": "randomOutcome:dieRoll"
                 }
               }
             ]
@@ -515,8 +515,8 @@
                   "kind": "compare",
                   "operator": "<=",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:dieRoll"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:dieRoll"
                   },
                   "right": {
                     "kind": "integer",
@@ -601,8 +601,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:clash"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:clash"
                   },
                   "right": {
                     "kind": "integer",
@@ -739,8 +739,8 @@
                   "kind": "compare",
                   "operator": ">",
                   "left": {
-                    "kind": "boundValue",
-                    "id": "randomOutcome:coinFlip"
+                    "kind": "randomOutcomeValue",
+                    "binding": "randomOutcome:coinFlip"
                   },
                   "right": {
                     "kind": "integer",
