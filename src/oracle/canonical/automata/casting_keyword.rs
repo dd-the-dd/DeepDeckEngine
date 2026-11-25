@@ -14,6 +14,10 @@
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
 //!            | MANA "—" P "/" T          (prototype)
+//!            | VARIABLE-MANA             (miracle: `{X}` is the spell's own X)
+//!            | GIFT                      (gift: a CR 702.174 payload row)
+//! GIFT      := "a card" | "a Food" | "a Treasure" | "a tapped Fish"
+//!            | "a Fish" | "an Octopus" | "an extra turn"
 //! COSTS     := the shared activation-cost sequence (`compound_activated.rs`)
 //! Reminder  := one of the row's registered renderings, instantiated with the
 //!              printed parameter (`$cost`, `$N`, `$Nw`), compared token by
@@ -32,9 +36,9 @@
 //! parameter shape a row does not register fails explicitly.
 use super::super::super::{MachineResult, OracleTokenCursor};
 use super::super::{
-    ActivationCostSequenceNode, KeywordTemplateArguments, LocalActivationCostNode, ManaCostNode,
-    NumericAtom, instantiate, recognize_activation_cost_sequence, recognize_mana_cost,
-    recognize_numeric_atom,
+    ActivationCostSequenceNode, FixedRuntimeManaCostError, KeywordTemplateArguments,
+    LocalActivationCostNode, ManaCostNode, NumericAtom, instantiate,
+    recognize_activation_cost_sequence, recognize_mana_cost, recognize_numeric_atom,
 };
 use crate::oracle::model::RecognizedEntity;
 use crate::oracle::syntax::recognize_entities;
@@ -62,8 +66,10 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Entwine,
     Escalate,
     Escape,
-    /// CR 702.174a with the gift `a card` (the recipient draws a card).
-    GiftACard,
+    /// CR 702.174a: an optional promise as the spell is cast; the payload
+    /// (`a card`, `a Treasure`, `an extra turn`, ...) is a typed
+    /// [`GiftPayload`] row whose instruction the chosen opponent performs.
+    Gift,
     Gravestorm,
     Impending,
     /// CR 702.133a.
@@ -75,6 +81,9 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     /// that casts the card for its madness cost.
     Madness,
     Mayhem,
+    /// CR 702.94a: cast the card for this cost when it is the first card its
+    /// owner drew this turn.
+    Miracle,
     Paradigm,
     Prototype,
     /// CR 702.81a.
@@ -108,6 +117,11 @@ enum Parameter {
     CostSequence,
     CountThenMana,
     ManaThenCharacteristics,
+    /// One mana cost that may contain `{X}`: the spell's own mana-X
+    /// declaration (CR 107.3) is the only producer of that X.
+    VariableMana,
+    /// A gift payload row (CR 702.174).
+    GiftPayload,
 }
 
 struct Definition {
@@ -218,13 +232,12 @@ const DEFINITIONS: &[Definition] = &[
         reminders: &["You may cast this card from your graveyard for its escape cost."],
     },
     Definition {
-        keyword: CastingKeyword::GiftACard,
-        lexeme: "gift a card",
+        keyword: CastingKeyword::Gift,
+        lexeme: "gift",
         rules_section: "702.174a",
-        parameter: Parameter::None,
-        reminders: &[
-            "You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.",
-        ],
+        parameter: Parameter::GiftPayload,
+        // Each payload row registers its own renderings.
+        reminders: &[],
     },
     Definition {
         keyword: CastingKeyword::Gravestorm,
@@ -279,6 +292,15 @@ const DEFINITIONS: &[Definition] = &[
         reminders: &[
             "You may cast this card from your graveyard for $cost if you discarded it this turn. Timing rules still apply.",
             "You may cast this card from your graveyard for $cost if you discarded it this turn.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Miracle,
+        lexeme: "miracle",
+        rules_section: "702.94a",
+        parameter: Parameter::VariableMana,
+        reminders: &[
+            "You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.",
         ],
     },
     Definition {
@@ -358,6 +380,132 @@ const DEFINITIONS: &[Definition] = &[
     },
 ];
 
+/// What a promised gift gives its recipient (CR 702.174).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum GiftInstruction {
+    /// `draw a card`.
+    DrawCard,
+    /// `create TOKEN`: the token description in CR words, read by the shared
+    /// token-creation body grammar (a catalog identity or a description).
+    CreateToken(&'static str),
+    /// `take an extra turn after this one`.
+    ExtraTurn,
+}
+
+/// One gift payload row (CR 702.174b-h): the printed payload words, the
+/// instruction the recipient performs, and its accepted reminders.
+#[derive(Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct GiftPayload {
+    pub words: &'static str,
+    pub instruction: GiftInstruction,
+    /// Renderings for a spell, whose gift is given before its other effects.
+    spell_reminders: &'static [&'static str],
+    /// Renderings for a permanent, whose gift is given as it enters.
+    permanent_reminders: &'static [&'static str],
+}
+
+const GIFT_PROMISE: &str = "You may promise an opponent a gift as you cast this spell. If you do, ";
+
+const GIFT_PAYLOADS: &[GiftPayload] = &[
+    GiftPayload {
+        words: "a card",
+        instruction: GiftInstruction::DrawCard,
+        spell_reminders: &["they draw a card before its other effects."],
+        permanent_reminders: &["when it enters, they draw a card."],
+    },
+    GiftPayload {
+        words: "a Food",
+        instruction: GiftInstruction::CreateToken("a Food token"),
+        spell_reminders: &[
+            "they create a Food token before its other effects. It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\"",
+            "they create a Food token before its other effects.",
+        ],
+        permanent_reminders: &["when it enters, they create a Food token."],
+    },
+    GiftPayload {
+        words: "a Treasure",
+        instruction: GiftInstruction::CreateToken("a Treasure token"),
+        spell_reminders: &[
+            "they create a Treasure token before its other effects. It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\"",
+            "they create a Treasure token before its other effects.",
+        ],
+        permanent_reminders: &["when it enters, they create a Treasure token."],
+    },
+    GiftPayload {
+        words: "a tapped Fish",
+        instruction: GiftInstruction::CreateToken("a tapped 1/1 blue Fish creature token"),
+        spell_reminders: &[
+            "they create a tapped 1/1 blue Fish creature token before its other effects.",
+        ],
+        permanent_reminders: &[
+            "when it enters, they create a tapped 1/1 blue Fish creature token.",
+        ],
+    },
+    GiftPayload {
+        words: "a Fish",
+        instruction: GiftInstruction::CreateToken("a 1/1 blue Fish creature token"),
+        spell_reminders: &["they create a 1/1 blue Fish creature token before its other effects."],
+        permanent_reminders: &["when it enters, they create a 1/1 blue Fish creature token."],
+    },
+    GiftPayload {
+        words: "an Octopus",
+        instruction: GiftInstruction::CreateToken("an 8/8 blue Octopus creature token"),
+        spell_reminders: &[
+            "they create an 8/8 blue Octopus creature token before its other effects.",
+        ],
+        permanent_reminders: &["when it enters, they create an 8/8 blue Octopus creature token."],
+    },
+    GiftPayload {
+        words: "an extra turn",
+        instruction: GiftInstruction::ExtraTurn,
+        spell_reminders: &["they take an extra turn after this one."],
+        permanent_reminders: &[],
+    },
+];
+
+/// The payload words of each row as shared tokens.
+fn gift_payload_words() -> &'static [(&'static GiftPayload, Vec<String>)] {
+    static WORDS: std::sync::OnceLock<Vec<(&'static GiftPayload, Vec<String>)>> =
+        std::sync::OnceLock::new();
+    WORDS.get_or_init(|| {
+        GIFT_PAYLOADS
+            .iter()
+            .map(|payload| {
+                (
+                    payload,
+                    recognize_entities(payload.words)
+                        .into_iter()
+                        .map(|token| token.raw.to_ascii_lowercase())
+                        .collect(),
+                )
+            })
+            .collect()
+    })
+}
+
+/// The longest payload row whose words open `tokens`.
+fn gift_payload_at(tokens: &[RecognizedEntity]) -> Option<(&'static GiftPayload, usize)> {
+    gift_payload_words()
+        .iter()
+        .filter(|(_, words)| {
+            tokens.len() >= words.len()
+                && words
+                    .iter()
+                    .zip(tokens)
+                    .all(|(word, token)| token.raw.eq_ignore_ascii_case(word))
+        })
+        .max_by_key(|(_, words)| words.len())
+        .map(|(payload, words)| (*payload, words.len()))
+}
+
+/// When a promised gift is given: before a spell's other effects, or as a
+/// permanent enters (CR 702.174a). Read from the matched reminder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum GiftTiming {
+    BeforeSpellEffects,
+    AsPermanentEnters,
+}
+
 fn definition(keyword: CastingKeyword) -> &'static Definition {
     DEFINITIONS
         .iter()
@@ -414,6 +562,10 @@ pub(in crate::oracle::canonical) struct CastingKeywordNode {
     pub count: Option<i64>,
     /// The prototype power and toughness (CR 702.160a).
     pub power_toughness: Option<(i64, i64)>,
+    /// The gift payload row (CR 702.174).
+    pub gift: Option<&'static GiftPayload>,
+    /// The gift timing a validated reminder states; `None` without one.
+    pub gift_timing: Option<GiftTiming>,
     pub reminder: bool,
 }
 
@@ -427,9 +579,12 @@ fn parameter_starts(parameter: Parameter, next: Option<&RecognizedEntity>) -> bo
         Parameter::Count | Parameter::CountThenMana => {
             next.is_some_and(|token| is_count_token(&token.raw))
         }
-        Parameter::Mana | Parameter::ManaThenCharacteristics => {
+        Parameter::Mana | Parameter::ManaThenCharacteristics | Parameter::VariableMana => {
             next.is_some_and(|token| token.token_type == "manaSymbol")
         }
+        Parameter::GiftPayload => next.is_some_and(|token| {
+            token.raw.eq_ignore_ascii_case("a") || token.raw.eq_ignore_ascii_case("an")
+        }),
         Parameter::ManaOrCostSequence => {
             next.is_some_and(|token| token.token_type == "manaSymbol" || token.raw == "\u{2014}")
         }
@@ -470,6 +625,30 @@ fn read_mana(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ManaCostNode> 
     cost.fixed_runtime_mana_value()
         .map_err(|error| cursor.fail(error.expected()))?;
     Ok(cost)
+}
+
+/// A mana cost that may name the spell's own X (CR 107.3, 702.94a); every
+/// other symbol stays inside the fixed runtime subset.
+fn read_variable_mana(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ManaCostNode> {
+    cursor.enter("keyword.casting.parameter.mana-cost");
+    let cost = recognize_mana_cost(cursor)?;
+    cursor.enter("keyword.casting.parameter.mana-support");
+    match cost.fixed_runtime_mana_value() {
+        Ok(_) | Err(FixedRuntimeManaCostError::Variable) => Ok(cost),
+        Err(error) => Err(cursor.fail(error.expected())),
+    }
+}
+
+/// `a Treasure`, `a tapped Fish`, `an extra turn`: one registered payload.
+fn read_gift_payload(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<&'static GiftPayload> {
+    cursor.enter("keyword.casting.parameter.gift-payload");
+    let start = cursor.position();
+    let (payload, width) = cursor.require_value(
+        gift_payload_at(cursor.token_slice(start, usize::MAX)),
+        "a gift payload of CR 702.174 (a card, a Food, a Treasure, a tapped Fish, a Fish, an Octopus or an extra turn)",
+    )?;
+    cursor.advance_to(start + width)?;
+    Ok(payload)
 }
 
 fn read_dash(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
@@ -523,7 +702,7 @@ fn rendering_matches(printed: &[RecognizedEntity], rendering: &str) -> bool {
 fn read_reminder(
     cursor: &mut OracleTokenCursor<'_>,
     definition: &Definition,
-    node: &CastingKeywordNode,
+    node: &mut CastingKeywordNode,
 ) -> MachineResult<()> {
     cursor.enter("keyword.casting.reminder.open");
     cursor.consume("(")?;
@@ -534,6 +713,10 @@ fn read_reminder(
         .position(|token| token.raw == ")")
         .map(|offset| body_start + offset);
     let body_end = cursor.require_value(close, "a reminder closing the keyword ability")?;
+    if let Some(payload) = node.gift {
+        node.gift_timing = Some(read_gift_reminder(cursor, payload, body_start, body_end)?);
+        return Ok(());
+    }
     if definition.reminders.is_empty() {
         return read_restated_cost_reminder(cursor, node, body_end);
     }
@@ -560,6 +743,37 @@ fn read_reminder(
     cursor.advance_to(body_end)?;
     cursor.enter("keyword.casting.reminder.close");
     cursor.consume(")")
+}
+
+/// The gift reminder: the promise, then one of the payload row's renderings,
+/// which also states when the gift is given.
+fn read_gift_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    payload: &GiftPayload,
+    body_start: usize,
+    body_end: usize,
+) -> MachineResult<GiftTiming> {
+    cursor.enter("keyword.casting.reminder.gift");
+    let printed = cursor.token_slice(body_start, body_end);
+    let timing = [
+        (GiftTiming::BeforeSpellEffects, payload.spell_reminders),
+        (GiftTiming::AsPermanentEnters, payload.permanent_reminders),
+    ]
+    .into_iter()
+    .find_map(|(timing, renderings)| {
+        renderings
+            .iter()
+            .any(|rendering| rendering_matches(printed, &format!("{GIFT_PROMISE}{rendering}")))
+            .then_some(timing)
+    });
+    let timing = cursor.require_value(
+        timing,
+        "the gift reminder of the printed payload (the promise and the recipient's instruction)",
+    )?;
+    cursor.advance_to(body_end)?;
+    cursor.enter("keyword.casting.reminder.close");
+    cursor.consume(")")?;
+    Ok(timing)
 }
 
 /// `(You may COSTS in addition to any other costs as you cast this spell.)`:
@@ -616,6 +830,8 @@ pub(in crate::oracle::canonical) fn recognize_casting_keyword(
         cost: None,
         count: None,
         power_toughness: None,
+        gift: None,
+        gift_timing: None,
         reminder: false,
     };
     cursor.enter("keyword.casting.parameter");
@@ -641,13 +857,17 @@ pub(in crate::oracle::canonical) fn recognize_casting_keyword(
             read_dash(cursor)?;
             node.power_toughness = Some(read_power_toughness(cursor)?);
         }
+        Parameter::VariableMana => {
+            node.cost = Some(KeywordCostNode::Mana(read_variable_mana(cursor)?));
+        }
+        Parameter::GiftPayload => node.gift = Some(read_gift_payload(cursor)?),
     }
     cursor.enter("keyword.casting.reminder-or-complete");
     if cursor.peek() == Some(".") && cursor.peek_ahead(1).is_none_or(|raw| raw == "(") {
         cursor.consume(".")?;
     }
     if cursor.peek() == Some("(") {
-        read_reminder(cursor, definition, &node)?;
+        read_reminder(cursor, definition, &mut node)?;
         node.reminder = true;
     }
     cursor.enter("keyword.casting.complete");

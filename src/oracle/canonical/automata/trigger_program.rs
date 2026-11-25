@@ -727,6 +727,10 @@ pub(in crate::oracle::canonical) fn event_frame(
             event,
             GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
         ),
+        source_spell_cast: matches!(
+            event,
+            GenericTriggerEventNode::SpellCast(node) if node.source_spell
+        ),
     }
 }
 

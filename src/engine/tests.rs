@@ -456,6 +456,9 @@ mod disturb_runtime;
 #[path = "tests/casualty_runtime.rs"]
 mod casualty_runtime;
 
+#[path = "tests/stack_copy_casting_keywords_runtime.rs"]
+mod stack_copy_casting_keywords_runtime;
+
 #[path = "tests/reconfigure_runtime.rs"]
 mod reconfigure_runtime;
 

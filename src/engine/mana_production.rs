@@ -449,8 +449,17 @@ impl GameEngine {
                     }
                     if let Some(restriction) = &spend_restriction
                         && !allow_unassigned_restriction
+                        && !super::mana_retention::unit_attributes_only(restriction)
                     {
-                        if mana_spend_prohibition::is_cast_spell_prohibition(restriction) {
+                        if super::mana_spending_policy::is_use_union(restriction) {
+                            if !super::mana_spending_policy::use_union_permits(
+                                restriction,
+                                spending_card,
+                                None,
+                            ) {
+                                continue;
+                            }
+                        } else if mana_spend_prohibition::is_cast_spell_prohibition(restriction) {
                             if !mana_spend_prohibition::prohibition_permits(
                                 restriction,
                                 spending_card,

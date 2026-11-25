@@ -2030,23 +2030,23 @@ fn lower_local_effect_sequence_with_collections(
                     }
                 }
             }
-            LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
-                // The spell the triggering cast record binds (CR 707.10);
-                // `twice` is two ordinary copies of it.
+            LocalEffectNode::CopyStackObject(copy) if copy.event_spell || copy.resolving_spell => {
+                // The spell the triggering cast record binds, or the
+                // resolving spell itself (CR 707.10); `twice` is two ordinary
+                // copies of it, `for each ...` a count read at resolution.
                 let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
                     .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
-                for _ in 0..copy.count {
-                    let mut action = json!({
-                        "kind": "copyStackItem",
-                        "object": {"kind": "triggeringStackObject"},
-                        "controller": controller(),
-                        "mayChooseNewTargets": copy.may_choose_new_targets,
-                    });
-                    if let Some(except) = &except {
-                        action["except"] = except.clone();
-                    }
-                    effects.push(action);
-                }
+                cursor.enter("lower.copy-stack-object.actions");
+                let actions = lower_stack_copy_actions(
+                    copy,
+                    json!({"kind": "triggeringStackObject"}),
+                    controller(),
+                    except.as_ref(),
+                )
+                .map_err(|expected| {
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+                })?;
+                effects.extend(actions);
             }
             LocalEffectNode::CopyStackObject(copy) => {
                 cursor.enter("lower.copy-stack-object.target");
@@ -2077,18 +2077,17 @@ fn lower_local_effect_sequence_with_collections(
                 ));
                 let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
                     .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
-                for _ in 0..copy.count {
-                    let mut action = json!({
-                        "kind": "copyStackItem",
-                        "object": chosen_target(target_id),
-                        "controller": controller(),
-                        "mayChooseNewTargets": copy.may_choose_new_targets,
-                    });
-                    if let Some(except) = &except {
-                        action["except"] = except.clone();
-                    }
-                    effects.push(action);
-                }
+                cursor.enter("lower.copy-stack-object.actions");
+                let actions = lower_stack_copy_actions(
+                    copy,
+                    chosen_target(target_id),
+                    controller(),
+                    except.as_ref(),
+                )
+                .map_err(|expected| {
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+                })?;
+                effects.extend(actions);
                 // The singular copied stack object is the antecedent a later
                 // condition reads (`copy target spell. If it's ...`).
                 if slot.cardinality == TargetCardinality::EXACTLY_ONE {

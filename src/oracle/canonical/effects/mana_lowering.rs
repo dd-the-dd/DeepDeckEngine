@@ -7,23 +7,7 @@ pub(in crate::oracle::canonical) fn lower_add_mana_effect(effect: &AddManaEffect
     let mana = match effect {
         AddManaEffectNode::Qualified { production, policy } => {
             let mut lowered = lower_add_mana_effect(production);
-            // CR 106.6: a permitted use (`only to cast`) or a barred one
-            // (`can't be spent to cast`) over the same spell predicate.
-            let mut restriction = json!({
-                "kind": if policy.prohibited {
-                    "castSpellProhibited"
-                } else if policy.also_activates_abilities() {
-                    // `or activate abilities of` the same objects.
-                    "castSpellOrActivateAbility"
-                } else {
-                    "castSpell"
-                },
-                "where":lower_spell_object_predicate(&policy.spells).unwrap_or(Value::Null),
-            });
-            if policy.spell_cant_be_countered {
-                restriction["cantBeCountered"] = json!(true);
-            }
-            lowered["spendRestriction"] = restriction;
+            lowered["spendRestriction"] = lower_mana_result_riders(policy);
             return lowered;
         }
         AddManaEffectNode::Fixed(effect) => json!(effect.mana.as_oracle_cost()),

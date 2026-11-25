@@ -124,6 +124,18 @@ fn intrinsic_casting_keywords_lower_to_their_runtime_kinds() {
             json!({ "kind": "giftCard", "optional": true }),
         ),
         (
+            "Thunderous Wrath",
+            "Instant",
+            "Miracle {R} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+            json!({ "kind": "miracle", "cost": pay("{R}") }),
+        ),
+        (
+            "Entreat the Angels",
+            "Sorcery",
+            "Miracle {X}{W}{W} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+            json!({ "kind": "miracle", "cost": pay("{X}{W}{W}") }),
+        ),
+        (
             "Ultramarines Honour Guard",
             "Creature — Astartes Warrior",
             "Teamwork 2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)",
@@ -254,4 +266,80 @@ fn a_nonmana_escalate_payment_reads_through_the_shared_cost_sequence() {
     );
     assert_eq!(escalate["kind"], "escalate");
     assert_eq!(escalate["cost"]["kind"], "discardCard");
+}
+
+/// CR 702.174: a gift payload row is the recipient's instruction; a token
+/// payload is the CR token description read by the shared token grammar.
+#[test]
+fn gift_payloads_lower_to_the_recipients_instruction() {
+    let recipient = json!({ "kind": "boundValue", "id": "giftRecipient" });
+    let treasure = ability(
+        "Blooming Blast",
+        "Instant",
+        "Gift a Treasure (You may promise an opponent a gift as you cast this spell. If you do, they create a Treasure token before its other effects. It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+    );
+    assert_eq!(treasure["kind"], "gift");
+    assert_eq!(treasure["optional"], true);
+    assert_eq!(treasure["effects"][0]["kind"], "createTokens");
+    assert_eq!(treasure["effects"][0]["controller"], recipient);
+    assert_eq!(treasure["effects"][0]["token"]["name"], "Treasure");
+
+    let fish = ability(
+        "Parting Gust",
+        "Instant",
+        "Gift a tapped Fish (You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)",
+    );
+    assert_eq!(fish["effects"][0]["tapped"], true);
+    assert_eq!(fish["effects"][0]["token"]["subtypes"], json!(["Fish"]));
+    assert_eq!(fish["effects"][0]["controller"], recipient);
+
+    // Printed without its reminder, the payload still names its row.
+    let bare = ability("Pool Resources", "Instant", "Gift a tapped Fish");
+    assert_eq!(bare, fish);
+
+    let turn = ability(
+        "Perch Protection",
+        "Instant",
+        "Gift an extra turn (You may promise an opponent a gift as you cast this spell. If you do, they take an extra turn after this one.)",
+    );
+    assert_eq!(
+        turn["effects"],
+        json!([{ "kind": "grantExtraTurn", "player": recipient }])
+    );
+}
+
+/// Near-misses: an unregistered payload, a reminder of another payload, a
+/// permanent's entering gift (no runtime) and a costless miracle.
+#[test]
+fn gift_and_miracle_near_misses_fail_explicitly() {
+    assert_eq!(
+        parse("Archival Whorl", "Sorcery", "Gift a Rhystic Study").unwrap_err(),
+        "keyword.casting.parameter.gift-payload"
+    );
+    assert_eq!(
+        parse(
+            "Mismatched Gift",
+            "Instant",
+            "Gift a Food (You may promise an opponent a gift as you cast this spell. If you do, they create a Treasure token before its other effects.)",
+        )
+        .unwrap_err(),
+        "keyword.casting.reminder.gift"
+    );
+    assert_eq!(
+        parse(
+            "Octomancer",
+            "Creature — Human Wizard",
+            "Gift an Octopus (You may promise an opponent a gift as you cast this spell. If you do, when it enters, they create an 8/8 blue Octopus creature token.)",
+        )
+        .unwrap_err(),
+        "keyword.casting.lowering"
+    );
+    assert!(
+        parse(
+            "Costless Wonder",
+            "Sorcery",
+            "Miracle (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+        )
+        .is_err()
+    );
 }
