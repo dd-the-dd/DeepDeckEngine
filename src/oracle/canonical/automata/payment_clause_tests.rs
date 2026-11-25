@@ -110,15 +110,26 @@ fn the_payer_agreement_comes_from_the_lexicon() {
             "{text}"
         );
     }
-    // `put` into a zone is the lemma's other frame: claimed, no cost reader.
-    assert_eq!(
+    // `put` into a zone is the lemma's other frame: a library end is a
+    // payment (`payment_action.rs`); any other destination stays refused.
+    assert!(matches!(
         payment_by(
             "Put a card from your hand on top of your library",
+            ActingSubject::CONTROLLER
+        ),
+        Ok(PaymentActionNode::PutInLibrary {
+            position: PaymentLibraryEnd::Top,
+            ..
+        })
+    ));
+    assert_eq!(
+        payment_by(
+            "Put a card from your hand into your graveyard",
             ActingSubject::CONTROLLER
         )
         .unwrap_err()
         .state,
-        "cost.payment.frame"
+        "cost.payment.put.destination"
     );
 }
 
