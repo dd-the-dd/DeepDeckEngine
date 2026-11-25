@@ -10253,7 +10253,8 @@ impl GameEngine {
         selector: &Value,
         permanent: &CardInstance,
     ) -> bool {
-        let selector = &*self.bind_static_source_selector(selector, source);
+        let bound = self.bind_static_source_selector(selector, source);
+        let selector = bound.as_ref();
         if value_kind(selector) != Some("permanents") {
             return Self::static_selector_matches(source, selector, permanent);
         }
