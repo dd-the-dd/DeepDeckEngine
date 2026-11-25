@@ -10761,6 +10761,11 @@ impl GameEngine {
 
     fn permanent_has_card_type(&self, permanent: &CardInstance, card_type: &str) -> bool {
         if card_type.eq_ignore_ascii_case("Creature")
+            && keyword_programs::reconfigured_while_attached(permanent)
+        {
+            return false;
+        }
+        if card_type.eq_ignore_ascii_case("Creature")
             && permanent
                 .flags
                 .get("impendingCostPaid")

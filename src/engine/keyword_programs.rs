@@ -1060,6 +1060,21 @@ impl GameEngine {
 }
 
 // ---------------------------------------------------------------------------
+// Reconfigure (CR 702.151b)
+
+/// CR 702.151b: an Equipment with reconfigure attached to a creature stops
+/// being a creature until it becomes unattached. The keyword's abilities
+/// carry their template provenance on the flattened rules.
+pub(super) fn reconfigured_while_attached(permanent: &CardInstance) -> bool {
+    permanent.attached_to.is_some()
+        && permanent
+            .definition
+            .printed_rules()
+            .iter()
+            .any(|rule| rule["keywordProvenance"]["keyword"].as_str() == Some("reconfigure"))
+}
+
+// ---------------------------------------------------------------------------
 // Madness (CR 702.35a)
 
 /// The decision detail a madness exile records on the replaced graveyard

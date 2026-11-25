@@ -425,6 +425,9 @@ mod disturb_runtime;
 #[path = "tests/casualty_runtime.rs"]
 mod casualty_runtime;
 
+#[path = "tests/reconfigure_runtime.rs"]
+mod reconfigure_runtime;
+
 #[path = "tests/graveyard_destination_replacement_runtime.rs"]
 mod graveyard_destination_replacement_runtime;
 
