@@ -135,10 +135,30 @@ impl GameEngine {
                 controller_id: stack.controller.clone(),
                 owner_id: card.owner.clone(),
                 is_creature: is_creature(&card.definition),
-                deathtouch: has_keyword(&card.definition, "deathtouch"),
-                lifelink: has_keyword(&card.definition, "lifelink"),
-                wither: has_keyword(&card.definition, "wither"),
-                infect: has_keyword(&card.definition, "infect"),
+                deathtouch: has_keyword(&card.definition, "deathtouch")
+                    || self.spell_has_granted_keyword(
+                        &card.definition,
+                        &stack.controller,
+                        "deathtouch",
+                    ),
+                lifelink: has_keyword(&card.definition, "lifelink")
+                    || self.spell_has_granted_keyword(
+                        &card.definition,
+                        &stack.controller,
+                        "lifelink",
+                    ),
+                wither: has_keyword(&card.definition, "wither")
+                    || self.spell_has_granted_keyword(
+                        &card.definition,
+                        &stack.controller,
+                        "wither",
+                    ),
+                infect: has_keyword(&card.definition, "infect")
+                    || self.spell_has_granted_keyword(
+                        &card.definition,
+                        &stack.controller,
+                        "infect",
+                    ),
                 colors: card_color_symbols(&card.definition),
             };
             return Ok(ResolvedDamageSource {

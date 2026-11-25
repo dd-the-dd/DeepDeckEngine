@@ -12856,6 +12856,11 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == Some("controllerOf")
                     && matches_stack_filter(card, &modifier["spells"]["where"])
+                    && self.spell_grant_ordinal_open(
+                        modifier,
+                        controller_id,
+                        &modifier["spells"]["where"],
+                    )
             })
     }
 
@@ -12874,6 +12879,11 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == Some("controllerOf")
                     && matches_stack_filter(card, &modifier["spells"]["where"])
+                    && self.spell_grant_ordinal_open(
+                        modifier,
+                        controller_id,
+                        &modifier["spells"]["where"],
+                    )
             })
     }
 
@@ -25966,6 +25976,11 @@ impl GameEngine {
                             && integer_value(&modifier["minimumManaValue"])
                                 .is_some_and(|minimum| spell_mana_value >= minimum)
                             && matches_stack_filter(&spell_definition, &modifier["where"])
+                            && self.spell_grant_ordinal_open(
+                                modifier,
+                                &action.player_id,
+                                &modifier["where"],
+                            )
                     })
                     .count();
                 let cascade_count = keyword_count(&spell_definition, "cascade")

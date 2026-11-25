@@ -867,3 +867,48 @@ impl GameEngine {
 ))]
 #[path = "keyword_modification_tests.rs"]
 mod tests;
+
+impl GameEngine {
+    /// `the first SPELL you cast each turn has KEYWORD`: a spell grant
+    /// marked `firstEachTurn` applies to a spell `player_id` casts only while
+    /// no spell matching `filter` was cast by that player earlier this turn
+    /// (the cast being evaluated is recorded after its keywords are read).
+    /// An unmarked grant always applies.
+    pub(in crate::engine) fn spell_grant_ordinal_open(
+        &self,
+        modifier: &Value,
+        player_id: &str,
+        filter: &Value,
+    ) -> bool {
+        !modifier["firstEachTurn"].as_bool().unwrap_or(false)
+            || !self.state.events.iter().any(|event| {
+                event.turn_number == self.state.turn_number
+                    && event.kind == "spellCast"
+                    && event.player_id.as_deref() == Some(player_id)
+                    && spell_cast_event_matches_filter(event, filter)
+            })
+    }
+
+    /// A keyword a static `grantKeywordToSpells` gives a spell controlled by
+    /// `controller_id` on the stack (CR 702.2b, 702.15b: lifelink and
+    /// deathtouch of a resolving spell's damage).
+    pub(in crate::engine) fn spell_has_granted_keyword(
+        &self,
+        spell: &CardDefinition,
+        controller_id: &str,
+        keyword: &str,
+    ) -> bool {
+        self.battlefield_static_modifiers()
+            .iter()
+            .any(|(source, modifier)| {
+                value_kind(modifier) == Some("grantKeywordToSpells")
+                    && modifier["keyword"].as_str() == Some(keyword)
+                    && self.event_player_reference_matches(
+                        &modifier["player"],
+                        source,
+                        controller_id,
+                    )
+                    && Self::static_card_filter_matches(source, spell, &modifier["where"])
+            })
+    }
+}
