@@ -266,7 +266,7 @@
       }
     },
     {
-      "id": "distinct-action-or-is-never-sequencing",
+      "id": "distinct-action-or-is-a-resolution-choice",
       "request": {
         "cardName": "Generic Program Source",
         "typeLine": "Instant",
@@ -276,20 +276,28 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOneEffect"
+              },
+              {
+                "pointer": "/effects/0/options/0/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/options/1/effects/0/kind",
+                "equals": "createTokens"
+              }
+            ]
           }
         ]
       }

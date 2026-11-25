@@ -523,56 +523,60 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
         Ok(sequence) => sequence,
         Err(failure) => return DamageFamilyParseAttempt::Failed(failure),
     };
-    if sequence.effects.iter().any(|effect| {
-        let subject = match effect {
-            LocalEffectNode::PutCounters(node) => Some(&node.permanent),
-            LocalEffectNode::MoveCounters(node) => Some(&node.destination),
-            LocalEffectNode::TemporaryKeywordGrant(node) => Some(&node.objects),
-            LocalEffectNode::ModifyStats(node) => Some(&node.targets),
-            LocalEffectNode::BecomeTypes(node) => Some(&node.objects),
-            _ => None,
-        };
-        if subject.is_some_and(|subject| {
-            matches!(
-                subject,
-                PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)
-            )
-        }) {
-            return true;
-        }
+    // `A or B` is one resolution choice (CR 608.2d): only the shared program
+    // lowering frames it; this family lowers a plain sequence.
+    if sequence.connectors.contains(&EffectConnector::Or)
+        || sequence.effects.iter().any(|effect| {
+            let subject = match effect {
+                LocalEffectNode::PutCounters(node) => Some(&node.permanent),
+                LocalEffectNode::MoveCounters(node) => Some(&node.destination),
+                LocalEffectNode::TemporaryKeywordGrant(node) => Some(&node.objects),
+                LocalEffectNode::ModifyStats(node) => Some(&node.targets),
+                LocalEffectNode::BecomeTypes(node) => Some(&node.objects),
+                _ => None,
+            };
+            if subject.is_some_and(|subject| {
+                matches!(
+                    subject,
+                    PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)
+                )
+            }) {
+                return true;
+            }
 
-        if matches!(effect, LocalEffectNode::DealDamage(damage)
+            if matches!(effect, LocalEffectNode::DealDamage(damage)
             if damage.fixed_source().is_none() || damage.recipient.is_bound())
-        {
-            return true;
-        }
-        matches!(
-            effect,
-            LocalEffectNode::DealDamage(DamageEffectNode {
-                recipient: DamageRecipientNode::PlayerSet(_),
-                ..
-            }) | LocalEffectNode::PlayerAction(_)
-                | LocalEffectNode::Fight(_)
-                | LocalEffectNode::SelectedPermanents(_)
-                | LocalEffectNode::TapPermanents(_)
-                | LocalEffectNode::UntapRestriction(_)
-                | LocalEffectNode::Performed(_)
-                | LocalEffectNode::PermanentKeywordAction(_)
-                | LocalEffectNode::ControlChange(_)
-                | LocalEffectNode::CopyStackObject(_)
-                | LocalEffectNode::PreventDamage(_)
-                | LocalEffectNode::Attach(_)
-                | LocalEffectNode::Choose(_)
-                | LocalEffectNode::DiscardCards(_)
-                | LocalEffectNode::Scry(_)
-                | LocalEffectNode::Retarget(_)
-                | LocalEffectNode::CreateExplicitTokens(_)
-        ) || matches!(
-            effect,
-            LocalEffectNode::Sacrifice(SacrificeEffectNode::Selected { .. })
-        ) || matches!(effect, LocalEffectNode::CreateNamedTokens(creation)
+            {
+                return true;
+            }
+            matches!(
+                effect,
+                LocalEffectNode::DealDamage(DamageEffectNode {
+                    recipient: DamageRecipientNode::PlayerSet(_),
+                    ..
+                }) | LocalEffectNode::PlayerAction(_)
+                    | LocalEffectNode::Fight(_)
+                    | LocalEffectNode::SelectedPermanents(_)
+                    | LocalEffectNode::TapPermanents(_)
+                    | LocalEffectNode::UntapRestriction(_)
+                    | LocalEffectNode::Performed(_)
+                    | LocalEffectNode::PermanentKeywordAction(_)
+                    | LocalEffectNode::ControlChange(_)
+                    | LocalEffectNode::CopyStackObject(_)
+                    | LocalEffectNode::PreventDamage(_)
+                    | LocalEffectNode::Attach(_)
+                    | LocalEffectNode::Choose(_)
+                    | LocalEffectNode::DiscardCards(_)
+                    | LocalEffectNode::Scry(_)
+                    | LocalEffectNode::Retarget(_)
+                    | LocalEffectNode::CreateExplicitTokens(_)
+            ) || matches!(
+                effect,
+                LocalEffectNode::Sacrifice(SacrificeEffectNode::Selected { .. })
+            ) || matches!(effect, LocalEffectNode::CreateNamedTokens(creation)
             if matches!(creation.creation, NamedTokenCreationPattern::OneOf(_)))
-    }) {
+        })
+    {
         cursor.rollback(checkpoint);
         return DamageFamilyParseAttempt::DeferredToContextualProgram;
     }

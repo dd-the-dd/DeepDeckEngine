@@ -3914,6 +3914,23 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
         return node.object
             == PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens);
     }
+    // `Exile them at the beginning of the next end step`: a card action
+    // whose pronoun names the created tokens (CR 608.2c).
+    if let LocalEffectNode::CardAction(
+        CardActionNode::Move { cards, .. }
+        | CardActionNode::Reveal(cards)
+        | CardActionNode::Copy { cards, .. }
+        | CardActionNode::Permit(CardPermissionNode { cards, .. }),
+    ) = next
+    {
+        return matches!(
+            cards,
+            CardOperandNode::ObjectAntecedent {
+                object: PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
+                ..
+            }
+        );
+    }
     let operands: Vec<&PermanentOperandNode> = match next {
         LocalEffectNode::TemporaryKeywordGrant(node) => vec![&node.objects],
         LocalEffectNode::ModifyStats(node) => vec![&node.targets],

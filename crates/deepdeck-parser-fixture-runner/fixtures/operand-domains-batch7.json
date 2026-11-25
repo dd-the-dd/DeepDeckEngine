@@ -108,7 +108,7 @@
       }
     },
     {
-      "id": "muse-vessel-exact-linked-exile-choice",
+      "id": "known-gap-muse-vessel-exact-linked-exile-choice",
       "request": {
         "cardName": "Muse Vessel",
         "typeLine": "Artifact",
@@ -118,12 +118,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
       }
     },
     {
-      "id": "chaos-shrines-black-crystal-exact-linked-exile-put",
+      "id": "known-gap-chaos-shrines-black-crystal-exact-linked-exile-put",
       "request": {
         "cardName": "Chaos Shrine's Black Crystal",
         "typeLine": "Legendary Artifact",
@@ -133,12 +139,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
       }
     },
     {
-      "id": "nautiloid-ship-exact-linked-exile-put",
+      "id": "known-gap-nautiloid-ship-exact-linked-exile-put",
       "request": {
         "cardName": "Nautiloid Ship",
         "typeLine": "Artifact — Vehicle",
@@ -148,12 +160,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
       }
     },
     {
-      "id": "mission-briefing-exact-graveyard-card-choice",
+      "id": "known-gap-mission-briefing-exact-graveyard-card-choice",
       "request": {
         "cardName": "Mission Briefing",
         "typeLine": "Instant",
@@ -163,8 +181,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.permission-window"
+          }
+        ]
       }
     },
     {
@@ -305,7 +329,7 @@
       }
     },
     {
-      "id": "sibling-linked-exile-choice-cast",
+      "id": "known-gap-sibling-linked-exile-choice-cast",
       "request": {
         "cardName": "Vault Sibling",
         "typeLine": "Artifact",
@@ -315,8 +339,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
       }
     },
     {
@@ -412,7 +442,7 @@
       }
     },
     {
-      "id": "near-miss-trailing-controller-on-last-branch",
+      "id": "sibling-player-then-coordinated-heads-share-controller",
       "request": {
         "cardName": "Near Miss",
         "typeLine": "Instant",
@@ -422,11 +452,47 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/kind",
+                "equals": "union"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/sets/0/kind",
+                "equals": "players"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/sets/1/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-trailing-controller-on-last-branch",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Near Miss deals 2 damage to target creature, player, or planeswalker an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "target-list.selector-list.scope"
           }
         ]
       }
@@ -682,7 +748,7 @@
       }
     },
     {
-      "id": "victimize-exact-the-chosen-cards",
+      "id": "known-gap-victimize-exact-the-chosen-cards",
       "request": {
         "cardName": "Victimize",
         "typeLine": "Sorcery",
@@ -692,8 +758,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings"
+          }
+        ]
       }
     },
     {

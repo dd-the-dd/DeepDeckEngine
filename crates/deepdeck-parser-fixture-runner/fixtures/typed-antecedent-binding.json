@@ -289,7 +289,7 @@
       }
     },
     {
-      "id": "known-gap-moved-creature-as-damage-source",
+      "id": "moved-creature-as-damage-source",
       "request": {
         "cardName": "Generalized Grave Volley",
         "typeLine": "Sorcery",
@@ -299,14 +299,31 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "lower.damage.object-source",
-            "expectedContains": "a damage source declared as a target"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/source/kind",
+                "equals": "singleBoundObject"
+              },
+              {
+                "pointer": "/effects/1/source/binding",
+                "equals": "movedOntoBattlefield"
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "movedOntoBattlefield"
+              }
+            ]
           }
         ]
       }

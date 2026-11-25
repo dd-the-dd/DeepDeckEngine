@@ -448,7 +448,7 @@
       }
     },
     {
-      "id": "exact-fertile-thicket-gapped-library-ellipsis",
+      "id": "known-gap-exact-fertile-thicket-gapped-library-ellipsis",
       "request": {
         "cardName": "Fertile Thicket",
         "typeLine": "Land",
@@ -458,13 +458,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 1,
-            "status": "canonical",
-            "recognizer": "native"
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings"
           }
         ]
       }

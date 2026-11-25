@@ -437,7 +437,10 @@ fn split_domain_set_constraints(domain: &mut Value, lifts: &dyn Fn(&Value) -> bo
                 return Vec::new();
             };
             let lifted = split_filter_set_constraints(filter, lifts);
-            if domain["where"].is_null()
+            // Only a filter emptied by the lift is dropped: an unfiltered
+            // domain keeps its exact IR.
+            if !lifted.is_empty()
+                && domain["where"].is_null()
                 && let Some(map) = domain.as_object_mut()
             {
                 map.remove("where");

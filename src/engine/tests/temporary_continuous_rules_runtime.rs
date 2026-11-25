@@ -297,11 +297,21 @@ fn a_legend_rule_waiver_keeps_both_legendary_twins() {
     waived.state.players[0].battlefield =
         vec![permanent("gallery", "Artifact", "player-0", gallery)];
     twins(&mut waived);
-    waived.check_state_based_actions();
+    // Fixture permanents get their tracked zone identities, as a real entry
+    // gives them, so a legend-rule move is not refused for a missing one.
+    let check = |engine: &mut GameEngine| {
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        engine
+            .check_state_based_actions_with_provider(None)
+            .expect("state-based actions complete");
+    };
+    check(&mut waived);
     assert_eq!(waived.state.players[0].battlefield.len(), 3);
     let mut ruled = test_engine(2);
     twins(&mut ruled);
-    ruled.check_state_based_actions();
+    check(&mut ruled);
     assert_eq!(ruled.state.players[0].battlefield.len(), 1);
 }
 

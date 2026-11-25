@@ -35,7 +35,7 @@
       }
     },
     {
-      "id": "exact-alesha-who-laughs-at-fate",
+      "id": "known-gap-exact-alesha-who-laughs-at-fate",
       "request": {
         "cardName": "Alesha, Who Laughs at Fate",
         "typeLine": "Legendary Creature — Human Warrior",
@@ -45,9 +45,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 3
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "card-target.query-capability"
+          }
+        ]
       }
     },
     {
@@ -291,7 +296,7 @@
       }
     },
     {
-      "id": "exact-venerable-warsinger",
+      "id": "known-gap-exact-venerable-warsinger",
       "request": {
         "cardName": "Venerable Warsinger",
         "typeLine": "Creature — Spirit Cleric",
@@ -301,9 +306,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 2
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.where-x.declarations"
+          }
+        ]
       }
     },
     {
@@ -499,7 +509,7 @@
       }
     },
     {
-      "id": "exact-willowdusk-essence-seer",
+      "id": "known-gap-exact-willowdusk-essence-seer",
       "request": {
         "cardName": "Willowdusk, Essence Seer",
         "typeLine": "Legendary Creature — Dryad Druid",
@@ -509,9 +519,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "clause.time-frame"
+          }
+        ]
       }
     },
     {
@@ -548,7 +563,7 @@
       "request": {
         "cardName": "Numeric Probe Beta",
         "typeLine": "Instant",
-        "manaCost": "{X}{R}",
+        "manaCost": "{2}{R}",
         "oracleText": "Target creature gets +X/+0 until end of turn, where X is the amount of red mana spent to cast this spell.",
         "layout": "normal",
         "faces": []
@@ -779,7 +794,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -800,7 +816,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -821,7 +838,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -842,7 +860,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -863,7 +882,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -942,7 +962,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }

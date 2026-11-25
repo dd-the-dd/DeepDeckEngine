@@ -112,8 +112,9 @@ pub(in crate::oracle::canonical) fn recognize_untap_restriction(
     consume_lemma(cursor, VerbLemma::Untap, VerbAgreement::Base)?;
     cursor.enter("effect.untap-restriction.step");
     consume_word(cursor, "during")?;
-    let step_owner =
-        recognize_untap_step_owner(cursor, plural || number == SubjectNumber::Written)?;
+    // The negation agrees with the subject, so its number is the number the
+    // possessive pronoun of the step owner must agree with.
+    let step_owner = recognize_untap_step_owner(cursor, plural)?;
     if peek_is(cursor, "next") {
         consume_word(cursor, "next")?;
         consume_word(cursor, "untap")?;
@@ -159,8 +160,8 @@ fn consume_step_noun(
     consume_word(cursor, "step")
 }
 
-/// The owner of the untap step. The plural pronoun forms need a plural (or
-/// written-number) subject; `your` and `that player's` name one player.
+/// The owner of the untap step. `its` needs a singular subject and `their` a
+/// plural one; `your` and `that player's` name one player.
 fn recognize_untap_step_owner(
     cursor: &mut OracleTokenCursor<'_>,
     plural_subject: bool,
@@ -171,6 +172,7 @@ fn recognize_untap_step_owner(
         return Ok(UntapStepOwner::Player(LocalPlayerReference::Controller));
     }
     if peek_is(cursor, "its") {
+        cursor.require(!plural_subject, "a singular subject for `its`")?;
         consume_word(cursor, "its")?;
         consume_word(cursor, "controller's")?;
         return Ok(UntapStepOwner::ObjectController);

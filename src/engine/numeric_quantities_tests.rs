@@ -38,7 +38,7 @@ fn engine() -> GameEngine {
 }
 
 fn controller() -> Value {
-    json!({ "kind": "controller" })
+    json!({ "kind": "controllerOf", "object": { "kind": "self" } })
 }
 
 fn put_in_graveyard(engine: &mut GameEngine, player: usize, cards: &[(&str, &str, &str)]) {

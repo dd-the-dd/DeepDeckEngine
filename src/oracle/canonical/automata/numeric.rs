@@ -200,6 +200,11 @@ pub(in crate::oracle::canonical) fn recognize_numeric_primary_expression(
                     // same `equal to` amount every action consumer reads.
                     expression = Some(super::recognize_equal_to_amount_expression(cursor, None)?);
                     NumericExpressionState::Complete
+                } else if super::source_name_possessive_property_starts(cursor) {
+                    // `equal to Skanos's power`: the same source-name
+                    // property the bare primary reads.
+                    expression = Some(super::recognize_source_name_possessive_property(cursor)?);
+                    NumericExpressionState::Complete
                 } else {
                     NumericExpressionState::ObjectReference
                 }

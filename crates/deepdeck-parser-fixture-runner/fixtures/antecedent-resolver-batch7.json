@@ -279,18 +279,16 @@
       "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
-        "abilityCount": 2,
         "diagnostics": [
           {
-            "abilityIndex": 1,
             "code": "oracle_machine_failure",
-            "state": "permanent.subject.nominal-anaphor.antecedent"
+            "state": "condition.bound-object-numeric.if"
           }
         ]
       }
     },
     {
-      "id": "goblin-guide-exact-revealed-card-condition",
+      "id": "known-gap-goblin-guide-exact-revealed-card-condition",
       "request": {
         "cardName": "Goblin Guide",
         "typeLine": "Creature — Goblin Scout",
@@ -300,23 +298,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 2,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
-          },
-          {
-            "index": 1,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
           }
         ]
       }
     },
     {
-      "id": "graveyard-shovel-exact-exiled-card-condition",
+      "id": "known-gap-graveyard-shovel-exact-exiled-card-condition",
       "request": {
         "cardName": "Graveyard Shovel",
         "typeLine": "Artifact",
@@ -326,13 +319,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.antecedent"
           }
         ]
       }

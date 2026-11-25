@@ -1783,7 +1783,7 @@
       }
     },
     {
-      "id": "near-miss-opponents-cant-win-is-explicit",
+      "id": "opponents-cant-win-is-a-player-rule",
       "request": {
         "cardName": "Static frame near miss",
         "typeLine": "Artifact Creature — Angel",
@@ -1793,12 +1793,26 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "static.player.prohibition.action"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "cantLoseGame"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "cantWinGame"
+              },
+              {
+                "pointer": "/modifiers/1/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
           }
         ]
       }

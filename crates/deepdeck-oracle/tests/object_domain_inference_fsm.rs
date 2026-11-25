@@ -273,11 +273,11 @@ fn other_is_refused_by_parents_that_cannot_lower_a_source_exclusion() {
 
 #[test]
 fn coordinators_the_query_returns_are_refused_or_read_by_their_parent() {
-    // `or player` left by the permanent query: the target-list parent owns
+    // `and player` left by the permanent query: the target-list parent owns
     // the refusal.
     let parsed = parse(
         "Instant",
-        "Target creature or player gets +2/+2 until end of turn.",
+        "Target creature and player gets +2/+2 until end of turn.",
     );
     assert_ne!(parsed.status, "canonical");
     assert_eq!(
@@ -286,7 +286,21 @@ fn coordinators_the_query_returns_are_refused_or_read_by_their_parent() {
         "{:#?}",
         parsed.diagnostics
     );
-    assert_eq!(parsed.diagnostics[0].found.as_deref(), Some("or"));
+    assert_eq!(parsed.diagnostics[0].found.as_deref(), Some("and"));
+    // `or player` is a branch of the target list (CR 115.1): the list reads
+    // one creature-or-player target, and the verb a player cannot perform is
+    // refused for that subject.
+    let parsed = parse(
+        "Instant",
+        "Target creature or player gets +2/+2 until end of turn.",
+    );
+    assert_ne!(parsed.status, "canonical");
+    assert_eq!(
+        parsed.diagnostics[0].state.as_deref(),
+        Some("clause.verb.unsupported"),
+        "{:#?}",
+        parsed.diagnostics
+    );
     // A parent clause after the condition's query: the condition counts
     // artifacts only; `creatures or planeswalkers` is the effect's subject.
     let pump = rule(

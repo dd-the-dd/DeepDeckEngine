@@ -556,7 +556,7 @@
                 "equals": "attack"
               },
               {
-                "pointer": "/modifiers/0/maximum",
+                "pointer": "/modifiers/0/maximum/value",
                 "equals": 1
               }
             ]

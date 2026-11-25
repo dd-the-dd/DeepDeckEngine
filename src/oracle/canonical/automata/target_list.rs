@@ -610,11 +610,22 @@ fn recognize_heterogeneous_selector_list(
         if !comma && !last {
             break false;
         }
+        let branch_start = trial.position();
         match trial.attempt(recognize_target_slot_selector) {
             Ok(branch) => read.push(branch),
             Err(_) => break false,
         }
         if last {
+            break true;
+        }
+        // `target player, creature, or planeswalker`: the object query read
+        // its own head coordination through the final `or`, so the list
+        // ends with that branch.
+        if trial
+            .token_slice(branch_start, trial.position())
+            .iter()
+            .any(|token| token.raw.eq_ignore_ascii_case("or"))
+        {
             break true;
         }
         // A middle branch is followed by the next comma.

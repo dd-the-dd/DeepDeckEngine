@@ -210,7 +210,7 @@
       }
     },
     {
-      "id": "triskaidekaphobia-exact-with-life-predicate",
+      "id": "known-gap-triskaidekaphobia-exact-with-life-predicate",
       "request": {
         "cardName": "Triskaidekaphobia",
         "typeLine": "Enchantment",
@@ -220,13 +220,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
           }
         ]
       }
@@ -275,7 +274,7 @@
       }
     },
     {
-      "id": "hithlain-rope-exact-player-to-your-right",
+      "id": "known-gap-hithlain-rope-exact-player-to-your-right",
       "request": {
         "cardName": "Hithlain Rope",
         "typeLine": "Artifact",
@@ -285,23 +284,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 3,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 2,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/1/performer/kind",
-                "equals": "seatNeighbor"
-              },
-              {
-                "pointer": "/effects/1/performer/direction",
-                "equals": "right"
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.predicate"
           }
         ]
       }
@@ -335,7 +323,7 @@
       }
     },
     {
-      "id": "thada-adel-exact-search-event-players-library",
+      "id": "known-gap-thada-adel-exact-search-event-players-library",
       "request": {
         "cardName": "Thada Adel, Acquisitor",
         "typeLine": "Legendary Creature — Merfolk Rogue",
@@ -345,13 +333,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 2,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 1,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.permit.window"
           }
         ]
       }

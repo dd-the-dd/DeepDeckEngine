@@ -603,7 +603,7 @@
       }
     },
     {
-      "id": "near-miss-medial-instead-in-own-paragraph",
+      "id": "labeled-medial-instead-replaces-the-previous-paragraph",
       "request": {
         "cardName": "Synthetic Threshold",
         "typeLine": "Sorcery",
@@ -613,13 +613,27 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 2,
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/count/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/0/else/0/count/value",
+                "equals": 1
+              }
+            ]
           }
         ]
       }

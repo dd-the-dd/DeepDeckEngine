@@ -170,12 +170,20 @@ fn mana_context_does_not_approximate_hand_or_variable_payment_support() {
 
 #[test]
 fn distinct_action_or_is_not_silently_lowered_as_a_sequence() {
-    let EffectProgramParseAttempt::Unpromoted(failure) =
-        parse("Instant", "Draw a card or create a Treasure token.")
-    else {
-        panic!("alternative actions need a typed choice, not two sequential effects");
-    };
-    assert!(failure.expected.contains("`and`"));
+    // CR 608.2d: `or` between actions is one choice the controller makes on
+    // resolution, never two sequential effects.
+    let rule = parsed_rule("Instant", "Draw a card or create a Treasure token.");
+    let effects = rule["effects"].as_array().expect("effects");
+    assert_eq!(effects.len(), 1, "{rule:#}");
+    assert_eq!(effects[0]["kind"], "chooseOneEffect", "{rule:#}");
+    let options = effects[0]["options"].as_array().expect("options");
+    assert_eq!(options.len(), 2, "{rule:#}");
+    assert_eq!(options[0]["effects"][0]["kind"], "drawCards", "{rule:#}");
+    assert!(
+        contains_rule_kind(&options[1]["effects"], "createToken")
+            || contains_rule_kind(&options[1]["effects"], "createTokens"),
+        "{rule:#}"
+    );
 }
 
 #[test]

@@ -359,6 +359,12 @@ fn a_permanent_subject_does_not_untap() {
             "Target creature gets -2/-0 until end of turn. It doesn't untap during its controller's next untap step.",
             "nextUntapStep",
         ),
+        // `your`: one player's next untap step (CR 502.3).
+        (
+            "Instant",
+            "Tap target creature. It doesn't untap during your next untap step.",
+            "nextUntapStep",
+        ),
     ] {
         let restrictions = untap_restrictions(type_line, oracle);
         assert_eq!(restrictions.len(), 1, "{oracle}");
@@ -370,13 +376,13 @@ fn a_permanent_subject_does_not_untap() {
     }
 }
 
-/// Near misses: the negation agrees with a declared subject, and only the
-/// permanent's controller's untap step is a supported window.
+/// Near misses: the negation agrees with a declared subject, and the untap
+/// step names its owner (`its controller's`, `your`, `that player's`).
 #[test]
 fn a_permanent_subject_does_not_untap_near_misses() {
     for oracle in [
         "Tap target creature. That creature don't untap during its controller's next untap step.",
-        "Tap target creature. It doesn't untap during your next untap step.",
+        "Tap target creature. It doesn't untap during the next untap step.",
     ] {
         let (status, _, _) = parse("Instant", oracle);
         assert_ne!(status, "canonical", "{oracle}");

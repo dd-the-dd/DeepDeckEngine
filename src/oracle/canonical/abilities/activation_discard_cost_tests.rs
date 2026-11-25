@@ -154,9 +154,11 @@ fn unsupported_discard_shapes_fail_explicitly_at_their_own_state() {
             "{1}, Discard X cards at random",
             "engine.gap.activation-cost-action",
         ),
+        // The shared name relation reads `with the same name as a
+        // permanent`; a comparative with no anchor in a cost is refused.
         (
-            "Discard a card with the same name as a permanent",
-            "selector.search-card.basic-land-type",
+            "Discard a card with greater mana value",
+            "selector.comparative.anchor",
         ),
     ] {
         let failure = parse_costs(text).expect_err(text);

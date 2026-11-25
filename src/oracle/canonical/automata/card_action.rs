@@ -369,16 +369,26 @@ fn card_pronoun_object_antecedent(
     }
     match reference {
         CardCollectionReferenceNode::Selected => {
-            resolve_pronoun_antecedent(environment).ok().or_else(|| {
-                environment
-                    .result_object
-                    .as_ref()
-                    .filter(|result| {
-                        result.number == GrammaticalNumber::Singular
-                            && result.verb == Some(ActionResultVerb::Sacrificed)
+            resolve_pronoun_antecedent(environment)
+                .ok()
+                // A declared target that need not be a permanent (`counter target
+                // spell`) is never a card operand: a spell that left the stack is
+                // a new object (CR 400.7).
+                .filter(|reference| {
+                    !environment.declared_target.as_ref().is_some_and(|target| {
+                        *reference == PermanentEffectReference::Target(target.binding)
                     })
-                    .map(ActionResultObject::permanent_reference)
-            })
+                })
+                .or_else(|| {
+                    environment
+                        .result_object
+                        .as_ref()
+                        .filter(|result| {
+                            result.number == GrammaticalNumber::Singular
+                                && result.verb == Some(ActionResultVerb::Sacrificed)
+                        })
+                        .map(ActionResultObject::permanent_reference)
+                })
         }
         CardCollectionReferenceNode::Antecedent => environment
             .objects
