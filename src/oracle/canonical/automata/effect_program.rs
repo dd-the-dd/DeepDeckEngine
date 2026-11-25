@@ -78,6 +78,14 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         replacement: Box<CreatedReplacementRuleNode>,
         sentence: EffectSequenceNode,
     },
+    /// `PROGRAM. Do this only once each turn.`: the one optional instruction
+    /// of `body` may be performed at most once each turn by this ability of
+    /// this object. The ability still triggers and resolves; a declined or
+    /// impossible instruction leaves the limit unspent (Ondu Spiritdancer,
+    /// Donal). The lowering proves `body` has exactly one such instruction.
+    OncePerTurn {
+        body: Box<EffectProgramNode>,
+    },
 }
 
 /// The part of an instruction producer an outcome connector observes.
@@ -131,6 +139,7 @@ impl EffectProgramNode {
                 ..
             } => declined.as_ref().or(performed.as_ref()).unwrap_or(producer),
             Self::CreatedReplacement { sentence, .. } => sentence,
+            Self::OncePerTurn { body } => body.inner_sequence(),
         }
     }
     /// Program steps in written order; a single program is its own one step.
@@ -178,6 +187,7 @@ impl EffectProgramNode {
             }
             // The one rule-creating instruction of the sentence.
             Self::CreatedReplacement { .. } => 1,
+            Self::OncePerTurn { body } => body.action_count(),
         }
     }
 }
@@ -203,6 +213,12 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     {
         cursor.enter("program.steps.leading-then");
         cursor.consume("then")?;
+    }
+    // `PROGRAM. Do this only once each turn.`: the rider limits the
+    // instruction of the sentences before it; later sentences are ordinary
+    // program steps. Read first, so no child reads the rider as an action.
+    if let Some(rider) = once_each_turn_rider_start(cursor) {
+        return recognize_once_each_turn_program(cursor, rider, name_links, name_failure, context);
     }
     // `If OBJECTS would die this turn, MOVE instead.` (CR 614.1a): a
     // sentence of this program that creates a replacement. It is its own
@@ -375,6 +391,27 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         return Ok(EffectProgramNode::Sequence(sequence));
     }
     recognize_permission_program(cursor, name_links, name_failure, context)
+}
+
+/// `PROGRAM. Do this only once each turn. [STEPS]`: the program before the
+/// rider (absolute start `rider`) is read on its own bounded range, the rider
+/// limits it as a whole, and any later sentence is an independent step.
+fn recognize_once_each_turn_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    rider: usize,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
+    cursor.enter("program.once-each-turn.body");
+    let body = cursor.bounded(rider, |cursor| {
+        recognize_effect_program_with_context(cursor, name_links, name_failure, context)
+    })?;
+    recognize_once_each_turn_rider(cursor)?;
+    let block = EffectProgramNode::OncePerTurn {
+        body: Box::new(body),
+    };
+    complete_outcome_block(cursor, block, name_links, name_failure, context)
 }
 
 /// The width of `any [other] player|opponent` before `may` at the cursor,
@@ -762,6 +799,7 @@ fn recognize_optional_cost_block(
     cursor.enter("cost.outcome.sentence-end");
     cursor.consume(".")?;
     let outcome = recognize_outcome_connector_after(cursor, permission_performer(player))?;
+    let body_start = cursor.position();
     let body = recognize_outcome_body(
         cursor,
         "program.optional-cost.body",
@@ -775,6 +813,7 @@ fn recognize_optional_cost_block(
         permission_performer(player),
         outcome,
         None,
+        (body_start, &body),
         name_links,
         name_failure,
         context,
@@ -798,6 +837,7 @@ fn recognize_complementary_outcome(
     slot: ActionResultSlot,
     outcome: PerformanceOutcome,
     producer: Option<(usize, usize)>,
+    written: (usize, &EffectProgramNode),
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
@@ -807,6 +847,11 @@ fn recognize_complementary_outcome(
         PerformanceOutcome::Declined => PerformanceOutcome::Performed,
         PerformanceOutcome::Reflexive => return Ok(None),
     };
+    if let Some(otherwise) =
+        recognize_otherwise_complement(cursor, outcome, written, name_links, name_failure, context)?
+    {
+        return Ok(Some(otherwise));
+    }
     if !producer_connector_at(cursor, 0, producer).is_some_and(|(next, _)| next == complement) {
         return Ok(None);
     }
@@ -825,6 +870,68 @@ fn recognize_complementary_outcome(
         context,
     )?;
     Ok(Some(Box::new(body)))
+}
+
+/// `If you do, BODY. Otherwise, BODY.` (CR 608.2c): `Otherwise` writes the
+/// declined complement of a performed outcome. It complements only an
+/// outcome whose written body is one sentence without its own conditional:
+/// after `If you do, X if C.` or `If you do, reveal it. If it's a land,
+/// ...`, the `Otherwise` sentence belongs to that inner conditional and is
+/// never claimed here. `None` when no such `Otherwise` sentence follows.
+fn recognize_otherwise_complement(
+    cursor: &mut OracleTokenCursor<'_>,
+    outcome: PerformanceOutcome,
+    (body_start, body): (usize, &EffectProgramNode),
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<Box<EffectProgramNode>>> {
+    if outcome != PerformanceOutcome::Performed
+        || !otherwise_sentence_starts(cursor)
+        || !matches!(body, EffectProgramNode::Sequence(sequence) if sequence.conditionals.is_empty())
+        || top_level_periods(cursor, body_start, cursor.position()) != 1
+    {
+        return Ok(None);
+    }
+    cursor.enter("program.outcome.otherwise");
+    cursor.consume_phrase(&["otherwise", ","])?;
+    let body = recognize_outcome_body(
+        cursor,
+        "program.outcome.otherwise.body",
+        PerformanceOutcome::Declined,
+        name_links,
+        name_failure,
+        context,
+    )?;
+    Ok(Some(Box::new(body)))
+}
+
+/// Lexical: `Otherwise ,` at the cursor.
+fn otherwise_sentence_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("otherwise"))
+        && cursor.peek_ahead(1) == Some(",")
+}
+
+/// The number of top-level sentence periods between the absolute positions
+/// `start` and `end`; reminders and quoted abilities are other scopes.
+fn top_level_periods(cursor: &OracleTokenCursor<'_>, start: usize, end: usize) -> usize {
+    let mut depth = 0usize;
+    let mut quoted = false;
+    cursor
+        .token_slice(start, end)
+        .iter()
+        .filter(|token| {
+            match token.raw.as_str() {
+                "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+                "(" if !quoted => depth += 1,
+                ")" if !quoted => depth = depth.saturating_sub(1),
+                _ => {}
+            }
+            depth == 0 && !quoted && token.raw == "."
+        })
+        .count()
 }
 
 /// `ACTION. OUTCOME, BODY.` after `PLAYER may`. The action is the shared
@@ -847,6 +954,7 @@ fn recognize_optional_action_block(
     let producer = Some((action_start, action_end));
     let reading = read_outcome_connector(cursor, permission_performer(player), producer)?;
     let outcome = reading.outcome;
+    let body_start = cursor.position();
     let body = recognize_outcome_body(
         cursor,
         "program.optional-action.body",
@@ -866,6 +974,7 @@ fn recognize_optional_action_block(
         permission_performer(player),
         outcome,
         producer,
+        (body_start, &body),
         name_links,
         name_failure,
         context,
@@ -1057,6 +1166,7 @@ fn recognize_instruction_outcome_block(
         mandatory_outcome(outcome, permits || reading.restated),
         "an `If you do,` or reflexive `When you do,` outcome after a mandatory instruction, or `If you don't,` after the sentence's own permission",
     )?;
+    let body_start = cursor.position();
     let body = recognize_outcome_body(
         cursor,
         "program.reflexive-action.body",
@@ -1071,19 +1181,30 @@ fn recognize_instruction_outcome_block(
             inherit_sequence_antecedents(context, &action)
         },
     )?;
-    // Only a permission has a declined branch to complement.
+    // Only a permission has a declined branch written `If you don't`; the
+    // measured performance of a mandatory instruction has one written
+    // `Otherwise` (`Exile a creature card from your graveyard. If you do,
+    // ... Otherwise, sacrifice it.`, CR 608.2c).
     let otherwise = if permits {
         recognize_complementary_outcome(
             cursor,
             slot,
             outcome,
             producer,
+            (body_start, &body),
             name_links,
             name_failure,
             context,
         )?
     } else {
-        None
+        recognize_otherwise_complement(
+            cursor,
+            outcome,
+            (body_start, &body),
+            name_links,
+            name_failure,
+            context,
+        )?
     };
     Ok(EffectProgramNode::Outcome {
         permission: None,

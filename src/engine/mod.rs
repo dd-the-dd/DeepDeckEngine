@@ -204,6 +204,7 @@ mod object_predicate_eval;
 mod object_relation_eval;
 mod object_snapshot;
 mod offered_action;
+mod once_per_turn;
 mod one_shot_modifier;
 mod opponent_extremum;
 mod optional_action;
@@ -33335,7 +33336,10 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         // CR 608.2d: an impossible option can't be chosen, so the instruction
         // is not performed and only an `If you don't` outcome follows.
-        if !self.optional_action_is_available(&effect["action"], stack_object, bindings) {
+        // A once-each-turn instruction already performed this turn is spent.
+        if !self.optional_action_is_available(&effect["action"], stack_object, bindings)
+            || self.once_per_turn_spent(effect, stack_object)
+        {
             self.record_event(
                 "optionalActionUnavailable",
                 Some(stack_object.controller.clone()),
@@ -33414,6 +33418,7 @@ impl GameEngine {
                 provider,
             )?;
         if performed {
+            self.record_once_per_turn(effect, stack_object);
             self.execute_effects(
                 &effect["onPerformed"],
                 stack_object,

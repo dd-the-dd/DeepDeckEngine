@@ -65,6 +65,80 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
     ) -> Result<LoweredEffectSequence, E>,
     program_failure: impl Fn(MachineFailure) -> E,
 ) -> Result<LoweredEffectSequence, E> {
+    // `PROGRAM. Do this only once each turn.`: the program's own steps are
+    // lowered as usual, then its one optional instruction is limited.
+    if let EffectProgramNode::OncePerTurn { body } = step {
+        let mut steps = Vec::new();
+        for inner in body.steps() {
+            steps.push(lower_unlimited_program_step(
+                cursor,
+                inner,
+                &mut *lower_with,
+                &program_failure,
+            )?);
+        }
+        let lowered = concatenate_program_steps(cursor, steps).map_err(&program_failure)?;
+        return limit_once_each_turn(cursor, lowered).map_err(program_failure);
+    }
+    lower_unlimited_program_step(cursor, step, lower_with, program_failure)
+}
+
+/// The id a once-each-turn rider records its performed instruction under;
+/// the runtime keys it by the ability's source object and rule.
+const ONCE_EACH_TURN_ID: &str = "doThisOnlyOnceEachTurn";
+
+/// Marks the one optional instruction of a lowered program as performable
+/// once each turn (`oncePerTurn`). The instruction may sit inside the
+/// program's conditionals (`if this creature is tapped, you may untap it`);
+/// an optional instruction nested in another optional one is the outer
+/// one's part. No optional instruction, or more than one, is an explicit
+/// failure: the rider would limit nothing, or an ambiguous instruction.
+fn limit_once_each_turn(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut lowered: LoweredEffectSequence,
+) -> MachineResult<LoweredEffectSequence> {
+    fn mark(effect: &mut Value, limited: &mut usize) {
+        let kind = effect["kind"].as_str().map(str::to_owned);
+        match kind.as_deref() {
+            Some("optionalEffects" | "optionalAction" | "optionalPayCostPerformEffects") => {
+                effect["oncePerTurn"] = json!(ONCE_EACH_TURN_ID);
+                *limited += 1;
+            }
+            Some("conditional" | "conditionalEffect") => {
+                for key in ["then", "else"] {
+                    if let Some(branch) = effect.get_mut(key).and_then(Value::as_array_mut) {
+                        branch.iter_mut().for_each(|effect| mark(effect, limited));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    cursor.enter("lower.program.once-each-turn");
+    let mut limited = 0;
+    lowered
+        .effects
+        .iter_mut()
+        .for_each(|effect| mark(effect, &mut limited));
+    cursor.require(
+        limited == 1,
+        "exactly one optional instruction that `Do this only once each turn` limits",
+    )?;
+    Ok(lowered)
+}
+
+/// One program step other than a once-each-turn rider (whose body is never
+/// itself limited).
+fn lower_unlimited_program_step<E>(
+    cursor: &mut OracleTokenCursor<'_>,
+    step: &EffectProgramNode,
+    lower_with: &mut impl FnMut(
+        &mut OracleTokenCursor<'_>,
+        &EffectSequenceNode,
+        &mut CardCollectionMemory,
+    ) -> Result<LoweredEffectSequence, E>,
+    program_failure: impl Fn(MachineFailure) -> E,
+) -> Result<LoweredEffectSequence, E> {
     if let EffectProgramNode::Outcome {
         permission,
         producer: OutcomeProducer::Action(action),
@@ -391,6 +465,11 @@ fn lower_action_outcome(
     } = action;
     let prefix = match scope {
         ProducerScope::Sentence => Vec::new(),
+        // `EXILE. PERMIT. When you exile a nonland card this way, ...`: the
+        // reflexive event names its producing action by the restated verb
+        // (CR 603.12), so the whole instruction runs as written and the
+        // event reads the latest action of that verb, whichever sentence.
+        ProducerScope::FinalInstruction if result.is_some() => Vec::new(),
         ProducerScope::FinalInstruction => {
             cursor.enter("lower.program.outcome.final-instruction");
             // Only a node that wraps its whole sentence (a sentence condition
@@ -543,7 +622,9 @@ fn lower_reflexive_result(
             cursor.fail("an action of the instruction that the reflexive event restates")
         })?;
     cursor.require(
-        result.one_or_more || affects_one_object(&effects[position]),
+        result.one_or_more
+            || affects_one_object(&effects[position])
+            || moves_one_bound_library_top_card(&effects[..position], &effects[position]),
         "a single affected object for a singular reflexive event (`a`/`an`), or `one or more`",
     )?;
     let objects = action_result_objects(&mut effects[position], position)
@@ -616,6 +697,25 @@ fn affects_one_object(member: &Value) -> bool {
         }
         _ => false,
     }
+}
+
+/// True when `member` moves the cards an earlier `bind` of `before` fixed
+/// as the top card of one player's library (`exile the top card of your
+/// library`): a literal count of one from one library is at most one card.
+fn moves_one_bound_library_top_card(before: &[Value], member: &Value) -> bool {
+    if member["kind"] != "moveCards" || member["cards"]["kind"] != "boundObjects" {
+        return false;
+    }
+    let Some(binding) = member["cards"]["binding"].as_str() else {
+        return false;
+    };
+    before.iter().rev().any(|effect| {
+        effect["kind"] == "bind"
+            && effect["id"].as_str() == Some(binding)
+            && effect["value"]["kind"] == "libraryTopCards"
+            && effect["value"]["zone"]["player"].is_object()
+            && effect["value"]["count"] == json!({ "kind": "integer", "value": 1 })
+    })
 }
 
 /// The two complementary outcome programs in `onPerformed`/`onDeclined`
@@ -1005,6 +1105,10 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
         EffectProgramNode::CreatedReplacement { .. } => {
             cursor.enter("lower.program.created-replacement");
             Err(cursor.fail("a created replacement lowered as its own program step"))
+        }
+        EffectProgramNode::OncePerTurn { .. } => {
+            cursor.enter("lower.program.once-each-turn");
+            Err(cursor.fail("a once-each-turn rider lowered around its program's steps"))
         }
         EffectProgramNode::Outcome {
             producer: OutcomeProducer::Action(_),
