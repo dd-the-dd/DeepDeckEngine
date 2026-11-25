@@ -49,7 +49,7 @@ fn persistent_lifetime_remains_with_static_parent_and_rolls_back_temporary_child
     let tokens = recognize_entities("you may play an additional land on each of your turns.");
     let mut cursor = OracleTokenCursor::new("persistent-lifetime", &tokens);
     assert!(matches!(
-        try_recognize_temporary_player_permission(&mut cursor),
+        try_recognize_temporary_player_permission(&mut cursor, None),
         TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_)
     ));
     assert_eq!(cursor.position(), 0);
@@ -66,7 +66,7 @@ fn typed_temporary_lifetime_failure_is_committed_but_unrelated_play_is_not() {
     assert!(temporary_land_permission_owns_head(&mut cursor));
     assert_eq!(cursor.position(), 0);
     let TemporaryPlayerPermissionParseAttempt::FailedCommitted(failure) =
-        try_recognize_temporary_player_permission(&mut cursor)
+        try_recognize_temporary_player_permission(&mut cursor, None)
     else {
         panic!("typed lifetime owns its missing turn")
     };
@@ -74,7 +74,7 @@ fn typed_temporary_lifetime_failure_is_committed_but_unrelated_play_is_not() {
     let tokens = recognize_entities("you may play cards from your graveyard.");
     let mut cursor = OracleTokenCursor::new("different-permission", &tokens);
     assert!(matches!(
-        try_recognize_temporary_player_permission(&mut cursor),
+        try_recognize_temporary_player_permission(&mut cursor, None),
         TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_)
     ));
     assert_eq!(cursor.position(), 0);
@@ -83,7 +83,7 @@ fn typed_temporary_lifetime_failure_is_committed_but_unrelated_play_is_not() {
 fn temporary_rule(text: &str) -> TemporaryPlayerPermissionParseAttempt {
     let tokens = recognize_entities(text);
     let mut cursor = OracleTokenCursor::new("temporary-rule", &tokens);
-    try_recognize_temporary_player_permission(&mut cursor)
+    try_recognize_temporary_player_permission(&mut cursor, None)
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn a_static_clause_without_lifetime_is_left_to_the_static_frame() {
         let mut cursor = OracleTokenCursor::new("static-near-miss", &tokens);
         assert!(
             matches!(
-                try_recognize_temporary_player_permission(&mut cursor),
+                try_recognize_temporary_player_permission(&mut cursor, None),
                 TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_)
                     | TemporaryPlayerPermissionParseAttempt::NotClaimed
             ),

@@ -55,6 +55,10 @@ pub(in crate::oracle::canonical) fn lower_static_player_predicate(
         StaticPlayerPredicateNode::PlayWithHandsRevealed => {
             vec![json!({ "kind": "revealHands", "players": players.clone() })]
         }
+        // CR 401.2: each affected player's own top card is public.
+        StaticPlayerPredicateNode::PlayWithLibraryTopRevealed => {
+            vec![json!({ "kind": "revealLibraryTop", "player": players.clone() })]
+        }
         StaticPlayerPredicateNode::MaximumHandSize(HandSizeChangeNode::Set(amount)) => {
             vec![json!({
                 "kind": "maximumHandSize", "player": players.clone(), "amount": integer(*amount),
@@ -73,6 +77,10 @@ pub(in crate::oracle::canonical) fn lower_static_player_predicate(
         StaticPlayerPredicateNode::SkipDrawStep => {
             vec![json!({ "kind": "skipDrawStep", "player": players.clone() })]
         }
+        // CR 500.11: the affected players' untap steps don't happen.
+        StaticPlayerPredicateNode::SkipUntapStep => {
+            vec![json!({ "kind": "skipUntapStep", "player": players.clone() })]
+        }
     })
 }
 
@@ -90,6 +98,14 @@ fn lower_prohibited_player_action(
         }),
         ProhibitedPlayerActionNode::LoseGame => {
             json!({ "kind": "cantLoseGame", "player": players.clone() })
+        }
+        // CR 104.2a: a player who can't win doesn't win as the last player.
+        ProhibitedPlayerActionNode::WinGame => {
+            json!({ "kind": "cantWinGame", "player": players.clone() })
+        }
+        // CR 121.1: every draw of an affected player is prohibited.
+        ProhibitedPlayerActionNode::DrawCards => {
+            json!({ "kind": "prohibitDraw", "player": players.clone() })
         }
         ProhibitedPlayerActionNode::CastSpells { spells, window } => {
             let mut modifier = json!({ "kind": "prohibitCast", "players": players.clone() });

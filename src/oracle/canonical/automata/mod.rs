@@ -2580,8 +2580,8 @@ pub(in crate::oracle::canonical) use referenced_permanent_action::{
     recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
-    SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,
-    untap_restriction_starts,
+    SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, UntapStepOwner,
+    recognize_untap_restriction, untap_restriction_starts,
 };
 mod permanent_subject;
 mod token_window;

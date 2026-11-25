@@ -188,6 +188,68 @@ pub(in crate::oracle::canonical) fn recognize_source_control_duration(
     Ok(EffectDurationNode::WhileSourceControlled)
 }
 
+/// What a `for as long as` duration watches about the ability's own source
+/// (CR 611.2b). The effect ends the first time the state stops holding and
+/// never starts if it does not hold when the effect would begin.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SourceStateDuration {
+    /// `for as long as you control SOURCE`.
+    Controlled,
+    /// `for as long as SOURCE remains tapped`.
+    RemainsTapped,
+    /// `for as long as SOURCE remains on the battlefield`.
+    RemainsOnBattlefield,
+}
+
+/// `for as long as (you control SOURCE | SOURCE remains (tapped | on the
+/// battlefield))`. The source is the shared current-object reference; the
+/// state is one of the source's own observable states. Any other condition
+/// (`that creature has a counter on it`, `it remains exiled`) fails here with
+/// a structured state instead of being read as a different duration.
+pub(in crate::oracle::canonical) fn recognize_source_state_duration(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+) -> MachineResult<SourceStateDuration> {
+    cursor.enter("duration.while-source.introducer");
+    cursor.consume_phrase(&["for", "as", "long", "as"])?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+    {
+        cursor.enter("duration.while-source-controlled.condition");
+        cursor.consume_phrase(&["you", "control"])?;
+        read_duration_source(cursor, name_links, name_failure)?;
+        return Ok(SourceStateDuration::Controlled);
+    }
+    cursor.enter("duration.while-source.source");
+    read_duration_source(cursor, name_links, name_failure)?;
+    cursor.enter("duration.while-source.state");
+    cursor.consume("remains")?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("tapped"))
+    {
+        cursor.consume("tapped")?;
+        return Ok(SourceStateDuration::RemainsTapped);
+    }
+    cursor.consume_phrase(&["on", "the", "battlefield"])?;
+    Ok(SourceStateDuration::RemainsOnBattlefield)
+}
+
+fn read_duration_source(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+) -> MachineResult<()> {
+    cursor.enter("duration.while-source.source");
+    let source = super::recognize_source_reference(cursor, name_links, name_failure)?;
+    cursor.require(
+        source == super::LocalObjectReference::SourceSelf,
+        "the current source object",
+    )
+}
+
 #[cfg(test)]
 #[path = "duration_tests.rs"]
 mod tests;
