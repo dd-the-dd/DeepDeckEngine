@@ -1,0 +1,837 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch11/stack-copy-casting-keywords-mana-riders",
+  "cases": [
+    {
+      "id": "exact-thunderous-wrath-miracle",
+      "request": {
+        "cardName": "Thunderous Wrath",
+        "typeLine": "Instant",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Thunderous Wrath deals 5 damage to any target.\nMiracle {R} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "miracle"
+              },
+              {
+                "pointer": "/ability/cost/kind",
+                "equals": "payMana"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{R}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-terminus-miracle",
+      "request": {
+        "cardName": "Terminus",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Put all creatures on the bottom of their owners' libraries.\nMiracle {W} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "miracle"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{W}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-temporal-mastery-miracle",
+      "request": {
+        "cardName": "Temporal Mastery",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{U}{U}",
+        "oracleText": "Take an extra turn after this one. Exile Temporal Mastery.\nMiracle {1}{U} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "miracle"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{1}{U}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-entreat-the-angels-miracle-own-x",
+      "request": {
+        "cardName": "Entreat the Angels",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{X}{W}{W}{W}",
+        "oracleText": "Create X 4/4 white Angel creature tokens with flying.\nMiracle {X}{W}{W} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "miracle"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{X}{W}{W}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-miracle-without-cost",
+      "request": {
+        "cardName": "Costless Wonder",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}",
+        "oracleText": "Draw two cards.\nMiracle (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-blooming-blast-gift-treasure",
+      "request": {
+        "cardName": "Blooming Blast",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Gift a Treasure (You may promise an opponent a gift as you cast this spell. If you do, they create a Treasure token before its other effects. It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nBlooming Blast deals 2 damage to target creature. If the gift was promised, Blooming Blast also deals 3 damage to that creature's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "gift"
+              },
+              {
+                "pointer": "/ability/optional",
+                "equals": true
+              },
+              {
+                "pointer": "/ability/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/ability/effects/0/controller",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "giftRecipient"
+                }
+              },
+              {
+                "pointer": "/ability/effects/0/token/kind",
+                "equals": "namedToken"
+              },
+              {
+                "pointer": "/ability/effects/0/token/name",
+                "equals": "Treasure"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-parting-gust-gift-tapped-fish",
+      "request": {
+        "cardName": "Parting Gust",
+        "typeLine": "Instant",
+        "manaCost": "{W}{W}",
+        "oracleText": "Gift a tapped Fish (You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)\nExile target nontoken creature. If the gift wasn't promised, return that card to the battlefield under its owner's control with a +1/+1 counter on it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "gift"
+              },
+              {
+                "pointer": "/ability/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/ability/effects/0/controller",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "giftRecipient"
+                }
+              },
+              {
+                "pointer": "/ability/effects/0/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/ability/effects/0/token/subtypes/0",
+                "equals": "Fish"
+              },
+              {
+                "pointer": "/ability/effects/0/token/colors/0",
+                "equals": "blue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-perch-protection-gift-extra-turn",
+      "request": {
+        "cardName": "Perch Protection",
+        "typeLine": "Instant",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Gift an extra turn (You may promise an opponent a gift as you cast this spell. If you do, they take an extra turn after this one.)\nCreate four 2/2 blue Bird creature tokens with flying. If the gift was promised, all permanents you control phase out, and until your next turn, your life total can't change and you gain protection from everything.\nExile Perch Protection.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "gift"
+              },
+              {
+                "pointer": "/ability/effects/0/kind",
+                "equals": "grantExtraTurn"
+              },
+              {
+                "pointer": "/ability/effects/0/player",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "giftRecipient"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-crumb-and-get-it-gift-food",
+      "request": {
+        "cardName": "Crumb and Get It",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Gift a Food (You may promise an opponent a gift as you cast this spell. If you do, they create a Food token before its other effects. It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nTarget creature you control gets +2/+2 until end of turn. If the gift was promised, that creature also gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/effects/0/token/name",
+                "equals": "Food"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression-wear-down-gift-card",
+      "request": {
+        "cardName": "Wear Down",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Gift a card (You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)\nDestroy target artifact or enchantment. If the gift was promised, instead destroy two target artifacts and/or enchantments.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "giftCard"
+              },
+              {
+                "pointer": "/ability/optional",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "combination-gift-food-self-copying-sorcery",
+      "request": {
+        "cardName": "Feast of Echoes",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Gift a Food (You may promise an opponent a gift as you cast this spell. If you do, they create a Food token before its other effects. It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nWhen you cast this spell, copy it if the gift was promised.\nYou gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "gift"
+              },
+              {
+                "pointer": "/ability/effects/0/token/name",
+                "equals": "Food"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "triggeringStackObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-gift-unregistered-payload",
+      "request": {
+        "cardName": "Curious Present",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Gift a Rhystic Study\nDraw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.casting.parameter.gift-payload"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-gift-on-a-permanent-enters",
+      "request": {
+        "cardName": "Gifted Octopode",
+        "typeLine": "Creature — Octopus",
+        "manaCost": "{3}{U}",
+        "oracleText": "Gift an Octopus (You may promise an opponent a gift as you cast this spell. If you do, when it enters, they create an 8/8 blue Octopus creature token.)\nFlying",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.casting.lowering"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fury-storm-commander-cast-count",
+      "request": {
+        "cardName": "Fury Storm",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "When you cast this spell, copy it for each time you've cast your commander from the command zone this game. You may choose new targets for the copies.\nCopy target instant or sorcery spell. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "triggeringStackObject"
+              },
+              {
+                "pointer": "/effects/0/mayChooseNewTargets",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skull-storm-commander-cast-count",
+      "request": {
+        "cardName": "Skull Storm",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}{B}{B}",
+        "oracleText": "When you cast this spell, copy it for each time you've cast your commander from the command zone this game.\nEach opponent sacrifices a creature of their choice. Each opponent who can't loses half their life, rounded up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1
+          }
+        ],
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "triggeringStackObject"
+              },
+              {
+                "pointer": "/effects/0/mayChooseNewTargets",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-show-of-confidence-history-count",
+      "request": {
+        "cardName": "Show of Confidence",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "When you cast this spell, copy it for each other instant and sorcery spell you've cast this turn. You may choose new targets for the copies.\nPut a +1/+1 counter on target creature. It gains vigilance until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/mayChooseNewTargets",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mentors-guidance-postposed-condition",
+      "request": {
+        "cardName": "Mentor's Guidance",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "When you cast this spell, copy it if you control a planeswalker, Cleric, Druid, Shaman, Warlock, or Wizard.\nScry 1, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-lumarets-favor-postposed-condition",
+      "request": {
+        "cardName": "Lumaret's Favor",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Infusion — When you cast this spell, copy it if you gained life this turn. You may choose new targets for the copy.\nTarget creature gets +2/+4 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sevinnes-reclamation-copy-this-spell",
+      "request": {
+        "cardName": "Sevinne's Reclamation",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Return target permanent card with mana value 3 or less from your graveyard to the battlefield. If this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy.\nFlashback {4}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sage-of-the-skies-copy-this-spell",
+      "request": {
+        "cardName": "Sage of the Skies",
+        "typeLine": "Creature — Human Monk",
+        "manaCost": "{2}{W}",
+        "oracleText": "When you cast this spell, if you've cast another spell this turn, copy this spell. (The copy becomes a token.)\nFlying, lifelink",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "triggeringStackObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-it-with-permanent-antecedent",
+      "request": {
+        "cardName": "Mirror Golem",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{4}",
+        "oracleText": "When this creature enters, copy it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ate-o-clock-singular-copy-reminder",
+      "request": {
+        "cardName": "Ate-o'-Clock",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Populate. Proliferate. Investigate.\nRegenerate target creature.\nReplicate {2}{G} (When you cast this spell, copy it for each time you paid its replicate cost. You may choose new targets for the copy.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "replicate"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{2}{G}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-karn-legacy-reforged-restriction-and-retention",
+      "request": {
+        "cardName": "Karn, Legacy Reforged",
+        "typeLine": "Legendary Artifact Creature — Golem",
+        "manaCost": "{5}",
+        "oracleText": "Karn's power and toughness are each equal to the greatest mana value among artifacts you control.\nAt the beginning of your upkeep, add {C} for each artifact you control. This mana can't be spent to cast nonartifact spells. Until end of turn, you don't lose this mana as steps and phases end.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpellProhibited"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction/retainedUntilEndOfTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sakura-tribe-springcaller-retention",
+      "request": {
+        "cardName": "Sakura-Tribe Springcaller",
+        "typeLine": "Creature — Snake Shaman",
+        "manaCost": "{3}{G}",
+        "oracleText": "At the beginning of your upkeep, add {G}. Until end of turn, you don't lose this mana as steps and phases end.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction",
+                "equals": {
+                  "retainedUntilEndOfTurn": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-brazen-collector-retention",
+      "request": {
+        "cardName": "Brazen Collector",
+        "typeLine": "Creature — Raccoon Rogue",
+        "manaCost": "{1}{R}",
+        "oracleText": "First strike\nWhenever this creature attacks, add {R}. Until end of turn, you don't lose this mana as steps and phases end.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction",
+                "equals": {
+                  "retainedUntilEndOfTurn": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-retention-of-other-mana",
+      "request": {
+        "cardName": "Lingering Spark",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Add {R}{R}. Until end of turn, you don't lose that mana as steps and phases end.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "mana.rider.retention.object"
+          }
+        ]
+      }
+    }
+  ]
+}
