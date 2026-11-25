@@ -808,6 +808,28 @@
       }
     },
     {
+      "id": "near-miss-candidate-possessive-player-relation-stays-unresolved",
+      "request": {
+        "cardName": "Candidate Possessive Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target creature with power greater than its controller's life total.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.candidate-possessive"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-static-consumer-keeps-literal-thresholds",
       "request": {
         "cardName": "Ensnaring Bridge",

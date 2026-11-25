@@ -121,6 +121,28 @@
       }
     },
     {
+      "id": "near-miss-attached-mana-trigger-for-the-owner-stays-an-engine-gap",
+      "request": {
+        "cardName": "Growth Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{G}",
+        "oracleText": "Enchant land\nWhenever enchanted land is tapped for mana, its owner adds an additional {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
       "id": "lavaleaper-sibling-basic-land-event-produced-type",
       "request": {
         "cardName": "Lavaleaper",

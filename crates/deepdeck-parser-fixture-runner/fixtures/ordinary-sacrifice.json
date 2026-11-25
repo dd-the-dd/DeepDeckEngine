@@ -857,6 +857,28 @@
       }
     },
     {
+      "id": "near-miss-up-to-range-of-another-controllers-permanents",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice up to two creatures an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.complete"
+          }
+        ]
+      }
+    },
+    {
       "id": "separate-quotas-and-or",
       "request": {
         "cardName": "Ordinary Resolution Witness",
