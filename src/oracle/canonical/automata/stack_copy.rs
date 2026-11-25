@@ -249,7 +249,8 @@ pub(in crate::oracle::canonical) fn last_program_copy_instruction_mut(
         super::EffectProgramNode::Outcome { .. }
         | super::EffectProgramNode::Alternatives { .. }
         | super::EffectProgramNode::Offer { .. }
-        | super::EffectProgramNode::CreatedReplacement { .. } => None,
+        | super::EffectProgramNode::CreatedReplacement { .. }
+        | super::EffectProgramNode::OncePerTurn { .. } => None,
     }
 }
 

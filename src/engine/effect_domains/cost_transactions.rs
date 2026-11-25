@@ -16,6 +16,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         }
         Some("optionalPayCostPerformEffects") => {
             player_reference_supported(&effect["player"])
+                && super::super::once_per_turn::once_per_turn_supported(effect)
                 && super::super::resolution_costs::cost_program_supported(&effect["cost"])
                 && effect["effects"]
                     .as_array()
@@ -100,6 +101,17 @@ impl GameEngine {
                 else {
                     return Ok(());
                 };
+                // A once-each-turn payment already made this turn is spent.
+                if self.once_per_turn_spent(effect, stack_object) {
+                    let declined = &effect["declineEffects"];
+                    return self.execute_effects(
+                        declined,
+                        stack_object,
+                        bindings,
+                        decisions,
+                        provider,
+                    );
+                }
                 let program = super::super::resolution_costs::CostProgram::decode(&effect["cost"])?;
                 let prepared = self.prepare_resolution_cost_payment(
                     &player_id,
@@ -115,6 +127,7 @@ impl GameEngine {
                     provider,
                 )?;
                 let branch = if outcome.paid() {
+                    self.record_once_per_turn(effect, stack_object);
                     &effect["effects"]
                 } else {
                     &effect["declineEffects"]

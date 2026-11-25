@@ -1,0 +1,669 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch10/program-control-outcomes",
+  "cases": [
+    {
+      "id": "exact-ondu-spiritdancer-once-each-turn-copy",
+      "request": {
+        "cardName": "Ondu Spiritdancer",
+        "typeLine": "Creature — Kor Cleric",
+        "manaCost": "{4}{W}",
+        "oracleText": "Whenever an enchantment you control enters, you may create a token that's a copy of it. Do this only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/oncePerTurn",
+                "equals": "doThisOnlyOnceEachTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-donal-once-each-turn-copy-exception",
+      "request": {
+        "cardName": "Donal, Herald of Wings",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Whenever you cast a nonlegendary creature spell with flying, you may copy it, except the copy is a 1/1 Spirit in addition to its other types. Do this only once each turn. (The copy becomes a token.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-irreverent-gremlin-once-each-turn-outcome",
+      "request": {
+        "cardName": "Irreverent Gremlin",
+        "typeLine": "Creature — Gremlin",
+        "manaCost": "{1}{R}",
+        "oracleText": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever another creature you control with power 2 or less enters, you may discard a card. If you do, draw a card. Do this only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/oncePerTurn",
+                "equals": "doThisOnlyOnceEachTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-nykthos-paragon-once-each-turn-counters",
+      "request": {
+        "cardName": "Nykthos Paragon",
+        "typeLine": "Enchantment Creature — Human Soldier",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Whenever you gain life, you may put that many +1/+1 counters on each creature you control. Do this only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-leonardo-once-each-turn-counters",
+      "request": {
+        "cardName": "Leonardo, the Balance",
+        "typeLine": "Legendary Creature — Mutant Ninja Turtle",
+        "manaCost": "{3}{W}",
+        "oracleText": "Whenever a token you control enters, you may put a +1/+1 counter on each creature you control. Do this only once each turn.\n{W}{U}{B}{R}{G}: Creatures you control gain menace, trample, and lifelink until end of turn.\nPartner—Character select (You can have two commanders if both have this ability.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-legolas-once-each-turn-inside-guard",
+      "request": {
+        "cardName": "Legolas, Counter of Kills",
+        "typeLine": "Legendary Creature — Elf Archer",
+        "manaCost": "{2}{G}{U}",
+        "oracleText": "Reach\nWhenever you scry, if Legolas is tapped, you may untap it. Do this only once each turn.\nWhenever a creature an opponent controls dies, put a +1/+1 counter on Legolas.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-optional-cost-otherwise-once-each-turn",
+      "request": {
+        "cardName": "Probe Toll Keeper",
+        "typeLine": "Creature — Human Advisor",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, you may pay {1}. If you do, draw a card. Otherwise, you lose 1 life. Do this only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/oncePerTurn",
+                "equals": "doThisOnlyOnceEachTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-once-each-turn-without-optional-instruction",
+      "request": {
+        "cardName": "Probe Rider",
+        "typeLine": "Creature — Human Advisor",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, draw a card. Do this only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.program.once-each-turn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-charnel-troll-mandatory-otherwise",
+      "request": {
+        "cardName": "Charnel Troll",
+        "typeLine": "Creature — Troll",
+        "manaCost": "{1}{B}{G}",
+        "oracleText": "Trample\nAt the beginning of your upkeep, exile a creature card from your graveyard. If you do, put a +1/+1 counter on this creature. Otherwise, sacrifice it.\n{B}{G}, Discard a creature card: Put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "performAction"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mistbreath-elder-mandatory-otherwise-permission",
+      "request": {
+        "cardName": "Mistbreath Elder",
+        "typeLine": "Creature — Frog Warrior",
+        "manaCost": "{G}",
+        "oracleText": "At the beginning of your upkeep, return another creature you control to its owner's hand. If you do, put a +1/+1 counter on this creature. Otherwise, you may return this creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-giant-opportunity-optional-otherwise",
+      "request": {
+        "cardName": "Giant Opportunity",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "You may sacrifice two Foods. If you do, create a 7/7 green Giant creature token. Otherwise, create three Food tokens. (They're artifacts with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-rent-is-due-optional-otherwise",
+      "request": {
+        "cardName": "Rent Is Due",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "At the beginning of your end step, you may tap two untapped creatures and/or Treasures you control. If you do, draw a card. Otherwise, sacrifice this enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-otherwise-after-conditional-outcome-body",
+      "request": {
+        "cardName": "Probe Pantry",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "You may sacrifice a Food. If you do, draw a card if you control an artifact. Otherwise, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.conditional.otherwise"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tribute-to-the-world-tree-postposed-otherwise",
+      "request": {
+        "cardName": "Tribute to the World Tree",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}{G}{G}",
+        "oracleText": "Whenever a creature you control enters, draw a card if its power is 3 or greater. Otherwise, put two +1/+1 counters on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-cosmos-elixir-postposed-otherwise",
+      "request": {
+        "cardName": "Cosmos Elixir",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "At the beginning of your end step, draw a card if your life total is greater than your starting life total. Otherwise, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/else/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gravelighter-postposed-otherwise",
+      "request": {
+        "cardName": "Gravelighter",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nWhen this creature enters, draw a card if a creature died this turn. Otherwise, each player sacrifices a creature of their choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-garna-postposed-otherwise",
+      "request": {
+        "cardName": "Garna, Bloodfist of Keld",
+        "typeLine": "Legendary Creature — Human Berserker",
+        "manaCost": "{1}{B}{R}{R}",
+        "oracleText": "Whenever another creature you control dies, draw a card if it was attacking. Otherwise, Garna deals 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sphinx-sovereign-postposed-otherwise",
+      "request": {
+        "cardName": "Sphinx Sovereign",
+        "typeLine": "Artifact Creature — Sphinx",
+        "manaCost": "{4}{W}{U}{U}{B}",
+        "oracleText": "Flying\nAt the beginning of your end step, you gain 3 life if this creature is untapped. Otherwise, each opponent loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-postposed-if-gates-only-the-last-coordinated-action",
+      "request": {
+        "cardName": "Probe Ration",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card, then you gain 3 life if you control an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/then/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-otherwise-after-coordinated-postposed-if",
+      "request": {
+        "cardName": "Probe Ration",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card, then you gain 3 life if you control an artifact. Otherwise, you lose 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.conditional.otherwise"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-concord-with-the-kami-mode-postposed-if",
+      "request": {
+        "cardName": "Concord with the Kami",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}",
+        "oracleText": "At the beginning of your end step, choose one or more —\n• Put a +1/+1 counter on target creature with a counter on it.\n• Draw a card if you control an enchanted creature.\n• Create a 1/1 colorless Spirit creature token if you control an equipped creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-glorious-sunrise-mode-postposed-if",
+      "request": {
+        "cardName": "Glorious Sunrise",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "At the beginning of combat on your turn, choose one —\n• Creatures you control get +1/+1 and gain trample until end of turn.\n• Target land gains \"{T}: Add {G}{G}{G}\" until end of turn.\n• Draw a card if you control a creature with power 3 or greater.\n• You gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sylvan-scavenging-mode-postposed-if",
+      "request": {
+        "cardName": "Sylvan Scavenging",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "At the beginning of your end step, choose one —\n• Put a +1/+1 counter on target creature you control.\n• Create a 3/3 green Raccoon creature token if you control a creature with power 4 or greater.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-federation-field-medic-mode-postposed-if",
+      "request": {
+        "cardName": "Federation Field Medic",
+        "typeLine": "Creature — Human Doctor",
+        "manaCost": "{3}{W}",
+        "oracleText": "Vigilance\nWhen this creature enters, choose one —\n• Put a +1/+1 counter on target creature. It gains vigilance until end of turn.\n• Draw a card if you control a permanent with a counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-mode-postposed-if-otherwise",
+      "request": {
+        "cardName": "Probe Charm",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Choose one —\n• Draw a card if you control an artifact. Otherwise, you gain 2 life.\n• Destroy target enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-reflexive-result-after-a-later-permission",
+      "request": {
+        "cardName": "Probe Ogre",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{2}",
+        "oracleText": "{2}{R}, {T}: Exile the top card of your library. You may play that card this turn. When you exile a nonland card this way, this creature deals 2 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-singular-reflexive-result-top-card",
+      "request": {
+        "cardName": "Probe Ogre",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{2}",
+        "oracleText": "{2}{R}, {T}: Exile the top card of your library. When you exile a nonland card this way, this creature deals 2 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-mandatory-sacrifice-when-you-do",
+      "request": {
+        "cardName": "Probe Offering",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Sacrifice a creature. When you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-linked-exile-until-source-leaves",
+      "request": {
+        "cardName": "Probe Prison",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "When this enchantment enters, exile target artifact an opponent controls until this enchantment leaves the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-when-you-do-without-producer",
+      "request": {
+        "cardName": "Probe Echo",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "When you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sigil-of-myrkul-reflexive-intervening-if",
+      "request": {
+        "cardName": "Sigil of Myrkul",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "At the beginning of combat on your turn, mill a card. When you do, if there are four or more creature cards in your graveyard, put a +1/+1 counter on target creature you control and it gains deathtouch until end of turn. (To mill a card, put the top card of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "performAction"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-optional-sacrifice-reflexive-intervening-if",
+      "request": {
+        "cardName": "Probe Altar",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may sacrifice a creature. When you do, if you control an artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "createReflexiveTrigger"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-if-you-do-has-no-intervening-if",
+      "request": {
+        "cardName": "Probe Altar",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may sacrifice a creature. If you do, if you control an artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ogre-chitterlord-then-if-after-quoted-ability",
+      "request": {
+        "cardName": "Ogre Chitterlord",
+        "typeLine": "Creature — Ogre Warrior",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Menace\nWhenever this creature enters or attacks, create two 1/1 black Rat creature tokens with \"This token can't block.\" Then if you control five or more Rats, each Rat you control gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    }
+  ]
+}

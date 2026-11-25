@@ -267,6 +267,10 @@ struct SequenceMemory {
     /// Anaphor state before each conditional's `If` sentence. Its `Otherwise`
     /// sentence reads the same antecedents, not the `If` branch's results.
     branch_snapshots: Vec<AnaphorSnapshot>,
+    /// Anaphor state where the sentence being read began: the antecedents an
+    /// `Otherwise` sentence reads after a postposed `if` gating that
+    /// sentence's one action (CR 608.2c).
+    sentence_anaphors: Option<AnaphorSnapshot>,
     unless: Vec<super::UnlessFrameNode>,
     /// Remaining per-player actions of one coordinated-subject sentence, in
     /// reverse order. Each is pushed as its own action joined by `and`.
@@ -684,6 +688,7 @@ fn recognize_effect_sequence_attempt_scoped(
         permanent_subject_scope: context.permanent_subject_scope,
         ..SequenceMemory::default()
     };
+    memory.sentence_anaphors = Some(memory.anaphor_snapshot());
     loop {
         state = match state {
             SequenceState::Effect => {
@@ -2472,11 +2477,15 @@ fn recognize_effect_sequence_attempt_scoped(
                 }
                 // A quoted ability that ends with its own period has already
                 // closed this sentence inside the quotation marks.
+                // A capitalized `Then` after a quoted ability's own period
+                // opens the next sentence (`... with "This token can't
+                // block." Then if ...`); a lowercase one continues it.
                 let sentence_closed_by_quote = super::quoted_sentence_just_closed(cursor)
                     && !matches!(
                         cursor.peek().map(str::to_ascii_lowercase).as_deref(),
-                        Some("and" | "then" | ",")
-                    );
+                        Some("and" | ",")
+                    )
+                    && cursor.peek() != Some("then");
                 let sentence_head = if sentence_closed_by_quote {
                     Some(".".to_string())
                 } else {
@@ -2558,20 +2567,24 @@ fn recognize_effect_sequence_attempt_scoped(
                             && memory.open_branch.is_none()
                             && memory.sentence_delay.is_none()
                             && memory.sentence_duration.is_none()
-                            && memory.effects.len() == memory.sentence_start + 1
+                            && memory.effects.len() > memory.sentence_start
                             && super::sentence_condition_starts(cursor) =>
                     {
-                        // #11 Branch: a postposed `if CONDITION` gates the one
-                        // action of its sentence (CR 608.2c), the same
-                        // conditional as the preposed form with no else branch.
+                        // #11 Branch: a postposed `if CONDITION` gates the
+                        // action it follows (CR 608.2c), the same conditional
+                        // as the preposed form. After coordinated actions
+                        // (`reveal a card, then put it onto the battlefield
+                        // if ...`) it gates only the last one: the earlier
+                        // actions of the sentence are performed either way.
                         attempt_frame.commit();
+                        let gated = memory.effects.len() - 1;
                         // The condition is checked before its action is
-                        // performed: only earlier sentences' departures and
+                        // performed: only earlier actions' departures and
                         // no card-collection result of this very action.
                         let departed = memory
                             .departed_permanent_targets()
                             .into_iter()
-                            .filter(|binding| binding.effect_index < memory.sentence_start)
+                            .filter(|binding| binding.effect_index < gated)
                             .collect::<Vec<_>>();
                         let mut condition_effects = context.clone();
                         condition_effects.permanent_subject_scope = memory.permanent_subject_scope;
@@ -2599,18 +2612,31 @@ fn recognize_effect_sequence_attempt_scoped(
                             matches!(cursor.peek(), None | Some(".")),
                             "a postposed condition ending its sentence",
                         )?;
-                        // The anaphors an `Otherwise` sentence would read are
-                        // those before this sentence, which are no longer
-                        // known here: no `Otherwise` may follow a postposed `if`.
-                        let snapshot = memory.anaphor_snapshot();
+                        // `ACTION if CONDITION. Otherwise, ACTION.`: the
+                        // `Otherwise` sentence reads the antecedents known
+                        // where the gated sentence began (`draw a card if its
+                        // power is 3 or greater. Otherwise, put two +1/+1
+                        // counters on it.`). After coordinated actions the
+                        // antecedents before the gated one are not recorded:
+                        // no `Otherwise` may follow, and one fails explicitly.
+                        let whole_sentence = gated == memory.sentence_start;
+                        let snapshot = if whole_sentence {
+                            memory
+                                .sentence_anaphors
+                                .clone()
+                                .unwrap_or_else(|| memory.anaphor_snapshot())
+                        } else {
+                            memory.anaphor_snapshot()
+                        };
                         memory.branch_snapshots.push(snapshot);
                         memory.conditionals.push(super::SentenceConditionalNode {
                             condition,
-                            then_first: memory.sentence_start,
+                            then_first: gated,
                             then_end: memory.effects.len(),
                             else_end: None,
                         });
-                        memory.else_candidate = None;
+                        memory.else_candidate =
+                            whole_sentence.then(|| memory.conditionals.len() - 1);
                         SequenceState::ConnectorOrEnd
                     }
                     // `ACTION instead.` closes a created replacement's
@@ -2815,6 +2841,7 @@ fn recognize_effect_sequence_attempt_scoped(
                             attempt_frame.clear();
                             memory.connectors.push(EffectConnector::Then);
                             memory.sentence_start = memory.effects.len();
+                            memory.sentence_anaphors = Some(memory.anaphor_snapshot());
                             SequenceState::Effect
                         } else {
                             SequenceState::Complete
