@@ -851,11 +851,13 @@ pub(in crate::oracle::canonical) fn action_result_object(
         // that creature`).
         LocalEffectNode::ControllerKeywordAction(node)
             if node.action == ControllerKeywordAction::ManifestDread
-                || (node.action == ControllerKeywordAction::Manifest
-                    && node
-                        .quantity
-                        .as_ref()
-                        .is_none_or(|quantity| *quantity == one)) =>
+                || (matches!(
+                    node.action,
+                    ControllerKeywordAction::Manifest | ControllerKeywordAction::Cloak
+                ) && node
+                    .quantity
+                    .as_ref()
+                    .is_none_or(|quantity| *quantity == one)) =>
         {
             Some(ActionResultObject {
                 reference: ActionResultReference {

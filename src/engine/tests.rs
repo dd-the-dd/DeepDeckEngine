@@ -33218,6 +33218,10 @@ mod extra_turn_runtime;
 mod player_designations_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/verb_lexicon_rows_runtime.rs"]
+mod verb_lexicon_rows_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/random_outcome_runtime.rs"]
 mod random_outcome_runtime;
 

@@ -19542,6 +19542,13 @@ impl GameEngine {
                     .printed_definition
                     .as_ref()
                     .is_some_and(is_creature)
+                // An instruction's face-down permanent turns up only by morph
+                // or disguise (CR 702.37e, 702.168d; `face_status.rs`).
+                && (permanent.flags.get(effect_domains::TURNED_FACE_DOWN_BY_EFFECT) != Some(&true)
+                    || permanent
+                        .printed_definition
+                        .as_ref()
+                        .is_some_and(|printed| morph_ability(printed).is_some()))
         }) {
             let printed = permanent
                 .printed_definition

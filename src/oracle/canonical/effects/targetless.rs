@@ -279,8 +279,14 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
             .as_ref()
             .map(|quantity| lower_targetless_numeric_expression(quantity, declarations))
             .transpose()?;
+        let times = keyword_action
+            .times
+            .as_ref()
+            .map(|times| lower_targetless_numeric_expression(times, declarations))
+            .transpose()?;
         let scope = scope.unwrap_or("controllerKeywordAction");
         return lower_controller_keyword_action(keyword_action.action, quantity, scope)
+            .map(|effects| repeat_keyword_action(effects, times))
             .map_err(|_| TargetlessLoweringError::UnsupportedEffect);
     }
     let partition = match effect {

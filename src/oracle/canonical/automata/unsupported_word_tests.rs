@@ -22,17 +22,18 @@ fn first_failure(parsed: &OracleCardParseResult) -> (Option<&str>, Option<&str>)
 
 #[test]
 fn an_unsupported_verb_is_not_reported_as_an_unresolved_name() {
-    // `switch` has no effect grammar yet (`remove` and `move`, the former
-    // examples, now have one: Dark Depths and Graft compile).
+    // `separate` has no effect grammar yet (`remove`, `move` and `switch`,
+    // the former examples, now have lexicon rows: Dark Depths and Graft
+    // compile).
     let parsed = parse(
-        "Stat Switcher",
+        "Pile Separator",
         "Artifact",
-        "{3}: Switch target creature's power and toughness until end of turn.",
+        "{3}: Separate all creatures into two piles.",
     );
     // The owner state names the verb itself (S0: one owner per capability).
     assert_eq!(
         first_failure(&parsed),
-        (Some("effect.unsupported-verb.switch"), Some("Switch"))
+        (Some("effect.unsupported-verb.separate"), Some("Separate"))
     );
 }
 

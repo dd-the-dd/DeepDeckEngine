@@ -26,6 +26,32 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
     Some(supports_known_effect(effect))
 }
 
+/// The face-down characteristics an entry gives a card (CR 708.2a): the
+/// 2/2 face-down creature, plus the abilities the putting effect lists for
+/// it while it is face down (cloak's ward {2}, CR 701.58a).
+fn face_down_entry_definition(definition: &CardDefinition, destination: &Value) -> CardDefinition {
+    let mut face_down = face_down_creature_definition(definition);
+    face_down.printed_rules_mut().extend(
+        destination["faceDownAbilities"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .cloned(),
+    );
+    face_down
+}
+
+/// `faceDownAbilities` only describes a face-down entry, and each listed
+/// rule is an ordinary keyword rule the face-down permanent has.
+fn face_down_abilities_supported(destination: &Value) -> bool {
+    destination.get("faceDownAbilities").is_none_or(|rules| {
+        destination["faceDown"].as_bool() == Some(true)
+            && rules
+                .as_array()
+                .is_some_and(|rules| !rules.is_empty() && rules.iter().all(keyword_rule_supported))
+    })
+}
+
 fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
         Some("moveCards") => {
@@ -61,6 +87,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                             && effect["to"].get("faceDown").is_none_or(Value::is_boolean)
                             && !(effect["to"]["faceDown"].as_bool() == Some(true)
                                 && effect["to"].get("faceChange").is_some())
+                            && face_down_abilities_supported(&effect["to"])
                             && effect["to"]
                                 .get("enterWithCounters")
                                 .is_none_or(|counters| {
@@ -402,8 +429,10 @@ impl GameEngine {
                                 // CR 701.40f: a prohibition applies to the
                                 // face-down object that would enter.
                                 if effect["to"]["faceDown"].as_bool() == Some(true) {
-                                    entering_card.definition =
-                                        face_down_creature_definition(&entering_card.definition);
+                                    entering_card.definition = face_down_entry_definition(
+                                        &entering_card.definition,
+                                        &effect["to"],
+                                    );
                                 }
                                 policy.destination_replacement(&entering_card.definition)
                             });
@@ -621,7 +650,8 @@ impl GameEngine {
                                 if card.printed_definition.is_none() {
                                     card.printed_definition = Some(card.definition.clone());
                                 }
-                                card.definition = face_down_creature_definition(&card.definition);
+                                card.definition =
+                                    face_down_entry_definition(&card.definition, &effect["to"]);
                                 card.flags.insert("faceDown".to_string(), true);
                             }
                             let added_types = effect["to"]["addTypes"]
