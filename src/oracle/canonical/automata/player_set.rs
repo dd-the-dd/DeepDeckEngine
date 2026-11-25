@@ -180,6 +180,12 @@ pub(in crate::oracle::canonical) struct PlayerPopulationQueryNode {
     /// `other than PLAYER`: one bound player removed from the population.
     pub except: Option<super::PlayerEffectSubject>,
     pub predicate: Option<PlayerRelativePredicate>,
+    /// `the player who controls the most creatures`, `the player with the
+    /// most life`: a definite description names one player. Only a sole
+    /// member holding the extremum is that player; on a tie no player is
+    /// (an `or tied` restatement would include the tied players and is not
+    /// this description).
+    pub unique: bool,
 }
 
 /// True when a relative restriction of a player population starts at the
@@ -267,7 +273,52 @@ pub(in crate::oracle::canonical) fn recognize_player_population_restriction_in_n
         excluding_controller,
         except,
         predicate,
+        unique: false,
     })
+}
+
+/// True when `the player who|with ...` starts at the cursor: a definite
+/// description of one player by a relative predicate. Lexical lookahead.
+pub(in crate::oracle::canonical) fn definite_player_description_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    word_at(cursor, 0, "the")
+        && word_at(cursor, 1, "player")
+        && (word_at(cursor, 2, "who") || word_at(cursor, 2, "with"))
+}
+
+/// `the player who controls the most QUERY`, `the player with the most
+/// life`, `the player who has the highest life total`: the shared
+/// superlative over every player (`recognize_player_population_restriction`)
+/// read as one player (`unique`). A description by any other predicate
+/// (`the player who lost life this turn`) does not single out one player
+/// and fails explicitly; so does `or tied`, which names several players.
+pub(in crate::oracle::canonical) fn recognize_definite_player_description(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &PlayerRelativeContext,
+) -> MachineResult<PlayerPopulationQueryNode> {
+    cursor.enter("player-set.definite-description");
+    cursor.consume_phrase(&["the", "player"])?;
+    let mut query = recognize_player_population_restriction(
+        cursor,
+        PlayerSetReferenceNode::EachPlayer,
+        false,
+        context,
+    )?;
+    cursor.enter("player-set.definite-description.superlative");
+    cursor.require(
+        matches!(
+            query.predicate,
+            Some(PlayerRelativePredicate::Superlative { .. })
+        ) && query.except.is_none(),
+        "a superlative that singles out one player (`the player with the most life`)",
+    )?;
+    cursor.require(
+        !(word_at(cursor, 0, "or") && word_at(cursor, 1, "tied")),
+        "one player; `or tied` names every tied player and is not a definite description",
+    )?;
+    query.unique = true;
+    Ok(query)
 }
 
 /// `other than its controller|owner`, `other than that player`: one player
@@ -500,6 +551,16 @@ fn recognize_superlative(
                 exclude_source: false,
             }
         }
+        // `the most cards in hand`: the comparative possession measure the
+        // `more cards in hand than each other player` condition reads.
+        SuperlativeFrame::Possession if word_at(cursor, 0, "cards") => {
+            cursor.enter("player-set.relative.superlative.cards");
+            cursor.require(
+                matches!(written.as_str(), "most" | "fewest"),
+                "`the most|fewest cards in ZONE`",
+            )?;
+            super::recognize_comparative_possession(cursor)?
+        }
         SuperlativeFrame::Possession => {
             cursor.enter("player-set.relative.superlative.life");
             cursor.consume("life")?;
@@ -518,4 +579,36 @@ fn recognize_superlative(
     // it is not read here and fails at the parent's verb.
     cursor.enter("player-set.relative.superlative.complete");
     Ok(PlayerRelativePredicate::Superlative { measure, extremum })
+}
+
+/// True when the action's player slot names a player other than the
+/// ability's controller, so a distributive `they` in its trailing operands
+/// (`... for each creature they control`) names that player: a performed
+/// action (its performer), each member of a player set, a declared or bound
+/// player, or another player reference.
+pub(in crate::oracle::canonical) fn names_acting_player(effect: &super::LocalEffectNode) -> bool {
+    match effect {
+        super::LocalEffectNode::Performed(_)
+        | super::LocalEffectNode::QuantifiedPlayerAction(_)
+        | super::LocalEffectNode::TargetPlayerLife(_) => true,
+        super::LocalEffectNode::PlayerAction(action) => {
+            action.player != super::PlayerEffectSubject::Controller
+        }
+        super::LocalEffectNode::GainLife(life) => {
+            life.player != super::LocalPlayerReference::Controller
+        }
+        super::LocalEffectNode::LoseLife(life) => {
+            life.player != super::LocalPlayerReference::Controller
+        }
+        _ => false,
+    }
+}
+
+/// Reads an action's operands with its acting player installed (the shared
+/// binding-environment slot, `player_subject::with_acting_player`).
+pub(in crate::oracle::canonical) fn read_with_acting_player<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    super::source_sacrifice::atomic_action::player_subject::with_acting_player(cursor, read)
 }

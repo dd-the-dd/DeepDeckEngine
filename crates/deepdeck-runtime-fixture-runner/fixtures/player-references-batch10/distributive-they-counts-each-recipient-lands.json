@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-references-batch10/distributive-they-counts-each-recipient-lands",
+  "seed": 19004,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "bind": "actingPlayer",
+        "effects": [
+          {
+            "kind": "dealDamage",
+            "source": {
+              "kind": "self"
+            },
+            "recipient": {
+              "kind": "boundValue",
+              "id": "actingPlayer"
+            },
+            "amount": {
+              "kind": "countPermanents",
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              },
+              "player": {
+                "kind": "boundValue",
+                "id": "actingPlayer"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "acidic-soil",
+            "name": "Acidic Soil",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{R}"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "mountain-a",
+            "name": "Mountain",
+            "typeLine": "Basic Land — Mountain"
+          },
+          {
+            "id": "mountain-b",
+            "name": "Mountain",
+            "typeLine": "Basic Land — Mountain"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "forest-0",
+            "name": "Forest",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "forest-1",
+            "name": "Forest",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "forest-2",
+            "name": "Forest",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "forest-3",
+            "name": "Forest",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "forest-4",
+            "name": "Forest",
+            "typeLine": "Basic Land — Forest"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "acidic-soil"
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 18
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 15
+    }
+  ]
+}

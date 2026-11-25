@@ -140,6 +140,9 @@ pub(in crate::oracle::canonical) fn bound_player_reference_value(
         // The defending player of a combat check is bound only while a
         // static combat restriction is checked, never in an effect program.
         BoundPlayerReference::DefendingPlayer => None,
+        // The player slot of the action the operand belongs to, substituted
+        // when the rule is drafted (`bind_pending_acting_players`).
+        BoundPlayerReference::ActingPlayer => Some(json!({"kind": ACTING_PLAYER})),
     }
 }
 

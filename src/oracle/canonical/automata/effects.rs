@@ -404,7 +404,17 @@ fn recognize_damage_frame(
                             .is_some_and(|raw| raw.eq_ignore_ascii_case("equal")),
                         "`equal to` and the amount of damage",
                     )?;
-                    memory.amount = Some(recognize_damage_equal_amount(cursor)?);
+                    // The player dealt the damage is the acting player of a
+                    // distributive `they` in the amount (CR 608.2c).
+                    let acting = matches!(
+                        memory.recipients.as_slice(),
+                        [group] if super::damage_recipient_names_player(group)
+                    );
+                    memory.amount = Some(if acting {
+                        super::read_with_acting_player(cursor, recognize_damage_equal_amount)?
+                    } else {
+                        recognize_damage_equal_amount(cursor)?
+                    });
                 }
                 cursor.enter("effect.damage.complete");
                 let recipient = match memory.recipients.len() {

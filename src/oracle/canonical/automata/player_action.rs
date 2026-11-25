@@ -88,6 +88,9 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// (CR 104.3a) or `gains hexproof|shroud|protection from everything
     /// DURATION` (CR 702.11d, 702.18d, 702.16k).
     Status(PlayerStatusAction),
+    /// `PLAYER's life total becomes N` (CR 119.5): the player gains or loses
+    /// the difference between N and their life total.
+    SetLifeTotal(NumericExpression),
 }
 
 /// A player's own game-status change (`player_action.rs` cell of the

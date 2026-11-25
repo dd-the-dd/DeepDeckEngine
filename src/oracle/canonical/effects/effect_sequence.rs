@@ -629,6 +629,8 @@ fn lower_local_effect_sequence_with_collections(
                     SingularPlayerAction::Counters(node) => {
                         ("addPlayerCounters", "count", &node.count)
                     }
+                    // CR 119.5: the difference is gained or lost.
+                    SingularPlayerAction::SetLifeTotal(total) => ("setLifeTotal", "amount", total),
                     SingularPlayerAction::Life(life) => (
                         match life.action {
                             TargetPlayerLifeAction::Gain => "gainLife",

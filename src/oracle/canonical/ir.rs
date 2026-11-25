@@ -3,6 +3,10 @@ use serde_json::{Value, json};
 use super::CanonicalRuleDraft;
 
 pub(super) fn draft(rule: Value, operations: &[&str]) -> CanonicalRuleDraft {
+    let mut rule = rule;
+    // A distributive `they` / `that player` names the player slot of the
+    // primitive whose operand it is (`effects::player_set`).
+    super::bind_pending_acting_players(&mut rule);
     CanonicalRuleDraft {
         operations: operations.iter().map(|value| value.to_string()).collect(),
         rule,

@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-references-batch10/genitive-owner-returns-stolen-creature-to-owner-library",
+  "seed": 19003,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "putPermanentOnOwnerLibrary",
+        "performer": {
+          "kind": "ownerOf",
+          "object": {
+            "kind": "chosenTarget",
+            "id": "targetPermanent"
+          }
+        },
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "position": "ownerChoiceTopOrBottom"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Caster",
+        "battlefield": [
+          {
+            "id": "run-behind-engine",
+            "name": "Run Behind Engine",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "putPermanentOnOwnerLibrary",
+                    "performer": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetPermanent"
+                      }
+                    },
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    },
+                    "position": "ownerChoiceTopOrBottom"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "caster-library-card",
+            "name": "Caster Library Card",
+            "typeLine": "Instant"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Owner",
+        "battlefield": [
+          {
+            "id": "stolen-bear",
+            "name": "Stolen Bear",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2",
+            "controllerId": "p0"
+          }
+        ],
+        "library": [
+          {
+            "id": "owner-library-card",
+            "name": "Owner Library Card",
+            "typeLine": "Instant"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "run-behind-engine",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "stolen-bear"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "library",
+      "definitionId": "stolen-bear",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "stolen-bear",
+      "equals": false
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

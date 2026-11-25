@@ -277,6 +277,24 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
             }));
         }
     }
+    // `the player with the most life gains control of ...`: the one player a
+    // superlative singles out (none on a tie), CR 102.1.
+    if super::definite_player_description_starts(cursor) {
+        cursor.enter("clause.performer.definite-description");
+        let relative = super::PlayerRelativeContext {
+            player_antecedent: context.player_antecedent,
+            event_player: context.event_player,
+            object_antecedent: context.object_antecedent.clone(),
+        };
+        return Some(
+            super::recognize_definite_player_description(cursor, &relative).map(|query| {
+                (
+                    PerformerNode::FilteredPopulation(Box::new(query)),
+                    VerbAgreement::ThirdPersonSingular,
+                )
+            }),
+        );
+    }
     if let Some(anaphor) = player_anaphor_at(cursor) {
         // Without a player binding, `that player` is the player the previous
         // action named through its object; it is resolved from that object
@@ -453,12 +471,13 @@ fn written_player_relation(raw: &str) -> Option<ObjectPlayerRelation> {
     }
 }
 
-/// True when the cursor starts `the owner|controller of target ...`: a
-/// player subject that declares the object it is related to.
+/// True when the cursor starts `the owner|controller of target ...` or its
+/// genitive word order `target NOUN's owner|controller`: a player subject
+/// that declares the object it is related to.
 pub(in crate::oracle::canonical) fn object_relation_declaration_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    cursor
+    (cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
         && cursor
@@ -469,29 +488,109 @@ pub(in crate::oracle::canonical) fn object_relation_declaration_starts(
             .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
         && cursor
             .peek_ahead(3)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("target")))
+        || genitive_relation_head_offset(cursor).is_some()
 }
 
-/// `the owner|controller of TARGET VERBs ...` (CR 108.3, 109.4, 115.1): the
-/// subject declares one target permanent, and the player related to it
-/// performs the clause. The declaration is the ordinary `choose target`
-/// instruction, so a later `it` names the target; the caller continues the
-/// clause with the related player as its performer. The subject must be
-/// followed by a finite verb of the lexicon: a modal or a missing verb fails
-/// here, never silently.
+/// The most tokens a declared target phrase spans before its genitive
+/// head (`target nonland, nontoken artifact or creature's`).
+const GENITIVE_TARGET_SPAN: usize = 10;
+
+/// The noun of a written genitive (`creature's`, `permanent’s`), lowercase.
+pub(in crate::oracle::canonical) fn genitive_base(raw: &str) -> Option<String> {
+    let normalized = raw.to_ascii_lowercase();
+    normalized
+        .strip_suffix("'s")
+        .or_else(|| normalized.strip_suffix("\u{2019}s"))
+        .filter(|base| !base.is_empty())
+        .map(str::to_string)
+}
+
+/// `target NOUN's owner|controller` at the cursor: the offset of the
+/// genitive noun that closes the declared target phrase, when the next word
+/// is the player relation. Lexical lookahead only; the target list proves
+/// the phrase. A genitive naming anything else (`target creature's power`,
+/// `target player's life total`) is no player subject.
+pub(in crate::oracle::canonical) fn genitive_relation_head_offset(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<usize> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
+    {
+        return None;
+    }
+    for offset in 1..GENITIVE_TARGET_SPAN {
+        let raw = cursor.peek_ahead(offset)?;
+        if matches!(raw, "." | ";" | ":" | "(" | "\"" | "\u{201c}") {
+            return None;
+        }
+        if genitive_base(raw).is_some() {
+            return cursor
+                .peek_ahead(offset + 1)
+                .and_then(written_player_relation)
+                .map(|_| offset);
+        }
+    }
+    None
+}
+
+/// `target NOUN's owner|controller` (CR 108.3, 109.4, 115.1): the genitive
+/// declares the same target as `the owner|controller of target NOUN`. The
+/// shared target list reads the phrase over a view of the same tokens whose
+/// genitive noun is its base noun (equal length, indices and spans), bounded
+/// at that noun: the possessive scopes the whole coordinated target
+/// (`target artifact or creature's owner`).
+fn recognize_genitive_relation_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+    offset: usize,
+) -> MachineResult<(ObjectPlayerRelation, super::TargetListNode)> {
+    cursor.enter("clause.performer.object-relation-declaration.genitive");
+    let head = cursor.position() + offset;
+    let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
+    let base = tokens
+        .get(head)
+        .and_then(|token| genitive_base(&token.raw))
+        .ok_or_else(|| cursor.fail("a genitive noun closing the declared target"))?;
+    replace_word(&mut tokens[head], &base);
+    let mut view = cursor.with_tokens(&tokens);
+    view.enter("clause.performer.object-relation-declaration.target");
+    let targets = view.bounded(head + 1, |phrase| super::recognize_target_list(phrase))?;
+    cursor.advance_to(view.position())?;
+    cursor.enter("clause.performer.object-relation-declaration.relation");
+    let relation = cursor
+        .peek()
+        .and_then(written_player_relation)
+        .ok_or_else(|| cursor.fail("`owner` or `controller` after the genitive target"))?;
+    cursor.advance_to(cursor.position() + 1)?;
+    Ok((relation, targets))
+}
+
+/// `the owner|controller of TARGET VERBs ...` or `TARGET's owner|controller
+/// VERBs ...` (CR 108.3, 109.4, 115.1): the subject declares one target
+/// permanent, and the player related to it performs the clause. The
+/// declaration is the ordinary `choose target` instruction, so a later `it`
+/// names the target; the caller continues the clause with the related player
+/// as its performer. The subject must be followed by a finite verb of the
+/// lexicon: a modal or a missing verb fails here, never silently.
 pub(in crate::oracle::canonical) fn recognize_object_relation_declaration(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<(ObjectPlayerRelation, super::ChooseInstructionNode)> {
     cursor.enter("clause.performer.object-relation-declaration");
-    cursor.consume("the")?;
-    let relation = cursor
-        .peek()
-        .and_then(written_player_relation)
-        .ok_or_else(|| cursor.fail("`owner` or `controller`"))?;
-    cursor.advance_to(cursor.position() + 1)?;
-    cursor.consume("of")?;
-    cursor.enter("clause.performer.object-relation-declaration.target");
-    let targets = super::recognize_target_list(cursor)?;
+    let (relation, targets) = if let Some(offset) = genitive_relation_head_offset(cursor) {
+        recognize_genitive_relation_subject(cursor, offset)?
+    } else {
+        cursor.consume("the")?;
+        let relation = cursor
+            .peek()
+            .and_then(written_player_relation)
+            .ok_or_else(|| cursor.fail("`owner` or `controller`"))?;
+        cursor.advance_to(cursor.position() + 1)?;
+        cursor.consume("of")?;
+        cursor.enter("clause.performer.object-relation-declaration.target");
+        (relation, super::recognize_target_list(cursor)?)
+    };
+    cursor.enter("clause.performer.object-relation-declaration.kind");
     cursor.require(
         matches!(
             targets.slots.as_slice(),

@@ -2880,6 +2880,14 @@ fn recognize_effect_sequence_attempt_scoped(
                                 effect_index,
                                 filter,
                             }
+                        } else if memory
+                            .effects
+                            .last()
+                            .is_some_and(super::names_acting_player)
+                        {
+                            // `... for each creature they control`: the player
+                            // of the scaled action (`player_set.rs`).
+                            super::read_with_acting_player(cursor, recognize_for_each_count)?
                         } else {
                             recognize_for_each_count(cursor)?
                         };

@@ -174,6 +174,15 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// payer, whether the cost was paid or refused. The program parent
     /// publishes it (`publish_installed_unless_payer`).
     pub unless_payer: Option<UnlessPayerAntecedent>,
+    /// The operand being read belongs to an action whose player slot names
+    /// a player other than the ability's controller (the player who loses
+    /// life, draws, or is dealt the damage; each member of a population in
+    /// turn): a distributive `they` / `that player` without another
+    /// antecedent names that player (`each player loses 1 life for each
+    /// creature they control`). Installed by the action parent around its
+    /// operands only (`player_subject::with_acting_player`); the lowering
+    /// binds it to the action's player slot.
+    pub acting_player: bool,
 }
 
 /// The payer of an `unless` frame as a later reference to that player: the
@@ -801,6 +810,7 @@ impl BindingEnvironment {
             restated_damage_recipient: None,
             card_target: None,
             unless_payer: None,
+            acting_player: false,
         }
     }
 }
@@ -1011,6 +1021,11 @@ pub(in crate::oracle::canonical) enum BoundPlayerReference {
     /// player of the combat the restriction is checked for (CR 506.2,
     /// 508.1c, 509.1b). Only a condition of that frame reads it.
     DefendingPlayer,
+    /// A distributive `they` / `that player` inside an operand of an action
+    /// whose player slot names it (`BindingEnvironment::acting_player`):
+    /// the player who loses the life, draws, or is dealt the damage, each
+    /// member of a population in turn. The lowering substitutes that slot.
+    ActingPlayer,
 }
 
 impl BoundPlayerReference {
@@ -1023,7 +1038,7 @@ impl BoundPlayerReference {
             Self::ObjectRelation { relation, object } => {
                 Some(PlayerEffectSubject::ObjectRelation { relation, object })
             }
-            Self::EventSpellController | Self::DefendingPlayer => None,
+            Self::EventSpellController | Self::DefendingPlayer | Self::ActingPlayer => None,
         }
     }
 }
@@ -1111,7 +1126,9 @@ pub(in crate::oracle::canonical) fn object_related_player_head(
     if first.eq_ignore_ascii_case("its") {
         return player_relation(raw(1)?).map(|relation| (2, relation));
     }
-    if first.eq_ignore_ascii_case("that")
+    // `that land's controller`, or the definite `the land's controller`,
+    // which names the same antecedent (`recognize_definite_object_reference`).
+    if (first.eq_ignore_ascii_case("that") || first.eq_ignore_ascii_case("the"))
         && tokens
             .get(1)
             .is_some_and(|token| token.token_type == "possessiveTypeWord")
@@ -1322,6 +1339,13 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
             object,
         });
     }
+    // `deals damage to each player equal to the number of lands that player
+    // controls`: the player of the action whose operand is being read.
+    if environment.acting_player {
+        cursor.enter("player-subject.acting-player");
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ActingPlayer);
+    }
     Err(cursor.fail_with_span(
         "a prior player binding for `that player`",
         first.index,
@@ -1471,7 +1495,11 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         cursor.consume("its")?;
         None
     } else {
-        cursor.consume("that")?;
+        cursor.consume(if first.raw.eq_ignore_ascii_case("the") {
+            "the"
+        } else {
+            "that"
+        })?;
         cursor.enter("player-subject.object-relation.nominal");
         let possessive = cursor.consume_type("possessiveTypeWord")?;
         let surface = possessive_base(&possessive.raw)
@@ -1522,6 +1550,16 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
             relation,
             object: slot.reference,
         });
+    }
+    // No lexical antecedent proves the object: the object the frame binds
+    // that the one shared reference resolver names (`player_subject.rs`).
+    if let Some(object) =
+        super::source_sacrifice::atomic_action::player_subject::unbound_relation_object(
+            cursor, antecedent, nominal,
+        )
+    {
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ObjectRelation { relation, object });
     }
     let antecedent = antecedent.ok_or_else(|| {
         cursor.fail_with_span(

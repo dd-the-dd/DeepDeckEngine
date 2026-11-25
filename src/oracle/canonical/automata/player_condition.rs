@@ -605,7 +605,7 @@ pub(in crate::oracle::canonical) fn recognize_comparative_proposition(
 
 /// `life`, `cards in hand`, `cards in their hand|graveyard`: a measure a
 /// comparative possession reads for every compared player.
-fn recognize_comparative_possession(
+pub(in crate::oracle::canonical) fn recognize_comparative_possession(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PlayerStateMeasure> {
     if word_is(cursor, 0, "life") {

@@ -213,6 +213,7 @@ pub(in crate::engine) fn filtered_players_supported(reference: &Value) -> bool {
         && reference.get("where").is_none_or(member_condition)
         && reference.get("superlative").is_none_or(|superlative| {
             matches!(superlative["extremum"].as_str(), Some("greatest" | "least"))
+                && superlative.get("unique").is_none_or(Value::is_boolean)
                 && value_kind(&reference["players"]) == Some("eachPlayer")
                 && reference.get("except").is_none()
                 && member_measure(&superlative["value"])
@@ -349,6 +350,11 @@ impl GameEngine {
                     .iter()
                     .any(|(id, value)| id == member && *value == extreme)
             });
+            // `the player with the most life`: a tie singles out no player.
+            let holders = values.iter().filter(|(_, value)| *value == extreme).count();
+            if superlative["unique"].as_bool() == Some(true) && holders != 1 {
+                members.clear();
+            }
         }
         Some(members)
     }

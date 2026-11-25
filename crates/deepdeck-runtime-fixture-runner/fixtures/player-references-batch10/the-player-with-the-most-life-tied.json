@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-references-batch10/the-player-with-the-most-life-tied",
+  "seed": 19005,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "bind": "performer0",
+        "players": {
+          "kind": "filterPlayers",
+          "players": {
+            "kind": "eachPlayer"
+          },
+          "superlative": {
+            "extremum": "greatest",
+            "unique": true,
+            "value": {
+              "kind": "lifeTotal",
+              "player": {
+                "kind": "quantifiedPlayer"
+              }
+            }
+          }
+        },
+        "effects": [
+          {
+            "kind": "drawCards",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            },
+            "performer": {
+              "kind": "boundValue",
+              "id": "performer0"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Caster",
+        "life": 20,
+        "hand": [
+          {
+            "id": "ogre-trigger",
+            "name": "Ogre Trigger",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}"
+          }
+        ],
+        "library": [
+          {
+            "id": "p0-card",
+            "name": "P0 Card",
+            "typeLine": "Instant"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Opponent",
+        "life": 20,
+        "library": [
+          {
+            "id": "p1-card",
+            "name": "P1 Card",
+            "typeLine": "Instant"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "ogre-trigger"
+  },
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "p0",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "p1",
+      "equals": 0
+    }
+  ]
+}

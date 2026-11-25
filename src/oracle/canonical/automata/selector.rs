@@ -2057,6 +2057,14 @@ fn they_relation_scope(cursor: &OracleTokenCursor<'_>) -> Option<QuerySubjectSco
         return None;
     }
     let environment = super::installed_binding_environment(cursor);
+    // The distributive `they` of an action whose player slot names it
+    // (`each player loses 1 life for each creature they control`): the
+    // nearest antecedent, the player of the action being read.
+    if environment.acting_player {
+        return Some(QuerySubjectScope::Player(RelatedPlayer::Bound(
+            super::BoundPlayerReference::ActingPlayer,
+        )));
+    }
     (environment.player.is_none()
         && environment.player_target.is_none()
         && environment.frame.event_player)
