@@ -1096,6 +1096,76 @@ pub(in crate::oracle::canonical) fn recognize_event_damage_amount(
     ))
 }
 
+/// Offset of `excess` in `the [amount of] excess damage dealt`.
+fn excess_damage_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let offset = if word_is(cursor, 1, "amount") && word_is(cursor, 2, "of") {
+        3
+    } else {
+        1
+    };
+    (word_is(cursor, 0, "the")
+        && word_is(cursor, offset, "excess")
+        && word_is(cursor, offset + 1, "damage")
+        && word_is(cursor, offset + 2, "dealt"))
+    .then_some(offset)
+}
+
+/// Lexical lookahead for `the [amount of] excess damage dealt`.
+pub(in crate::oracle::canonical) fn excess_damage_result_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    excess_damage_offset(cursor).is_some()
+}
+
+/// `the [amount of] excess damage dealt [to that creature|to it] this way`
+/// (CR 120.4a, 608.2c): the damage beyond lethal the nearest earlier damage
+/// action of the program dealt to a permanent. The program lowering binds
+/// that action or fails; the first action of a program has none.
+pub(in crate::oracle::canonical) fn recognize_excess_damage_result(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.excess-damage.quantity");
+    let offset = cursor.require_value(
+        excess_damage_offset(cursor),
+        "`the excess damage dealt this way`",
+    )?;
+    let at = cursor.position() + offset;
+    cursor.advance_to(at)?;
+    cursor.consume_phrase(&["excess", "damage", "dealt"])?;
+    if word_is(cursor, 0, "to") {
+        cursor.enter("numeric.excess-damage.recipient");
+        cursor.consume("to")?;
+        if word_is(cursor, 0, "that") {
+            cursor.consume("that")?;
+            let noun = cursor.peek().unwrap_or_default().to_owned();
+            cursor.require(
+                ["creature", "permanent", "planeswalker"]
+                    .iter()
+                    .any(|expected| noun.eq_ignore_ascii_case(expected)),
+                "the permanent the damage action dealt damage to",
+            )?;
+            cursor.consume(&noun)?;
+        } else {
+            cursor.consume("it")?;
+        }
+    }
+    cursor.enter("numeric.excess-damage.scope");
+    cursor.consume_phrase(&["this", "way"])?;
+    cursor.enter("numeric.excess-damage.reader");
+    let reader = cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
+        .filter(|index| *index > 0);
+    let reader = cursor.require_value(
+        reader,
+        "an earlier damage action of this program whose excess damage the phrase restates",
+    )?;
+    Ok(NumericExpression::ActionResultQuantity {
+        reader_effect: reader,
+        quantity: super::ActionResultQuantity::ExcessDamage,
+    })
+}
+
 /// Lexical lookahead for `their library`: the acting player's library.
 pub(in crate::oracle::canonical) fn acting_player_zone_starts(
     cursor: &OracleTokenCursor<'_>,

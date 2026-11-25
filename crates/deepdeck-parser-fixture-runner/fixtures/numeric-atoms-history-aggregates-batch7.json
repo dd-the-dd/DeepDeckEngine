@@ -355,6 +355,86 @@
       }
     },
     {
+      "id": "exact-traumatize",
+      "request": {
+        "cardName": "Traumatize",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Target player mills half their library, rounded down.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-kitsune-s-technique",
+      "request": {
+        "cardName": "Kitsune's Technique",
+        "typeLine": "Instant",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Sneak {1}{U} (You may cast this spell for {1}{U} if you also return an unblocked attacker you control to hand during the declare blockers step.)\nTarget opponent mills half their library, rounded up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-razor-rings",
+      "request": {
+        "cardName": "Razor Rings",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Razor Rings deals 4 damage to target attacking or blocking creature. You gain life equal to the excess damage dealt this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-lacerate-flesh",
+      "request": {
+        "cardName": "Lacerate Flesh",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}",
+        "oracleText": "Lacerate Flesh deals 4 damage to target creature. Create a number of Blood tokens equal to the amount of excess damage dealt to that creature this way. (They're artifacts with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-goblin-negotiation",
+      "request": {
+        "cardName": "Goblin Negotiation",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}{R}",
+        "oracleText": "Goblin Negotiation deals X damage to target creature. Create a number of 1/1 red Goblin creature tokens equal to the amount of excess damage dealt to that creature this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
       "id": "sibling-half-distinct-mana-values-rounded-up",
       "request": {
         "cardName": "Numeric Probe Alpha",
@@ -694,6 +774,85 @@
         "typeLine": "Sorcery",
         "manaCost": "{2}{G}",
         "oracleText": "Create a number of 1/1 green Saproling creature tokens equal to the number of counters among creatures target player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-excess-damage-as-card-draw",
+      "request": {
+        "cardName": "Numeric Probe Omicron",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Numeric Probe Omicron deals 5 damage to target creature. Draw cards equal to the excess damage dealt this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-half-their-library-rounded-up-defending-player",
+      "request": {
+        "cardName": "Numeric Probe Pi",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{4}{U}",
+        "oracleText": "Whenever this creature attacks, defending player mills half their library, rounded up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-excess-damage-without-damage-action",
+      "request": {
+        "cardName": "Numeric Probe Rho",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain life equal to the excess damage dealt this way.",
         "layout": "normal",
         "faces": []
       },

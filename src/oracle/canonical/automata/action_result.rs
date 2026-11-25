@@ -195,6 +195,9 @@ pub(in crate::oracle::canonical) enum ActionResultQuantity {
     /// `the number of OBJECTS VERBed this way`: the objects the nearest
     /// earlier action of the restated verb affected that satisfy the noun.
     Objects(ActionResultReferenceNode),
+    /// `the excess damage dealt this way` (CR 120.4a): the damage beyond
+    /// lethal the nearest earlier damage action dealt to a permanent.
+    ExcessDamage,
 }
 
 /// Where one runtime action records the quantity a reader restates.
@@ -206,6 +209,8 @@ pub(in crate::oracle::canonical) enum ActionResultField {
     Integer,
     /// `bindCountAs` records how many objects the action affected.
     Count,
+    /// `bindExcessAs` records the excess damage dealt to a permanent.
+    Excess,
 }
 
 impl ActionResultField {
@@ -214,6 +219,7 @@ impl ActionResultField {
         match self {
             Self::Objects | Self::Integer => "bind",
             Self::Count => "bindCountAs",
+            Self::Excess => "bindExcessAs",
         }
     }
 
@@ -224,7 +230,7 @@ impl ActionResultField {
                 "kind": "countObjects",
                 "objects": { "kind": "boundObjects", "binding": binding },
             }),
-            Self::Integer | Self::Count => {
+            Self::Integer | Self::Count | Self::Excess => {
                 serde_json::json!({ "kind": "boundValue", "id": binding })
             }
         }
@@ -232,8 +238,12 @@ impl ActionResultField {
 }
 
 impl ActionResultQuantity {
-    pub(in crate::oracle::canonical) const ALL: [Self; 3] =
-        [Self::LifeLost, Self::ObjectCount, Self::Amount];
+    pub(in crate::oracle::canonical) const ALL: [Self; 4] = [
+        Self::LifeLost,
+        Self::ObjectCount,
+        Self::Amount,
+        Self::ExcessDamage,
+    ];
 
     pub(in crate::oracle::canonical) const fn ir_name(&self) -> &'static str {
         match self {
@@ -241,6 +251,7 @@ impl ActionResultQuantity {
             Self::ObjectCount => "objectCount",
             Self::Amount => "amount",
             Self::Objects(_) => "objects",
+            Self::ExcessDamage => "excessDamage",
         }
     }
 
@@ -280,6 +291,7 @@ impl ActionResultQuantity {
                 | "createTokens",
             ) => Some(ActionResultField::Objects),
             (Self::ObjectCount, "discardHand") => Some(ActionResultField::Count),
+            (Self::ExcessDamage, "dealDamage") => Some(ActionResultField::Excess),
             _ => None,
         }
     }

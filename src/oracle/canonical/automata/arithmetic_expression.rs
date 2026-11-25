@@ -126,6 +126,7 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
         || super::mana_spent_amount_starts(cursor)
         || super::history_life_amount_starts(cursor)
         || super::event_damage_amount_starts(cursor)
+        || super::excess_damage_result_starts(cursor)
         || devotion_starts(cursor)
         || cursor
             .peek()
@@ -381,6 +382,9 @@ fn recognize_primary(
             }
             if super::event_damage_amount_starts(cursor) {
                 return super::recognize_event_damage_amount(cursor);
+            }
+            if super::excess_damage_result_starts(cursor) {
+                return super::recognize_excess_damage_result(cursor);
             }
         }
     }
