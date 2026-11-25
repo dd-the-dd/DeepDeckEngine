@@ -671,7 +671,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.grant-keyword.cost"
           }
         ]
       }
@@ -692,6 +693,128 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-preposed-duration-flashback-grant-then-cost-sentence",
+      "request": {
+        "cardName": "Preposed Sibling",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Until end of turn, target instant card in your graveyard gains flashback. The flashback cost is equal to that card's mana cost. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantAbility"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/0/ability/cost/kind",
+                "equals": "manaCostOf"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-flashback-grant-until-next-turn",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains flashback until your next turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.grant-keyword.duration"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cost-sentence-names-another-keyword",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains flashback until end of turn. The kicker cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.granted-keyword-cost.subject"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-kicker-granted-to-graveyard-card",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains kicker until end of turn. The kicker cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cost-sentence-without-a-grant",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.granted-keyword-cost.antecedent"
           }
         ]
       }

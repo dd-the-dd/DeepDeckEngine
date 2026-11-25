@@ -52,8 +52,8 @@ pub(in super::super) struct EffectDamageSource {
 impl GameEngine {
     /// Resolves the `source` of a `dealDamage` effect. `Ok(None)` is a
     /// source that deals no damage (an illegal declared or attached object,
-    /// CR 608.2b). An omitted or unrecognized reference keeps the historical
-    /// ability-source reading; every typed object reference uses its own.
+    /// CR 608.2b). An omitted reference is the ability's own source; every
+    /// typed object reference uses its own and never falls back to it.
     pub(in super::super) fn resolve_effect_damage_source(
         &self,
         source: Option<&Value>,
@@ -107,12 +107,12 @@ impl GameEngine {
                     None => Ok(None),
                 }
             }
-            _ => Ok(Some(match resolved {
-                Some(instance_id) => EffectDamageSource {
-                    instance_id,
-                    profile: None,
-                },
-                None => self.ability_damage_source(stack_object),
+            // Any other typed object reference: the object it names deals
+            // the damage. A named object that is gone deals none (CR
+            // 608.2b); the ability's own source is never substituted.
+            _ => Ok(resolved.map(|instance_id| EffectDamageSource {
+                instance_id,
+                profile: None,
             })),
         }
     }

@@ -303,6 +303,113 @@
       }
     },
     {
+      "id": "near-miss-or-between-different-performers-has-no-single-chooser",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card or target opponent discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.alternative.chooser"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-performer-or-between-their-own-zones",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target opponent exiles their hand or their graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOneEffect"
+              },
+              {
+                "pointer": "/effects/0/player/id",
+                "equals": "targetPlayer"
+              },
+              {
+                "pointer": "/effects/0/options/0/effects/0/performer/id",
+                "equals": "targetPlayer"
+              },
+              {
+                "pointer": "/effects/0/options/1/effects/0/performer/id",
+                "equals": "targetPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-gapped-performer-or-conjunct-names-you",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target opponent exiles a creature they control or your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "clause.performer.controller-reference"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-gapped-performer-and-conjunct-names-you",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target opponent exiles a creature they control and your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "clause.performer.controller-reference"
+          }
+        ]
+      }
+    },
+    {
       "id": "another-face-x-cannot-supply-this-spell",
       "request": {
         "cardName": "Unbound Face // Producing Face",

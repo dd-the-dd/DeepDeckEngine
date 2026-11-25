@@ -1625,6 +1625,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                         let continued = memory.current_performer.clone().filter(
                                             |(_, _, sentence)| *sentence == memory.sentence_start,
                                         );
+                                        let mut ambiguity = None;
                                         let read = match continued {
                                             // The performer path of a written
                                             // subjectless verb: its predicate in
@@ -1648,6 +1649,16 @@ fn recognize_effect_sequence_attempt_scoped(
                                                         &mut gapped_frame,
                                                     )
                                                     .map(|effect| {
+                                                        let end = shifted.position();
+                                                        // The gapped conjunct is the
+                                                        // performer's clause too: its
+                                                        // written `you` (`or your
+                                                        // graveyard`) is ambiguous
+                                                        // exactly as in a written verb.
+                                                        ambiguity =
+                                                            super::controller_reference_failure(
+                                                                &gapped, slot, end,
+                                                            );
                                                         (
                                                             LocalEffectNode::Performed(
                                                                 super::PerformedEffectNode {
@@ -1655,7 +1666,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                                                     effect: Box::new(effect),
                                                                 },
                                                             ),
-                                                            shifted.position(),
+                                                            end,
                                                         )
                                                     })
                                                 })
@@ -1669,8 +1680,15 @@ fn recognize_effect_sequence_attempt_scoped(
                                             )
                                             .map(|effect| (effect, gapped.position())),
                                         };
-                                        match read {
-                                            Ok((effect, end)) if end > cursor.position() => {
+                                        match (read, ambiguity) {
+                                            (Ok((_, end)), Some(ambiguous))
+                                                if end > cursor.position() =>
+                                            {
+                                                Err(ambiguous)
+                                            }
+                                            (Ok((effect, end)), None)
+                                                if end > cursor.position() =>
+                                            {
                                                 from_ellipsis = true;
                                                 cursor.advance_to(end).map(|()| effect)
                                             }
@@ -2039,6 +2057,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         LocalEffectNode::CardAction(super::CardActionNode::Permit(node)) => {
                             node.duration.as_ref() == Some(duration)
+                        }
+                        LocalEffectNode::CardAction(super::CardActionNode::GrantKeyword(node)) => {
+                            &node.duration == duration
                         }
                         LocalEffectNode::TemporaryPlayerPermission(node) => {
                             node.duration == super::TemporaryRuleDuration::Effect(duration.clone())
@@ -2637,6 +2658,17 @@ fn recognize_effect_sequence_attempt_scoped(
                                 memory.effects.last_mut(),
                             )?;
                             cursor.enter("sequence.type-retention.terminator");
+                            cursor.consume(".")?;
+                        }
+                        if super::granted_keyword_cost_amendment_starts(cursor) {
+                            // CR 702.34a: the sentence states the cost of the
+                            // keyword the sentence just closed granted.
+                            attempt_frame.commit();
+                            super::recognize_granted_keyword_cost_amendment(
+                                cursor,
+                                memory.effects.last_mut(),
+                            )?;
+                            cursor.enter("sequence.granted-keyword-cost.terminator");
                             cursor.consume(".")?;
                         }
                         if library_look_reminder_starts_at(cursor)

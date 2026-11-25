@@ -1818,6 +1818,28 @@
       }
     },
     {
+      "id": "near-miss-static-cant-win-with-a-turn-duration",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Artifact Creature — Angel",
+        "manaCost": "{6}",
+        "oracleText": "You can't lose the game and your opponents can't win the game this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.player-terminator"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-quoted-grant-then-non-reminder-sentence",
       "request": {
         "cardName": "Static frame near miss",

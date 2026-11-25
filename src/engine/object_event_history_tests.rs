@@ -80,6 +80,37 @@ fn only_cards_whose_latest_arrival_this_turn_left_the_battlefield_match() {
     assert!(!engine.card_put_there_from_battlefield_this_turn("never-moved"));
 }
 
+fn record_batched_arrival(engine: &mut GameEngine, id: &str, from: Option<&str>) {
+    let mut card = engine.state.players[0].library[0].clone();
+    card.instance_id = id.to_string();
+    engine.record_event(
+        "cardsEnteredGraveyard",
+        Some("player-0".to_string()),
+        None,
+        event_history::graveyard_arrival_detail_from(&[card], from),
+    );
+}
+
+#[test]
+fn batched_graveyard_arrival_after_a_departure_is_classified_by_its_origin() {
+    let mut engine = engine();
+    // The engine records the batched arrival after the departure records.
+    record_departure(&mut engine, "died");
+    record_batched_arrival(&mut engine, "died", Some("battlefield"));
+    // A milled card's batched arrival comes from its library.
+    record(&mut engine, "cardMilled", "milled");
+    record_batched_arrival(&mut engine, "milled", Some("library"));
+    // A card that died, returned to hand, then reached the graveyard by a
+    // move whose origin the recorder did not know is not a departure.
+    record_departure(&mut engine, "died-then-unknown");
+    record_batched_arrival(&mut engine, "died-then-unknown", Some("battlefield"));
+    record_batched_arrival(&mut engine, "died-then-unknown", None);
+
+    assert!(engine.card_put_there_from_battlefield_this_turn("died"));
+    assert!(!engine.card_put_there_from_battlefield_this_turn("milled"));
+    assert!(!engine.card_put_there_from_battlefield_this_turn("died-then-unknown"));
+}
+
 #[test]
 fn binding_replaces_history_leaves_and_keeps_other_filters_borrowed() {
     let mut engine = engine();

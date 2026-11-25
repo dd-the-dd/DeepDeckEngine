@@ -147,13 +147,15 @@ impl GameEngine {
                 "expiresAfterTurn": self.state.turn_number,
                 "normalCostsApply": true,
                 "normalTimingApplies": true,
-                "playerId": stack_object.controller,
+                // CR 702.34a: the card's own flashback is cast by the
+                // player it lets cast the card, its owner, whose zone it is.
+                "playerId": card.owner,
                 "sourceCardInstanceId": stack_object.card.instance_id,
             });
             self.state.permissions.push(permission.clone());
             self.record_event(
                 "flashbackPermissionGranted",
-                Some(stack_object.controller.clone()),
+                Some(card.owner.clone()),
                 Some(card.instance_id),
                 permission,
             );

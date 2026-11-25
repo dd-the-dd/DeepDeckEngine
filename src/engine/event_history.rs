@@ -266,8 +266,17 @@ fn recorded_detail<'a>(detail: &'a Value, field: &str) -> Option<&'a Value> {
 /// The detail of one graveyard arrival: the card identities and, for each
 /// card, the type line and token status it had as it arrived, so that a
 /// later count reads them even after a token ceased to exist.
+#[cfg(test)]
 pub(super) fn graveyard_arrival_detail(cards: &[CardInstance]) -> Value {
-    json!({
+    graveyard_arrival_detail_from(cards, None)
+}
+
+/// The detail of one graveyard arrival from a known origin zone (CR 400.1).
+/// A zone-history reader distinguishes a batch arriving from the battlefield
+/// from cards milled, discarded or put there from the stack; an arrival
+/// whose origin the recorder did not know carries no `from` field.
+pub(super) fn graveyard_arrival_detail_from(cards: &[CardInstance], from: Option<&str>) -> Value {
+    let mut detail = json!({
         "cardIds": cards
             .iter()
             .map(|card| card.instance_id.clone())
@@ -280,7 +289,11 @@ pub(super) fn graveyard_arrival_detail(cards: &[CardInstance]) -> Value {
                 "isToken": card.definition.is_token,
             }))
             .collect::<Vec<_>>(),
-    })
+    });
+    if let Some(from) = from {
+        detail["from"] = Value::String(from.to_string());
+    }
+    detail
 }
 
 /// Lowercased words of a type line or a type phrase; a dash between types

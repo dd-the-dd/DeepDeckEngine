@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-history-returns-cards-that-died-through-real-destroy-and-sacrifice",
+  "seed": 0,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "where": { "kind": "cardTypeContains", "value": "Artifact" },
+        "count": 1
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      },
+      {
+        "bind": "movedOntoBattlefield",
+        "cards": {
+          "kind": "cardsInZone",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "isPermanentCard" },
+              { "kind": "putThereFromBattlefieldThisTurn" }
+            ]
+          },
+          "zone": {
+            "kind": "graveyard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "zone-history-sorcery",
+            "name": "Zone History Sorcery",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{W}"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "sacrificed-relic",
+            "name": "Sacrificed Relic",
+            "typeLine": "Artifact",
+            "manaCost": "{1}"
+          },
+          {
+            "id": "destroyed-bear",
+            "name": "Destroyed Bear",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "older-corpse",
+            "name": "Older Corpse",
+            "typeLine": "Creature — Zombie",
+            "manaCost": "{1}{B}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "zone-history-sorcery"
+  },
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 1 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "sacrificed-relic", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "destroyed-bear", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "older-corpse", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "zone-history-sorcery", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 2 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}
