@@ -1872,9 +1872,11 @@ fn lower_local_effect_sequence_with_collections(
                                 i64::from(slot.cardinality.minimum),
                                 i64::from(slot.cardinality.maximum),
                             ));
-                            // A singular protected target is the antecedent
-                            // a later `that creature` names.
-                            if party_index == 0
+                            // The shield's one declared party (the protected
+                            // target, else the targeted source) is the
+                            // antecedent a later `that creature` names.
+                            if prevention_declared_party_index(prevent)
+                                .is_some_and(|(declared, _)| declared == party_index)
                                 && targets.slots.len() == 1
                                 && slot.cardinality == TargetCardinality::EXACTLY_ONE
                             {
@@ -2254,7 +2256,12 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
-                target_bindings.truncate(bound);
+                // The second fighter's slot is the action's antecedent only
+                // when the first fighter declares none (the parser publishes
+                // the same slot, `permanent_subject_after_effect`).
+                if matches!(fight.first, PermanentOperandNode::Targets(_)) {
+                    target_bindings.truncate(bound);
+                }
                 let ([first], [second]) = (first.as_slice(), second.as_slice()) else {
                     return Err(EffectSequenceLoweringFailure::FailedSupport(
                         cursor.fail("exactly one permanent on each side of a fight"),
@@ -2749,6 +2756,7 @@ fn lower_local_effect_sequence_with_collections(
     })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     bind_returned_source_when_read(cursor, &mut effects, collections)?;
+    bind_battlefield_search_when_read(cursor, sequence, &mut effects, collections)?;
     effect_alternatives::apply_alternative_frames(
         cursor,
         sequence,
@@ -3757,6 +3765,16 @@ fn sequence_numeric_target_slots(
                     recipient: DamageRecipientNode::Targets(targets),
                     ..
                 }) if !matches!(source, PermanentOperandNode::Targets(_)) => (targets, false),
+                // The shield's one declared party and the second fighter of
+                // a fight whose first fighter declares none: the slots the
+                // lowering binds for a later anaphor.
+                LocalEffectNode::PreventDamage(prevent) => {
+                    (prevention_declared_party_index(prevent)?.1, false)
+                }
+                LocalEffectNode::Fight(FightEffectNode {
+                    first,
+                    second: PermanentOperandNode::Targets(targets),
+                }) if !matches!(first, PermanentOperandNode::Targets(_)) => (targets, false),
                 _ => return None,
             };
             let slot = targets.slots.get(binding.slot_index)?;
@@ -4431,6 +4449,90 @@ fn bind_returned_source_when_read(
     {
         effect["bind"] = json!(MOVED_ONTO_BATTLEFIELD_BINDING);
     }
+    Ok(())
+}
+
+/// `search your library for a basic land card, put it onto the
+/// battlefield`, then an action reading the permanent it became (`That land
+/// becomes ...`, CR 400.7, 701.23a): the search's own battlefield move binds
+/// the moved-onto-battlefield result only when a later primitive reads it,
+/// through the program's single allocation of that binding. The parser
+/// publishes that antecedent only for a search finding at most one card
+/// (`moved_onto_battlefield_selector`); any other unbound battlefield entry
+/// in the same sequence makes the producer ambiguous and fails explicitly.
+fn bind_battlefield_search_when_read(
+    cursor: &mut OracleTokenCursor<'_>,
+    sequence: &EffectSequenceNode,
+    effects: &mut [Value],
+    collections: &mut CardCollectionMemory,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    fn reads(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(reads),
+            Value::Object(object) => {
+                object.get("binding").and_then(Value::as_str)
+                    == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+                    || object.values().any(reads)
+            }
+            _ => false,
+        }
+    }
+    fn binds(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(binds),
+            Value::Object(object) => {
+                object.get("bind").and_then(Value::as_str) == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+                    || object.values().any(binds)
+            }
+            _ => false,
+        }
+    }
+    fn unbound_entry(value: &Value) -> bool {
+        value.get("kind").and_then(Value::as_str) == Some("moveCards")
+            && value["to"]["kind"].as_str() == Some("battlefield")
+            && value.get("bind").is_none()
+    }
+    fn unbound_entries(value: &Value) -> usize {
+        match value {
+            Value::Array(values) => values.iter().map(unbound_entries).sum(),
+            Value::Object(object) => {
+                usize::from(unbound_entry(value))
+                    + object.values().map(unbound_entries).sum::<usize>()
+            }
+            _ => 0,
+        }
+    }
+    fn bind(value: &mut Value) -> bool {
+        if unbound_entry(value) {
+            value["bind"] = json!(MOVED_ONTO_BATTLEFIELD_BINDING);
+            return true;
+        }
+        match value {
+            Value::Array(values) => values.iter_mut().any(bind),
+            Value::Object(object) => object.values_mut().any(bind),
+            _ => false,
+        }
+    }
+    let searches_onto_battlefield = sequence.effects.iter().any(|effect| {
+        matches!(
+            effect,
+            LocalEffectNode::ControllerLibrarySearch(search)
+                | LocalEffectNode::OptionalLibrarySearch(search)
+                if matches!(search.destination, SearchDestination::Battlefield { .. })
+        )
+    });
+    if !searches_onto_battlefield || !effects.iter().any(reads) || effects.iter().any(binds) {
+        return Ok(());
+    }
+    cursor.enter("lower.library-search.battlefield-entry.binding");
+    let entries = effects.iter().map(unbound_entries).sum::<usize>();
+    if entries != 1 || !collections.allocate_moved_onto_battlefield() {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one battlefield entry whose permanent a later action reads"),
+        ));
+    }
+    let bound = effects.iter_mut().any(bind);
+    cursor.require(bound, "the search's battlefield entry to bind")?;
     Ok(())
 }
 

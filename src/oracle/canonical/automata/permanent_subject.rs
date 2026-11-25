@@ -44,13 +44,29 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
         {
             Some(selection.predicate.clone().map(TargetSelector::Object))
         }
+        // `return target creature card ...` and `return up to one target
+        // artifact card ... to the battlefield`: at most one declared card
+        // enters; an empty declaration binds nothing (CR 115.1, 400.7).
         LocalEffectNode::CardAction(CardActionNode::Move {
             cards: CardOperandNode::Targets(targets),
             destination,
         }) if destination.zone == CardZoneName::Battlefield
-            && targets.cardinality == ExpressedTargetCardinality::EXACTLY_ONE =>
+            && !targets.unbounded
+            && targets.cardinality.maximum == NumericAtom::Integer(1) =>
         {
             Some(Some(TargetSelector::Object(targets.predicate.clone())))
+        }
+        // `search your library for a basic land card, put it onto the
+        // battlefield`: the one card the search may find enters (CR
+        // 701.23a); the found card satisfies the search's card phrase.
+        LocalEffectNode::ControllerLibrarySearch(search)
+        | LocalEffectNode::OptionalLibrarySearch(search)
+            if matches!(search.destination, SearchDestination::Battlefield { .. })
+                && search.maximum == 1
+                && search.count.is_none()
+                && search.slots.is_empty() =>
+        {
+            Some(Some(TargetSelector::Object(search.filter.clone())))
         }
         // `put it|that card onto the battlefield`: the one bound card a
         // choice fixed (a search's found card), with no restated predicate.
@@ -58,6 +74,26 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
             cards: CardOperandNode::Reference(CardCollectionReferenceNode::Selected),
             destination,
         }) if destination.zone == CardZoneName::Battlefield => Some(None),
+        // `exile target creature, then return it to the battlefield`: the
+        // one typed object a singular card pronoun named (CR 400.7); the
+        // binding environment retypes it from that object's declaration
+        // (`retype_moved_object`).
+        LocalEffectNode::CardAction(CardActionNode::Move {
+            cards:
+                CardOperandNode::ObjectAntecedent {
+                    reference: CardCollectionReferenceNode::Selected,
+                    object,
+                },
+            destination,
+        }) if destination.zone == CardZoneName::Battlefield
+            && !matches!(
+                object,
+                PermanentEffectReference::TargetSet(_)
+                    | PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens)
+            ) =>
+        {
+            Some(None)
+        }
         LocalEffectNode::OptionalSequence(body) => body
             .effects
             .last()
@@ -233,21 +269,52 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         },
         // A targeted source occupies the action's first slots; the recipient
         // is then no longer the action's sole singular referent.
-        LocalEffectNode::DealDamage(node) => Local(match (&node.source, &node.recipient) {
-            (PermanentOperandNode::Targets(_), _) => None,
+        LocalEffectNode::DealDamage(node) => match (&node.source, &node.recipient) {
+            // `Target creature deals damage equal to its power to itself`:
+            // the targeted source is the action's only declared object.
+            (PermanentOperandNode::Targets(targets), recipient)
+                if !matches!(recipient, DamageRecipientNode::Targets(_)) =>
+            {
+                Local(singular_permanent_target(targets, effect_index))
+            }
+            (PermanentOperandNode::Targets(_), _) => Local(None),
             (_, DamageRecipientNode::Targets(targets)) => {
+                Local(singular_permanent_target(targets, effect_index))
+            }
+            (_, DamageRecipientNode::BoundObject(reference)) => Local(Some(*reference)),
+            // Damage a fixed source deals to players changes no permanent: a
+            // lexical permanent antecedent stays (`deals 5 damage to target
+            // creature and 2 damage to that creature's controller. If that
+            // creature would die this turn, ...`), as for a draw; the
+            // ability's default subject is exhausted as before.
+            (
+                PermanentOperandNode::Reference(_),
+                DamageRecipientNode::Player(_)
+                | DamageRecipientNode::PlayerSet(_)
+                | DamageRecipientNode::BoundPlayer(_),
+            ) => match previous {
+                Local(Some(reference)) => Local(Some(reference)),
+                _ => Local(None),
+            },
+            _ => Local(None),
+        },
+        // `This creature fights target creature you don't control`: the
+        // second fighter is the action's only declared object when the
+        // first is not declared (the lowering binds it then).
+        LocalEffectNode::Fight(node) => Local(match (&node.first, &node.second) {
+            (PermanentOperandNode::Targets(_), _) => None,
+            (_, PermanentOperandNode::Targets(targets)) => {
                 singular_permanent_target(targets, effect_index)
             }
-            (_, DamageRecipientNode::BoundObject(reference)) => Some(*reference),
             _ => None,
         }),
-        LocalEffectNode::Fight(_) => Local(None),
-        // The single protected target is the next action's antecedent.
-        LocalEffectNode::PreventDamage(node) => Local(match &node.recipient {
-            Some(super::DamagePartyNode::Targets(targets)) => {
-                singular_permanent_target(targets, effect_index)
-            }
-            _ => None,
+        // The single protected target is the next action's antecedent; a
+        // shield over a declared source (`prevent all damage that would be
+        // dealt by target creature`) names that source when no protected
+        // target is declared.
+        LocalEffectNode::PreventDamage(node) => Local(match prevention_declared_party(node) {
+            Some(targets) => singular_permanent_target(targets, effect_index),
+            None => None,
         }),
         LocalEffectNode::ZoneChange(node) => {
             Local(singular_permanent_target(&node.target, effect_index))
@@ -360,18 +427,28 @@ fn optional_sequence_subject(
         PermanentSubjectScope::Local(Some(reference)) if inner == previous => {
             PermanentSubjectScope::Local(Some(reference))
         }
+        // The permanent the block's move put onto the battlefield is bound
+        // by that move only (CR 400.7): when the block was not performed
+        // the binding names no object, so a later action on it does nothing
+        // (`You may put a creature card from your hand onto the battlefield.
+        // That creature gains haste.`), as after an empty choice.
         PermanentSubjectScope::Local(Some(
             reference @ (PermanentEffectReference::Source(_)
             | PermanentEffectReference::Attached(_)
             | PermanentEffectReference::Observed(
                 TypedObservedEventObject::EventPermanent
                 | TypedObservedEventObject::EnteringPermanent
-                | TypedObservedEventObject::CombatCounterpart,
+                | TypedObservedEventObject::CombatCounterpart
+                | TypedObservedEventObject::MovedOntoBattlefield,
             )),
         )) => PermanentSubjectScope::Local(Some(reference)),
         PermanentSubjectScope::AbilityContext => previous,
         PermanentSubjectScope::Local(_) => PermanentSubjectScope::Local(None),
     }
+}
+
+fn prevention_declared_party(node: &PreventDamageEffectNode) -> Option<&TargetListNode> {
+    super::prevention_declared_party_index(node).map(|(_, targets)| targets)
 }
 
 pub(in crate::oracle::canonical) fn selector_guarantees_permanent(
@@ -674,7 +751,17 @@ fn permanent_subject_environment(
     context: &EffectRecognitionContext,
 ) -> BindingEnvironment {
     let mut environment = BindingEnvironment::for_permanent_context(context);
-    environment.objects = installed_binding_environment(cursor).objects;
+    let installed = installed_binding_environment(cursor);
+    environment.objects = installed.objects;
+    // The selector the program parent published for the same antecedent
+    // (a moved permanent retyped from the object it was, CR 400.7) when
+    // the context carries none; a different antecedent is never borrowed.
+    if let (Some(object), Some(published)) = (environment.object.as_mut(), installed.object)
+        && object.selector.is_none()
+        && object.reference == published.reference
+    {
+        object.selector = published.selector;
+    }
     inherit_installed_action_result(&mut environment, cursor);
     environment
 }
@@ -920,9 +1007,23 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         }
         // Actions that declare their targets outside a permanent operand
         // expose the same declared selector for nominal anaphora.
+        // A targeted source occupies the action's first slots (the lowering
+        // binds them first); otherwise the recipient's slots are the
+        // action's declared objects.
         LocalEffectNode::DealDamage(node) => {
-            return match &node.recipient {
-                DamageRecipientNode::Targets(targets) => targets.slots.get(slot_index),
+            return match (&node.source, &node.recipient) {
+                (PermanentOperandNode::Targets(targets), _)
+                | (_, DamageRecipientNode::Targets(targets)) => targets.slots.get(slot_index),
+                _ => None,
+            }
+            .map(|slot| &slot.selector);
+        }
+        // The second fighter's slots are bound only when the first fighter
+        // declares none (the fight lowering keeps that binding then).
+        LocalEffectNode::Fight(node) => {
+            return match (&node.first, &node.second) {
+                (PermanentOperandNode::Targets(targets), _)
+                | (_, PermanentOperandNode::Targets(targets)) => targets.slots.get(slot_index),
                 _ => None,
             }
             .map(|slot| &slot.selector);
@@ -934,11 +1035,9 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
             return node.target.slots.get(slot_index).map(|slot| &slot.selector);
         }
         LocalEffectNode::PreventDamage(node) => {
-            return match &node.recipient {
-                Some(super::DamagePartyNode::Targets(targets)) => targets.slots.get(slot_index),
-                _ => None,
-            }
-            .map(|slot| &slot.selector);
+            return prevention_declared_party(node)
+                .and_then(|targets| targets.slots.get(slot_index))
+                .map(|slot| &slot.selector);
         }
         _ => return None,
     };

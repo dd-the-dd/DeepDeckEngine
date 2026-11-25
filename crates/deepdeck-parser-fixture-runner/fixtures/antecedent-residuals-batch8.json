@@ -1,0 +1,484 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "antecedent-residuals-batch8",
+  "cases": [
+    {
+      "id": "exact-wisecrack-targeted-damage-source-antecedent",
+      "request": {
+        "cardName": "Wisecrack",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "Target creature deals damage equal to its power to itself. If that creature is attacking, Wisecrack deals 2 damage to that creature's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-subdue-prevention-source-antecedent-and-mana-value",
+      "request": {
+        "cardName": "Subdue",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Prevent all combat damage that would be dealt by target creature this turn. That creature gets +0/+X until end of turn, where X is its mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kry-shield-prevention-source-in-activation",
+      "request": {
+        "cardName": "Kry Shield",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Prevent all damage that would be dealt this turn by target creature you control. That creature gets +0/+X until end of turn, where X is its mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rampaging-growth-searched-land-retyped",
+      "request": {
+        "cardName": "Rampaging Growth",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Search your library for a basic land card, put it onto the battlefield, then shuffle. Until end of turn, that land becomes a 4/3 Insect creature with reach and haste. It's still a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dread-slaver-returned-dying-creature-retyped",
+      "request": {
+        "cardName": "Dread Slaver",
+        "typeLine": "Creature \u2014 Zombie Horror",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Whenever a creature dealt damage by this creature this turn dies, return it to the battlefield under your control. That creature is a black Zombie in addition to its other colors and types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-okiba-salvage-moved-card-named-permanent",
+      "request": {
+        "cardName": "Okiba Salvage",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}",
+        "oracleText": "Return target creature or Vehicle card from your graveyard to the battlefield. Then put two +1/+1 counters on that permanent if you control an artifact and an enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dingus-egg-graveyard-departure-event-object",
+      "request": {
+        "cardName": "Dingus Egg",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "Whenever a land is put into a graveyard from the battlefield, this artifact deals 2 damage to that land's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-magnetic-mine-graveyard-departure-event-object",
+      "request": {
+        "cardName": "Magnetic Mine",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "Whenever another artifact is put into a graveyard from the battlefield, this artifact deals 2 damage to that artifact's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-queens-bay-paladin-up-to-one-moved-card-mana-value",
+      "request": {
+        "cardName": "Queen's Bay Paladin",
+        "typeLine": "Creature \u2014 Vampire Knight",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Whenever this creature enters or attacks, return up to one target Vampire card from your graveyard to the battlefield with a finality counter on it. You lose life equal to its mana value. (If a creature with a finality counter on it would die, exile it instead.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-swift-warkite-step-inherits-moved-permanent",
+      "request": {
+        "cardName": "Swift Warkite",
+        "typeLine": "Creature \u2014 Dragon",
+        "manaCost": "{4}{B}{R}",
+        "oracleText": "Flying\nWhen this creature enters, you may put a creature card with mana value 3 or less from your hand or graveyard onto the battlefield. That creature gains haste. Return it to your hand at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ilharg-step-inherits-moved-permanent-delayed-return",
+      "request": {
+        "cardName": "Ilharg, the Raze-Boar",
+        "typeLine": "Legendary Creature \u2014 Boar God",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Trample\nWhenever Ilharg attacks, you may put a creature card from your hand onto the battlefield tapped and attacking. Return that creature to your hand at the beginning of the next end step.\nWhen Ilharg dies or is put into exile from the battlefield, you may put it into its owner's library third from the top.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dawn-of-the-dead-optional-return-step-inheritance",
+      "request": {
+        "cardName": "Dawn of the Dead",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}{B}{B}",
+        "oracleText": "At the beginning of your upkeep, you lose 1 life.\nAt the beginning of your upkeep, you may return target creature card from your graveyard to the battlefield. That creature gains haste until end of turn. Exile it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-returned-artifact-card-named-that-card-mana-value",
+      "request": {
+        "cardName": "Returned Artifact Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Return target artifact card from your graveyard to the battlefield. You gain life equal to that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-returned-artifact-card-named-permanent",
+      "request": {
+        "cardName": "Returned Permanent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}",
+        "oracleText": "Return target artifact card from your graveyard to the battlefield. That permanent gains hexproof until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-searched-land-untapped",
+      "request": {
+        "cardName": "Searched Land Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Untap that land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-prevention-source-tapped",
+      "request": {
+        "cardName": "Prevented Source Probe",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Prevent all combat damage that would be dealt by target creature this turn. Tap that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-optional-artifact-entry-then-hexproof",
+      "request": {
+        "cardName": "Optional Entry Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may put an artifact card from your hand onto the battlefield. That permanent gains hexproof until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-card-returned-to-hand-is-no-permanent-antecedent",
+      "request": {
+        "cardName": "Hand Return Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target creature card from your graveyard to your hand. That creature gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-plural-search-names-no-single-land",
+      "request": {
+        "cardName": "Plural Search Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle. Untap that land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-optional-discard-produces-no-creature",
+      "request": {
+        "cardName": "Optional Discard Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "You may discard a card. That creature gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-enchanted-creature-on-a-non-aura-face",
+      "request": {
+        "cardName": "Unattached Regenerator Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{G}: Regenerate enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "reference.attached-object.role"
+          }
+        ]
+      }
+    }
+  ]
+}

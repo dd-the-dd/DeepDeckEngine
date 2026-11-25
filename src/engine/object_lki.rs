@@ -244,3 +244,10 @@ impl TargetNumericContexts {
 ))]
 #[path = "object_lki_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4")
+))]
+#[path = "moved_antecedent_runtime_tests.rs"]
+mod moved_antecedent_runtime_tests;

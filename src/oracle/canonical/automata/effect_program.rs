@@ -755,7 +755,13 @@ fn recognize_optional_action_block(
         outcome,
         name_links,
         name_failure,
-        context,
+        // A reflexive ability resolves on its own (CR 603.12): only an
+        // `If you do` body shares its producer's resolution bindings.
+        &if outcome == PerformanceOutcome::Reflexive {
+            context.clone()
+        } else {
+            inherit_sequence_antecedents(context, &action)
+        },
     )?;
     let otherwise = recognize_complementary_outcome(
         cursor,
@@ -1030,6 +1036,7 @@ fn complete_outcome_block(
         cursor.enter("program.steps.then");
         cursor.consume("then")?;
     }
+    let context = &inherit_program_step_antecedents(context, &block);
     let mut steps = vec![block];
     push_program_steps(
         &mut steps,
