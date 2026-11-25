@@ -78,17 +78,26 @@ fn compile_recognized_trigger_program(
         input.name_resolution_failure,
         source_attachment_role(input.face_type_line),
     )?;
-    // `other` needs an explicit exclusion identity and incarnation. The
-    // current count contract cannot prove the observed-object binding or
-    // source departure at resolution. Keep new compositions unsupported.
+    // `if you control another Human` / `two or more other creatures` (CR
+    // 603.4): `other` excludes the object the ability is about. When that
+    // object is the ability's source (its own entry, its own attack, or an
+    // event that binds no object), the count excludes the source's current
+    // battlefield incarnation, which the runtime authenticates by instance
+    // and zone identity both when the trigger is put on the stack and when
+    // it resolves; once the source left the battlefield nothing is excluded
+    // (CR 400.7). An event that binds another object (`Whenever a Mountain
+    // you control enters, if you control at least five other Mountains`)
+    // makes `other` exclude that object, which this count cannot express.
     if node
         .guard
         .as_ref()
         .is_some_and(|guard| guard_excludes_source(&guard.value))
+        && guard_other_names_event_object(&node.event.value)
     {
-        cursor.enter("trigger.program.guard-other-binding");
-        return Err(cursor
-            .fail("a proved exclusion identity and current battlefield incarnation for other"));
+        cursor.enter("trigger.program.guard-other-event-object");
+        return Err(cursor.fail(
+            "an exclusion of the triggering event's object for `other`; the count excludes only the ability's source",
+        ));
     }
     let condition = node
         .guard
@@ -193,6 +202,19 @@ fn guard_excludes_source(guard: &SentenceConditionNode) -> bool {
     condition_any(guard, &ConditionAtom::excludes_source)
 }
 
+/// Whether the triggering event binds an object other than the ability's
+/// source, which an `other` of the guard would then exclude instead of the
+/// source (`a Forest you control enters, if you control five other Forests`).
+fn guard_other_names_event_object(event: &GenericTriggerEventNode) -> bool {
+    if event.observed_object_is_source() {
+        return false;
+    }
+    event.observed_object().is_some()
+        || event_frame(event)
+            .event_object
+            .is_some_and(|slot| !matches!(slot.reference, PermanentEffectReference::Source(_)))
+}
+
 #[cfg(test)]
 #[path = "generic_trigger_attempt_tests.rs"]
 mod generic_trigger_attempt_tests;
@@ -200,6 +222,10 @@ mod generic_trigger_attempt_tests;
 #[cfg(test)]
 #[path = "trigger_guard_condition_tests.rs"]
 mod trigger_guard_condition_tests;
+
+#[cfg(test)]
+#[path = "trigger_guard_other_tests.rs"]
+mod trigger_guard_other_tests;
 
 #[cfg(test)]
 #[path = "trigger_frame_event_tests.rs"]

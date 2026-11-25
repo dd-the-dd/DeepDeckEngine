@@ -54,10 +54,12 @@ fn recognized_event_commits_guard_program_and_face_failures() {
             "Creature",
             "program.optional.scope",
         ),
+        // `other` names the entering Forest, not the source: the count only
+        // excludes the ability's own source.
         (
-            "When this creature enters, if you control at least two other creatures, draw a card.",
-            "Creature",
-            "trigger.program.guard-other-binding",
+            "Whenever a Forest you control enters, if you control at least five other Forests, draw a card.",
+            "Enchantment",
+            "trigger.program.guard-other-event-object",
         ),
     ] {
         let GenericTriggerProgramAttempt::FailedCommitted(failure) = program(text, face_type)

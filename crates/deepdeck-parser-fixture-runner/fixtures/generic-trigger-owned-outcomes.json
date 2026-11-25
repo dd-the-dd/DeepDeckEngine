@@ -27,7 +27,7 @@
             "abilityIndex": 1,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "trigger.program.guard-other-binding"
+            "state": "trigger.program.guard-other-event-object"
           }
         ]
       }
@@ -455,7 +455,7 @@
       }
     },
     {
-      "id": "synthetic-other-creature-guard-owner-cap",
+      "id": "synthetic-other-creature-guard-excludes-source",
       "request": {
         "cardName": "Synthetic Source Exclusion Guard",
         "typeLine": "Creature",
@@ -465,14 +465,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "automaton": "generic-trigger-program",
-            "state": "trigger.program.guard-other-binding"
+            "index": 0,
+            "status": "canonical"
           }
         ]
       }
