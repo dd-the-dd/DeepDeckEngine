@@ -126,6 +126,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "chooseColor"
             | "chooseColors"
             | "chooseBasicLandType"
+            | "chooseOption"
             | "choosePermanents"
             | "chooseCards"
             | "chooseOrder",
