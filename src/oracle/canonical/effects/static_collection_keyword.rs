@@ -27,13 +27,20 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_static_collection_keyword
         StaticCollectionKeywordRecognition::Failed(failure) => {
             // The shared static frame reads the same collection subject with
             // every predicate (quoted abilities, base power and toughness,
-            // prohibitions); when it owns the whole ability, this narrower
-            // keyword reader yields to it.
-            if matches!(
-                try_parse_static_continuous_effect(input),
-                StaticContinuousParseAttempt::Parsed(_)
-            ) {
-                return StaticCollectionKeywordParseAttempt::NotClaimed;
+            // prohibitions): when it owns the whole ability this narrower
+            // keyword reader yields to it, and when it committed its own
+            // deeper failure (inside a quoted ability) that one is kept.
+            match try_parse_static_continuous_effect(input) {
+                StaticContinuousParseAttempt::Parsed(_) => {
+                    return StaticCollectionKeywordParseAttempt::NotClaimed;
+                }
+                StaticContinuousParseAttempt::Rejected(deeper)
+                    if deeper.token_index >= failure.token_index =>
+                {
+                    return StaticCollectionKeywordParseAttempt::Failed(deeper);
+                }
+                StaticContinuousParseAttempt::Rejected(_)
+                | StaticContinuousParseAttempt::NotClaimed => {}
             }
             return StaticCollectionKeywordParseAttempt::Failed(failure);
         }
