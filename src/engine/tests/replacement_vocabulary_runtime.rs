@@ -369,3 +369,85 @@ fn created_and_static_token_replacements_apply_in_the_affected_players_order() {
     // (1 + 1) * 2 = 4 when the addition applies first; 1 * 2 + 1 = 3 otherwise.
     assert_eq!(results, vec![4, 3]);
 }
+
+/// `{3}{R}, {T}: If a source you control would deal damage to an opponent
+/// this turn, it deals double that damage to that player instead.`: the
+/// created program reads its controller's relations and lasts this turn.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_created_damage_doubler_applies_to_its_controllers_sources_this_turn() {
+    use super::super::damage_replacement::DamageEventView;
+    use super::super::quantity_replacement::OptionalQuantityProvider;
+    let mut engine = test_engine(2);
+    creature(&mut engine, 0, "goliath");
+    creature(&mut engine, 0, "attacker");
+    creature(&mut engine, 1, "their-attacker");
+    let effect = json!({
+        "kind": "installDamageReplacement",
+        "program": {
+            "kind": "replaceDamage",
+            "event": {
+                "damage": "any",
+                "source": { "kind": "objects", "controller": controller() },
+                "recipients": [{
+                    "kind": "player",
+                    "player": { "kind": "opponentsOf", "player": controller() },
+                }],
+            },
+            "replacement": {
+                "kind": "modifyAmount",
+                "quantity": {
+                    "kind": "multiply",
+                    "left": { "kind": "integer", "value": 2 },
+                    "right": { "kind": "eventQuantity" },
+                },
+            },
+        },
+        "duration": { "kind": "untilEndOfCurrentTurn" },
+    });
+    assert!(super::super::damage_replacement::created_damage_replacement_supported(&effect));
+    let mut stack = spell_stack(json!([effect.clone()]));
+    stack.card = engine.state.players[0].battlefield[0].clone();
+    engine.install_created_damage_replacement(&effect, &stack);
+    let amount = |engine: &GameEngine, source: &str, controller: &str, player: &str| {
+        let source_card = engine
+            .permanent_position(source)
+            .map(|(p, i)| engine.state.players[p].battlefield[i].clone());
+        let target = TargetRef::Player {
+            player_id: player.to_string(),
+        };
+        engine
+            .apply_damage_replacements(
+                &DamageEventView {
+                    target: &target,
+                    source_id: source,
+                    source_card: source_card.as_ref(),
+                    source_controller: Some(controller),
+                    source_is_spell: false,
+                    combat: false,
+                },
+                3,
+                true,
+                &mut OptionalQuantityProvider(None),
+            )
+            .expect("one program at most applies")
+            .amount
+    };
+    assert_eq!(amount(&engine, "attacker", "player-0", "player-1"), 6);
+    assert_eq!(
+        amount(&engine, "their-attacker", "player-1", "player-0"),
+        3,
+        "an opponent's source is not the controller's"
+    );
+    assert_eq!(
+        amount(&engine, "attacker", "player-0", "player-0"),
+        3,
+        "the controller is not an opponent"
+    );
+    engine.state.turn_number += 1;
+    assert_eq!(
+        amount(&engine, "attacker", "player-0", "player-1"),
+        3,
+        "the created replacement lasted this turn only"
+    );
+}
