@@ -100,6 +100,11 @@ pub(in crate::oracle::canonical) fn recognize_permanent_transition_subject(
         cursor.consume("or")?;
         alternatives.push(read_branch(cursor)?);
     }
+    // `NAME or another NOUN`: a named source is of the kind `another`
+    // presupposes (`binding_environment::nominal_presupposed_by_another`).
+    if source_nominal.is_none() {
+        source_nominal = super::presupposed_source_nominal(&alternatives);
+    }
     Ok(PermanentDiedEventNode {
         alternatives,
         source_nominal,
