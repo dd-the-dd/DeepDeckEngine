@@ -1124,6 +1124,165 @@
       }
     },
     {
+      "id": "mind-sludge-exact",
+      "request": {
+        "cardName": "Mind Sludge",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player discards a card for each Swamp you control."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "discardCards"
+              },
+              {
+                "pointer": "/effects/0/count/kind",
+                "equals": "countPermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "congregate-exact",
+      "request": {
+        "cardName": "Congregate",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player gains 2 life for each creature on the battlefield."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "gruesome-fate-exact",
+      "request": {
+        "cardName": "Gruesome Fate",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Each opponent loses 1 life for each creature you control."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "loseLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "honden-of-nights-reach-exact",
+      "request": {
+        "cardName": "Honden of Night's Reach",
+        "typeLine": "Legendary Enchantment — Shrine",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "At the beginning of your upkeep, target opponent discards a card for each Shrine you control."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "discardCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "performer-sacrifice-for-each-sibling",
+      "request": {
+        "cardName": "Shared multiplier source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target opponent sacrifices a creature of their choice for each card in your hand."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "per-player-count-for-each-near-miss",
+      "request": {
+        "cardName": "Shared multiplier source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Each player loses 1 life for each creature they control."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "destroy-then-controller-discards-no-code",
       "request": {
         "cardName": "Shared recombination source",
