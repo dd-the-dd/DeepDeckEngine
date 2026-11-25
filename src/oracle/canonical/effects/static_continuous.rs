@@ -939,13 +939,28 @@ fn read_object_predicates(
                 }));
             }
             Some(StaticPredicateHead::CounterProhibition) => {
-                // CR 122.1: `can't have counters put on it`.
+                // CR 122.1: `can't have [KIND] counters put on it|them`.
                 *committed = true;
                 cursor.enter("static.continuous.counter-prohibition");
                 read_prohibition_word(cursor)?;
-                cursor.consume_phrase(&["have", "counters", "put", "on"])?;
+                cursor.consume("have")?;
+                let counter = if word_in(cursor.peek(), &["counters"]) {
+                    None
+                } else {
+                    cursor.enter("static.continuous.counter-prohibition.kind");
+                    Some(recognize_counter_name(cursor)?)
+                };
+                cursor.consume_phrase(&["counters", "put", "on"])?;
                 read_object_pronoun(cursor, subject_number)?;
-                modifiers.push(json!({ "kind": "preventCounters", "objects": objects.clone() }));
+                let mut modifier = json!({ "kind": "preventCounters", "objects": objects.clone() });
+                if let Some(counter) = counter {
+                    modifier["counter"] = json!(counter.as_str());
+                }
+                modifiers.push(modifier);
+            }
+            Some(StaticPredicateHead::PassiveProhibition) => {
+                *committed = true;
+                modifiers.push(read_passive_prohibition(cursor, objects)?);
             }
             Some(StaticPredicateHead::PossessiveAbilities) => {
                 cursor.enter("static.continuous.activation-prohibition");
@@ -1138,6 +1153,9 @@ fn modifier_takes_own_condition(modifier: &Value) -> bool {
                 | "loseAllAbilities"
                 | "loseKeywords"
                 | "preventCounters"
+                | "cantBeTargeted"
+                | "cantBeSacrificed"
+                | "cantBecomeUntapped"
                 | "allowAttackWithDefender"
                 | "removeCardTypeWhile"
                 | "setCardTypes"
@@ -1424,6 +1442,82 @@ fn read_optional_color_predicate(
     })))
 }
 
+/// `can't be the target(s) of …`, `can't be sacrificed`, `can't become
+/// untapped`.
+fn passive_prohibition_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    targeting_prohibition_starts(cursor)
+        || (word_in(cursor.peek(), &["can't", "cannot"])
+            && ((word_in(cursor.peek_ahead(1), &["be"])
+                && word_in(cursor.peek_ahead(2), &["sacrificed"]))
+                || (word_in(cursor.peek_ahead(1), &["become"])
+                    && word_in(cursor.peek_ahead(2), &["untapped"]))))
+}
+
+/// One passive prohibition of the subject's objects, each its own
+/// battlefield modifier:
+///
+/// - `can't be the target(s) of SOURCES` (CR 115.4): `cantBeTargeted`, one
+///   branch per kind of targeting spell or ability with the source's
+///   characteristics and controller (the shared targeting-source reader);
+/// - `can't be sacrificed` (CR 701.21a): `cantBeSacrificed`;
+/// - `can't become untapped` (CR 502.3, 701.26b): `cantBecomeUntapped`, for
+///   the untap step and every untap effect.
+fn read_passive_prohibition(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &Value,
+) -> MachineResult<Value> {
+    cursor.enter("static.continuous.passive-prohibition");
+    if targeting_prohibition_starts(cursor) {
+        let node = recognize_targeting_prohibition(cursor)?;
+        cursor.enter("static.continuous.targeting-prohibition.lowering");
+        let mut sources = Vec::new();
+        for branch in &node.branches {
+            let mut source = json!({
+                "stackObject": match branch.kind {
+                    TargetingSourceKind::Spell => "spell",
+                    TargetingSourceKind::Ability => "ability",
+                },
+            });
+            if let Some(predicate) = &branch.source {
+                let filter = lower_card_object_predicate(predicate);
+                cursor.require(
+                    !filter.is_null(),
+                    "source characteristics the shared card filter represents",
+                )?;
+                source["where"] = filter;
+            }
+            if let Some(scope) = branch.controller {
+                source["controller"] = match scope {
+                    ObjectControllerScope::AbilityController => controller(),
+                    ObjectControllerScope::OpponentOfAbilityController => {
+                        json!({ "kind": "opponentsOf", "player": controller() })
+                    }
+                    ObjectControllerScope::NotAbilityController
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_) => {
+                        return Err(cursor.fail(
+                            "a targeting controller relative to the ability controller (`you control`, `your opponents control`)",
+                        ));
+                    }
+                };
+            }
+            sources.push(source);
+        }
+        return Ok(json!({
+            "kind": "cantBeTargeted",
+            "objects": objects.clone(),
+            "sources": sources,
+        }));
+    }
+    read_prohibition_word(cursor)?;
+    if word_in(cursor.peek(), &["be"]) {
+        cursor.consume_phrase(&["be", "sacrificed"])?;
+        return Ok(json!({ "kind": "cantBeSacrificed", "objects": objects.clone() }));
+    }
+    cursor.consume_phrase(&["become", "untapped"])?;
+    Ok(json!({ "kind": "cantBecomeUntapped", "objects": objects.clone() }))
+}
+
 fn read_prohibition_word(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
     cursor.require(
         word_in(cursor.peek(), &["can't", "cannot"]),
@@ -1646,8 +1740,11 @@ enum StaticPredicateHead {
     ContractedCopula(TypeChangeNumber),
     /// `isn't` / `aren't` a card type.
     NegatedCopula(TypeChangeNumber),
-    /// `can't have counters put on it|them` (CR 122.1).
+    /// `can't have [KIND] counters put on it|them` (CR 122.1).
     CounterProhibition,
+    /// `can't be the target of …`, `can't be sacrificed`, `can't become
+    /// untapped`: a passive prohibition of what may happen to the objects.
+    PassiveProhibition,
     /// `its|their activated abilities can't be activated` (CR 602.5).
     PossessiveAbilities,
     /// The same prohibition after a possessive subject (`enchanted
@@ -1669,6 +1766,7 @@ impl StaticPredicateHead {
                 | Self::Grant
                 | Self::Copula(_)
                 | Self::CounterProhibition
+                | Self::PassiveProhibition
                 | Self::PossessiveAbilities
                 | Self::BlockRequirement
                 | Self::KeywordProhibition
@@ -1684,9 +1782,13 @@ fn static_predicate_head(cursor: &OracleTokenCursor<'_>) -> Option<StaticPredica
     };
     if word_in(cursor.peek(), &["can't", "cannot"])
         && word_in(cursor.peek_ahead(1), &["have"])
-        && word_in(cursor.peek_ahead(2), &["counters"])
+        && (word_in(cursor.peek_ahead(2), &["counters"])
+            || word_in(cursor.peek_ahead(3), &["counters"]))
     {
         return Some(StaticPredicateHead::CounterProhibition);
+    }
+    if passive_prohibition_starts(cursor) {
+        return Some(StaticPredicateHead::PassiveProhibition);
     }
     if word_in(cursor.peek(), &["can't", "cannot"])
         && word_in(cursor.peek_ahead(1), &["have"])

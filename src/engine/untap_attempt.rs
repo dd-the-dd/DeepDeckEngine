@@ -14,6 +14,9 @@ impl GameEngine {
         let Some((player, index)) = self.permanent_position(instance_id) else {
             return UntapAttemptOutcome::Unchanged;
         };
+        if self.static_untap_prohibited(&self.state.players[player].battlefield[index]) {
+            return UntapAttemptOutcome::Unchanged;
+        }
         let permanent = &mut self.state.players[player].battlefield[index];
         if permanent.flags.get("phasedOut").copied().unwrap_or(false) || !permanent.tapped {
             return UntapAttemptOutcome::Unchanged;

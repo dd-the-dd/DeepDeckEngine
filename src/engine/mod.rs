@@ -167,6 +167,7 @@ mod mana_discovery_session;
 mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
+mod static_object_prohibitions;
 mod static_player_permissions;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
@@ -5956,6 +5957,10 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         Some("setCardTypes" | "modifySubtypeSet") => {
             GameEngine::static_type_modifier_supported(modifier)
         }
+        Some("cantBeTargeted" | "cantBecomeUntapped") => {
+            static_object_prohibitions::static_object_prohibition_supported(modifier)
+                .unwrap_or(false)
+        }
         _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }
@@ -8608,6 +8613,11 @@ impl GameEngine {
                         permanent,
                         &stack_object.controller,
                         &stack_object.card.definition,
+                    ) && !self.static_targeting_prohibited(
+                        permanent,
+                        &stack_object.controller,
+                        &stack_object.card.definition,
+                        stack_object_is_spell(stack_object),
                     )
                 }),
             TargetRef::Player { player_id } => {
@@ -16785,6 +16795,12 @@ impl GameEngine {
                             let permanent =
                                 &self.state.players[player_index].battlefield[card_index];
                             !self.permanent_is_protected_from_card(permanent, card)
+                                && !self.static_targeting_prohibited(
+                                    permanent,
+                                    controller_id,
+                                    card,
+                                    true,
+                                )
                                 && !(permanent.controller != controller_id
                                     && self.permanent_has_hexproof_from_own_colors_against(
                                         permanent, card,
@@ -19262,6 +19278,11 @@ impl GameEngine {
                                 candidate,
                                 &player.id,
                                 &permanent.definition,
+                            ) && !self.static_targeting_prohibited(
+                                candidate,
+                                &player.id,
+                                &permanent.definition,
+                                false,
                             )
                         })
                         .filter(|candidate| {
