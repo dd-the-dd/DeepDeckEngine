@@ -196,6 +196,7 @@ impl PlayerEventAction {
                 | Self::Proliferate
                 | Self::Exert
                 | Self::ActivateAbility(_)
+                | Self::BeDealtDamage(_)
         )
     }
 
