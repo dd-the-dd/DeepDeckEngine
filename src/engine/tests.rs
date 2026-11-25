@@ -122,6 +122,9 @@ mod program_control_outcomes_runtime;
 #[path = "tests/once_each_turn_runtime.rs"]
 mod once_each_turn_runtime;
 
+#[path = "tests/reflexive_guard_runtime.rs"]
+mod reflexive_guard_runtime;
+
 #[path = "tests/local_damage_life_fsm_runtime.rs"]
 mod local_damage_life_fsm_runtime;
 

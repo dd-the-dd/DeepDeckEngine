@@ -610,7 +610,23 @@
       },
       "expect": {
         "outcome": "success",
-        "cardStatus": "canonical"
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "createReflexiveTrigger"
+              }
+            ]
+          }
+        ]
       }
     },
     {
