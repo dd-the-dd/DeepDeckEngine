@@ -20,6 +20,11 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// Those library cards are in the controller's own library, from which
     /// a resolution-time cast of this program may cast them (CR 608.2g).
     view_library_of_controller: bool,
+    /// The zone a move of this program put the whole observed collection
+    /// into (CR 400.7: the objects it became). A location fact, not an
+    /// antecedent: a shuffle of a library keeps an observation moved out of
+    /// it (`search ..., exile it, then shuffle`).
+    view_relocated: Option<CardZoneName>,
     /// The cards the most recent reveal of this scope revealed (`the
     /// revealed cards`).
     last_revealed: Option<(Value, Option<i64>)>,
@@ -238,6 +243,7 @@ impl CardCollectionMemory {
         self.view_zone_noun = snapshot.view_zone_noun;
         self.view_from_library_top = snapshot.view_from_library_top;
         self.view_library_of_controller = snapshot.view_library_of_controller;
+        self.view_relocated = snapshot.view_relocated;
         self.last_revealed = snapshot.last_revealed.clone();
         self.last_exiled = snapshot.last_exiled.clone();
         self.last_cast = snapshot.last_cast.clone();
@@ -277,6 +283,12 @@ impl CardCollectionMemory {
     pub(in crate::oracle::canonical) fn keep_common_location_facts(&mut self, others: &[&Self]) {
         self.view_library_of_controller &=
             others.iter().all(|other| other.view_library_of_controller);
+        if others
+            .iter()
+            .any(|other| other.view_relocated != self.view_relocated)
+        {
+            self.view_relocated = None;
+        }
     }
 
     pub(in crate::oracle::canonical) fn clear_antecedent(&mut self) {
@@ -290,6 +302,7 @@ impl CardCollectionMemory {
         self.view_zone_noun = false;
         self.view_from_library_top = false;
         self.view_library_of_controller = false;
+        self.view_relocated = None;
         self.last_revealed = None;
         self.last_exiled = None;
         self.last_cast = None;
@@ -1901,8 +1914,18 @@ impl CardCollectionMemory {
                     *owner == LocalPlayerReference::Controller,
                     "the controller's library",
                 )?;
-                // Shuffled cards are new unordered identities for later text.
-                self.clear_antecedent();
+                // Shuffled library cards are new unordered identities for
+                // later text (CR 701.20a). An observation this program moved
+                // wholly out of the library is not shuffled and stays the
+                // antecedent (`search ..., exile it, then shuffle. You may
+                // play that card`).
+                let moved_out = self
+                    .view_relocated
+                    .or(self.view_zone)
+                    .is_some_and(|zone| zone != CardZoneName::Library);
+                if !moved_out {
+                    self.clear_antecedent();
+                }
                 effects.push(json!({"kind":"shuffleZone",
                     "zone":{"kind":"library", "player":controller()}}));
             }
@@ -2110,6 +2133,9 @@ impl CardCollectionMemory {
                     &mut effects,
                     target_decisions,
                 )?;
+                // The whole observed collection moves: its cards are then in
+                // the destination zone, as the objects they became (CR 400.7).
+                let moves_whole_view = self.view.as_ref() == Some(&cards);
                 // Cards of the observed library collection moved out of the
                 // library: a later cast can no longer prove where they are.
                 if destination.zone != CardZoneName::Library
@@ -2340,6 +2366,9 @@ impl CardCollectionMemory {
                             "attachment":bound(MOVED_ONTO_BATTLEFIELD_BINDING),
                             "to":recipient}));
                     }
+                    if moves_whole_view {
+                        self.view_relocated = Some(destination.zone);
+                    }
                     return Ok(effects);
                 }
                 cursor.require(
@@ -2416,6 +2445,9 @@ impl CardCollectionMemory {
                     self.clear_antecedent();
                 } else {
                     effects.push(movement);
+                    if moves_whole_view {
+                        self.view_relocated = Some(destination.zone);
+                    }
                 }
             }
         }
