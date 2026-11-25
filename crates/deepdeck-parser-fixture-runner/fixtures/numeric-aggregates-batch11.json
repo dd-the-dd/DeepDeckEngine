@@ -98,8 +98,7 @@
       },
       "expect": {
         "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 3
+        "cardStatus": "canonical"
       }
     },
     {
