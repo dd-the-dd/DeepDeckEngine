@@ -535,6 +535,72 @@
         "outcome": "success",
         "cardStatus": "canonical"
       }
+    },
+    {
+      "id": "urza-exact-elided-library-after-shuffle",
+      "request": {
+        "cardName": "Urza, Lord High Artificer",
+        "typeLine": "Legendary Creature — Human Artificer",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "When Urza enters, create a 0/0 colorless Construct artifact creature token with \"This token gets +1/+1 for each artifact you control.\"\nTap an untapped artifact you control: Add {U}.\n{5}: Shuffle your library, then exile the top card. Until end of turn, you may play that card without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "hazorets-undying-fury-exact-elided-library-top-four",
+      "request": {
+        "cardName": "Hazoret's Undying Fury",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Shuffle your library, then exile the top four cards. You may cast any number of spells with mana value 5 or less from among them without paying their mana costs. Lands you control don't untap during your next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "magus-of-the-mind-exact-elided-library-top-x",
+      "request": {
+        "cardName": "Magus of the Mind",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "{U}, {T}, Sacrifice this creature: Shuffle your library, then exile the top X cards, where X is one plus the number of spells cast this turn. Until end of turn, you may play lands and cast spells from among cards exiled this way without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-elided-library-without-a-named-library",
+      "request": {
+        "cardName": "Zone Move Elided Top Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Exile the top two cards. You may play them this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "collection.library-top.owner"
+          }
+        ]
+      }
     }
   ]
 }
