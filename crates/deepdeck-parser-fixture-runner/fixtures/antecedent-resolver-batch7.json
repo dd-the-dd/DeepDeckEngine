@@ -1,0 +1,474 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "antecedent-resolver-batch7",
+  "cases": [
+    {
+      "id": "resistance-squad-exact-another-human-guard",
+      "request": {
+        "cardName": "Resistance Squad",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature enters, if you control another Human, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-end-step-two-or-more-other-creatures",
+      "request": {
+        "cardName": "Other Count Probe",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{3}",
+        "oracleText": "At the beginning of your end step, if you control two or more other creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-attack-guard-other-with-power",
+      "request": {
+        "cardName": "Other Power Probe",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature attacks, if you control another creature with power 4 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-other-names-the-entering-object",
+      "request": {
+        "cardName": "Event Other Probe",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "Whenever a Mountain you control enters, if you control at least five other Mountains, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.program.guard-other-event-object"
+          }
+        ]
+      }
+    },
+    {
+      "id": "arresters-zeal-exact-addendum-continues-target",
+      "request": {
+        "cardName": "Arrester's Zeal",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Target creature gets +2/+2 until end of turn.\nAddendum — If you cast this spell during your main phase, that creature gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dispatch-exact-metalcraft-continues-target",
+      "request": {
+        "cardName": "Dispatch",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Tap target creature.\nMetalcraft — If you control three or more artifacts, exile that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbreakable-formation-exact-addendum-continues-set",
+      "request": {
+        "cardName": "Unbreakable Formation",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures you control gain indestructible until end of turn.\nAddendum — If you cast this spell during your main phase, put a +1/+1 counter on each of those creatures and they gain vigilance until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-landfall-paragraph-names-counter-target",
+      "request": {
+        "cardName": "Landfall Paragraph Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put a +1/+1 counter on target creature.\nLandfall — If you had a land enter the battlefield under your control this turn, that creature gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-metalcraft-paragraph-names-pump-target",
+      "request": {
+        "cardName": "Metalcraft Paragraph Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Target creature gets +1/+1 until end of turn.\nMetalcraft — If you control three or more artifacts, that creature gains first strike until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-permanent-paragraph-keeps-its-own-scope",
+      "request": {
+        "cardName": "Permanent Paragraph Probe",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{1}{B}",
+        "oracleText": "Flying\nMorbid — That creature gets -1/-1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-tragic-slip-postposed-instead-stays-separate",
+      "request": {
+        "cardName": "Tragic Slip",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Target creature gets -1/-1 until end of turn.\nMorbid — That creature gets -13/-13 until end of turn instead if a creature died this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent",
+            "abilityIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "goblin-guide-exact-revealed-card-condition",
+      "request": {
+        "cardName": "Goblin Guide",
+        "typeLine": "Creature — Goblin Scout",
+        "manaCost": "{R}",
+        "oracleText": "Haste\nWhenever this creature attacks, defending player reveals the top card of their library. If it's a land card, that player puts it into their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "graveyard-shovel-exact-exiled-card-condition",
+      "request": {
+        "cardName": "Graveyard Shovel",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Target player exiles a card from their graveyard. If it's a creature card, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "jaded-response-exact-countered-spell-condition",
+      "request": {
+        "cardName": "Jaded Response",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target spell if it shares a color with a creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-countered-spell-mana-value-condition",
+      "request": {
+        "cardName": "Counter Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target spell if its mana value is 2 or less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-cast-trigger-guard-mana-value",
+      "request": {
+        "cardName": "Cast Guard Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you cast a spell, if its mana value is 5 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-trigger-that-spell-condition",
+      "request": {
+        "cardName": "Cast Body Probe",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{3}{G}",
+        "oracleText": "Whenever you cast a creature spell, put a +1/+1 counter on this creature. If that spell has mana value 5 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-sacrificed-permanent-is-not-its-card",
+      "request": {
+        "cardName": "Sacrifice Condition Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target opponent sacrifices a creature of their choice. If it was a Human, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.antecedent",
+            "messageContains": "sacrificed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-chosen-target-set-each-of-them",
+      "request": {
+        "cardName": "Chosen Set Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Choose up to two target creatures. Put a +1/+1 counter on each of them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sparkmages-gambit-exact-damaged-target-set",
+      "request": {
+        "cardName": "Sparkmage's Gambit",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Sparkmage's Gambit deals 1 damage to each of up to two target creatures. Those creatures can't block this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-singular-choice-for-plural-anaphor",
+      "request": {
+        "cardName": "Singular Choice Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Choose target creature. Put a +1/+1 counter on each of them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent"
+          }
+        ]
+      }
+    }
+  ]
+}
