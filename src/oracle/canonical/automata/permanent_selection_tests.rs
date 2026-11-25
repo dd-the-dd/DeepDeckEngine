@@ -14,7 +14,7 @@ fn selection_has_bounds_and_query_without_implicit_controller_or_target() {
         assert!(node.operand.query.controller.is_none());
         assert_eq!(
             node.operand.bounds.unwrap().minimum,
-            super::super::NumericAtom::Integer(0)
+            NumericExpression::Atom(NumericAtom::Integer(0))
         );
         cursor.consume(".").unwrap();
         cursor.finish().unwrap();
@@ -102,6 +102,48 @@ fn relative_characteristics_preserve_effect_comma_and_reject_a_second_controller
         assert!(
             recognize_effect_sequence(&mut cursor, &[], None).is_err(),
             "{text}"
+        );
+    }
+}
+
+#[test]
+fn a_tap_selection_is_the_shared_choice_with_the_tap_action() {
+    for (text, minimum) in [
+        ("Tap any number of untapped creatures you control.", 0),
+        ("Tap one or more untapped Humans you control.", 1),
+        ("Tap up to two lands an opponent controls.", 0),
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("selected-tap", &tokens);
+        let sequence = recognize_effect_sequence(&mut cursor, &[], None).unwrap();
+        let [LocalEffectNode::SelectedPermanents(node)] = sequence.effects.as_slice() else {
+            panic!("one chosen tap action: {text}: {sequence:?}");
+        };
+        assert_eq!(node.action, SelectedPermanentAction::Tap, "{text}");
+        assert_eq!(
+            node.operand
+                .bounds
+                .as_ref()
+                .map(|bounds| bounds.minimum.clone()),
+            Some(NumericExpression::from(minimum)),
+            "{text}"
+        );
+        cursor.finish().unwrap();
+    }
+    // Near misses: a `target` head stays with the declared tap frame.
+    for text in [
+        "Tap any number of target creatures.",
+        "Tap up to two target creatures.",
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("selected-tap-target", &tokens);
+        let sequence = recognize_effect_sequence(&mut cursor, &[], None).unwrap();
+        assert!(
+            matches!(
+                sequence.effects.as_slice(),
+                [LocalEffectNode::TapPermanents(_)]
+            ),
+            "{text}: {sequence:?}"
         );
     }
 }

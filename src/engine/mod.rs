@@ -17135,6 +17135,14 @@ impl GameEngine {
                     };
                     decision["candidates"]["resolvedControllerIds"] = json!([player]);
                 }
+                if card_selection::resolve_triggering_zone_owner(
+                    &mut decision["candidates"],
+                    trigger_decisions,
+                )
+                .is_none()
+                {
+                    return Ok(None);
+                }
             }
         }
         let mut definition = source.definition.clone();

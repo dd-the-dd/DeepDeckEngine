@@ -1,9 +1,9 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ExpressedTargetCardinality, NumericAtom, NumericExpression, ObjectKind, ObjectPredicate,
-    PlayerPredicate, StackItemPredicate, TargetCardinality, TargetListNode, TargetSelector,
-    TargetSlot, recognize_numeric_atom, recognize_numeric_expression,
-    recognize_target_slot_selector,
+    ExpressedTargetCardinality, NumericAtom, NumericExpression, ObjectCardType, ObjectKind,
+    ObjectPredicate, ObjectQueryContext, PlayerPredicate, StackItemPredicate, TargetCardinality,
+    TargetListNode, TargetSelector, TargetSlot, recognize_numeric_atom,
+    recognize_numeric_expression, recognize_object_noun_query, recognize_target_slot_selector,
 };
 
 /// One bound of a declared target count (CR 601.2c, 115.1): an amount the
@@ -476,20 +476,111 @@ fn recognize_target_slot(
             TargetSlotState::Selector => {
                 cursor.enter("target-list.slot.selector");
                 let first = recognize_target_slot_selector(cursor)?;
-                selector = Some(recognize_heterogeneous_selector_list(cursor, first)?);
+                let read = recognize_heterogeneous_selector_list(cursor, first)?;
+                selector = Some(
+                    if read == TargetSelector::Any && any_target_exception_starts(cursor) {
+                        recognize_any_target_exception(cursor)?
+                    } else {
+                        read
+                    },
+                );
                 TargetSlotState::Complete
             }
             TargetSlotState::Complete => {
                 cursor.enter("target-list.slot.complete");
+                let selector = cursor.require_value(selector, "a populated target selector")?;
+                let cardinality =
+                    cursor.require_value(cardinality, "a populated target cardinality")?;
+                // `two target creatures controlled by different players`: a
+                // constraint over the declared set (CR 601.2c) needs a slot
+                // that may declare more than one object.
+                if selector_states_set_constraint(&selector) {
+                    cursor.enter("target-list.slot.set-constraint");
+                    let plural = count
+                        .as_ref()
+                        .map_or(cardinality.maximum > 1, TargetCount::is_plural);
+                    cursor.require(
+                        plural,
+                        "a plural target slot for a constraint over the declared set",
+                    )?;
+                }
                 return Ok(TargetSlot {
-                    selector: cursor.require_value(selector, "a populated target selector")?,
-                    cardinality: cursor
-                        .require_value(cardinality, "a populated target cardinality")?,
+                    selector,
+                    cardinality,
                     exclude_source,
                     count,
                 });
             }
         };
+    }
+}
+
+/// `that isn't` / `that is not` right after `any target`.
+fn any_target_exception_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(0, "that")
+        && (word(1, "isn't") || word(1, "isn\u{2019}t") || (word(1, "is") && word(2, "not")))
+}
+
+/// `any target that isn't a Dragon` (CR 115.4): `any target` is a player, a
+/// creature, a planeswalker or a battle; the relative clause excludes the
+/// objects of the shared characteristic query. A player has no creature
+/// type, so every player stays a candidate. The slot is the same union of a
+/// player branch and a permanent branch as `target player or planeswalker`.
+fn recognize_any_target_exception(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<TargetSelector> {
+    cursor.enter("target-list.any-target.exception");
+    cursor.consume("that")?;
+    let copula = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&copula)?;
+    if copula.eq_ignore_ascii_case("is") {
+        cursor.consume("not")?;
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+    {
+        let article = cursor.peek().unwrap_or_default().to_string();
+        cursor.consume(&article)?;
+    }
+    cursor.enter("target-list.any-target.exception.characteristic");
+    let excluded = recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)?
+        .into_object_query(cursor)?;
+    cursor.require(
+        excluded.controller.is_none()
+            && !excluded.exclude_source
+            && !excluded.predicate.contains_set_constraint(),
+        "a characteristic of the excluded objects, without a controller or set constraint",
+    )?;
+    let damageable = ObjectPredicate::Union(vec![
+        ObjectPredicate::CardType(ObjectCardType::Creature),
+        ObjectPredicate::CardType(ObjectCardType::Planeswalker),
+        ObjectPredicate::CardType(ObjectCardType::Battle),
+    ]);
+    Ok(TargetSelector::Union(vec![
+        TargetSelector::Player(PlayerPredicate::Any),
+        TargetSelector::Object(ObjectPredicate::Intersection(vec![
+            damageable,
+            ObjectPredicate::Not(Box::new(excluded.predicate)),
+        ])),
+    ]))
+}
+
+/// Whether an object branch of `selector` states a constraint over the
+/// whole declared set (`with different names`, `controlled by different
+/// players`) rather than over one candidate.
+fn selector_states_set_constraint(selector: &TargetSelector) -> bool {
+    match selector {
+        TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
+            predicate.contains_set_constraint()
+        }
+        TargetSelector::Union(branches) => branches.iter().any(selector_states_set_constraint),
+        TargetSelector::Any | TargetSelector::Player(_) | TargetSelector::StackItem(_) => false,
     }
 }
 

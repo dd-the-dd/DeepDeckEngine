@@ -358,7 +358,7 @@
       }
     },
     {
-      "id": "real-vesperlark-card-power-is-an-explicit-capability-failure",
+      "id": "real-vesperlark-printed-card-power-is-declarable",
       "request": {
         "cardName": "Vesperlark",
         "typeLine": "Creature — Elemental",
@@ -368,11 +368,8 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          { "abilityIndex": 1, "state": "card-target.query-capability" }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical"
       }
     }
   ]

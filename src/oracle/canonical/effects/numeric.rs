@@ -61,6 +61,10 @@ pub(in crate::oracle::canonical) fn lower_action_result_objects(
         && reference.predicate.is_in_domain(ObjectKind::Card)
     {
         lower_card_object_predicate(&reference.predicate)
+    } else if reference.verb.preserves_permanents()
+        && reference.predicate.is_in_domain(ObjectKind::Permanent)
+    {
+        lower_permanent_object_predicate(&reference.predicate)
     } else {
         return Err("a restated noun the producing action guarantees or keeps readable");
     };

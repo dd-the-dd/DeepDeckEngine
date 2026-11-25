@@ -121,22 +121,75 @@ fn compatibility_projection_cannot_erase_an_explicit_source_zone_owner() {
 }
 
 #[test]
-fn shared_characteristic_syntax_stays_unpromoted_without_a_checked_card_context() {
+fn printed_characteristics_of_a_card_in_a_graveyard_are_declarable() {
+    // CR 400.7, 109.3: a card in a graveyard is read through its printed
+    // colors and power; the source's power is bound into the filter when
+    // the target is chosen (CR 601.2c) and rechecked (CR 608.2b).
     for text in [
         "Put target red enchantment card from your graveyard on top of your library",
         "Put target creature card with power 2 or less from your graveyard on top of your library",
+        "Put target multicolored creature card with toughness 3 or less from your graveyard on top of your library",
     ] {
-        let tokens = recognize_entities(text);
-        let mut cursor = OracleTokenCursor::new("target-card-operand-test", &tokens);
-        // An explicit `from ZONE` commits the card-target reading, so the
-        // unproved predicate is a committed, located refusal; the caller's
-        // cursor is untouched either way.
-        let CollectionOperandAttempt::FailedCommitted(failure) =
-            try_recognize_target_card_action(&mut cursor)
+        let CardActionNode::Move {
+            cards: CardOperandNode::Targets(target),
+            ..
+        } = action(text)
         else {
-            panic!("unproved predicate must not be admitted: {text}")
+            panic!("a declared card target: {text}")
         };
-        assert_eq!(failure.state, "card-target.query-capability");
-        assert_eq!(cursor.position(), 0);
+        assert!(target.predicate.has_domain(ObjectKind::Card), "{text}");
     }
+}
+
+#[test]
+fn a_resolution_choice_stays_undeclarable_on_a_card_target() {
+    let tokens = recognize_entities(
+        "Put target creature card of the chosen type from your graveyard on top of your library",
+    );
+    let mut cursor = OracleTokenCursor::new("target-card-operand-test", &tokens);
+    // An explicit `from ZONE` commits the card-target reading, so the
+    // unproved predicate is a committed, located refusal; the caller's
+    // cursor is untouched either way.
+    let CollectionOperandAttempt::FailedCommitted(failure) =
+        try_recognize_target_card_action(&mut cursor)
+    else {
+        panic!("a choice made on resolution must not be admitted")
+    };
+    assert_eq!(failure.state, "card-target.query-capability");
+    assert_eq!(cursor.position(), 0);
+}
+
+#[test]
+fn the_zone_history_relative_qualifies_the_cards_of_the_named_zone() {
+    let tokens = recognize_entities(
+        "target creature card in your graveyard that was put there from the battlefield this turn",
+    );
+    let mut cursor = OracleTokenCursor::new("target-card-zone-history", &tokens);
+    let CollectionOperandAttempt::Recognized(fragment) =
+        try_recognize_card_target_operand(&mut cursor)
+    else {
+        panic!("the zone-history tail belongs to the card target")
+    };
+    cursor.finish().unwrap();
+    let ObjectPredicate::Intersection(operands) = &fragment.node.predicate else {
+        panic!(
+            "the head and the history compose: {:?}",
+            fragment.node.predicate
+        )
+    };
+    assert!(operands.contains(&ObjectPredicate::Status(
+        ObjectStatus::PutThereFromBattlefieldThisTurn
+    )));
+    // Near miss: another departure zone is not this atom and stays an
+    // explicit failure of the operand, not the end of the operand.
+    let tokens = recognize_entities(
+        "target creature card in your graveyard that was put there from your library this turn",
+    );
+    let mut cursor = OracleTokenCursor::new("target-card-zone-history-near-miss", &tokens);
+    let CollectionOperandAttempt::FailedCommitted(failure) =
+        try_recognize_card_target_operand(&mut cursor)
+    else {
+        panic!("an unread relative after the zone is the operand's failure")
+    };
+    assert_eq!(failure.state, "selector.relative-clause.unsupported");
 }

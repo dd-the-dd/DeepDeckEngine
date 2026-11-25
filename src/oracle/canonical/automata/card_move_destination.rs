@@ -420,7 +420,11 @@ fn recognize_entry_attachment(
             Ok(EntryAttachmentNode::Target(targets))
         }
         super::VerbObjectOperandNode::Selection(selection)
-            if selection.bounds == Some(super::ExpressedTargetCardinality::EXACTLY_ONE) =>
+            if selection
+                .bounds
+                .as_ref()
+                .and_then(super::TargetCount::atoms)
+                == Some(super::ExpressedTargetCardinality::EXACTLY_ONE) =>
         {
             Ok(EntryAttachmentNode::Chosen(selection))
         }

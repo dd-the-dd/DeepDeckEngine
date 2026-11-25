@@ -244,6 +244,8 @@ fn lower_object_qualifier(qualifier: &ObjectQualifier, domain: ObjectPredicateDo
         ObjectQualifier::DistinctValues(property) => {
             json!({ "kind": "distinctValues", "property": property.ir_name() })
         }
+        // The engine's joint target-set constraint (CR 108.4, 601.2c).
+        ObjectQualifier::DistinctControllers => json!({ "kind": "distinctPermanentControllers" }),
         ObjectQualifier::SharedValue(characteristic) => json!({
             "kind": "sharedValue",
             "characteristic": characteristic.ir_name(),
@@ -312,7 +314,7 @@ pub(in crate::oracle::canonical) fn lower_controlled_permanent_count(
 fn is_set_constraint_atom(atom: &Value) -> bool {
     matches!(
         atom["kind"].as_str(),
-        Some("distinctValues" | "totalAtMost")
+        Some("distinctValues" | "totalAtMost" | "distinctPermanentControllers")
     )
 }
 

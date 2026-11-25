@@ -698,6 +698,12 @@ impl CardCollectionMemory {
                 CardTargetZoneOwner::Player(LocalPlayerReference::Controller) => {
                     graveyard(controller())
                 }
+                // `from that player's graveyard`: the event's player owns
+                // the zone the targets are declared in.
+                CardTargetZoneOwner::Player(LocalPlayerReference::Bound(player)) => graveyard(
+                    lower_event_bound_player(&player)
+                        .ok_or_else(|| cursor.fail("a bound target-card zone owner"))?,
+                ),
                 CardTargetZoneOwner::AnyPlayer
                 | CardTargetZoneOwner::OnePlayer
                 | CardTargetZoneOwner::Opponent => json!({"kind":"anyGraveyard"}),

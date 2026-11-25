@@ -36,7 +36,7 @@ fn another_without_target_is_a_resolution_choice_excluding_the_source() {
         panic!("a resolution choice, not a declaration");
     };
     assert_eq!(
-        selection.bounds,
+        selection.bounds.as_ref().and_then(TargetCount::atoms),
         Some(ExpressedTargetCardinality::EXACTLY_ONE)
     );
     assert!(selection.query.exclude_source);
@@ -146,4 +146,45 @@ fn a_library_position_reads_a_declared_owner_through_the_possessive_target() {
         try_recognize_card_library_top(&mut cursor),
         CollectionOperandAttempt::FailedCommitted(_)
     ));
+}
+
+#[test]
+fn a_count_without_a_target_head_is_a_resolution_choice() {
+    // CR 608.2d: `any number of` / `one or more` without `target` is chosen
+    // while the effect resolves; the same count before `target` declares.
+    let Ok(VerbObjectOperandNode::Selection(selection)) =
+        operand("any number of Mountains you control")
+    else {
+        panic!("an unbounded resolution choice");
+    };
+    assert_eq!(
+        selection.bounds,
+        Some(TargetCount {
+            minimum: NumericExpression::from(0),
+            maximum: TargetCountBound::Unbounded,
+        })
+    );
+    assert_eq!(
+        selection.query.controller,
+        Some(ObjectControllerScope::AbilityController)
+    );
+    let Ok(VerbObjectOperandNode::Selection(selection)) =
+        operand("one or more nontoken artifacts you control")
+    else {
+        panic!("an at-least-one resolution choice");
+    };
+    assert_eq!(
+        selection.bounds,
+        Some(TargetCount {
+            minimum: NumericExpression::from(1),
+            maximum: TargetCountBound::Unbounded,
+        })
+    );
+    // Near miss: the declared reading keeps its own child.
+    assert!(matches!(
+        operand("any number of target Mountains you control"),
+        Ok(VerbObjectOperandNode::Targets(_))
+    ));
+    // A relative clause the query did not read ends the operand explicitly.
+    assert!(operand("any number of Mountains you control that dealt nothing").is_err());
 }

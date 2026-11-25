@@ -40,19 +40,42 @@ impl CardTargetOperandNode {
     }
 }
 
-// Capability proof, not another predicate evaluator. Declaration filters do not
-// yet have the checked resolution-time numeric/source or AnyZone P/T interface.
+/// Whether one comparison operand is closed at declaration: a literal, the
+/// declared `X` of the face (mana value only, the established producer), or
+/// the ability source's power or toughness, which the engine binds into the
+/// candidate filter when targets are chosen and rechecked (CR 601.2c,
+/// 608.2b; `source_bound_operands`), from last known information once the
+/// source left the battlefield (CR 608.2h).
+fn declaration_comparison_is_closed(
+    left: SelectorNumericProperty,
+    right: &NumericExpression,
+) -> bool {
+    match right {
+        NumericExpression::Atom(NumericAtom::Integer(_)) => true,
+        NumericExpression::Atom(NumericAtom::VariableX) => {
+            left == SelectorNumericProperty::ManaValue
+        }
+        NumericExpression::ObjectProperty {
+            object: LocalObjectReference::SourceSelf,
+            property: NumericObjectProperty::Power | NumericObjectProperty::Toughness,
+        } => true,
+        _ => false,
+    }
+}
+
+// Capability proof, not another predicate evaluator. A card in a graveyard
+// is read through its printed characteristics (CR 400.7, 109.3): its colors,
+// its color count and its printed power, toughness and mana value are the
+// definition view every card-candidate matcher evaluates. A choice made later,
+// on resolution, is not available to a declaration.
 fn declaration_predicate_is_closed(predicate: &ObjectPredicate) -> bool {
     match predicate {
         ObjectPredicate::NumericComparison { left, right, .. } => {
-            *left == SelectorNumericProperty::ManaValue
-                && matches!(right.as_ref(), NumericExpression::Atom(_))
+            declaration_comparison_is_closed(*left, right)
         }
+        ObjectPredicate::Color(_) | ObjectPredicate::ColorQuantity(_) => true,
         // A declaration cannot read a choice made later, on resolution.
-        ObjectPredicate::Color(_)
-        | ObjectPredicate::ColorQuantity(_)
-        | ObjectPredicate::ChosenCreatureType
-        | ObjectPredicate::ChosenColor => false,
+        ObjectPredicate::ChosenCreatureType | ObjectPredicate::ChosenColor => false,
         ObjectPredicate::Intersection(items) | ObjectPredicate::Union(items) => {
             items.iter().all(declaration_predicate_is_closed)
         }
@@ -194,6 +217,18 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
                 (CardTargetZoneOwner::AnyPlayer, false)
             }
             Some("graveyards") => (CardTargetZoneOwner::AnyPlayer, true),
+            // `from that player's graveyard`, `from defending player's
+            // graveyard`: the player the binding environment names (the
+            // player the triggering event records), through the shared
+            // bound-possessive reader.
+            Some("that" | "defending") => {
+                let player = try_recognize_bound_possessive_player(&mut trial)?
+                    .ok_or_else(|| trial.fail("a bound possessive zone owner"))?;
+                (
+                    CardTargetZoneOwner::Player(LocalPlayerReference::Bound(player)),
+                    false,
+                )
+            }
             _ => {
                 return Err(
                     trial.fail("an explicit source zone owner, a single zone, or graveyards")
@@ -224,9 +259,24 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
                 "a proved graveyard targeting domain; hidden-zone targets remain unpromoted",
             ));
         }
+        // `target creature card in your graveyard that was put there from
+        // the battlefield this turn`: the shared relative slot qualifies the
+        // cards of the zone the operand just named (`there`), as after a
+        // zone collection. Only the zone-history clause every card-target
+        // matcher evaluates is claimed; any other relative after the zone is
+        // this operand's explicit failure, never the end of the operand.
+        let predicate = if super::card_zone_history_clause_starts(&trial) {
+            trial.enter("card-target.zone-history");
+            let relative = super::recognize_relative_clause(&mut trial)?;
+            ObjectPredicate::Intersection(vec![query.predicate, relative])
+        } else {
+            query.predicate
+        };
+        trial.enter("card-target.tail");
+        super::refuse_unread_relative_tail(&mut trial)?;
         Ok(CardTargetOperandNode {
             cardinality,
-            predicate: query.predicate,
+            predicate,
             zone,
             owner,
             exclude_source,

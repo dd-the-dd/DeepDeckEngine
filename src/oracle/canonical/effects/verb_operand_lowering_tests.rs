@@ -14,10 +14,7 @@ fn toughness_at_most_x() -> ObjectPredicate {
     ])
 }
 
-fn return_selected(
-    bounds: Option<ExpressedTargetCardinality>,
-    query: ObjectQueryNode,
-) -> LocalEffectNode {
+fn return_selected(bounds: Option<TargetCount>, query: ObjectQueryNode) -> LocalEffectNode {
     LocalEffectNode::SelectedPermanents(SelectedPermanentsEffectNode {
         action: SelectedPermanentAction::ReturnToOwnerHand,
         operand: PermanentSelectionOperandNode { bounds, query },
@@ -60,7 +57,7 @@ fn a_typed_target_count_replaces_the_literal_envelope_of_a_declaration() {
 #[test]
 fn a_chosen_permanent_keeps_its_source_exclusion_and_single_controller() {
     let effect = return_selected(
-        Some(ExpressedTargetCardinality::EXACTLY_ONE),
+        Some(TargetCount::from_literal(TargetCardinality::EXACTLY_ONE)),
         ObjectQueryNode {
             predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
             controller: Some(ObjectControllerScope::AbilityController),
@@ -76,7 +73,7 @@ fn a_chosen_permanent_keeps_its_source_exclusion_and_single_controller() {
 
     // A population of controllers has no single-controller candidate writer.
     let population = return_selected(
-        Some(ExpressedTargetCardinality::EXACTLY_ONE),
+        Some(TargetCount::from_literal(TargetCardinality::EXACTLY_ONE)),
         ObjectQueryNode {
             predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
             controller: Some(ObjectControllerScope::OpponentOfAbilityController),
@@ -112,5 +109,38 @@ fn a_collection_reads_an_opponent_population_and_requires_a_declared_x() {
     assert_eq!(
         lowered[0]["object"]["player"],
         json!({"kind":"opponentsOf", "player":controller()})
+    );
+}
+
+#[test]
+fn an_unbounded_tap_choice_lowers_to_the_shared_choice_and_the_tap_action() {
+    let effect = LocalEffectNode::SelectedPermanents(SelectedPermanentsEffectNode {
+        action: SelectedPermanentAction::Tap,
+        operand: PermanentSelectionOperandNode {
+            bounds: Some(TargetCount {
+                minimum: NumericExpression::from(0),
+                maximum: TargetCountBound::Unbounded,
+            }),
+            query: ObjectQueryNode {
+                predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
+                controller: Some(ObjectControllerScope::AbilityController),
+                exclude_source: false,
+            },
+        },
+        until: None,
+    });
+    let lowered = lower_targetless_local_effects(&effect, TargetlessDeclarationSupport::None, None)
+        .expect("an unbounded choice lowers");
+    assert_eq!(lowered[0]["kind"], "choosePermanents");
+    assert_eq!(lowered[0]["minimum"], json!({"kind":"integer", "value":0}));
+    // No sentinel: the battlefield population bounds the choice from above.
+    assert_eq!(
+        lowered[0]["maximum"],
+        json!({"kind":"countPermanents", "allPlayers":true})
+    );
+    assert_eq!(lowered[1]["kind"], "tapPermanent");
+    assert_eq!(
+        lowered[1]["permanent"],
+        decision_result("selectedPermanents")
     );
 }

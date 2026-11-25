@@ -3240,6 +3240,10 @@ fn recognize_tap_frame(
         crate::oracle::canonical::automata::verb_entry(VerbLemma::Tap).surface(VerbForm::Base),
     )?;
     cursor.enter("effect.tap.object");
+    if super::resolution_selection_count_starts(&trial) {
+        return super::recognize_tap_selected_permanents_effect(cursor)
+            .map(|fragment| LocalEffectNode::SelectedPermanents(fragment.node));
+    }
     let targets = super::recognize_contextual_permanent_operand(
         &mut trial,
         inputs.name_links,
@@ -3281,14 +3285,22 @@ fn recognize_untap_frame(
                     crate::oracle::canonical::automata::verb_entry(VerbLemma::Untap)
                         .surface(VerbForm::Base),
                 )?;
-                let Ok(targets) = super::recognize_contextual_permanent_operand(
+                let targets = match super::recognize_contextual_permanent_operand(
                     &mut trial,
                     inputs.name_links,
                     inputs.name_failure,
                     context,
-                ) else {
-                    *cursor = historical;
-                    return Err(failure);
+                ) {
+                    Ok(targets) => targets,
+                    // A reference (`untap them`, `untap those creatures`) is
+                    // the shared operand's: its failure, not the count's.
+                    Err(contextual) if !super::untap_selection_head(cursor) => {
+                        return Err(contextual);
+                    }
+                    Err(_) => {
+                        *cursor = historical;
+                        return Err(failure);
+                    }
                 };
                 *cursor = trial;
                 return Ok(LocalEffectNode::TapPermanents(
