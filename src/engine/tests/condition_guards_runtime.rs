@@ -247,73 +247,77 @@ fn a_trigger_that_returns_its_card_functions_from_the_graveyard() {
     assert!(engine.state.stack.is_empty());
 }
 
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[test]
-fn excess_damage_this_way_holds_only_beyond_lethal_damage() {
-    let rule = parsed_rules(
-        "Probe Blast",
-        "Instant",
-        "{1}{R}",
-        "Probe Blast deals 5 damage to target creature. If excess damage was dealt this way, draw a card.",
-    )
-    .into_iter()
-    .find(|rule| rule["kind"] == "spellAbility")
-    .expect("a spell rule");
+/// Resolves a one-target damage spell on a recipient of `type_line` and
+/// `toughness`, and returns how many cards its controller drew.
+fn cards_drawn_after_damage(oracle: &str, type_line: &str, toughness: i64) -> usize {
+    let rule = parsed_rules("Probe Blast", "Instant", "{1}{R}", oracle)
+        .into_iter()
+        .find(|rule| rule["kind"] == "spellAbility")
+        .expect("a spell rule");
     let target_id = rule["declaration"]["decisions"][0]["id"]
         .as_str()
         .expect("the declared creature target")
         .to_string();
-    // (recipient toughness, cards drawn): 5 damage to a 2-toughness creature
-    // is 3 excess damage (CR 120.4a); to a 6-toughness one, none.
-    for (toughness, drawn) in [(2, 1), (6, 0)] {
-        let mut engine = test_engine(2);
-        engine.state.players[0].hand.clear();
-        engine.state.players[0].library = vec![test_instance(
-            "library-card",
-            test_definition("library-card", "Instant"),
+    let mut engine = test_engine(2);
+    engine.state.players[0].hand.clear();
+    engine.state.players[0].library = vec![test_instance(
+        "library-card",
+        test_definition("library-card", "Instant"),
+        "player-0",
+    )];
+    let mut definition = test_definition("recipient", type_line);
+    definition.power = Some("1".to_string());
+    definition.toughness = Some(toughness.to_string());
+    engine.state.players[1]
+        .battlefield
+        .push(test_instance("recipient", definition, "player-1"));
+    let stack = StackObject {
+        id: "stack:probe-blast".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "probe-blast",
+            test_definition("probe-blast", "Instant"),
             "player-0",
-        )];
-        let mut definition = test_definition("recipient", "Creature - Bear");
-        definition.power = Some("1".to_string());
-        definition.toughness = Some(toughness.to_string());
-        engine.state.players[1].battlefield.push(test_instance(
-            "recipient",
-            definition,
-            "player-1",
-        ));
-        let stack = StackObject {
-            id: "stack:probe-blast".to_string(),
-            controller: "player-0".to_string(),
-            card: test_instance(
-                "probe-blast",
-                test_definition("probe-blast", "Instant"),
-                "player-0",
-            ),
-            cant_be_countered: false,
-            exile_on_leave_stack: false,
-            ability_kind: Some("spellAbility".to_string()),
-            ability_rule: Some(rule.clone()),
-            decisions: BTreeMap::new(),
-            targets: BTreeMap::from([(
-                target_id.clone(),
-                TargetRef::Permanent {
-                    instance_id: "recipient".to_string(),
-                },
-            )]),
-        };
-        execute_effects_at_resolution_start(
-            &mut engine,
-            &rule["effects"],
-            &stack,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the damage and its excess condition resolve");
-        assert_eq!(
-            engine.state.players[0].hand.len(),
-            drawn,
-            "toughness {toughness}: {rule:#}"
-        );
-    }
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "recipient".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the damage and its condition resolve");
+    engine.state.players[0].hand.len()
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn excess_damage_this_way_holds_only_beyond_lethal_damage() {
+    let oracle = "Probe Blast deals 5 damage to target creature. If excess damage was dealt this way, draw a card.";
+    // 5 damage to a 2-toughness creature is 3 excess damage (CR 120.4a); to
+    // a 6-toughness one, none.
+    assert_eq!(cards_drawn_after_damage(oracle, "Creature - Bear", 2), 1);
+    assert_eq!(cards_drawn_after_damage(oracle, "Creature - Bear", 6), 0);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn dealt_damage_this_way_rereads_the_noun_on_the_damaged_permanent() {
+    // Not printed: the restated noun of `this way` over a damage action.
+    let oracle = "Probe Blast deals 2 damage to target creature. If a Dragon is dealt damage this way, draw a card.";
+    assert_eq!(cards_drawn_after_damage(oracle, "Creature - Dragon", 4), 1);
+    assert_eq!(cards_drawn_after_damage(oracle, "Creature - Bear", 4), 0);
 }
