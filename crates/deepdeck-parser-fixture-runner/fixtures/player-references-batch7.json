@@ -268,7 +268,7 @@
       }
     },
     {
-      "id": "known-gap-hithlain-rope-exact-player-to-your-right",
+      "id": "exact-hithlain-rope-player-to-your-right",
       "request": {
         "cardName": "Hithlain Rope",
         "typeLine": "Artifact",
@@ -278,8 +278,8 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
@@ -295,12 +295,39 @@
                 }
               }
             ]
-          }
-        ],
-        "diagnostics": [
+          },
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/4/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/4/performer",
+                "equals": {
+                  "kind": "seatNeighbor",
+                  "direction": "right",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/performer/kind",
+                "equals": "seatNeighbor"
+              }
+            ]
           }
         ]
       }

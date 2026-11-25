@@ -466,7 +466,7 @@
             "status": "canonical",
             "ruleAssertions": [
               {
-                "pointer": "/effects/1/kind",
+                "pointer": "/effects/2/kind",
                 "equals": "installDamageReplacement"
               }
             ]
@@ -555,8 +555,8 @@
                 "equals": "installGraveyardDestinationReplacement"
               },
               {
-                "pointer": "/effects/0/replacement/controller/kind",
-                "equals": "abilityController"
+                "pointer": "/effects/0/replacement/controller",
+                "equals": {"kind": "controllerOf", "object": {"kind": "self"}}
               },
               {
                 "pointer": "/effects/0/replacement/to/kind",

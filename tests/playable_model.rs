@@ -248,10 +248,6 @@ fn playable_card_compilation_preserves_prepare_face_locality() {
 }
 
 /// Feature: Transform cards retain both faces while exposing which rules belong to each face.
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Sephiroth, Fabled SOLDIER; see docs/coverage-targets.md"
-)]
 #[test]
 fn playable_card_compilation_preserves_transform_face_locality() {
     let compilation = compile_playable_card(PlayableCardInput {

@@ -188,9 +188,11 @@ fn passive_token_creation_is_the_same_quantity_event() {
 
 #[test]
 fn passive_token_creation_needs_the_controller_and_the_same_tokens() {
-    // Every player's tokens, or other tokens created instead, are other events.
+    // Without `under your control` the event names every player's tokens
+    // (Primal Vigor, CR 111.2) and is read; another controller relation,
+    // or other tokens created instead, are other events.
     for text in [
-        "If one or more tokens would be created, twice that many of those tokens are created instead.",
+        "If one or more tokens would be created under an opponent's control, twice that many of those tokens are created instead.",
         "If one or more tokens would be created under your control, those tokens plus a Clue token are created instead.",
     ] {
         assert!(parse(text).is_err(), "{text}");

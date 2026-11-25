@@ -13,15 +13,23 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure"
-          }
-        ],
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "countBoundObjectsLastKnown"
+              },
+              {
+                "pointer": "/effects/1/condition/left/where/value",
+                "equals": "Island"
+              }
+            ]
+          },
           {
             "index": 2,
             "status": "canonical",
@@ -273,7 +281,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "traceContainsState": "event.player.roll.result"
+            "state": "numeric.random-result.reader"
           }
         ]
       }

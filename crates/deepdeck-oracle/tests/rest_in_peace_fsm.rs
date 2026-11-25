@@ -121,15 +121,16 @@ fn committed_replacement_family_rejects_a_specific_origin_without_widening_it() 
         .diagnostics
         .first()
         .expect("committed native failure is surfaced");
+    // The Rest in Peace family claims only its own `from anywhere` text;
+    // the shared departure frame reads `from anywhere` or `from the
+    // battlefield`. A hand origin is neither, so the shared replacement
+    // frame refuses the event explicitly instead of widening any reading.
+    assert_eq!(diagnostic.automaton.as_deref(), Some("ability-frame"));
     assert_eq!(
-        diagnostic.automaton.as_deref(),
-        Some("graveyard-destination-replacement")
+        diagnostic.state.as_deref(),
+        Some("ability-frame.replacement.event"),
+        "{:#?}",
+        ability.diagnostics
     );
-    assert!(
-        diagnostic
-            .state
-            .as_deref()
-            .is_some_and(|state| state.contains("origin"))
-    );
-    assert_eq!(diagnostic.found.as_deref(), Some("your"));
+    assert!(ability.rule.is_none());
 }

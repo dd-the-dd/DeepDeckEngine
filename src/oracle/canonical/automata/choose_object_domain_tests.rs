@@ -144,7 +144,7 @@ fn a_bounded_number_is_a_resolution_choice() {
 }
 
 /// Near-misses: a count closing the clause is still a mode count; cards in
-/// another zone, a random selection, one object per coordinated head, an
+/// another zone, a random selection of a range, one object per coordinated head, an
 /// unbounded or object-counted number and a reversed range fail at their
 /// own states.
 #[test]
@@ -152,8 +152,10 @@ fn unsupported_object_and_number_forms_fail_at_their_own_states() {
     for (text, state) in [
         ("Choose one \u{2014}", "choose.domain.mode"),
         ("Choose two.", "choose.domain.mode"),
+        // An exact count is picked at random (`choose_instruction.rs`);
+        // a range has no random size.
         (
-            "Choose a creature at random.",
+            "Choose up to two creatures at random.",
             "choose.domain.object.selection",
         ),
         // After a choice, `other` names the unchosen permanents; a clause

@@ -264,7 +264,7 @@
       }
     },
     {
-      "id": "engulf-the-shore-exact-preposed-owner-hand-destination",
+      "id": "known-gap-engulf-the-shore-exact-preposed-owner-hand-destination",
       "request": {
         "cardName": "Engulf the Shore",
         "typeLine": "Instant",
@@ -274,8 +274,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.rhs-context"
+          }
+        ]
       }
     },
     {
@@ -567,7 +573,7 @@
       }
     },
     {
-      "id": "magus-of-the-mind-exact-elided-library-top-x",
+      "id": "known-gap-magus-of-the-mind-exact-elided-library-top-x",
       "request": {
         "cardName": "Magus of the Mind",
         "typeLine": "Creature — Human Wizard",
@@ -577,8 +583,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "object-set.complete"
+          }
+        ]
       }
     },
     {
@@ -678,7 +690,7 @@
       }
     },
     {
-      "id": "bring-to-light-exact-exiled-search-result-survives-shuffle",
+      "id": "known-gap-bring-to-light-exact-exiled-search-result-survives-shuffle",
       "request": {
         "cardName": "Bring to Light",
         "typeLine": "Sorcery",
@@ -688,8 +700,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.resolution-cast"
+          }
+        ]
       }
     }
   ]

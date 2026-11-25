@@ -148,11 +148,14 @@ fn compile_recognized_trigger_program(
         TriggerBodyNode::Modal(modal) => lower_effect_sequence_modal(cursor, modal),
     };
     cursor.replace_binding_environment(enclosing);
-    let lowered = lowered?;
+    let mut lowered = lowered?;
     cursor.require(
         !lowered.effects.is_empty(),
         "at least one executable action",
     )?;
+    if event["kind"] == "attachedPermanentManaAbilityActivated" {
+        normalize_attached_mana_performers(&mut lowered.effects);
+    }
     // CR 605.1b: a trigger on an enchanted permanent's mana ability whose
     // program adds mana is a triggered mana ability. It resolves at once as
     // part of that mana ability (CR 605.4a) when every action adds mana to

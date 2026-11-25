@@ -354,7 +354,7 @@
       }
     },
     {
-      "id": "exact-cinderclasm-it-was-kicked",
+      "id": "known-gap-exact-cinderclasm-it-was-kicked",
       "request": {
         "cardName": "Cinderclasm",
         "typeLine": "Instant",
@@ -364,18 +364,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 1,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "reference.source-or-anaphor.start"
           }
         ]
       }
     },
     {
-      "id": "exact-convert-to-slime-total-mana-value-destroyed",
+      "id": "known-gap-exact-convert-to-slime-total-mana-value-destroyed",
       "request": {
         "cardName": "Convert to Slime",
         "typeLine": "Sorcery",
@@ -385,8 +385,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.property-total.reader"
+          }
+        ]
       }
     },
     {

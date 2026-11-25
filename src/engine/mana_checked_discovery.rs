@@ -216,6 +216,16 @@ impl GameEngine {
                            actual_source: Option<&CardInstance>| {
             let actual_source = actual_source
                 .ok_or_else(|| fail("mana.discovery.source-context", "missing value source"))?;
+            // An amount the activation declares (`Remove any number of
+            // storage counters ...: Add {C} for each storage counter removed
+            // this way`) is unknown until that declaration is made and its
+            // costs are paid. Its production is never a string, so it is a
+            // post-cost program: the declared action is refined from its own
+            // decisions after the costs (`refine_postcost_mana_actions`).
+            // Discovery declares no output for it rather than a guess.
+            if include_nontrivial_costs && rule_contains_kind(value, "decisionResult") {
+                return Ok(vec![Vec::new()]);
+            }
             match context
                 .executable_outputs(value, controller, actual_source)
                 .map_err(|failure| failure.into_engine_error())?

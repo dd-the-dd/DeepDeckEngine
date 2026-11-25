@@ -374,6 +374,7 @@ pub(super) fn apply_delayed_frames(
     cursor: &mut OracleTokenCursor<'_>,
     frames: &[DelayedFrameNode],
     target_bindings: &[(TargetBinding, String)],
+    inherited_bindings: &BTreeSet<String>,
     action_starts: &mut [(usize, usize)],
     effects: &mut Vec<Value>,
 ) -> Result<(), EffectSequenceLoweringFailure> {
@@ -396,6 +397,7 @@ pub(super) fn apply_delayed_frames(
                 cursor,
                 &frame,
                 target_bindings,
+                inherited_bindings,
                 &mut delayed,
                 &effects[..from],
                 &effects[to..],
@@ -504,6 +506,7 @@ fn lower_delayed_trigger(
     cursor: &mut OracleTokenCursor<'_>,
     frame: &DelayedFrameNode,
     target_bindings: &[(TargetBinding, String)],
+    inherited_bindings: &BTreeSet<String>,
     delayed: &mut Vec<Value>,
     before: &[Value],
     after: &[Value],
@@ -581,12 +584,11 @@ fn lower_delayed_trigger(
         .cloned()
         .collect::<Vec<_>>();
     cursor.require(
-        captured
-            .iter()
-            .all(|binding| earlier.produced.contains(binding))
-            && inside.decisions_read.iter().all(|decision| {
-                inside.produced.contains(decision) || scope.own_event_decision(decision)
-            }),
+        captured.iter().all(|binding| {
+            earlier.produced.contains(binding) || inherited_bindings.contains(binding)
+        }) && inside.decisions_read.iter().all(|decision| {
+            inside.produced.contains(decision) || scope.own_event_decision(decision)
+        }),
         "delayed actions whose bound operands are produced earlier in the same program",
     )?;
     cursor.enter("lower.delayed.result-scope");

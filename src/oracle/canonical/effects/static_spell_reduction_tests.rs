@@ -99,18 +99,25 @@ fn parse_once_boundary_preserves_other_families_before_cost_and_commits_after_it
         StaticSpellReductionParseAttempt::NotClaimed
     ));
 
-    let StaticSpellReductionParseAttempt::Failed(opponent) = attempt(
+    // Every caster relation and colored delta is the cost-modification
+    // frame's (CR 118.7b-c): committed parses, not other families.
+    for text in [
         "Red spells your opponents cast cost {1} less to cast.",
-        "Enchantment",
-    ) else {
-        panic!("opponent scope must be a committed native failure");
-    };
-    assert_eq!(opponent.state, "static.spell-cost-reduction.caster-scope");
+        "Red spells you cast cost {R} less to cast.",
+    ] {
+        assert!(
+            matches!(
+                attempt(text, "Enchantment"),
+                StaticSpellReductionParseAttempt::Parsed(_)
+            ),
+            "{text}"
+        );
+    }
 
-    let StaticSpellReductionParseAttempt::Failed(colored) =
-        attempt("Red spells you cast cost {R} less to cast.", "Enchantment")
+    let StaticSpellReductionParseAttempt::Failed(zero) =
+        attempt("Red spells you cast cost {0} less to cast.", "Enchantment")
     else {
         panic!("invalid amount after cost must be a committed native failure");
     };
-    assert_eq!(colored.state, "static.spell-cost-reduction.cost");
+    assert_eq!(zero.state, "static.spell-cost-reduction.cost");
 }

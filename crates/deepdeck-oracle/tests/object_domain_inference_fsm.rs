@@ -124,21 +124,15 @@ fn explicit_card_and_spell_nouns_keep_their_own_domain() {
     assert!(!text.contains("\"permanents\""), "{search:#}");
     // `spells you control` stays a stack-object collection: it is never
     // lowered as a battlefield permanent set.
-    let parsed = parse(
+    let spells = rule(
         "Creature \u{2014} Zombie",
         "Instant and sorcery spells you control have deathtouch.",
     );
-    // The engine has no spell-collection keyword grant yet: the explicit
-    // failure stays, and no permanent reading is produced.
-    assert_eq!(parsed.status, "unsupported", "{:#?}", parsed.abilities);
-    assert!(
-        parsed
-            .abilities
-            .iter()
-            .all(|ability| ability.rule.is_none()),
-        "{:#?}",
-        parsed.abilities
-    );
+    // The spell-collection keyword grant (`grantKeywordToSpells`): no
+    // permanent reading is produced.
+    let text = spells.to_string();
+    assert!(text.contains("\"grantKeywordToSpells\""), "{spells:#}");
+    assert!(!text.contains("\"permanents\""), "{spells:#}");
     // `Goblin permanent card` is a card, never a Goblin permanent.
     let lackey = rule(
         "Creature \u{2014} Goblin",

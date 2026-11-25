@@ -130,16 +130,17 @@ fn the_rest_on_the_bottom_in_a_random_order_follows_the_engine_random_source() {
 }
 
 /// `shuffle the cards from your hand into your library`: every card of the
-/// hand goes to its owner's library, even a card another player owns, and
-/// each library that received a card is shuffled.
+/// hand goes to the library and that library is shuffled once. A hand holds
+/// only its owner's cards (CR 400.3), so the owner's library is the hand
+/// owner's library.
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn shuffling_a_hand_into_a_library_sends_each_card_to_its_owners_library() {
     let effects = spell_effects("Shuffle the cards from your hand into your library.");
     let mut engine = test_engine(2);
     engine.state.players[0].hand = vec![
-        card("mine", "Instant", "player-0"),
-        card("borrowed", "Creature - Bear", "player-1"),
+        card("instant", "Instant", "player-0"),
+        card("bear", "Creature - Bear", "player-0"),
     ];
     let own_before = engine.state.players[0].library.len();
     let other_before = engine.state.players[1].library.len();
@@ -150,17 +151,16 @@ fn shuffling_a_hand_into_a_library_sends_each_card_to_its_owners_library() {
     resolve(&mut engine, &effects);
 
     assert!(engine.state.players[0].hand.is_empty());
-    assert_eq!(engine.state.players[0].library.len(), own_before + 1);
-    assert_eq!(engine.state.players[1].library.len(), other_before + 1);
-    assert!(ids(&engine.state.players[0].library).contains(&"mine"));
-    assert!(ids(&engine.state.players[1].library).contains(&"borrowed"));
-    let mut shuffled = engine.state.events[events_before..]
+    assert_eq!(engine.state.players[0].library.len(), own_before + 2);
+    assert_eq!(engine.state.players[1].library.len(), other_before);
+    let library = ids(&engine.state.players[0].library);
+    assert!(library.contains(&"instant") && library.contains(&"bear"));
+    let shuffled = engine.state.events[events_before..]
         .iter()
         .filter(|event| event.kind == "zoneShuffled")
         .filter_map(|event| event.player_id.clone())
         .collect::<Vec<_>>();
-    shuffled.sort_unstable();
-    assert_eq!(shuffled, ["player-0", "player-1"]);
+    assert_eq!(shuffled, ["player-0"]);
 }
 
 /// `the rest of the revealed cards` after `all creature cards revealed this

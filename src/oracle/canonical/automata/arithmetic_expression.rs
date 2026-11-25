@@ -120,6 +120,17 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
 ) -> bool {
     super::sacrificed_cost_object_property_starts(cursor)
         || super::greatest_property_among_starts(cursor)
+        // The definition families of the shared primary, each proving
+        // itself: a postposed genitive (`the power of that creature`), a
+        // collection total, the resolving ability's own record, the amount
+        // of the preceding comparison, and the controller's named facts
+        // (`your speed`, `your highest commander tax ...`).
+        || super::of_genitive_property_starts(cursor)
+        || super::property_total_starts(cursor)
+        || super::ability_history_count_starts(cursor)
+        || super::comparison_difference_starts(cursor)
+        || super::highest_commander_tax_starts(cursor)
+        || super::player_numeric_fact_starts(cursor)
         || super::number_of_count_starts(cursor)
         || super::action_result_quantity_starts(cursor)
         || super::mana_spent_amount_starts(cursor)

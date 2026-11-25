@@ -2647,13 +2647,20 @@ fn following_sentence_ends(cursor: &OracleTokenCursor<'_>, from: usize, end: usi
     let tokens = cursor.token_slice(from, end);
     let mut ends = Vec::new();
     let mut depth = 0usize;
+    let mut reminder_start = None;
     for (offset, token) in tokens.iter().enumerate() {
         match token.raw.as_str() {
-            "(" => depth += 1,
+            "(" => {
+                if depth == 0 {
+                    reminder_start = Some(from + offset);
+                }
+                depth += 1;
+            }
             ")" => {
                 depth = depth.saturating_sub(1);
-                // A reminder closing right after a sentence belongs to it.
-                if depth == 0 && ends.last() == Some(&(from + offset)) {
+                // A reminder opening right after a sentence belongs to it.
+                if depth == 0 && reminder_start.is_some() && ends.last() == reminder_start.as_ref()
+                {
                     *ends.last_mut().expect("checked last end") = from + offset + 1;
                 }
             }

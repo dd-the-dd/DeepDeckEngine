@@ -253,6 +253,24 @@ fn attached_permanent_controller(player: &Value) -> bool {
     }
 }
 
+/// `its controller adds ...` after `Whenever enchanted land is tapped for
+/// mana`: the performer of the mana action is the enchanted permanent's
+/// controller, who adds the mana to their own pool (CR 106.4). The action
+/// names that player directly, the one shape a folded triggered mana
+/// ability carries.
+pub(in crate::oracle::canonical) fn normalize_attached_mana_performers(effects: &mut [Value]) {
+    for effect in effects.iter_mut() {
+        if effect["kind"] != "addMana" || !attached_permanent_controller(&effect["performer"]) {
+            continue;
+        }
+        if let Some(fields) = effect.as_object_mut()
+            && let Some(performer) = fields.remove("performer")
+        {
+            fields.insert("player".to_string(), performer);
+        }
+    }
+}
+
 /// A triggered mana ability of an attachment (CR 605.1b) that runs as part
 /// of the attached permanent's mana ability (CR 605.4a): every action adds
 /// mana to that permanent's controller and carries nothing else.

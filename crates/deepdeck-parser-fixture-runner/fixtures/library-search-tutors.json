@@ -261,8 +261,7 @@
           "abilityIndex": 0,
           "code": "oracle_machine_failure",
           "automaton": "contextual-effect-program",
-          "state": "numeric.atom.start",
-          "found": "that"
+          "state": "lower.card-action.move.origin-library"
         }]
       }
     }

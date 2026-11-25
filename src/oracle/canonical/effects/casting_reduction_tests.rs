@@ -53,10 +53,13 @@ fn near_misses_fail_at_precise_states() {
         .expect_err("unknown condition atom");
     // The shared sentence atoms read `it's ...` as turn ownership.
     assert_eq!(unknown.state, "condition.controller-turn.turn");
+    // A conditional spell-set reduction is the static spell-set family's
+    // (`reduceCastingCost` with its `condition`); this own-spell entry
+    // leaves the condition unconsumed and fails at its completion.
     let spell_set =
         parse("Creature spells you cast cost {1} less to cast if you control a Kithkin.")
-            .expect_err("spell-set conditions are not executable");
-    assert_eq!(spell_set.state, "casting-reduction.condition.subject");
+            .expect_err("a spell set is not this entry's subject");
+    assert_eq!(spell_set.state, "casting-reduction.complete");
     // The counted query owns its own clause boundary; no condition is composed.
     parse(
         "This spell costs {1} less to cast for each artifact you control if you control a Kithkin.",

@@ -84,10 +84,6 @@ fn claimed_near_misses_fail_in_the_responsible_parent_or_numeric_child() {
             "When Test Sage enters, put X +1/+1 counters on it. Then draw half X cards, rounded up.",
             "effect.draw-cards.rounding-direction",
         ),
-        (
-            "When Test Sage enters, put X +1/+1 counters on it. Then draw X cards.",
-            "source-cast-x-entry.sequence-shape",
-        ),
     ] {
         let parsed = parse_entry("Test Sage", oracle_text);
         let ability = &parsed.abilities[0];
@@ -105,4 +101,12 @@ fn claimed_near_misses_fail_in_the_responsible_parent_or_numeric_child() {
             ability.diagnostics
         );
     }
+    // Outside this family's shape, the generic trigger program reads the X
+    // paid for the entering permanent itself (CR 107.3m): an own enters
+    // trigger of an {X} face is a producer, not a near miss.
+    let generic = parse_entry(
+        "Test Sage",
+        "When Test Sage enters, put X +1/+1 counters on it. Then draw X cards.",
+    );
+    assert_eq!(generic.status, "canonical", "{:#?}", generic.abilities);
 }

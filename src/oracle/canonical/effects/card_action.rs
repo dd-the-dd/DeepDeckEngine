@@ -57,6 +57,39 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// The declared target slots of the enclosing program, by binding: a
     /// card pronoun whose antecedent is a declared target reads its slot.
     object_bindings: Vec<(TargetBinding, String)>,
+    /// The outcome body that follows this sequence in the same scope (`If
+    /// you do, return that card ...`) reads a card collection reference, so
+    /// the sequence's last action observes what it moved as if a later
+    /// action of the sequence read it (CR 608.2c).
+    continuation_reads_cards: bool,
+}
+
+impl CardCollectionMemory {
+    /// The runtime bindings this scope already allocated: results of the
+    /// instructions lowered before the current sequence in the same
+    /// resolution (an `If you do` body reads its producer's).
+    pub(in crate::oracle::canonical) fn allocated_binding_ids(
+        &self,
+    ) -> std::collections::BTreeSet<String> {
+        self.allocated_ids.clone()
+    }
+
+    /// Marks that the outcome body sharing this scope reads a card
+    /// collection reference after the sequence lowered next.
+    pub(in crate::oracle::canonical) fn set_continuation_reads_cards(&mut self, reads: bool) {
+        self.continuation_reads_cards = reads;
+    }
+
+    /// Whether a card collection reference follows the action at `index`
+    /// of a sequence of `length` actions: within the sequence, or in the
+    /// outcome body that continues it.
+    pub(in crate::oracle::canonical) fn continuation_reads_cards_after(
+        &self,
+        index: usize,
+        length: usize,
+    ) -> bool {
+        self.continuation_reads_cards && index + 1 == length
+    }
 }
 
 /// The card collection this program put onto the battlefield; `it` after
@@ -533,9 +566,24 @@ impl CardCollectionMemory {
             cursor.fail("an observed card collection in the current lexical scope")
         })?;
         match reference {
-            CardCollectionReferenceNode::Antecedent => self.plural_focus.clone().ok_or_else(|| {
-                cursor.fail("a plural card-collection antecedent in the current scope")
-            }),
+            CardCollectionReferenceNode::Antecedent => {
+                let focus = self.plural_focus.clone().ok_or_else(|| {
+                    cursor.fail("a plural card-collection antecedent in the current scope")
+                })?;
+                // `them` / `those cards` agree in number with what they
+                // restate: the one card a library-top observation read
+                // (`the top card`) is never their antecedent, so another
+                // collection the text means (`exile it. ... exile the top
+                // card ... one of those cards`) is not silently narrowed to
+                // it. Per-chooser or per-slot singular collections (`each
+                // opponent chooses a card`, two single-card targets) are
+                // plural sets and stay readable.
+                cursor.require(
+                    !(self.view_from_library_top && focus.1 == Some(1)),
+                    "a plural card-collection antecedent; the observed library-top collection is one card",
+                )?;
+                Ok(focus)
+            }
             CardCollectionReferenceNode::Selected => self
                 .singular_focus
                 .clone()

@@ -214,11 +214,18 @@ fn the_attacked_object_is_an_attribute_of_the_attack_pattern() {
     );
     assert_eq!(alternatives[1]["kind"], "permanents");
     assert_eq!(alternatives[1]["controller"], controller());
-    // A batch of attackers has no per-attacker recipient matcher.
+    // A batch of attackers with an attacked player is one trigger per
+    // player attacked (CR 506.4, 508.1b), that player bound for the body.
     assert_eq!(
-        failure("Whenever one or more creatures you control attack an opponent, draw a card.")
-            .state,
-        "engine.gap.event-matcher"
+        event("Whenever one or more creatures you control attack an opponent, draw a card."),
+        json!({
+            "kind": "attackersAttackedPlayer",
+            "attackers": {
+                "controller": controller(),
+                "where": {"kind": "cardTypeContains", "value": "Creature"},
+            },
+            "attacked": {"kind": "opponentsOf", "player": controller()},
+        })
     );
 }
 

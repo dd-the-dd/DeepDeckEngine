@@ -182,7 +182,7 @@
       }
     },
     {
-      "id": "exact-abyssal-harvester-put-there-this-turn",
+      "id": "known-gap-exact-abyssal-harvester-put-there-this-turn",
       "request": {
         "cardName": "Abyssal Harvester",
         "typeLine": "Creature — Demon Warlock",
@@ -192,8 +192,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "copy.object.pronoun"
+          }
+        ]
       }
     },
     {

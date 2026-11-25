@@ -114,11 +114,13 @@ fn amount_selector_and_damage_collection_are_generic() {
 #[test]
 fn claimed_near_misses_fail_in_the_responsible_local_state() {
     for (oracle_text, automaton, state, found) in [
+        // A colored delta per counted object (`{R} ... for each`) is a
+        // typed colored reduction (CR 118.7b-c); an undefined `{X}` is not.
         (
-            "This spell costs {R} less to cast for each creature on the battlefield.",
+            "This spell costs {X} less to cast for each creature on the battlefield.",
             "permanent-scaled-casting-reduction",
-            "static.spell-cost-reduction.cost",
-            Some("less"),
+            "casting-reduction.where-x",
+            Some("for"),
         ),
         (
             "This spell costs {1} less to cast for some creature on the battlefield.",

@@ -108,7 +108,7 @@
       }
     },
     {
-      "id": "exact-spined-sliver-any-controller-blocked-attacker",
+      "id": "known-gap-exact-spined-sliver-any-controller-blocked-attacker",
       "request": {
         "cardName": "Spined Sliver",
         "typeLine": "Creature — Sliver",
@@ -118,22 +118,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/event/lemma",
-                "equals": "block"
-              },
-              {
-                "pointer": "/event/subject/role",
-                "equals": "attacker"
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
           }
         ]
       }

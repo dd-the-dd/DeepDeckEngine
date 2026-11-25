@@ -378,6 +378,30 @@ pub(in crate::oracle::canonical) fn lift_target_set_constraints(value: &mut Valu
     }
 }
 
+/// Whether a candidate filter (`where`) still holds a set constraint after
+/// the declared target slots and resolution choices lifted theirs: such a
+/// filter names no chosen set (`Destroy all creatures that share a color`),
+/// so no selection can be checked against it (CR 601.2c, 608.2c).
+pub(in crate::oracle::canonical) fn holds_unlifted_set_constraint(value: &Value) -> bool {
+    fn contains_set_constraint(value: &Value) -> bool {
+        match value {
+            Value::Object(map) => {
+                is_set_constraint_atom(value) || map.values().any(contains_set_constraint)
+            }
+            Value::Array(items) => items.iter().any(contains_set_constraint),
+            _ => false,
+        }
+    }
+    match value {
+        Value::Object(map) => map.iter().any(|(key, child)| {
+            (key == "where" && contains_set_constraint(child))
+                || holds_unlifted_set_constraint(child)
+        }),
+        Value::Array(items) => items.iter().any(holds_unlifted_set_constraint),
+        _ => false,
+    }
+}
+
 /// The members of a conjunction, nested conjunctions flattened.
 fn conjunction_members(filter: &Value, members: &mut Vec<Value>) {
     match filter["kind"].as_str() {

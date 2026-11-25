@@ -217,7 +217,7 @@
       }
     },
     {
-      "id": "casting-reduction-near-miss",
+      "id": "every-player-spell-set-reduction",
       "request": {
         "cardName": "Friendly Reduction",
         "typeLine": "Enchantment",
@@ -227,23 +227,35 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "unsupported",
-          "recognizer": "native",
-          "abilityType": "staticAbility"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "static.spell-cost-reduction.caster-scope",
-          "expectedContains": "spells cast by the ability controller",
-          "found": "{1}"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              },
+              {
+                "pointer": "/modifiers/0/player/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/modifiers/0/where/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/modifiers/0/amount/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
       }
     },
     {

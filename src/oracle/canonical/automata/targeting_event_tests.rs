@@ -110,7 +110,9 @@ fn another_spell_is_not_a_source_exclusion() {
         "Whenever another creature spell becomes the target of a spell or ability, draw a card.",
     );
     let failure = failure.expect_err("a spell is never the excluded source");
-    assert_eq!(failure.state, "event.became-target.subject.selector");
+    // The subject is the shared object query (any controller, optional
+    // `another`); its own completion refuses the excluded spell.
+    assert_eq!(failure.state, "selector.predicate.complete", "{failure:?}");
 }
 
 #[test]

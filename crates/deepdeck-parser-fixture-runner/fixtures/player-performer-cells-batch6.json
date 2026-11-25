@@ -78,7 +78,7 @@
       }
     },
     {
-      "id": "wild-growth-attached-mana-trigger-stays-an-engine-gap",
+      "id": "wild-growth-attached-mana-trigger-folds-into-the-land-mana-ability",
       "request": {
         "cardName": "Wild Growth",
         "typeLine": "Enchantment — Aura",
@@ -88,11 +88,34 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "state": "engine.gap.event-matcher"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentManaAbilityActivated"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
           }
         ]
       }

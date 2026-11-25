@@ -273,6 +273,13 @@ pub(in crate::oracle::canonical) fn recognize_became_target_event(
 ) -> MachineResult<BecameTargetEventNode> {
     let objects = recognize_targeted_object_selectors(cursor)?;
     cursor.enter("event.became-target.action");
+    // Only `becomes the target of` is this frame; another complement of
+    // `become` (`becomes tapped`) belongs to a later event reader, whose
+    // further-reaching diagnostic must not be shadowed by this one.
+    cursor.require(
+        targeting_frame_starts(cursor, 1),
+        "`becomes the target of` after the targeted-object subject",
+    )?;
     consume_lemma(
         cursor,
         VerbLemma::Become,

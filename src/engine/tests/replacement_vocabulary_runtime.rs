@@ -42,6 +42,15 @@ fn install_source(engine: &mut GameEngine, id: &str, modifier: Value) {
     engine.state.players[0]
         .battlefield
         .push(test_instance(id, definition, "player-0"));
+    admit(engine);
+}
+
+/// Fixture permanents enter through the same incarnation admission a real
+/// zone change performs, so later moves can resolve their identity.
+fn admit(engine: &mut GameEngine) {
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 }
 
 fn creature(engine: &mut GameEngine, player: usize, id: &str) {
@@ -51,6 +60,7 @@ fn creature(engine: &mut GameEngine, player: usize, id: &str) {
         test_definition(id, "Creature"),
         &owner,
     ));
+    admit(engine);
 }
 
 fn in_zone(engine: &GameEngine, player: usize, zone: &str, id: &str) -> bool {

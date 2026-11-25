@@ -420,7 +420,21 @@ fn recognize_optional_colored_reduction_reminder(
             .ok_or_else(|| cursor.fail("an example spell introduced by a/an"))?
             .to_string();
         cursor.consume(&article)?;
-        recognize_object_query(cursor)?;
+        // The example spell is the noun phrase before `with mana cost`; the
+        // object query must not read that printed cost as its own `with`
+        // qualifier, so it is bounded to the noun phrase.
+        let example_end = (0..)
+            .map_while(|offset| cursor.peek_ahead(offset).map(|raw| (offset, raw)))
+            .find(|(offset, raw)| {
+                raw.eq_ignore_ascii_case("with")
+                    && word(cursor, offset + 1, "mana")
+                    && word(cursor, offset + 2, "cost")
+            })
+            .map(|(offset, _)| cursor.position() + offset)
+            .ok_or_else(|| cursor.fail("an example spell followed by `with mana cost`"))?;
+        cursor.bounded(example_end, |cursor| {
+            recognize_object_query(cursor).map(|_| ())
+        })?;
         cursor.consume_phrase(&["with", "mana", "cost"])?;
         recognize_mana_cost(cursor)?;
         cursor.consume_phrase(&[",", "it", "costs"])?;

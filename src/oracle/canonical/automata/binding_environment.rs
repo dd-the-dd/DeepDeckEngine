@@ -441,6 +441,15 @@ pub(in crate::oracle::canonical) fn inherit_sequence_antecedents(
     let Some(last) = sequence.effects.last() else {
         return inherited;
     };
+    // `exile target creature. If you do, return that card ...`: the body's
+    // pronoun names the card the exile produced (CR 400.7, 608.2c), read
+    // from the producer's observed exile collection; the enclosing
+    // ability's subject (`When this creature enters`) is no antecedent of it.
+    if exiles_another_object(last) {
+        inherited.permanent_subject_scope = PermanentSubjectScope::Local(None);
+        inherited.permanent_subject_selector = None;
+        return inherited;
+    }
     let Some(selector) = always_bound_battlefield_entry(last) else {
         return inherited;
     };
@@ -450,6 +459,28 @@ pub(in crate::oracle::canonical) fn inherit_sequence_antecedents(
     inherited.permanent_subject_selector = selector.clone();
     inherited.frame.inherited_moved_selector = selector;
     inherited
+}
+
+/// An exile of an object other than the ability's source (a declared
+/// target, a chosen or queried permanent, a card), looking through an
+/// optional block: its lowering observes the exiled cards for a later card
+/// pronoun of the same outcome.
+fn exiles_another_object(effect: &super::LocalEffectNode) -> bool {
+    match effect {
+        super::LocalEffectNode::ZoneChange(zone_change) => {
+            zone_change.action == super::ZoneChangeAction::Exile
+        }
+        super::LocalEffectNode::TargetCardZoneChange(zone_change) => {
+            zone_change.action == super::CardZoneChangeAction::Exile
+        }
+        super::LocalEffectNode::SelectedPermanents(selected) => {
+            selected.action == super::SelectedPermanentAction::Exile
+        }
+        super::LocalEffectNode::OptionalSequence(body) => {
+            body.effects.last().is_some_and(exiles_another_object)
+        }
+        _ => false,
+    }
 }
 
 /// The card selector of an ordinary card move of exactly one card onto the

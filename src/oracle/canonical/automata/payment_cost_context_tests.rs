@@ -82,8 +82,10 @@ fn remove_reads_quantity_optional_kind_and_three_holder_forms() {
 fn remove_reader_near_misses_fail_at_their_own_states() {
     for (text, state) in [
         (
-            "Remove any number of +1/+1 counters from this creature",
-            "numeric.atom.start",
+            // `any number of` is a payer-chosen number (`quantity_slot.rs`);
+            // a variable upper bound names two numbers and is refused.
+            "Remove up to X +1/+1 counters from this creature",
+            "quantity-slot.cost-bound",
         ),
         // An unscoped holder names any permanent, not one the payer controls.
         (

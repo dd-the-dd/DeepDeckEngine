@@ -163,12 +163,25 @@ pub(in crate::oracle::canonical) fn declare_embedded_player_targets(
     effects
         .iter()
         .for_each(|effect| collect(effect, &mut found));
+    // Declarations of earlier passes: a placeholder still carrying their
+    // binding was copied with the query that declared it (`Creatures target
+    // player controls get +2/+2 ... Untap them.` reads the same query), so
+    // it names the same declared player. A second site of one action within
+    // this pass is a second player and stays refused.
+    let declared_before = declared.len();
     for (binding, opponent, site) in found {
         let key = PlayerTargetBinding {
             effect_index: binding,
         };
-        if declared.iter().any(|(declared, _)| *declared == key) {
-            return Err("one declared player for one action of the program");
+        if let Some(position) = declared.iter().position(|(declared, _)| *declared == key) {
+            if position >= declared_before {
+                return Err("one declared player for one action of the program");
+            }
+            let id = declared[position].1.clone();
+            effects
+                .iter_mut()
+                .for_each(|effect| replace(effect, site, &id));
+            continue;
         }
         let selector = TargetSelector::Player(if opponent {
             PlayerPredicate::Opponent

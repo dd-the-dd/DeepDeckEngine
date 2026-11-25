@@ -27231,10 +27231,6 @@ fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: The Lord of the Eagles; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
     let parsed = parse_oracle_card(OracleCardParseRequest {

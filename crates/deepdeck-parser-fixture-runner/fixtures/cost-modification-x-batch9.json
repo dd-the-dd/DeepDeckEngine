@@ -78,7 +78,7 @@
             "status": "canonical",
             "ruleAssertions": [
               { "pointer": "/modifiers/0/amount/kind", "equals": "devotion" },
-              { "pointer": "/modifiers/0/amount/color", "equals": "Black" }
+              { "pointer": "/modifiers/0/amount/colors", "equals": ["Black"] }
             ]
           }
         ]

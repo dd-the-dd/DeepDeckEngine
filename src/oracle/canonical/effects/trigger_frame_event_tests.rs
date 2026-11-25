@@ -287,10 +287,11 @@ fn controlled_object_combat_and_departure_verbs_reuse_controlled_matchers() {
         assert_eq!(lowered["destination"].as_str(), destination, "{text}");
     }
     // A controlled object's only `become` frame with a runtime matcher is
-    // `the target of`; `becomes tapped` fails at that relation.
+    // `the target of`, which claims only that relation; `becomes tapped`
+    // fails at the object event's own complement.
     for (text, state) in [(
         "Whenever a creature an opponent controls becomes tapped, draw a card.",
-        "event.became-target.relation",
+        "event.object.complement",
     )] {
         assert_eq!(committed_state(text), state, "{text}");
     }

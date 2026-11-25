@@ -463,7 +463,7 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "lower.card-action.bindings"
+            "state": "engine.gap.measured-performance"
           }
         ]
       }

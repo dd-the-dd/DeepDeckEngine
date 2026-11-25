@@ -233,12 +233,13 @@ fn unsupported_choices_and_unproved_bindings_fail_at_their_own_state() {
             "{text}: {states:?}"
         );
     }
-    // A plural choice binds no singular pronoun.
+    // A plural choice binds no singular pronoun (`them` names the set:
+    // `antecedent_environment_tests::them_names_the_preceding_object_set`).
     assert!(
         !failure_states(
             "Near Miss",
             "Sorcery",
-            "Choose two target creatures. Tap them."
+            "Choose two target creatures. Tap it."
         )
         .is_empty()
     );

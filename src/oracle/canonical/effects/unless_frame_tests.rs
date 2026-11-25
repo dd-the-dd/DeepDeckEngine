@@ -225,8 +225,10 @@ fn unsupported_unless_shapes_stay_explicit_failures() {
         ),
         (
             "Creature — Zombie",
-            "When this creature enters, sacrifice it unless it escaped.",
+            "When this creature enters, sacrifice it unless it's attacking.",
             // Read as a state condition; its `it` has no proven antecedent.
+            // (`unless it escaped` reads the source's cast record and is
+            // supported: `escape_cast_record_guards_the_entry_sacrifice`.)
             "condition.sentence.object.antecedent",
         ),
         // `that player` is the triggering player, not a player declared by
@@ -253,4 +255,18 @@ fn unsupported_unless_shapes_stay_explicit_failures() {
             parsed.abilities[0].diagnostics
         );
     }
+}
+
+/// Escape creatures (`When this creature enters, sacrifice it unless it
+/// escaped.`, CR 702.138c): the guarded sacrifice is skipped when the
+/// source's cast record says it escaped.
+#[test]
+fn escape_cast_record_guards_the_entry_sacrifice() {
+    let rule = rule(
+        "Creature \u{2014} Zombie",
+        "When this creature enters, sacrifice it unless it escaped.",
+    );
+    let text = rule.to_string();
+    assert!(text.contains("sacrifice"), "{rule:#}");
+    assert!(text.contains("scape"), "{rule:#}");
 }

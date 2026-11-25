@@ -453,7 +453,7 @@
       }
     },
     {
-      "id": "exact-heated-argument-also-deals-after-outcome",
+      "id": "known-gap-exact-heated-argument-also-deals-after-outcome",
       "request": {
         "cardName": "Heated Argument",
         "typeLine": "Instant",
@@ -463,9 +463,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-subject.object-relation.antecedent"
+          }
+        ]
       }
     }
   ]

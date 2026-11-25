@@ -79,7 +79,14 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         // (`you may exile target creature. If you do, return that card ...`);
         // every other outcome reads its own scope.
         let mut producer_scope = CardCollectionMemory::default();
+        producer_scope.set_continuation_reads_cards(
+            *outcome == PerformanceOutcome::Performed
+                && super::effect_sequence::reads_card_collection_reference(
+                    &body.inner_sequence().effects,
+                ),
+        );
         let action = lower_with(cursor, action.inner_sequence(), &mut producer_scope)?;
+        producer_scope.set_continuation_reads_cards(false);
         let mut body_scope = if *outcome == PerformanceOutcome::Performed {
             producer_scope
         } else {

@@ -768,7 +768,7 @@
       }
     },
     {
-      "id": "near-miss-candidate-possessive-stays-unresolved",
+      "id": "candidate-possessive-compares-two-candidate-properties",
       "request": {
         "cardName": "Candidate Possessive Probe",
         "typeLine": "Instant",
@@ -778,12 +778,31 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left/kind",
+                "equals": "toughnessOf"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/right",
+                "equals": {
+                  "kind": "powerOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                }
+              }
+            ]
           }
         ]
       }
