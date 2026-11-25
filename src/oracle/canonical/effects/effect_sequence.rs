@@ -2687,6 +2687,12 @@ fn lower_local_effect_sequence_with_collections(
     })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     bind_returned_source_when_read(cursor, &mut effects, collections)?;
+    effect_alternatives::apply_alternative_frames(
+        cursor,
+        sequence,
+        &mut action_starts,
+        &mut effects,
+    )?;
     apply_delayed_frames(
         cursor,
         &sequence.delayed,
@@ -3599,6 +3605,9 @@ mod preposed_duration_tests;
 
 #[path = "delayed_frame_lowering.rs"]
 mod delayed_frame_lowering;
+
+#[path = "effect_alternatives.rs"]
+mod effect_alternatives;
 use delayed_frame_lowering::apply_delayed_frames;
 
 #[cfg(test)]

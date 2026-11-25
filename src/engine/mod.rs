@@ -30495,8 +30495,8 @@ impl GameEngine {
                         && modifier["cardInstanceId"].as_str()
                             == Some(stack_object.card.instance_id.as_str())
                 })
-                .and_then(|modifier| modifier["addCounter"].as_str())
-                .map(ToOwned::to_owned);
+                .map(card_movement::resolving_spell_exile_counters)
+                .unwrap_or_default();
             self.state.rule_modifiers.retain(|modifier| {
                 value_kind(modifier) != Some("exileResolvingSpell")
                     || modifier["cardInstanceId"].as_str()
@@ -30555,8 +30555,8 @@ impl GameEngine {
             let destination = if spell_copy {
                 "ceasesToExist"
             } else if exile_on_leave_stack {
-                if let Some(counter) = resolving_spell_exile_counter {
-                    *card.counters.entry(counter).or_default() += 1;
+                for (counter, count) in resolving_spell_exile_counter {
+                    *card.counters.entry(counter).or_default() += count;
                 }
                 let destination_zone = card_zone_transition::ObjectZone::Exile;
                 if let Some(source) = &movement_source {

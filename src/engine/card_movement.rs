@@ -248,7 +248,14 @@ impl GameEngine {
         }
         let modifier = match super::value_kind(destination) {
             Some("exile") if destination["faceDown"].as_bool() != Some(true) => {
-                Some(serde_json::json!({"kind":"exileResolvingSpell", "cardInstanceId":spell_id}))
+                let mut modifier =
+                    serde_json::json!({"kind":"exileResolvingSpell", "cardInstanceId":spell_id});
+                // `Exile NAME with N KIND counters on it` (CR 702.62a): the
+                // counted placements go with the card into exile.
+                if let Some(counters) = destination.get("enterWithCounters") {
+                    modifier["counters"] = counters.clone();
+                }
+                Some(modifier)
             }
             Some("library") => Some(
                 serde_json::json!({"kind":RESOLVING_SPELL_TO_LIBRARY, "cardInstanceId":spell_id}),
@@ -306,3 +313,26 @@ impl GameEngine {
 ))]
 #[path = "card_movement_owner_tests.rs"]
 mod owner_tests;
+
+/// The counters an `exileResolvingSpell` record puts on the card as it is
+/// exiled: one `addCounter`, and each counted `counters` placement.
+pub(super) fn resolving_spell_exile_counters(modifier: &serde_json::Value) -> Vec<(String, i32)> {
+    let mut counters = modifier["addCounter"]
+        .as_str()
+        .map(|counter| vec![(counter.to_string(), 1)])
+        .unwrap_or_default();
+    counters.extend(
+        modifier["counters"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|counter| {
+                let name = counter["counter"].as_str()?;
+                let count = counter["count"]
+                    .as_i64()
+                    .and_then(|count| i32::try_from(count).ok())?;
+                (count > 0).then(|| (name.to_string(), count))
+            }),
+    );
+    counters
+}

@@ -296,6 +296,12 @@ pub(in crate::oracle::canonical) fn recognize_entry_modifiers(
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("down")) =>
             {
                 cursor.enter("collection.destination.entry.face-down");
+                // Only exile (CR 406.3) and the battlefield (CR 708.2) hold a
+                // card put there face down; every other zone refuses it.
+                cursor.require(
+                    battlefield || zone == CardZoneName::Exile,
+                    "a face-down destination in exile or on the battlefield",
+                )?;
                 cursor.require(
                     !modifiers.face_down && !modifiers.transformed,
                     "one `face down` entry modifier, never with a transformed entry",
@@ -349,7 +355,9 @@ pub(in crate::oracle::canonical) fn recognize_entry_modifiers(
                 cursor.consume("control")?;
                 modifiers.explicit_controller = true;
             }
-            Some("with") if battlefield => {
+            // `exile it with N KIND counters on it` (CR 702.62a): the same
+            // placement as the object is put into exile.
+            Some("with") if battlefield || zone == CardZoneName::Exile => {
                 cursor.require(
                     modifiers.entering_counters.is_none(),
                     "one entering-counter placement",
@@ -640,7 +648,11 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             position = super::collection::try_recognize_beneath_top_position(&mut trial)?;
         }
         let mut modifiers = EntryModifiers::new(owner);
-        if matches!(zone, CardZoneName::Battlefield | CardZoneName::Exile) {
+        // `face down` after another zone is read to be refused explicitly:
+        // only exile and the battlefield hold a face-down card it put there.
+        if matches!(zone, CardZoneName::Battlefield | CardZoneName::Exile)
+            || entry_modifier_starts(&trial, 0, false)
+        {
             recognize_entry_modifiers(&mut trial, zone, &mut modifiers)?;
         }
         let EntryModifiers {

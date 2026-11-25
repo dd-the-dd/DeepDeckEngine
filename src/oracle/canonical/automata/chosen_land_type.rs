@@ -139,7 +139,9 @@ pub(in crate::oracle::canonical) fn recognize_optional_life_payment(
                 match connector {
                     Some(EffectConnector::Then) => cursor.consume("then")?,
                     Some(EffectConnector::And) => cursor.consume("and")?,
-                    None => return Err(cursor.fail("an explicit effect connector")),
+                    Some(EffectConnector::Or) | None => {
+                        return Err(cursor.fail("an explicit `and` or `then` connector"));
+                    }
                 }
                 LifePaymentState::Player
             }

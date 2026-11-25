@@ -43,15 +43,26 @@ pub(in crate::oracle::canonical) fn lower_source_move_effect(
                 "position": "bottom",
             },
         }),
-        SourceZone::Exile => json!({
-            "kind": "moveCards",
-            "cards": cards,
-            "to": {
+        SourceZone::Exile => {
+            let mut destination = json!({
                 "kind": "exile",
                 "player": { "kind": "ownerOf", "object": self_ref() },
                 "faceDown": false,
-            },
-        }),
+            });
+            // CR 702.62a: `with N KIND counters on it`, placed as the source
+            // is exiled; an unrepresented amount stays `null`, never zero.
+            if let Some(counters) = &effect.entering_counters {
+                destination["enterWithCounters"] = json!([{
+                    "counter": counters.counter.as_str(),
+                    "count": lower_numeric_expression(&counters.count).unwrap_or(Value::Null),
+                }]);
+            }
+            json!({
+                "kind": "moveCards",
+                "cards": cards,
+                "to": destination,
+            })
+        }
         SourceZone::Battlefield => {
             let mut destination = json!({
                 "kind": "battlefield",
@@ -65,6 +76,12 @@ pub(in crate::oracle::canonical) fn lower_source_move_effect(
             });
             if effect.face_change == SourceFaceChange::Transform {
                 destination["faceChange"] = json!({ "kind": "transformFace" });
+            }
+            // CR 508.4: `tapped and attacking`; a defender the event does not
+            // record stays an explicit unsupported policy (`null`).
+            if let Some(attack) = &effect.attacking {
+                destination["attacking"] =
+                    lower_entering_attack_policy(attack).unwrap_or(Value::Null);
             }
             // CR 122.6: the counters are placed as the source enters. An
             // amount the shared numeric lowering cannot represent stays an
