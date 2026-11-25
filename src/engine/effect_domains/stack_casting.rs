@@ -1096,3 +1096,10 @@ const PERMITTED_CAST_GRAVEYARD_EXILE: &str = "permittedCastGraveyardExile";
 ))]
 #[path = "stack_casting_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "cast_spell_query_runtime_tests.rs"]
+mod cast_spell_query_runtime_tests;

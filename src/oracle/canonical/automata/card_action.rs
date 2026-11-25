@@ -2411,3 +2411,7 @@ pub(in crate::oracle::canonical) fn recognize_optional_sequence(
     cursor.advance_to(end)?;
     Ok(body)
 }
+
+#[cfg(test)]
+#[path = "card_action_outcome_tests.rs"]
+mod outcome_tests;

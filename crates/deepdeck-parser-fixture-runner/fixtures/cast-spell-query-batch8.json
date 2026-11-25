@@ -1,0 +1,510 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "cast-spell-query-batch8",
+  "cases": [
+    {
+      "id": "exact-hedge-shredder-batch-of-arrived-lands",
+      "request": {
+        "cardName": "Hedge Shredder",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Whenever this Vehicle attacks, you may mill two cards.\nWhenever one or more land cards are put into your graveyard from your library, put them onto the battlefield tapped.\nCrew 1 (Tap any number of creatures you control with total power 1 or more: This Vehicle becomes an artifact creature until end of turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "triggeringCard"
+              },
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mortuary-arrived-card-on-top",
+      "request": {
+        "cardName": "Mortuary",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever a creature is put into your graveyard from the battlefield, put that card on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "triggeringCard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-colossal-grave-reaver-one-of-the-arrived-cards",
+      "request": {
+        "cardName": "Colossal Grave-Reaver",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{6}{B}{G}",
+        "oracleText": "Flying\nWhenever this creature enters or attacks, mill three cards.\nWhenever one or more creature cards are put into your graveyard from your library, put one of them onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sigil-of-the-new-dawn-arrived-card-after-a-paid-cost",
+      "request": {
+        "cardName": "Sigil of the New Dawn",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}",
+        "oracleText": "Whenever a creature is put into your graveyard from the battlefield, you may pay {1}{W}. If you do, return that card to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-arrival-from-anywhere-returned-to-hand",
+      "request": {
+        "cardName": "Arrival Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever a creature card is put into your graveyard from anywhere, return it to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "triggeringCard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-leveler-whole-library-exiled",
+      "request": {
+        "cardName": "Leveler",
+        "typeLine": "Artifact Creature — Juggernaut",
+        "manaCost": "{5}",
+        "oracleText": "When this creature enters, exile all cards from your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "cardsInZone"
+              },
+              {
+                "pointer": "/effects/0/cards/zone/kind",
+                "equals": "library"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-paradigm-shift-whole-library-exiled",
+      "request": {
+        "cardName": "Paradigm Shift",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Exile all cards from your library. Then shuffle your graveyard into your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-chosen-library-card-without-a-search",
+      "request": {
+        "cardName": "Library Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Exile a card from your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-from-among-looked-at-library-cards",
+      "request": {
+        "cardName": "Lookout Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "{6}, {T}: Look at the top four cards of your library. You may cast a spell from among them without paying its mana cost. Put the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/1/sourceZone",
+                "equals": "library"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-artifact-spell-from-cards-revealed-this-way",
+      "request": {
+        "cardName": "Revealer Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Reveal the top five cards of your library. You may cast an artifact spell with mana value 2 or less from among cards revealed this way without paying its mana cost. Put the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "library"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cast-from-an-opponents-looked-at-library",
+      "request": {
+        "cardName": "Spy Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Look at the top four cards of target opponent's library. You may cast a spell from among them without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.resolution-cast"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cast-after-the-observed-cards-left-the-library",
+      "request": {
+        "cardName": "Moved Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Look at the top three cards of your library. Put one of them into your hand. You may cast a spell from among them without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-restated-verb-is-not-the-producer",
+      "request": {
+        "cardName": "Mismatch Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile the top three cards of your library. You may cast a spell from among cards revealed this way without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "expectedContains": "restated with `this way`"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fevered-suspicion-those-nonland-cards",
+      "request": {
+        "cardName": "Fevered Suspicion",
+        "typeLine": "Sorcery",
+        "manaCost": "{6}{B}{R}",
+        "oracleText": "Each opponent exiles cards from the top of their library until they exile a nonland card. You may cast any number of spells from among those nonland cards without paying their mana costs.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-spells-from-among-cards-exiled-this-way",
+      "request": {
+        "cardName": "Exiler Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}",
+        "oracleText": "Exile the top four cards of your library. You may cast any number of spells from among cards exiled this way without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-postposed-comparison-with-a-count",
+      "request": {
+        "cardName": "Counter Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Exile the top five cards of your library. You may cast a spell from among them with mana value less than or equal to the number of creatures you control without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thief-of-sanity-chosen-card-after-the-rest",
+      "request": {
+        "cardName": "Thief of Sanity",
+        "typeLine": "Creature — Specter",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "Flying\nWhenever this creature deals combat damage to a player, look at the top three cards of that player's library, exile one of them face down, then put the rest into their graveyard. You may cast that card for as long as it remains exiled, and mana of any type can be spent to cast that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gonti-chosen-card-after-the-rest",
+      "request": {
+        "cardName": "Gonti, Lord of Luxury",
+        "typeLine": "Legendary Creature — Aetherborn Rogue",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Deathtouch\nWhen Gonti enters, look at the top four cards of target opponent's library, exile one of them face down, then put the rest on the bottom of that library in a random order. You may cast that card for as long as it remains exiled, and mana of any type can be spent to cast that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dire-fleet-daredevil-permission-exile",
+      "request": {
+        "cardName": "Dire Fleet Daredevil",
+        "typeLine": "Creature — Human Pirate",
+        "manaCost": "{1}{R}",
+        "oracleText": "First strike\nWhen this creature enters, exile target instant or sorcery card from an opponent's graveyard. You may cast it this turn, and mana of any type can be spent to cast that spell. If that spell would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sins-of-the-past-permission-exile",
+      "request": {
+        "cardName": "Sins of the Past",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Until end of turn, you may cast target instant or sorcery card from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead. Exile Sins of the Past.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-vohar-permission-exile",
+      "request": {
+        "cardName": "Vohar, Vodalian Desecrator",
+        "typeLine": "Legendary Creature — Phyrexian Merfolk Wizard",
+        "manaCost": "{U}{B}",
+        "oracleText": "{T}: Draw a card, then discard a card. If you discarded an instant or sorcery card this way, each opponent loses 1 life and you gain 1 life.\n{2}, Sacrifice Vohar: You may cast target instant or sorcery card from your graveyard this turn. If that spell would be put into your graveyard, exile it instead. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-zone-permission-with-graveyard-exile",
+      "request": {
+        "cardName": "Zone Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Until end of turn, you may cast instant and sorcery spells from your graveyard. If a spell cast this way would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}
