@@ -937,9 +937,11 @@ pub(super) enum NumericExpression {
         reader_effect: usize,
         quantity: ActionResultQuantity,
     },
-    /// `your devotion to COLOR` (CR 700.5): the mana symbols of that color
-    /// among the mana costs of permanents the ability controller controls.
-    Devotion(crate::oracle::characteristic_vocabulary::CardColor),
+    /// `your devotion to COLOR ("and" COLOR)*` (CR 700.5, 700.5a): the mana
+    /// symbols of any of those colors among the mana costs of permanents the
+    /// ability controller controls, each symbol counted once. The set is
+    /// non-empty and deduplicated.
+    Devotion(Vec<crate::oracle::characteristic_vocabulary::CardColor>),
     /// The number of the ability controller's opponents with one fact
     /// (`for each opponent you attacked with a creature this combat`).
     OpponentCount(OpponentFact),

@@ -20,12 +20,6 @@ pub(in crate::oracle::canonical) enum CardCollectionReferenceNode {
     /// `the revealed card(s)`: the cards the most recent reveal action of
     /// this program revealed. The lowerer proves that reveal exists.
     Revealed,
-    /// `[the] cards VERBed this way` read as the origin of a cast frame
-    /// (`from among cards revealed this way`): the whole observed collection
-    /// of the scope, whose producing verb the lowerer proves (CR 608.2c).
-    /// Only the cast frame's origin reader produces it; an ordinary operand
-    /// keeps the `all cards VERBed this way` selection.
-    Restated(super::CardCollectionVerb),
 }
 
 /// `card(s) exiled with this NOUN` / `with it` after the head the caller read.

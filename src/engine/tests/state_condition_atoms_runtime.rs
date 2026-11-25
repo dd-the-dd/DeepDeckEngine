@@ -597,12 +597,13 @@ fn player_quantities_read_party_starting_life_and_multicolor_devotion() {
     let mut engine = engine_with_source();
     let party = json!({ "kind": "partySize", "player": controller() });
     let starting = json!({ "kind": "startingLifeTotal", "player": controller() });
+    // The shared devotion quantity (CR 700.5a) over a two-color list.
     let devotion = json!({
-        "kind": "devotionToColors",
+        "kind": "devotion",
         "player": controller(),
-        "colors": ["U", "B"],
+        "colors": ["Blue", "Black"],
     });
-    for expression in [&party, &starting, &devotion] {
+    for expression in [&party, &starting] {
         assert_eq!(
             numeric_quantities::numeric_quantity_supported(expression),
             Some(true)
@@ -635,11 +636,14 @@ fn player_quantities_read_party_starting_life_and_multicolor_devotion() {
         ));
     assert_eq!(engine.player_quantity(&party, "player-0"), Some(Some(3)));
     // CR 700.5a: a hybrid symbol of both colors counts once.
-    assert_eq!(engine.player_quantity(&devotion, "player-0"), Some(Some(4)));
-    let mut unknown_color = devotion.clone();
-    unknown_color["colors"] = json!(["U", "X"]);
-    assert_eq!(
-        numeric_quantities::numeric_quantity_supported(&unknown_color),
-        Some(false)
-    );
+    assert_eq!(engine.numeric_expression(&devotion, "player-0"), Some(4));
+    assert!(numeric_expression_supported(&devotion));
+    for colors in [json!(["Blue", "X"]), json!([]), json!(["Blue", "Blue"])] {
+        let mut malformed = devotion.clone();
+        malformed["colors"] = colors;
+        assert!(!numeric_expression_supported(&malformed), "{malformed}");
+    }
+    let mut legacy = devotion.clone();
+    legacy["kind"] = json!("devotionToColors");
+    assert!(!numeric_expression_supported(&legacy));
 }

@@ -1072,9 +1072,9 @@
                 "pointer": "/modifiers/0/condition",
                 "equals": {
                   "kind": "compare",
-                  "operator": "<=",
+                  "operator": "<",
                   "left": {
-                    "kind": "devotionToColors",
+                    "kind": "devotion",
                     "player": {
                       "kind": "controllerOf",
                       "object": {
@@ -1082,13 +1082,13 @@
                       }
                     },
                     "colors": [
-                      "U",
-                      "B"
+                      "Blue",
+                      "Black"
                     ]
                   },
                   "right": {
                     "kind": "integer",
-                    "value": 6
+                    "value": 7
                   }
                 }
               }

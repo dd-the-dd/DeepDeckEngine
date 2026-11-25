@@ -156,6 +156,52 @@ fn two_switches_of_the_source_cancel() {
     assert_eq!(stats(&engine, "windreaver"), (1, 3));
 }
 
+/// Real cards (Windreaver, Cloudshift): a switched creature that leaves the
+/// battlefield and returns the same turn is a new object the switch never
+/// applied to (CR 400.7, 611.2c); it has its printed power and toughness.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_switch_does_not_follow_the_creature_through_a_zone_change() {
+    let switch = parsed_rule(
+        "Windreaver",
+        "Creature - Elemental",
+        "{U}: Switch this creature's power and toughness until end of turn.",
+    );
+    let flicker = parsed_rule(
+        "Cloudshift",
+        "Instant",
+        "Exile target creature you control, then return that card to the battlefield under your control.",
+    );
+    let target_id = flicker["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let mut engine = test_engine(2);
+    place(
+        &mut engine,
+        "windreaver",
+        "Creature - Elemental",
+        Some((1, 3)),
+    );
+    place(&mut engine, "cloudshift", "Instant", None);
+    resolve(&mut engine, &switch, "windreaver", &[]);
+    assert_eq!(stats(&engine, "windreaver"), (3, 1));
+    resolve(
+        &mut engine,
+        &flicker,
+        "cloudshift",
+        &[(&target_id, "windreaver")],
+    );
+    assert_eq!(
+        stats(&engine, "windreaver"),
+        (1, 3),
+        "the returned creature is a new object"
+    );
+    // The returned object can itself be switched again this turn.
+    resolve(&mut engine, &switch, "windreaver", &[]);
+    assert_eq!(stats(&engine, "windreaver"), (3, 1));
+}
+
 /// Real card (Singing Tree): the base power alone is set in layer 7b; the
 /// toughness keeps its value and counters still apply on top (CR 613.4c).
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

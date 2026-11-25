@@ -314,8 +314,7 @@ impl CollectionScope {
             | CardCollectionReferenceNode::Zone
             | CardCollectionReferenceNode::Exiled
             | CardCollectionReferenceNode::Linked
-            | CardCollectionReferenceNode::Revealed
-            | CardCollectionReferenceNode::Restated(_) => {
+            | CardCollectionReferenceNode::Revealed => {
                 unreachable!("structurally outside the checked scope slice")
             }
         }

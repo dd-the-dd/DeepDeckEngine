@@ -87,10 +87,12 @@ fn restated_exile_scope_reads_the_uncast_relative_clause() {
         };
         assert_eq!(
             fragment.node.quantity,
-            CardSelectionQuantityNode::All {
-                via: Some(CardCollectionVerb::Exiled),
-                except_cast,
-            },
+            CardSelectionQuantityNode::All { except_cast },
+            "{text}"
+        );
+        assert_eq!(
+            fragment.node.via,
+            Some(CardCollectionVerb::Exiled),
             "{text}"
         );
         assert_eq!(cursor.peek(), Some("into"), "{text}");

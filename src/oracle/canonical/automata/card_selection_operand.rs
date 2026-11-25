@@ -14,13 +14,11 @@ pub(in crate::oracle::canonical) enum CardSelectionQuantityNode {
     UpTo(NumericExpression),
     AnyNumber,
     /// Every member, with no player choice: `all creature cards from among them`
-    /// or `all cards revealed this way`. `via` names the verb of the producing
-    /// action when the text states it; the lowerer checks it against the scope.
-    /// `except_cast` is the relative clause `that weren't cast [this way]`:
-    /// the members a preceding resolution-time cast of the same program did
-    /// not cast (CR 608.2c). The lowerer proves that cast action exists.
+    /// or `all cards revealed this way`. `except_cast` is the relative clause
+    /// `that weren't cast [this way]`: the members a preceding resolution-time
+    /// cast of the same program did not cast (CR 608.2c). The lowerer proves
+    /// that cast action exists.
     All {
-        via: Option<CardCollectionVerb>,
         except_cast: bool,
     },
 }
@@ -37,6 +35,10 @@ pub(in crate::oracle::canonical) struct CardSelectionOperandNode {
     pub quantity: CardSelectionQuantityNode,
     pub predicate: Option<ObjectPredicate>,
     pub from: CardCollectionReferenceNode,
+    /// `VERBed this way` restating the producer of the antecedent collection
+    /// (`all cards revealed this way`, `a spell from among cards exiled this
+    /// way`). The lowerer proves the scope's collection came from that verb.
+    pub via: Option<CardCollectionVerb>,
 }
 
 /// `that weren't cast [this way]` / `not cast this way` after a restated
@@ -111,7 +113,22 @@ fn of_names_collection_reference(cursor: &OracleTokenCursor<'_>) -> bool {
     )
 }
 
-fn recognize_this_way_verb(trial: &mut OracleTokenCursor<'_>) -> MachineResult<CardCollectionVerb> {
+/// `revealed|exiled this way` at the cursor. Pure lookahead.
+pub(in crate::oracle::canonical) fn this_way_verb_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
+    }) && cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("way"))
+}
+
+/// `revealed|exiled this way`: the verb restating a collection's producer.
+pub(in crate::oracle::canonical) fn recognize_this_way_verb(
+    trial: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CardCollectionVerb> {
     trial.enter("collection.selection.this-way");
     let verb = if trial
         .peek()
@@ -145,12 +162,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             committed = true;
             let except_cast = recognize_uncast_relative_clause(&mut trial)?;
             return Ok(CardSelectionOperandNode {
-                quantity: CardSelectionQuantityNode::All {
-                    via: Some(via),
-                    except_cast,
-                },
+                quantity: CardSelectionQuantityNode::All { except_cast },
                 predicate: None,
                 from: CardCollectionReferenceNode::Antecedent,
+                via: Some(via),
             });
         }
         // The shared object determiner reads the quantity; a phrase without
@@ -164,10 +179,9 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 ChosenObjectQuantity::UpTo(count) => CardSelectionQuantityNode::UpTo(count),
                 ChosenObjectQuantity::AnyNumber => CardSelectionQuantityNode::AnyNumber,
             },
-            Some(ObjectDeterminer::Universal { each: false }) => CardSelectionQuantityNode::All {
-                via: None,
-                except_cast: false,
-            },
+            Some(ObjectDeterminer::Universal { each: false }) => {
+                CardSelectionQuantityNode::All { except_cast: false }
+            }
             _ => {
                 trial.enter("collection.selection.quantity.determiner");
                 return Err(trial.fail(
@@ -192,10 +206,11 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 quantity,
                 predicate: None,
                 from: CardCollectionReferenceNode::Antecedent,
+                via: None,
             });
         }
         let mut quantity = quantity;
-        let mut this_way_source = false;
+        let mut via = None;
         let mut zone_source = false;
         let mut linked_source = false;
         let predicate = if matches!(quantity, CardSelectionQuantityNode::All { .. })
@@ -206,11 +221,9 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
             }) {
             trial.consume("cards")?;
-            this_way_source = true;
-            let via = Some(recognize_this_way_verb(&mut trial)?);
+            via = Some(recognize_this_way_verb(&mut trial)?);
             committed = true;
             quantity = CardSelectionQuantityNode::All {
-                via,
                 except_cast: recognize_uncast_relative_clause(&mut trial)?,
             };
             None
@@ -251,10 +264,8 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                     raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
                 })
             {
-                this_way_source = true;
-                let via = Some(recognize_this_way_verb(&mut trial)?);
+                via = Some(recognize_this_way_verb(&mut trial)?);
                 quantity = CardSelectionQuantityNode::All {
-                    via,
                     except_cast: recognize_uncast_relative_clause(&mut trial)?,
                 };
             } else if trial
@@ -286,6 +297,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 quantity,
                 predicate,
                 from: CardCollectionReferenceNode::Zone,
+                via: None,
             });
         }
         if linked_source {
@@ -293,14 +305,16 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 quantity,
                 predicate,
                 from: CardCollectionReferenceNode::Linked,
+                via: None,
             });
         }
-        if this_way_source {
+        if via.is_some() {
             // `VERBed this way` restates the antecedent scope itself.
             return Ok(CardSelectionOperandNode {
                 quantity,
                 predicate,
                 from: CardCollectionReferenceNode::Antecedent,
+                via,
             });
         }
         trial.enter("collection.selection.source");
@@ -320,6 +334,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             quantity,
             predicate,
             from,
+            via: None,
         })
     })();
     match result {

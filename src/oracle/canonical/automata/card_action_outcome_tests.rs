@@ -91,13 +91,23 @@ fn a_restated_collection_is_the_origin_of_the_permitted_query() {
             CardCollectionVerb::Exiled,
         ),
     ] {
+        // The shared encoding: the antecedent collection with the restated
+        // producing verb, as `all cards VERBed this way` has.
         let selection = permitted_selection(text);
         assert_eq!(
             selection.from,
-            CardCollectionReferenceNode::Restated(verb),
+            CardCollectionReferenceNode::Antecedent,
             "{text}"
         );
+        assert_eq!(selection.via, Some(verb), "{text}");
     }
+    // Near miss: a qualifier without its `cards` noun is no restated
+    // collection; the committed frame owns the failure.
+    let (attempt, _) = outcome("you may cast a spell from among the nonland revealed this way");
+    assert!(matches!(
+        attempt,
+        CollectionOperandAttempt::FailedCommitted(_)
+    ));
 }
 
 #[test]

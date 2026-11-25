@@ -355,6 +355,7 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some(POWER_TOUGHNESS_SWITCH_MODIFIER)
                     && modifier["objectId"].as_str() == Some(permanent.instance_id.as_str())
+                    && Self::modifier_incarnation_current(modifier, permanent)
                     && modifier["expiresAfterTurn"].as_u64()
                         == Some(u64::from(self.state.turn_number))
             })
@@ -384,6 +385,9 @@ impl GameEngine {
 
     /// `switchPowerToughness` (CR 613.4d): one switch per affected object,
     /// locked in when the effect begins (CR 611.2c) and ending with the turn.
+    /// It is bound to the object's incarnation: a permanent that leaves the
+    /// battlefield and returns is a new object it does not apply to (CR
+    /// 400.7).
     fn execute_power_toughness_switch(
         &mut self,
         effect: &Value,
@@ -394,9 +398,15 @@ impl GameEngine {
         for instance_id in
             self.characteristic_object_ids(&effect["object"], stack_object, bindings, decisions)
         {
+            let Some(incarnation) = self.permanent_position(&instance_id).map(|(player, card)| {
+                Self::incarnation_binding(&self.state.players[player].battlefield[card])
+            }) else {
+                continue;
+            };
             self.state.rule_modifiers.push(json!({
                 "kind": POWER_TOUGHNESS_SWITCH_MODIFIER,
                 "objectId": instance_id.clone(),
+                "zoneIdentity": incarnation,
                 "expiresAfterTurn": self.state.turn_number,
             }));
             self.record_event(

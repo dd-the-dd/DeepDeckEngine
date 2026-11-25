@@ -26,9 +26,9 @@
 //!   Warrior and Wizard among the creatures the player controls, as one
 //!   maximum assignment.
 //! - `startingLifeTotal { player }` (CR 103.4).
-//! - `devotionToColors { player, colors }` (CR 700.5a): the mana symbols of
-//!   the player's permanents' mana costs that are any of the colors, each
-//!   counted once.
+//!
+//! Devotion to one or more colors is the shared `devotion { player, colors }`
+//! quantity (CR 700.5a), not a condition-only measure.
 //!
 //! The continuous evaluator knows its reference player and the source only:
 //! a player atom there names the reference player (`controllerOf self`,
@@ -108,30 +108,15 @@ pub(super) fn supported(condition: &Value) -> bool {
 }
 
 /// `Some(valid)` for a player quantity this module owns (`partySize`,
-/// `startingLifeTotal`, `devotionToColors`), `None` otherwise.
+/// `startingLifeTotal`), `None` otherwise.
 pub(super) fn player_quantity_supported(expression: &Value) -> Option<bool> {
     let supported = match value_kind(expression) {
         Some("partySize" | "startingLifeTotal") => {
             player_reference_supported(&expression["player"])
         }
-        Some("devotionToColors") => {
-            player_reference_supported(&expression["player"])
-                && expression["colors"].as_array().is_some_and(|colors| {
-                    !colors.is_empty()
-                        && colors.iter().all(|color| {
-                            matches!(color.as_str(), Some("W" | "U" | "B" | "R" | "G"))
-                        })
-                })
-        }
         _ => return None,
     };
     Some(supported)
-}
-
-/// Whether a mana symbol (`B`, `B/R`, `2/B`, `B/P`) is of any of `colors`:
-/// a hybrid symbol counts once (CR 700.5a).
-fn symbol_has_any_color(symbol: &str, colors: &[&str]) -> bool {
-    symbol.split('/').any(|part| colors.contains(&part))
 }
 
 /// The size of the largest party among `roles_of` each creature (CR
@@ -385,23 +370,6 @@ impl GameEngine {
                     .filter(|roles| roles.iter().any(|role| *role))
                     .collect::<Vec<_>>();
                 Some(party_size(&roles_of))
-            }
-            Some("devotionToColors") => {
-                let colors = expression["colors"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .collect::<Vec<_>>();
-                i32::try_from(
-                    player
-                        .battlefield
-                        .iter()
-                        .flat_map(|card| parse_mana_symbols(&card.definition.mana_cost))
-                        .filter(|symbol| symbol_has_any_color(symbol, &colors))
-                        .count(),
-                )
-                .ok()
             }
             _ => return None,
         };

@@ -7,9 +7,11 @@ composées. Ce document décrit les opérandes ajoutés et ce qui reste.
 
 ## Opérandes ajoutés
 
-- `your devotion to COLOR` (CR 700.5) → `{"kind":"devotion","player":…,
-  "color":…}`. Une dévotion à deux couleurs compte une fois un symbole
-  hybride (CR 700.5a) : refusée explicitement (`numeric.devotion.color`).
+- `your devotion to COLOR ("and" COLOR)*` (CR 700.5) → `{"kind":"devotion",
+  "player":…,"colors":[…]}` (liste non vide, sans doublon). Une dévotion à
+  plusieurs couleurs compte une fois un symbole hybride (CR 700.5a) ; les
+  conditions (`your devotion to blue and black is less than seven`) passent
+  par la comparaison numérique partagée.
   Moteur : la dévotion comptait les couleurs des permanents ; elle compte
   maintenant les symboles de mana de la couleur dans leurs coûts (un
   symbole hybride compte pour chacune de ses couleurs).

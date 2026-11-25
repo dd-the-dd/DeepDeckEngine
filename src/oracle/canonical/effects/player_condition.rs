@@ -68,12 +68,6 @@ pub(in crate::oracle::canonical) fn lower_player_measure(
         }),
         // CR 700.8: the engine's party-size quantity of that player.
         PlayerStateMeasure::PartySize => json!({ "kind": "partySize", "player": player }),
-        // CR 700.5a: one count over the mana symbols of any listed color.
-        PlayerStateMeasure::Devotion(colors) => json!({
-            "kind": "devotionToColors",
-            "player": player,
-            "colors": colors.iter().map(|color| color.ir_symbol()).collect::<Vec<_>>(),
-        }),
     }
 }
 

@@ -138,10 +138,6 @@ pub(in crate::oracle::canonical) enum PlayerStateMeasure {
     /// The size of the player's party (CR 700.8): up to one each of
     /// Cleric, Rogue, Warrior and Wizard among the creatures they control.
     PartySize,
-    /// The player's devotion to one or more colors (CR 700.5, 700.5a): each
-    /// mana symbol of their permanents' mana costs that is any of them,
-    /// counted once.
-    Devotion(Vec<super::CardColor>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

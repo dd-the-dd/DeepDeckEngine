@@ -419,6 +419,23 @@ impl CardCollectionMemory {
         }
     }
 
+    /// The collection a selection chooses from. `VERBed this way` (CR
+    /// 608.2c) is proved here for every selection parent: the scope's
+    /// observed collection was produced by the restated verb.
+    fn selection_source(
+        &self,
+        cursor: &OracleTokenCursor<'_>,
+        selection: &CardSelectionOperandNode,
+    ) -> MachineResult<(Value, Option<i64>)> {
+        if let Some(via) = selection.via {
+            cursor.require(
+                self.view.is_some() && self.view_verb == Some(via),
+                "a collection produced by the verb restated with `this way`",
+            )?;
+        }
+        self.reference(cursor, selection.from)
+    }
+
     fn reference(
         &self,
         cursor: &OracleTokenCursor<'_>,
@@ -462,18 +479,6 @@ impl CardCollectionMemory {
                     .or_else(|| self.plural_focus.clone())
                     .ok_or_else(|| cursor.fail("the cards this program exiled"));
             }
-            // `cards revealed|exiled this way`: the whole observed collection
-            // of this scope, produced by the restated verb (CR 608.2c).
-            CardCollectionReferenceNode::Restated(verb) => {
-                let view = self.view.clone().ok_or_else(|| {
-                    cursor.fail("an observed card collection in the current lexical scope")
-                })?;
-                cursor.require(
-                    self.view_verb == Some(verb),
-                    "a collection produced by the verb restated with `this way`",
-                )?;
-                return Ok((view, self.view_maximum));
-            }
             _ => {}
         }
         // Without an observed collection, `it` / `that card` is the card the
@@ -511,9 +516,8 @@ impl CardCollectionMemory {
                 .ok_or_else(|| cursor.fail("a singular card antecedent in the current scope")),
             CardCollectionReferenceNode::Exiled
             | CardCollectionReferenceNode::Linked
-            | CardCollectionReferenceNode::Revealed
-            | CardCollectionReferenceNode::Restated(_) => {
-                unreachable!("linked, exiled, revealed and restated references are resolved above")
+            | CardCollectionReferenceNode::Revealed => {
+                unreachable!("linked, exiled and revealed references are resolved above")
             }
             CardCollectionReferenceNode::Zone => {
                 cursor.require(
@@ -926,7 +930,7 @@ impl CardCollectionMemory {
             }
             return Ok(value);
         };
-        let (from, source_maximum) = self.reference(cursor, selection.from)?;
+        let (from, source_maximum) = self.selection_source(cursor, selection)?;
         if self.complement_basis.as_ref().map(|(basis, _)| basis) != Some(&from) {
             self.complement_basis = Some((from.clone(), source_maximum));
             self.complement_exclusions.clear();
@@ -939,15 +943,9 @@ impl CardCollectionMemory {
             .as_ref()
             .filter(|predicate| **predicate != ObjectPredicate::ObjectKind(ObjectKind::Card))
             .map(lower_card_object_predicate);
-        if let CardSelectionQuantityNode::All { via, except_cast } = &selection.quantity {
+        if let CardSelectionQuantityNode::All { except_cast } = &selection.quantity {
             // No player choice: the selected set is the filtered view itself,
             // and `the rest` is whatever this set leaves in the view.
-            if let Some(via) = via {
-                cursor.require(
-                    self.view_verb == Some(*via),
-                    "a collection produced by the verb restated with `this way`",
-                )?;
-            }
             let result = predicate.as_ref().map_or_else(
                 || from.clone(),
                 |predicate| json!({"kind":"filterObjects", "objects":from, "where":predicate}),
@@ -1385,10 +1383,7 @@ impl CardCollectionMemory {
                     value,
                 ))) if *value > 0 => Ok(Some(*value)),
                 CardSelectionQuantityNode::AnyNumber
-                | CardSelectionQuantityNode::All {
-                    via: None,
-                    except_cast: false,
-                } => Ok(None),
+                | CardSelectionQuantityNode::All { except_cast: false } => Ok(None),
                 _ => Err(cursor
                     .fail("a positive literal, `any number` or every one of the cards to cast")),
             }
@@ -1419,7 +1414,7 @@ impl CardCollectionMemory {
                 (Some(cards), maximum, vec![zone.ir_name()])
             }
             CardOperandNode::Selection(selection) => {
-                let (from, _) = self.reference(cursor, selection.from)?;
+                let (from, _) = self.selection_source(cursor, selection)?;
                 let maximum = cast_maximum(cursor, &selection.quantity)?;
                 mandatory &= matches!(selection.quantity, CardSelectionQuantityNode::Exactly(_));
                 let cards = match &selection.predicate {

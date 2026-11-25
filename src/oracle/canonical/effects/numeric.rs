@@ -442,10 +442,13 @@ fn lower_numeric_expression_in_context(
             "reader": reader_effect,
             "quantity": quantity.ir_name(),
         })),
-        NumericExpression::Devotion(color) => Some(json!({
+        NumericExpression::Devotion(colors) => Some(json!({
             "kind": "devotion",
             "player": controller(),
-            "color": canonical_color_name(*color),
+            "colors": colors
+                .iter()
+                .map(|color| canonical_color_name(*color))
+                .collect::<Vec<_>>(),
         })),
         NumericExpression::EventHistoryCount(node) => Some(lower_event_history_count(
             &node.pattern,

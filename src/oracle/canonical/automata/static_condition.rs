@@ -1928,7 +1928,6 @@ pub(in crate::oracle::canonical) fn recognize_object_event_history_atom(
 ///                | "you" "have" "at" "least" N "life" "more" "than"
 ///                  "your" "starting" "life" "total"
 ///                | ("your" | "a") ZONE "has" THRESHOLD CARDS "in" "it"
-///                | "your" "devotion" "to" COLOR "and" COLOR "is" THRESHOLD
 ///                | PLAYER ("has" | "have") "been" "dealt" DAMAGE "this" "turn"
 /// TopCard       := "the" "top" "card" "of" "your" ZONE "is" CARD-PREDICATE
 /// ColorRank     := COLOR "is" "the" "most" "common" "color" "among" "all"
@@ -1984,13 +1983,6 @@ pub(in crate::oracle::canonical) fn try_recognize_history_static_atom(
     }
     if zone_card_count_atom_starts(cursor) {
         return recognize_zone_card_count_atom(cursor).map(Some);
-    }
-    if word_is(cursor, 0, "your")
-        && word_is(cursor, 1, "devotion")
-        && word_is(cursor, 2, "to")
-        && word_is(cursor, 4, "and")
-    {
-        return recognize_multicolor_devotion_atom(cursor).map(Some);
     }
     if top_card_atom_starts(cursor) {
         return recognize_top_card_atom(cursor).map(Some);
@@ -2505,40 +2497,6 @@ fn recognize_zone_card_count_atom(
     Ok(ConditionAtom::Compare(ConditionComparison::measured(
         subject,
         PlayerStateMeasure::CardsInZone { zone, predicate },
-        threshold,
-    )))
-}
-
-/// `your devotion to blue and black is less than seven` (CR 700.5a): one
-/// count of the mana symbols of either color, compared with the shared
-/// threshold.
-fn recognize_multicolor_devotion_atom(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<ConditionAtom> {
-    use crate::oracle::characteristic_vocabulary::lookup_card_color;
-    cursor.enter("condition.player.devotion");
-    cursor.consume_phrase(&["your", "devotion", "to"])?;
-    let mut colors = Vec::new();
-    loop {
-        cursor.enter("condition.player.devotion.color");
-        let color = cursor
-            .peek()
-            .and_then(lookup_card_color)
-            .ok_or_else(|| cursor.fail("a color"))?;
-        cursor.require(!colors.contains(&color), "distinct devotion colors")?;
-        colors.push(color);
-        consume_current(cursor)?;
-        if !word_is(cursor, 0, "and") {
-            break;
-        }
-        cursor.consume("and")?;
-    }
-    cursor.enter("condition.player.devotion.copula");
-    cursor.consume("is")?;
-    let threshold = recognize_count_threshold(cursor, false)?;
-    Ok(ConditionAtom::Compare(ConditionComparison::measured(
-        ConditionPlayerSubject::Controller,
-        PlayerStateMeasure::Devotion(colors),
         threshold,
     )))
 }

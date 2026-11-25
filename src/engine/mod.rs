@@ -2783,7 +2783,8 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 && expression["counter"].is_string()
         }
         Some("devotion") => {
-            player_reference_supported(&expression["player"]) && expression["color"].is_string()
+            player_reference_supported(&expression["player"])
+                && devotion_symbols(&expression["colors"]).is_some()
         }
         Some("devotionToChosenColor" | "commanderColorIdentityCount") => {
             player_reference_supported(&expression["player"])
@@ -3299,6 +3300,29 @@ fn move_operation_supported(operation: &Value) -> bool {
     let objects_supported = object_expression_supported(&operation["objects"])
         || target_reference_supported(&operation["objects"]);
     from_supported && objects_supported && value_kind(&operation["to"]) == Some("exile")
+}
+
+/// The mana-symbol letters of a devotion's color list (CR 700.5a): a
+/// non-empty list of distinct color names. `None` for an empty, repeated or
+/// unknown color, so a malformed devotion is unsupported, not zero.
+fn devotion_symbols(colors: &Value) -> Option<Vec<&'static str>> {
+    let colors = colors.as_array().filter(|colors| !colors.is_empty())?;
+    let mut symbols = Vec::with_capacity(colors.len());
+    for color in colors {
+        let symbol = match color.as_str()?.to_ascii_lowercase().as_str() {
+            "white" => "W",
+            "blue" => "U",
+            "black" => "B",
+            "red" => "R",
+            "green" => "G",
+            _ => return None,
+        };
+        if symbols.contains(&symbol) {
+            return None;
+        }
+        symbols.push(symbol);
+    }
+    Some(symbols)
 }
 
 fn player_reference_supported(reference: &Value) -> bool {
@@ -9698,24 +9722,18 @@ impl GameEngine {
                 self.event_history_count(expression, controller_id, None)
             }
             Some("devotion") => {
-                let symbol = match expression["color"].as_str()?.to_ascii_lowercase().as_str() {
-                    "white" => "W",
-                    "blue" => "U",
-                    "black" => "B",
-                    "red" => "R",
-                    "green" => "G",
-                    _ => return None,
-                };
+                let symbols = devotion_symbols(&expression["colors"])?;
                 let player_index = self.player_index(controller_id).ok()?;
-                // CR 700.5: each mana symbol of that color in the mana costs
-                // of the player's permanents (a hybrid symbol counts for each
-                // of its colors); not the number of permanents of the color.
+                // CR 700.5, 700.5a: each mana symbol in the mana costs of the
+                // player's permanents that is any of the colors, counted once
+                // (a hybrid of two listed colors is one symbol); not the
+                // number of permanents of those colors.
                 Some(
                     self.state.players[player_index]
                         .battlefield
                         .iter()
                         .flat_map(|card| parse_mana_symbols(&card.definition.mana_cost))
-                        .filter(|mana| mana.split('/').any(|part| part == symbol))
+                        .filter(|mana| mana.split('/').any(|part| symbols.contains(&part)))
                         .count() as i32,
                 )
             }
@@ -10573,6 +10591,7 @@ impl GameEngine {
         self.state.rule_modifiers.iter().any(|modifier| {
             value_kind(modifier) == Some("temporaryProtection")
                 && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+                && Self::modifier_incarnation_current(modifier, permanent)
                 && modifier["expiresAfterTurn"]
                     .as_u64()
                     .is_none_or(|turn| turn >= u64::from(self.state.turn_number))

@@ -315,12 +315,10 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
             ) && recognize_uncast_relative_clause(cursor)?
             {
                 return Ok(CardOperandNode::Selection(CardSelectionOperandNode {
-                    quantity: CardSelectionQuantityNode::All {
-                        via: None,
-                        except_cast: true,
-                    },
+                    quantity: CardSelectionQuantityNode::All { except_cast: true },
                     predicate: None,
                     from: fragment.node,
+                    via: None,
                 }));
             }
             if let Some(object) = card_pronoun_object_antecedent(cursor, fragment.node) {
@@ -442,8 +440,7 @@ fn card_pronoun_object_antecedent(
         | CardCollectionReferenceNode::Zone
         | CardCollectionReferenceNode::Exiled
         | CardCollectionReferenceNode::Linked
-        | CardCollectionReferenceNode::Revealed
-        | CardCollectionReferenceNode::Restated(_) => None,
+        | CardCollectionReferenceNode::Revealed => None,
     }
 }
 
@@ -1259,6 +1256,7 @@ enum PermittedCardOrigin {
     Collection {
         from: CardCollectionReferenceNode,
         qualifier: Option<ObjectPredicate>,
+        via: Option<CardCollectionVerb>,
     },
     /// `from your|target player's|that player's|each opponent's ZONE [or
     /// ZONE]`: one owner's zones, read as one union (`from your hand or
@@ -1287,95 +1285,66 @@ fn opponent_possessive_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool
     })
 }
 
-/// The longest qualifier a restated collection writes before its `cards`.
-const RESTATED_QUALIFIER_WIDTH: usize = 8;
-
 /// `[the|those] [QUALIFIER] cards [VERBed this way]` after `from among`: the
-/// scope's observed collection restated by its producing verb (`cards
+/// scope's antecedent collection restated by its producing verb (`cards
 /// revealed this way`, `the nonland cards exiled this way`), or a qualified
-/// plural anaphor (`those nonland cards`). The qualifier is the shared card
-/// query read up to `cards`; it narrows the permitted query. `None` claims
-/// nothing (`them`, `those cards`, `the exiled cards` keep the shared
-/// collection reference); once its `this way` or qualifier is proved, a
-/// failure is this origin's own.
+/// plural anaphor (`those nonland cards`). The qualifier is the shared object
+/// noun query and the restatement is the shared `VERBed this way` reader of
+/// the selection operand; the result is the same `Antecedent` + `via`
+/// selection the lowerer proves. `None` claims nothing (`them`, `those
+/// cards`, `the exiled cards` keep the shared collection reference, and an
+/// unread tail is left to it).
 fn recognize_restated_collection_origin(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<Option<PermittedCardOrigin>> {
-    let determiner = ["the", "those"]
-        .into_iter()
-        .find(|word| peek_word(cursor, 0, word));
-    let start = usize::from(determiner.is_some());
-    let Some(noun) = (start..start + RESTATED_QUALIFIER_WIDTH)
-        .take_while(|offset| {
-            cursor
-                .peek_ahead(*offset)
-                .is_some_and(|raw| !matches!(raw, "." | "," | ";"))
-        })
-        .find(|offset| peek_word(cursor, *offset, "cards"))
-    else {
-        return Ok(None);
-    };
-    let verb = match cursor.peek_ahead(noun + 1).map(str::to_ascii_lowercase) {
-        Some(word)
-            if matches!(word.as_str(), "revealed" | "exiled")
-                && peek_word(cursor, noun + 2, "this")
-                && peek_word(cursor, noun + 3, "way") =>
-        {
-            Some(if word == "revealed" {
-                CardCollectionVerb::Revealed
-            } else {
-                CardCollectionVerb::Exiled
-            })
-        }
-        _ => None,
-    };
-    let qualified = noun > start;
-    if verb.is_none() && !(determiner == Some("those") && qualified) {
-        return Ok(None);
-    }
-    // `those exiled cards` is the shared reference itself; only a qualifier
-    // that reference does not read is this origin's.
-    if verb.is_none()
-        && matches!(
-            try_recognize_card_collection_reference(&mut cursor.clone()),
-            CollectionOperandAttempt::Recognized(_)
-        )
+    // The shared reference keeps every phrase it reads (`those exiled
+    // cards`), unless a `VERBed this way` restatement follows it.
+    let mut probe = cursor.clone();
+    if matches!(
+        try_recognize_card_collection_reference(&mut probe),
+        CollectionOperandAttempt::Recognized(_)
+    ) && !this_way_verb_starts(&probe)
     {
         return Ok(None);
     }
-    cursor.enter("card-action.permit.origin.restated");
+    let mut trial = cursor.clone();
+    trial.enter("card-action.permit.origin.restated");
+    let determiner = ["the", "those"]
+        .into_iter()
+        .find(|word| peek_word(&trial, 0, word));
     if let Some(determiner) = determiner {
-        cursor.consume(determiner)?;
+        trial.consume(determiner)?;
     }
-    let qualifier = if qualified {
-        cursor.enter("card-action.permit.origin.restated.qualifier");
-        let end = cursor.position() + (noun - start) + 1;
-        let query = cursor.bounded(end, |inner| {
-            recognize_object_noun_query(inner, ObjectQueryContext::ORDINARY)
-        })?;
-        cursor.require(
-            query.relations().is_empty() && query.predicate().is_in_domain(ObjectKind::Card),
-            "an unscoped card-domain qualifier of the restated collection",
-        )?;
+    let qualifier = if peek_word(&trial, 0, "cards") {
+        trial.consume("cards")?;
+        None
+    } else {
+        trial.enter("card-action.permit.origin.restated.qualifier");
+        let Ok(query) = recognize_object_noun_query(&mut trial, ObjectQueryContext::ORDINARY)
+        else {
+            return Ok(None);
+        };
+        if !query.relations().is_empty() || !query.predicate().is_in_domain(ObjectKind::Card) {
+            return Ok(None);
+        }
         Some(query.predicate().clone())
             .filter(|predicate| *predicate != ObjectPredicate::ObjectKind(ObjectKind::Card))
+    };
+    let via = if this_way_verb_starts(&trial) {
+        trial.enter("card-action.permit.origin.restated.verb");
+        Some(recognize_this_way_verb(&mut trial)?)
     } else {
-        cursor.consume("cards")?;
         None
     };
-    let from = match verb {
-        Some(verb) => {
-            cursor.enter("card-action.permit.origin.restated.verb");
-            let word = match verb {
-                CardCollectionVerb::Revealed => "revealed",
-                CardCollectionVerb::Exiled => "exiled",
-            };
-            cursor.consume_phrase(&[word, "this", "way"])?;
-            CardCollectionReferenceNode::Restated(verb)
-        }
-        None => CardCollectionReferenceNode::Antecedent,
-    };
-    Ok(Some(PermittedCardOrigin::Collection { from, qualifier }))
+    if via.is_none() && !(determiner == Some("those") && qualifier.is_some()) {
+        return Ok(None);
+    }
+    *cursor = trial;
+    Ok(Some(PermittedCardOrigin::Collection {
+        from: CardCollectionReferenceNode::Antecedent,
+        qualifier,
+        via,
+    }))
 }
 
 fn recognize_permitted_card_origin(
@@ -1407,6 +1376,7 @@ fn recognize_permitted_card_origin(
         return Ok(PermittedCardOrigin::Collection {
             from: reference,
             qualifier: None,
+            via: None,
         });
     }
     if peek_word(cursor, 0, "the") && peek_word(cursor, 1, "command") {
@@ -1851,10 +1821,7 @@ fn try_recognize_permitted_card_query(
         let (phrase, comparison) = recognize_permitted_noun_phrase(&mut trial, frame)?;
         let quantity = match phrase.determiner {
             None | Some(ObjectDeterminer::Universal { each: false }) => {
-                CardSelectionQuantityNode::All {
-                    via: None,
-                    except_cast: false,
-                }
+                CardSelectionQuantityNode::All { except_cast: false }
             }
             Some(ObjectDeterminer::Chosen {
                 quantity,
@@ -1907,11 +1874,12 @@ fn try_recognize_permitted_card_query(
         let predicate =
             (predicate != ObjectPredicate::ObjectKind(ObjectKind::Card)).then_some(predicate);
         Ok(match origin {
-            PermittedCardOrigin::Collection { from, .. } => {
+            PermittedCardOrigin::Collection { from, via, .. } => {
                 CardOperandNode::Selection(CardSelectionOperandNode {
                     quantity,
                     predicate,
                     from,
+                    via,
                 })
             }
             PermittedCardOrigin::Zone {

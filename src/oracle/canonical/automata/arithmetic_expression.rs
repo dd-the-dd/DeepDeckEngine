@@ -465,25 +465,34 @@ fn devotion_starts(cursor: &OracleTokenCursor<'_>) -> bool {
         })
 }
 
-/// `your devotion to COLOR` (CR 700.5). A devotion to several colors counts
-/// each hybrid symbol once (CR 700.5a) and is not read here.
+/// `your devotion to COLOR ("and" COLOR)*` (CR 700.5, 700.5a): one count
+/// over a non-empty set of distinct colors. An `and` that is not followed by
+/// a color is left to the enclosing frame.
 fn recognize_devotion(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumericExpression> {
+    use crate::oracle::characteristic_vocabulary::lookup_card_color;
     cursor.enter("numeric.devotion");
     cursor.consume_phrase(&["your", "devotion", "to"])?;
-    cursor.enter("numeric.devotion.color");
-    let color = cursor
-        .peek()
-        .and_then(crate::oracle::characteristic_vocabulary::lookup_card_color)
-        .ok_or_else(|| cursor.fail("a color"))?;
-    let raw = cursor.peek().unwrap_or_default().to_string();
-    cursor.consume(&raw)?;
-    cursor.require(
-        !cursor
+    let mut colors = Vec::new();
+    loop {
+        cursor.enter("numeric.devotion.color");
+        let color = cursor
             .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("and")),
-        "a devotion to one color",
-    )?;
-    Ok(NumericExpression::Devotion(color))
+            .and_then(lookup_card_color)
+            .ok_or_else(|| cursor.fail("a color"))?;
+        cursor.require(!colors.contains(&color), "distinct devotion colors")?;
+        colors.push(color);
+        let raw = cursor.peek().unwrap_or_default().to_string();
+        cursor.consume(&raw)?;
+        let continues = cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+            && cursor.peek_ahead(1).and_then(lookup_card_color).is_some();
+        if !continues {
+            break;
+        }
+        cursor.consume("and")?;
+    }
+    Ok(NumericExpression::Devotion(colors))
 }
 
 fn peek_operator(cursor: &OracleTokenCursor<'_>) -> MachineResult<Option<ArithmeticOperator>> {
