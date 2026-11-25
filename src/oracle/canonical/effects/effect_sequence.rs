@@ -3519,11 +3519,11 @@ fn gate_cast_choice_targets(
     then: &[Value],
     otherwise: &[Value],
 ) -> Result<(), EffectSequenceLoweringFailure> {
-    let unsupported = |cursor: &mut OracleTokenCursor<'_>| {
+    fn unsupported(cursor: &mut OracleTokenCursor<'_>) -> EffectSequenceLoweringFailure {
         EffectSequenceLoweringFailure::UnsupportedSupportLimit(
             cursor.fail("a cast-choice conditional branch without target declarations of its own"),
         )
-    };
+    }
     for decision in governed.iter_mut() {
         let Some(id) = decision["id"].as_str().map(str::to_owned) else {
             return Err(unsupported(cursor));
