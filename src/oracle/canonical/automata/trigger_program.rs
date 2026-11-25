@@ -327,6 +327,15 @@ pub(in crate::oracle::canonical) fn event_card_zone(
             _ => None,
         };
     }
+    // `one or more cards are put into your graveyard from your library`:
+    // the cards the event put there, read where they are (CR 400.7).
+    if let GenericTriggerEventNode::Object(ObjectEventNode {
+        verb: ObjectEventVerb::PutIntoGraveyard(..),
+        ..
+    }) = event
+    {
+        return Some(CardZoneName::Graveyard);
+    }
     let died = match event {
         GenericTriggerEventNode::SourceTransition(node) => {
             node.event == SourceTriggerEventKind::Died && !node.is_union()

@@ -403,7 +403,8 @@ fn card_pronoun_object_antecedent(
         | CardCollectionReferenceNode::Zone
         | CardCollectionReferenceNode::Exiled
         | CardCollectionReferenceNode::Linked
-        | CardCollectionReferenceNode::Revealed => None,
+        | CardCollectionReferenceNode::Revealed
+        | CardCollectionReferenceNode::Restated(_) => None,
     }
 }
 
@@ -594,6 +595,46 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     let cards = operand(cursor)?;
     let destination = recognize_card_action_destination(cursor, "move")?;
     Ok(Some(moved_cards(cards, destination)))
+}
+
+/// The transactional outcome of the card-action child (S0, `ChildOutcome`
+/// contract): a cast/play frame that proved it owns the clause (its
+/// permitted query read `from`, or a tail only it reads follows its cards)
+/// returns `FailedCommitted` with its own state, so the sequence parent
+/// publishes that failure instead of `effect.start`. Every other failure is
+/// a `RejectedCandidate` the parent may replace with another child's
+/// reading; `NotClaimed` means no card action starts here.
+///
+/// Sequence hook (owned by `automata/sequence.rs`): replace the speculative
+/// `attempt.attempt(|child| recognize_card_action(...))` with this outcome
+/// and `attempt_frame.commit()` on `FailedCommitted`.
+pub(in crate::oracle::canonical) fn try_recognize_card_action_outcome(
+    cursor: &mut OracleTokenCursor<'_>,
+    move_ellipsis: bool,
+    frame: CardActionReadContext<'_>,
+) -> CollectionOperandAttempt<CardActionNode> {
+    let mut trial = cursor.clone();
+    let result = if permission_head_starts(&trial) || imperative_cast_starts(&trial) {
+        let mut committed = false;
+        match recognize_card_permission_frame(&mut trial, frame, None, &mut committed) {
+            Ok(node) => Ok(Some(CardActionNode::Permit(node))),
+            Err(failure) if committed => {
+                return CollectionOperandAttempt::FailedCommitted(failure);
+            }
+            Err(failure) => Err(failure),
+        }
+    } else {
+        recognize_card_action(&mut trial, move_ellipsis, frame)
+    };
+    match result {
+        Ok(Some(node)) => {
+            let end_position = trial.position();
+            *cursor = trial;
+            CollectionOperandAttempt::Recognized(RecognizedEffectFragment { node, end_position })
+        }
+        Ok(None) => CollectionOperandAttempt::NotClaimed,
+        Err(failure) => CollectionOperandAttempt::RejectedCandidate(failure),
+    }
 }
 
 /// One card move. A declared target a pronoun puts onto the battlefield
@@ -1180,8 +1221,14 @@ fn recognize_any_type_spending(cursor: &mut OracleTokenCursor<'_>) -> MachineRes
 
 /// Where the permitted cards of a quantified query are.
 enum PermittedCardOrigin {
-    /// `from among them|those cards|the exiled cards|cards exiled with this`.
-    Collection(CardCollectionReferenceNode),
+    /// `from among them|those cards|the exiled cards|cards exiled with this`,
+    /// `from among [the] [QUALIFIER] cards VERBed this way` and `from among
+    /// those QUALIFIER cards`: the bound collection, with the qualifier the
+    /// restatement adds to the permitted query (`those nonland cards`).
+    Collection {
+        from: CardCollectionReferenceNode,
+        qualifier: Option<ObjectPredicate>,
+    },
     /// `from your|target player's|that player's|each opponent's ZONE [or
     /// ZONE]`: one owner's zones, read as one union (`from your hand or
     /// graveyard`).
@@ -1209,12 +1256,106 @@ fn opponent_possessive_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool
     })
 }
 
+/// The longest qualifier a restated collection writes before its `cards`.
+const RESTATED_QUALIFIER_WIDTH: usize = 8;
+
+/// `[the|those] [QUALIFIER] cards [VERBed this way]` after `from among`: the
+/// scope's observed collection restated by its producing verb (`cards
+/// revealed this way`, `the nonland cards exiled this way`), or a qualified
+/// plural anaphor (`those nonland cards`). The qualifier is the shared card
+/// query read up to `cards`; it narrows the permitted query. `None` claims
+/// nothing (`them`, `those cards`, `the exiled cards` keep the shared
+/// collection reference); once its `this way` or qualifier is proved, a
+/// failure is this origin's own.
+fn recognize_restated_collection_origin(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<PermittedCardOrigin>> {
+    let determiner = ["the", "those"]
+        .into_iter()
+        .find(|word| peek_word(cursor, 0, word));
+    let start = usize::from(determiner.is_some());
+    let Some(noun) = (start..start + RESTATED_QUALIFIER_WIDTH)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(*offset)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";"))
+        })
+        .find(|offset| peek_word(cursor, *offset, "cards"))
+    else {
+        return Ok(None);
+    };
+    let verb = match cursor.peek_ahead(noun + 1).map(str::to_ascii_lowercase) {
+        Some(word)
+            if matches!(word.as_str(), "revealed" | "exiled")
+                && peek_word(cursor, noun + 2, "this")
+                && peek_word(cursor, noun + 3, "way") =>
+        {
+            Some(if word == "revealed" {
+                CardCollectionVerb::Revealed
+            } else {
+                CardCollectionVerb::Exiled
+            })
+        }
+        _ => None,
+    };
+    let qualified = noun > start;
+    if verb.is_none() && !(determiner == Some("those") && qualified) {
+        return Ok(None);
+    }
+    // `those exiled cards` is the shared reference itself; only a qualifier
+    // that reference does not read is this origin's.
+    if verb.is_none()
+        && matches!(
+            try_recognize_card_collection_reference(&mut cursor.clone()),
+            CollectionOperandAttempt::Recognized(_)
+        )
+    {
+        return Ok(None);
+    }
+    cursor.enter("card-action.permit.origin.restated");
+    if let Some(determiner) = determiner {
+        cursor.consume(determiner)?;
+    }
+    let qualifier = if qualified {
+        cursor.enter("card-action.permit.origin.restated.qualifier");
+        let end = cursor.position() + (noun - start) + 1;
+        let query = cursor.bounded(end, |inner| {
+            recognize_object_noun_query(inner, ObjectQueryContext::ORDINARY)
+        })?;
+        cursor.require(
+            query.relations().is_empty() && query.predicate().is_in_domain(ObjectKind::Card),
+            "an unscoped card-domain qualifier of the restated collection",
+        )?;
+        Some(query.predicate().clone())
+            .filter(|predicate| *predicate != ObjectPredicate::ObjectKind(ObjectKind::Card))
+    } else {
+        cursor.consume("cards")?;
+        None
+    };
+    let from = match verb {
+        Some(verb) => {
+            cursor.enter("card-action.permit.origin.restated.verb");
+            let word = match verb {
+                CardCollectionVerb::Revealed => "revealed",
+                CardCollectionVerb::Exiled => "exiled",
+            };
+            cursor.consume_phrase(&[word, "this", "way"])?;
+            CardCollectionReferenceNode::Restated(verb)
+        }
+        None => CardCollectionReferenceNode::Antecedent,
+    };
+    Ok(Some(PermittedCardOrigin::Collection { from, qualifier }))
+}
+
 fn recognize_permitted_card_origin(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PermittedCardOrigin> {
     if peek_word(cursor, 0, "among") {
         cursor.enter("card-action.permit.origin.collection");
         cursor.consume("among")?;
+        if let Some(origin) = recognize_restated_collection_origin(cursor)? {
+            return Ok(origin);
+        }
         let reference = match try_recognize_card_collection_reference(cursor) {
             CollectionOperandAttempt::Recognized(fragment) => fragment.node,
             CollectionOperandAttempt::NotClaimed => {
@@ -1232,7 +1373,10 @@ fn recognize_permitted_card_origin(
             ),
             "them, those cards, the exiled cards or cards exiled with the source",
         )?;
-        return Ok(PermittedCardOrigin::Collection(reference));
+        return Ok(PermittedCardOrigin::Collection {
+            from: reference,
+            qualifier: None,
+        });
     }
     if peek_word(cursor, 0, "the") && peek_word(cursor, 1, "command") {
         // `from the command zone` (CR 408.1): only the controller's own
@@ -1434,7 +1578,28 @@ fn recognize_comparison_operand(
         return antecedent_spell_mana_value(cursor);
     }
     cursor.enter("card-action.permit.query.comparison.expression");
-    let expression = recognize_query_numeric_expression(cursor)?;
+    // The query grammar first (source properties, `X`); a right operand it
+    // does not read (`the number of creatures you control`, `the greatest
+    // power among ...`) is the shared comparison right-hand side, the same
+    // grammar a selector comparison reads before `from`.
+    let mut query = cursor.clone();
+    let expression = match recognize_query_numeric_expression(&mut query) {
+        Ok(expression) => {
+            *cursor = query;
+            expression
+        }
+        Err(first) => {
+            let mut comparison = cursor.clone();
+            match super::arithmetic_expression::recognize_comparison_rhs_expression(&mut comparison)
+            {
+                Ok(expression) => {
+                    *cursor = comparison;
+                    expression
+                }
+                Err(_) => return Err(first),
+            }
+        }
+    };
     // The source's counters or characteristics are read only where the
     // frame proves its source (CR 608.2h), as in the shared selector.
     cursor.enter("card-action.permit.query.comparison.source-context");
@@ -1693,6 +1858,15 @@ fn try_recognize_permitted_card_query(
         trial.consume("from")?;
         committed = true;
         let origin = recognize_permitted_card_origin(&mut trial)?;
+        // `from among those nonland cards`: the restatement's qualifier
+        // narrows the same query.
+        let predicate = match &origin {
+            PermittedCardOrigin::Collection {
+                qualifier: Some(qualifier),
+                ..
+            } => intersect_predicate(predicate, qualifier.clone()),
+            _ => predicate,
+        };
         let predicate = recognize_postposed_numeric_qualifier(&mut trial, predicate, frame)?;
         trial.enter("card-action.permit.query.domain");
         trial.require(
@@ -1702,7 +1876,7 @@ fn try_recognize_permitted_card_query(
         let predicate =
             (predicate != ObjectPredicate::ObjectKind(ObjectKind::Card)).then_some(predicate);
         Ok(match origin {
-            PermittedCardOrigin::Collection(from) => {
+            PermittedCardOrigin::Collection { from, .. } => {
                 CardOperandNode::Selection(CardSelectionOperandNode {
                     quantity,
                     predicate,
@@ -2041,6 +2215,32 @@ fn recognize_card_permission(
     frame: CardActionReadContext<'_>,
     preposed_window: Option<CardPermissionWindowNode>,
 ) -> MachineResult<CardPermissionNode> {
+    recognize_card_permission_frame(cursor, frame, preposed_window, &mut false)
+}
+
+/// Whether the cast frame's own tail starts after its cards: a base-cost
+/// policy, a window, a spending policy or the graveyard exile sentence.
+/// Pure lookahead; it is the frame's commit point when its cards were read
+/// by a shared operand that another frame could also have read.
+fn permission_tail_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    peek_word(cursor, 0, "without")
+        || (peek_word(cursor, 0, "by")
+            && (peek_word(cursor, 1, "paying") || peek_word(cursor, 1, "discarding")))
+        || permission_window_starts(cursor)
+        || any_type_spending_starts(cursor)
+        || cast_graveyard_exile_starts(cursor)
+}
+
+/// The cast/play frame with its commit point reported: `committed` is set
+/// once the frame proved it owns the clause (the permitted query read its
+/// `from`, or a tail only this frame reads follows its cards). A failure
+/// before that point leaves the clause to other frames.
+fn recognize_card_permission_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: CardActionReadContext<'_>,
+    preposed_window: Option<CardPermissionWindowNode>,
+    committed: &mut bool,
+) -> MachineResult<CardPermissionNode> {
     let supplied_duration = frame.preposed_duration;
     cursor.enter("card-action.permit.head");
     let optional = peek_word(cursor, 0, "you");
@@ -2060,10 +2260,18 @@ fn recognize_card_permission(
     };
     cursor.enter("card-action.permit.cards");
     let cards = match try_recognize_permitted_card_query(cursor, verb, frame) {
-        CollectionOperandAttempt::Recognized(fragment) => fragment.node,
-        CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+        CollectionOperandAttempt::Recognized(fragment) => {
+            *committed = true;
+            fragment.node
+        }
+        CollectionOperandAttempt::FailedCommitted(failure) => {
+            *committed = true;
+            return Err(failure);
+        }
         CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {
-            operand(cursor)?
+            let cards = operand(cursor)?;
+            *committed |= permission_tail_starts(cursor);
+            cards
         }
     };
     cursor.enter("card-action.permit.object");
@@ -2203,3 +2411,7 @@ pub(in crate::oracle::canonical) fn recognize_optional_sequence(
     cursor.advance_to(end)?;
     Ok(body)
 }
+
+#[cfg(test)]
+#[path = "card_action_outcome_tests.rs"]
+mod outcome_tests;

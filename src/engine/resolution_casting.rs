@@ -39,6 +39,35 @@ fn resulting_spell_matches(
     }
 }
 
+/// The decision a resolution-time cast offering puts on an action whose card
+/// is one of the caster's library cards the effect observed (CR 608.2g): it
+/// is cast or played from its position in the library, not only from the top.
+const OBSERVED_LIBRARY_POSITION: &str = "castFromObservedLibraryPosition";
+
+/// Marks a resolution-time action over a library card the effect observed;
+/// every other action is unchanged.
+pub(super) fn admit_observed_library_position(action: &mut LegalAction) {
+    if action
+        .decisions
+        .get("castSourceZone")
+        .and_then(Value::as_str)
+        == Some("library")
+    {
+        action
+            .decisions
+            .insert(OBSERVED_LIBRARY_POSITION.to_string(), Value::Bool(true));
+    }
+}
+
+/// Whether the action takes its library card from any position (an effect
+/// observed it), rather than only the top card (a library-top permission).
+pub(super) fn observed_library_position_admitted(decisions: &BTreeMap<String, Value>) -> bool {
+    decisions
+        .get(OBSERVED_LIBRARY_POSITION)
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
 impl GameEngine {
     pub(super) fn cast_one_card_actions(
         &self,

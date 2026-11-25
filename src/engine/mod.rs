@@ -127,6 +127,7 @@ mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
 mod event_batch;
+mod event_card_batch;
 mod event_model;
 mod invariants;
 mod keyword_actions;
@@ -18343,6 +18344,7 @@ impl GameEngine {
                     decisions.insert("spendManaAsAnyType".to_string(), Value::Bool(true));
                 }
                 if let Some(permission) = permission {
+                    Self::carry_permission_graveyard_exile(permission, &mut decisions);
                     decisions.insert(
                         "exileOnLeaveStack".to_string(),
                         Value::Bool(permission["exileOnLeaveStack"].as_bool().unwrap_or(false)),
@@ -20483,7 +20485,9 @@ impl GameEngine {
                             "card is not in declared source zone {source_zone}: {instance_id}"
                         ))
                     })?;
-                if card_index + 1 != zone.len() {
+                if card_index + 1 != zone.len()
+                    && !resolution_casting::observed_library_position_admitted(&action.decisions)
+                {
                     return Err(EngineError::new("only the top library card can be played"));
                 }
                 zone.remove(card_index)
@@ -26046,6 +26050,7 @@ impl GameEngine {
                     decisions: stack_decisions,
                     targets: stack_targets.clone(),
                 });
+                self.install_permitted_cast_graveyard_exile(&action.decisions, &card_id);
                 if matches!(
                     movement_source.zone,
                     card_zone_transition::ObjectZone::Graveyard(_)

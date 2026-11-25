@@ -79,6 +79,14 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["action"]
                     .get("spendManaAsAnyType")
                     .is_none_or(Value::is_boolean)
+                // CR 614.1a: the graveyard exile its spells carry; only a
+                // cast permission casts spells.
+                && effect["action"]
+                    .get("exileInsteadOfGraveyard")
+                    .is_none_or(|replacement| {
+                        value_kind(&effect["action"]) == Some("cast")
+                            && super::stack_casting::cast_graveyard_exile_supported(replacement)
+                    })
                 && matches!(
                     value_kind(&effect["duration"]),
                     Some(
@@ -378,6 +386,9 @@ impl GameEngine {
                     // CR 609.4b: mana of any type can be spent to cast it.
                     if effect["action"]["spendManaAsAnyType"].as_bool() == Some(true) {
                         permission["spendManaAsAnyType"] = Value::Bool(true);
+                    }
+                    if let Some(replacement) = effect["action"].get("exileInsteadOfGraveyard") {
+                        permission["exileInsteadOfGraveyard"] = replacement.clone();
                     }
                     self.bind_card_permission_to_incarnation(&mut permission);
                     self.state.permissions.push(permission.clone());

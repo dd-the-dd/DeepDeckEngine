@@ -21,6 +21,7 @@ impl GameEngine {
     /// them (a death's last known information) keeps its own values; an object
     /// that is no longer on the battlefield has no incarnation to find.
     pub(super) fn capture_event_object(&self, decisions: &mut BTreeMap<String, Value>) {
+        self.capture_event_card_batch(decisions);
         let Some(instance_id) = decisions
             .get(EVENT_OBJECT_ID)
             .and_then(Value::as_str)
@@ -131,7 +132,7 @@ impl GameEngine {
             decisions.get(EVENT_CARD_ZONE).and_then(Value::as_str),
             decisions.get(EVENT_CARD_IDENTITY).and_then(Value::as_str),
         ) else {
-            return Vec::new();
+            return self.event_card_batch_ids(stack_object);
         };
         match self.prepare_card_movement_source(instance_id, None) {
             Ok(Some(source))
