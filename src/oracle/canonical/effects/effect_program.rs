@@ -63,6 +63,7 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         body,
         otherwise,
         scope,
+        result,
     } = step
     {
         let action = lower(cursor, action.inner_sequence())?;
@@ -75,6 +76,7 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
             cursor,
             permission.as_ref(),
             *scope,
+            result.as_ref(),
             action,
             *outcome,
             body,
@@ -342,6 +344,7 @@ fn lower_action_outcome(
     cursor: &mut OracleTokenCursor<'_>,
     permission: Option<&LocalPlayerReference>,
     scope: ProducerScope,
+    result: Option<&ReflexiveResultNode>,
     action: LoweredEffectSequence,
     outcome: PerformanceOutcome,
     body: LoweredEffectSequence,
@@ -382,7 +385,7 @@ fn lower_action_outcome(
         None => None,
     };
     let optional = player.is_some();
-    let lowered = lower_gated_outcome(cursor, player, effects, outcome, body, otherwise)?;
+    let lowered = lower_gated_outcome(cursor, player, effects, result, outcome, body, otherwise)?;
     declarations.extend(lowered.decisions);
     cursor.enter(if optional {
         "lower.program.optional-action.declarations"
@@ -413,6 +416,7 @@ fn lower_gated_outcome(
     cursor: &mut OracleTokenCursor<'_>,
     player: Option<Value>,
     effects: Vec<Value>,
+    result: Option<&ReflexiveResultNode>,
     outcome: PerformanceOutcome,
     body: LoweredEffectSequence,
     otherwise: Option<LoweredEffectSequence>,
@@ -431,7 +435,8 @@ fn lower_gated_outcome(
                 .map(|otherwise| otherwise.effects.clone()),
         };
         let mut gate = gate.clone();
-        let inner = lower_gated_outcome(cursor, None, then.clone(), outcome, body, otherwise)?;
+        let inner =
+            lower_gated_outcome(cursor, None, then.clone(), result, outcome, body, otherwise)?;
         gate["then"] = Value::Array(inner.effects);
         gate["else"] = Value::Array(when_false.unwrap_or_default());
         return Ok(LoweredEffectSequence {
@@ -453,6 +458,15 @@ fn lower_gated_outcome(
         && let Some(inner) = optional["effects"].as_array()
     {
         cursor.enter("lower.program.outcome.inner-permission");
+        if let Some(result) = result {
+            return lower_reflexive_result(
+                cursor,
+                Some(optional["player"].clone()),
+                inner.clone(),
+                result,
+                body,
+            );
+        }
         return lower_optional_action(
             cursor,
             optional["player"].clone(),
@@ -462,9 +476,126 @@ fn lower_gated_outcome(
             otherwise,
         );
     }
+    if let Some(result) = result {
+        return lower_reflexive_result(cursor, player, effects, result, body);
+    }
     match player {
         Some(player) => lower_optional_action(cursor, player, effects, outcome, body, otherwise),
         None => lower_performed_action(cursor, effects, outcome, body, otherwise),
+    }
+}
+
+/// `INSTRUCTION. When you VERB [one or more] NOUN this way, BODY.` (CR
+/// 603.12): the instruction runs as written (it is not gated on its own
+/// performance), the action of the restated verb records the objects it
+/// affected, and a reflexive ability is created when at least one of them
+/// satisfies the noun. The reflexive ability declares its own targets when
+/// it is put on the stack. With a permission, the whole block is the
+/// performer's optional instruction.
+fn lower_reflexive_result(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: Option<Value>,
+    mut effects: Vec<Value>,
+    result: &ReflexiveResultNode,
+    body: LoweredEffectSequence,
+) -> MachineResult<LoweredEffectSequence> {
+    cursor.enter("lower.program.reflexive-result.producer");
+    // The nearest action of the instruction that runs the restated verb.
+    let position = effects
+        .iter()
+        .rposition(|member| reflexive_result_produced_by(result.verb, member))
+        .ok_or_else(|| {
+            cursor.fail("an action of the instruction that the reflexive event restates")
+        })?;
+    cursor.require(
+        result.one_or_more || affects_one_object(&effects[position]),
+        "a single affected object for a singular reflexive event (`a`/`an`), or `one or more`",
+    )?;
+    let objects = action_result_objects(&mut effects[position], position)
+        .map_err(|expected| cursor.fail(expected))?;
+    cursor.enter("lower.program.reflexive-result.objects");
+    let restated = if result.predicate == ObjectPredicate::ObjectKind(ObjectKind::Card) {
+        objects
+    } else if result.verb.preserves_card_characteristics()
+        && result.predicate.is_in_domain(ObjectKind::Card)
+    {
+        json!({
+            "kind": "filterObjects",
+            "objects": objects,
+            "where": lower_card_object_predicate(&result.predicate),
+        })
+    } else {
+        return Err(cursor.fail("a restated card noun the affected cards keep readable"));
+    };
+    cursor.enter("lower.program.reflexive-result.body");
+    cursor.require(!body.effects.is_empty(), "a nonempty reflexive ability")?;
+    let producer_names = effects
+        .iter()
+        .flat_map(local_result_names)
+        .collect::<std::collections::BTreeSet<_>>();
+    cursor.require(
+        body.effects
+            .iter()
+            .all(|effect| local_result_names(effect).is_disjoint(&producer_names)),
+        "distinct local results across the instruction and its reflexive ability",
+    )?;
+    let reflexive = reflexive_trigger(&player.clone().unwrap_or_else(controller), body);
+    effects.push(json!({
+        "kind": "conditional",
+        "condition": {
+            "kind": "compare",
+            "left": { "kind": "countObjects", "objects": restated },
+            "operator": ">=",
+            "right": { "kind": "integer", "value": 1 },
+        },
+        "then": [reflexive],
+        "else": [],
+    }));
+    let effects = match player {
+        Some(player) => vec![json!({
+            "kind": "optionalEffects",
+            "player": player,
+            "effects": effects,
+        })],
+        None => effects,
+    };
+    Ok(LoweredEffectSequence {
+        decisions: Vec::new(),
+        effects,
+    })
+}
+
+/// True when `member` runs the action `verb` restates and records the
+/// objects it affected in its `bind` (the shared action-result contract).
+fn reflexive_result_produced_by(verb: ActionResultVerb, member: &Value) -> bool {
+    match (verb, member["kind"].as_str()) {
+        (ActionResultVerb::Discarded, Some("discardCards"))
+        | (ActionResultVerb::Milled, Some("mill"))
+        | (ActionResultVerb::Revealed, Some("revealCards"))
+        | (ActionResultVerb::Exiled, Some("exileTargetCards"))
+        | (ActionResultVerb::Sacrificed, Some("sacrificePermanents" | "sacrificePermanent"))
+        | (ActionResultVerb::Destroyed, Some("destroyPermanent")) => true,
+        // A card move whose destination is exile (CR 701.13a).
+        (ActionResultVerb::Exiled, Some("moveCards")) => member["to"]["kind"] == "exile",
+        _ => false,
+    }
+}
+
+/// True when the action affects at most one object: a literal count of one,
+/// or one declared target.
+fn affects_one_object(member: &Value) -> bool {
+    let one = json!({ "kind": "integer", "value": 1 });
+    match member["kind"].as_str() {
+        Some("discardCards" | "mill" | "sacrificePermanents") => {
+            member.get("cards").is_none()
+                && member.get("objects").is_none()
+                && member["count"] == one
+        }
+        Some("sacrificePermanent" | "destroyPermanent") => member["permanent"].is_object(),
+        Some("revealCards" | "exileTargetCards" | "moveCards") => {
+            member["cards"]["kind"] == "chosenTarget"
+        }
+        _ => false,
     }
 }
 
