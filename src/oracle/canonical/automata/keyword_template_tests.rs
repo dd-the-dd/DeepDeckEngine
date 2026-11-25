@@ -116,6 +116,7 @@ fn every_reminder_and_definition_instantiates_with_each_parameter_shape() {
             )
             .then(|| "{1}{G}".to_string()),
             subtypes: vec!["Human".to_string(), "Warrior".to_string()],
+            threshold: Some(6),
         };
         for text in template
             .abilities
@@ -336,4 +337,35 @@ fn an_intrinsic_row_instantiates_its_quoted_costs_and_checks_its_face() {
             .and_then(KeywordIntrinsic::keyword_kind),
         Some("storied")
     );
+}
+
+#[test]
+fn a_station_reminder_names_the_creature_band_of_an_artifact_face() {
+    let read = |text: &str, type_line: &str| {
+        let tokens = recognize_oracle_entities(text);
+        recognize_keyword_template_line(&tokens, text, type_line).expect("a claimed station line")
+    };
+    let spacecraft = "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)";
+    let invocation =
+        read(spacecraft, "Artifact \u{2014} Spacecraft").expect("a Spacecraft's station line");
+    assert_eq!(invocation.template.canonical_id, "station");
+    assert_eq!(invocation.arguments.threshold, Some(8));
+    assert_eq!(
+        invocation.template.threshold_band,
+        Some(KeywordThresholdBand::StationCreature)
+    );
+    // A Planet's reminder names no power/toughness striation.
+    let planet = "Station (Tap another creature you control: Put charge counters equal to its power on this Planet. Station only as a sorcery.)";
+    let invocation = read(planet, "Land \u{2014} Planet").expect("a Planet's station line");
+    assert_eq!(invocation.arguments.threshold, None);
+    // The artifact-creature band is refused on a face without the artifact
+    // type, and an artifact face without the reminder leaves it unknown.
+    let landed = "Station (Tap another creature you control: Put charge counters equal to its power on this Planet. Station only as a sorcery. It's an artifact creature at 8+.)";
+    let failure = read(landed, "Land \u{2014} Planet").expect_err("no artifact face");
+    assert_eq!(failure.state, "keyword.template.threshold-band");
+    let failure = read("Station", "Artifact \u{2014} Spacecraft").expect_err("no reminder");
+    assert_eq!(failure.state, "keyword.template.threshold-band");
+    // A rules definition never captures a printed threshold.
+    assert!(render_rules_form("at $threshold+").is_err());
+    assert!(instantiate("at $threshold+", &KeywordTemplateArguments::default()).is_err());
 }

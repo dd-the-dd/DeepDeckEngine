@@ -69,6 +69,7 @@ mod control_change;
 mod controlled_count_entry;
 mod copy_exception;
 mod cost;
+mod cost_paid_object;
 mod cost_keyword;
 mod counter_delayed_draw;
 mod counter_descriptive_token;
@@ -336,6 +337,7 @@ pub(super) use control_change::*;
 pub(super) use controlled_count_entry::*;
 pub(super) use copy_exception::*;
 pub(super) use cost::*;
+pub(super) use cost_paid_object::*;
 pub(super) use cost_keyword::*;
 pub(super) use counter_delayed_draw::*;
 pub(super) use counter_descriptive_token::*;
@@ -966,10 +968,11 @@ pub(super) enum NumericExpression {
         right: Box<NumericExpression>,
         rounding: NumericRounding,
     },
-    /// A characteristic of the permanent sacrificed to pay a cost of this
-    /// ability, as last known when the cost was paid. Its producer is
+    /// A characteristic of an object a cost of this ability paid with (the
+    /// sacrificed or tapped permanent, the exiled source card), as last known
+    /// when the cost was paid (`cost_paid_object.rs`). Its producer is
     /// resolved against the same face after card composition.
-    SacrificedCostObjectProperty(NumericObjectProperty),
+    SacrificedCostObjectProperty(CostPaidObjectProperty),
     /// The greatest power or toughness among the ability controller's
     /// permanents matching the predicate (zero when there are none).
     /// `the greatest|highest PROPERTY among COLLECTION`: a maximum over the

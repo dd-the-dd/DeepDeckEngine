@@ -273,6 +273,38 @@ pub(crate) fn apply_band_gate(rule: &mut Value, body: &BandBody) -> Result<(), P
     Ok(())
 }
 
+/// CR 722.2b: `{N+}[abilities][P/T]` means that as long as the permanent
+/// has N or more charge counters on it, it is a creature with base power
+/// and toughness [P/T] in addition to its other types. Oracle text omits a
+/// station card's power/toughness box; the station reminder names its
+/// striation (`It's an artifact creature at N+`), and the box is the card's
+/// printed power and toughness. One gated static ability adds the creature
+/// type to the source while the band is open; the printed power and
+/// toughness apply once it is a creature.
+pub(crate) fn station_creature_band_rule(minimum: u32) -> Value {
+    let gate = BandGate::CounterRange {
+        counter: CHARGE_COUNTER,
+        minimum,
+        maximum: None,
+    };
+    let mut rule = json!({
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
+        },
+        "modifiers": [{
+            "kind": "addCardType",
+            "objects": { "kind": "self" },
+            "cardType": "Creature",
+        }],
+    });
+    rule["bandGate"] = gate.lower();
+    rule
+}
+
 /// The outcome of reading a band body line as a printed power/toughness box.
 pub(crate) enum BandPowerToughness {
     /// The line is an ordinary ability.

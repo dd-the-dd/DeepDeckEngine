@@ -26,6 +26,8 @@
 //! $cost              the printed mana cost, as printed
 //! $subtypes          the face's subtypes, in printed order      (reminders only)
 //! $subtypeAlternatives  the face's subtypes joined by `and/or`  (reminders only)
+//! $threshold         a printed band threshold, captured from the reminder
+//!                    (reminders only; see `thresholdBand`)
 //! ```
 //!
 //! A reminder may restate a definition with the card's own subtypes (Embalm's
@@ -94,6 +96,13 @@ pub(in crate::oracle::canonical) struct KeywordTemplate {
     /// a static ability of a permanent).
     #[serde(default)]
     pub face_kind: Option<KeywordFaceKind>,
+    /// The band a reminder's `$threshold` names (CR 722.2b). Oracle text
+    /// omits a station card's power/toughness box; its reminder (`It's an
+    /// artifact creature at 6+.`) is the only Oracle evidence of the
+    /// striation that holds it, so the captured threshold becomes that
+    /// band's type change.
+    #[serde(default)]
+    pub threshold_band: Option<KeywordThresholdBand>,
     /// One Oracle ability per ability the keyword represents.
     pub abilities: Vec<String>,
     /// Accepted reminder renderings, without their parentheses.
@@ -155,6 +164,16 @@ impl KeywordIntrinsic {
             Self::Ninjutsu => None,
         }
     }
+}
+
+/// The rule a reminder-captured band threshold stands for.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(in crate::oracle::canonical) enum KeywordThresholdBand {
+    /// CR 722.2b: as long as the permanent has N or more charge counters on
+    /// it, it is a creature in addition to its other types, with the base
+    /// power and toughness of its (only) power/toughness box.
+    StationCreature,
 }
 
 /// The face kind a keyword definition requires.
@@ -223,6 +242,8 @@ pub(in crate::oracle::canonical) struct KeywordTemplateArguments {
     pub cost: Option<String>,
     /// The subtypes of the face's type line, in printed order.
     pub subtypes: Vec<String>,
+    /// A band threshold the printed reminder names (`$threshold`).
+    pub threshold: Option<i64>,
 }
 
 /// The subtypes after the type line's dash (CR 205.3a), in printed order.
@@ -365,7 +386,7 @@ fn read_line(
     cursor.enter("keyword.template.reminder-or-complete");
     let reminder = cursor.peek() == Some("(");
     if reminder {
-        read_reminder(cursor, template, &arguments)?;
+        arguments.threshold = read_reminder(cursor, template, &arguments)?;
     }
     cursor.enter("keyword.template.complete");
     cursor.finish()?;
@@ -378,6 +399,25 @@ fn read_line(
             carries,
             "a face carrying the subtype its keyword definition names",
         )?;
+    }
+    if template.threshold_band.is_some() {
+        // `It's an artifact creature at N+` restates an artifact face's
+        // power/toughness striation (CR 722.2b). An artifact face without
+        // that reminder leaves the striation of a possible box unknown.
+        cursor.enter("keyword.template.threshold-band");
+        let artifact = face_type_line
+            .split(|character: char| !character.is_alphanumeric())
+            .any(|word| word.eq_ignore_ascii_case("Artifact"));
+        match arguments.threshold {
+            Some(_) => cursor.require(
+                artifact,
+                "an artifact face for a reminder naming its artifact-creature band",
+            )?,
+            None => cursor.require(
+                reminder || !artifact,
+                "the reminder naming the band of an artifact face's power/toughness box (CR 722.2b)",
+            )?,
+        }
     }
     if let Some(KeywordFaceKind::Permanent) = template.face_kind {
         // A static definition of a permanent has no meaning on a spell face.
@@ -416,11 +456,13 @@ fn read_line(
     })
 }
 
+/// Reads the reminder and returns the band threshold it names, if its
+/// matching rendering captures one (`$threshold`).
 fn read_reminder(
     cursor: &mut OracleTokenCursor<'_>,
     template: &KeywordTemplate,
     arguments: &KeywordTemplateArguments,
-) -> MachineResult<()> {
+) -> MachineResult<Option<i64>> {
     cursor.enter("keyword.template.reminder.open");
     cursor.consume("(")?;
     let body_start = cursor.position();
@@ -436,25 +478,48 @@ fn read_reminder(
     let body_end = close - 1;
     cursor.enter("keyword.template.reminder.body");
     let printed = cursor.token_slice(body_start, body_end);
-    let matches = template.reminders.iter().any(|reminder| {
-        instantiate(reminder, arguments).is_ok_and(|rendering| {
-            let expected = recognize_oracle_entities(&rendering);
-            expected.len() == printed.len()
-                && expected.iter().zip(printed).all(|(expected, token)| {
-                    token
-                        .raw
-                        .replace('\u{2019}', "'")
-                        .eq_ignore_ascii_case(&expected.raw)
-                })
+    // A `$threshold` is one of the printed numbers: each candidate is
+    // rendered and compared token by token like any other argument.
+    let thresholds = std::iter::once(None)
+        .chain(printed.iter().filter_map(|token| {
+            let digits = token
+                .raw
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .collect::<String>();
+            digits
+                .parse::<i64>()
+                .ok()
+                .filter(|value| *value > 0)
+                .map(Some)
+        }))
+        .collect::<Vec<_>>();
+    let matched = template.reminders.iter().find_map(|reminder| {
+        thresholds.iter().copied().find(|threshold| {
+            let candidate = KeywordTemplateArguments {
+                threshold: *threshold,
+                ..arguments.clone()
+            };
+            instantiate(reminder, &candidate).is_ok_and(|rendering| {
+                let expected = recognize_oracle_entities(&rendering);
+                expected.len() == printed.len()
+                    && expected.iter().zip(printed).all(|(expected, token)| {
+                        token
+                            .raw
+                            .replace('\u{2019}', "'")
+                            .eq_ignore_ascii_case(&expected.raw)
+                    })
+            })
         })
     });
     cursor.require(
-        matches,
+        matched.is_some(),
         "the keyword's reminder instantiated with the printed parameter",
     )?;
     cursor.advance_to(body_end)?;
     cursor.enter("keyword.template.reminder.close");
-    cursor.consume(")")
+    cursor.consume(")")?;
+    Ok(matched.flatten())
 }
 
 /// Instantiates a definition or reminder with the printed parameter. Every
@@ -511,6 +576,10 @@ pub(in crate::oracle::canonical) fn instantiate(
         Placeholder::Subtypes => (!arguments.subtypes.is_empty())
             .then(|| arguments.subtypes.join(" "))
             .ok_or_else(|| "a face subtype for `$subtypes`".to_string()),
+        Placeholder::Threshold => arguments
+            .threshold
+            .map(|threshold| threshold.to_string())
+            .ok_or_else(|| "a printed band threshold for `$threshold`".to_string()),
         Placeholder::SubtypeAlternatives => match arguments.subtypes.as_slice() {
             [] => Err("a face subtype for `$subtypeAlternatives`".to_string()),
             [only] => Ok(only.clone()),
@@ -536,6 +605,9 @@ pub(in crate::oracle::canonical) fn render_rules_form(template: &str) -> Result<
             Placeholder::Subtypes | Placeholder::SubtypeAlternatives => {
                 return Err("no face-subtype placeholder in a rules definition".to_string());
             }
+            Placeholder::Threshold => {
+                return Err("no reminder threshold placeholder in a rules definition".to_string());
+            }
         })
     })
 }
@@ -558,6 +630,8 @@ enum Placeholder<'a> {
     Cost,
     Subtypes,
     SubtypeAlternatives,
+    /// `$threshold`: a band threshold captured from the printed reminder.
+    Threshold,
 }
 
 fn render(
@@ -616,6 +690,10 @@ fn render(
             }
             "subtypeAlternatives" => {
                 output.push_str(&resolve(Placeholder::SubtypeAlternatives)?);
+                tail
+            }
+            "threshold" => {
+                output.push_str(&resolve(Placeholder::Threshold)?);
                 tail
             }
             "cost" => {

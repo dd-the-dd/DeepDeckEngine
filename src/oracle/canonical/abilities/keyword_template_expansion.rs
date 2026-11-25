@@ -41,6 +41,9 @@ fn parameters(invocation: &KeywordTemplateInvocation) -> Value {
     if let Some(cost) = &invocation.arguments.cost {
         parameters.insert("cost".to_string(), Value::from(cost.as_str()));
     }
+    if let Some(threshold) = invocation.arguments.threshold {
+        parameters.insert("threshold".to_string(), Value::from(threshold));
+    }
     Value::Object(parameters)
 }
 
@@ -277,6 +280,28 @@ pub(crate) fn expand_keyword_template_line(
             CanonicalParseOutcome::Unsupported => {
                 return failed("was claimed by no ability reader".to_string(), None);
             }
+        }
+    }
+    if let Some(band) = invocation.template.threshold_band {
+        match (band, invocation.arguments.threshold) {
+            (KeywordThresholdBand::StationCreature, Some(threshold)) => {
+                let Ok(minimum) = u32::try_from(threshold) else {
+                    return Some(CanonicalParseOutcome::Failed {
+                        failure: intrinsic_failure(
+                            input,
+                            "keyword.template.threshold-band.value",
+                            "a representable band threshold",
+                        ),
+                        recognizer: RecognizerProvenance::Native,
+                    });
+                };
+                rules.push(crate::oracle::band_gate::station_creature_band_rule(
+                    minimum,
+                ));
+            }
+            // No reminder named a power/toughness striation: the face has no
+            // creature band (checked against the face by the line reader).
+            (KeywordThresholdBand::StationCreature, None) => {}
         }
     }
     let mut rule = json!({
