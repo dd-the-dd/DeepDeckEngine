@@ -1802,10 +1802,21 @@ fn finish_object_verb_phrase(
                 context.scope,
                 ConditionScope::Static | ConditionScope::TriggerGuard | ConditionScope::Unless
             );
+            // The intervening `if` of a triggered ability states the card
+            // zone it functions from (`if this card is in your graveyard`):
+            // the triggered parent lifts it into the ability's zone of
+            // function and keeps it as the condition rechecked on resolution.
+            let declared_by_trigger = context.scope == ConditionScope::TriggerGuard
+                && !negated
+                && matches!(
+                    zones.as_slice(),
+                    [ConditionZone::Graveyard | ConditionZone::Exile | ConditionZone::Hand]
+                );
             cursor.require(
                 !(continuous
                     && object == ConditionObjectReference::SOURCE
-                    && zones != [ConditionZone::Battlefield]),
+                    && zones != [ConditionZone::Battlefield]
+                    && !declared_by_trigger),
                 "a zone of function the ability's parent declares for its source outside the battlefield (CR 113.6)",
             )?;
             cursor.enter("condition.sentence.object.zone-object");
