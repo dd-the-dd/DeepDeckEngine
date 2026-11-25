@@ -443,6 +443,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::AdditionalPhases(_)
+        | LocalEffectNode::RepeatProcess(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::TemporaryKeywordGrant(_)
         | LocalEffectNode::MillCards(_)

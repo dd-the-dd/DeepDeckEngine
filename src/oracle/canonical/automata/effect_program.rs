@@ -1770,6 +1770,7 @@ fn try_created_replacement_program(
                 conditionals: Vec::new(),
                 unless: Vec::new(),
                 delayed: Vec::new(),
+                iterations: Vec::new(),
             },
         });
         if cursor.peek().is_some() {

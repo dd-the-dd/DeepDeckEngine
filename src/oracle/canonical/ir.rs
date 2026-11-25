@@ -7,6 +7,8 @@ pub(super) fn draft(rule: Value, operations: &[&str]) -> CanonicalRuleDraft {
     // A distributive `they` / `that player` names the player slot of the
     // primitive whose operand it is (`effects::player_set`).
     super::bind_pending_acting_players(&mut rule);
+    // `repeat this process` names the program read before it (CR 608.2c).
+    super::wrap_repeated_processes(&mut rule);
     CanonicalRuleDraft {
         operations: operations.iter().map(|value| value.to_string()).collect(),
         rule,

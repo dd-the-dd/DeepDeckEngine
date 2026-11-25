@@ -81,6 +81,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("forEachObject") => {
             object_expression_supported(&effect["objects"])
                 && effect["bind"].is_string()
+                && super::super::program_iteration::object_iteration_collect_supported(effect)
                 && effect["effects"].as_array().is_some_and(|effects| {
                     !effects.is_empty() && effects.iter().all(effect_supported)
                 })
@@ -163,37 +164,7 @@ impl GameEngine {
                 }
             }
             Some("forEachObject") => {
-                let objects = self
-                    .resolve_runtime_object_ids(
-                        &effect["objects"],
-                        stack_object,
-                        bindings,
-                        decisions,
-                    )
-                    .unwrap_or_default();
-                let Some(binding_id) = effect["bind"].as_str() else {
-                    return Ok(());
-                };
-                let nested = effect["effects"].as_array().cloned().unwrap_or_default();
-                let prior_binding = bindings.get(binding_id).cloned();
-                for instance_id in objects {
-                    bindings.insert(
-                        binding_id.to_string(),
-                        RuntimeBinding::Target(TargetRef::Permanent { instance_id }),
-                    );
-                    self.execute_effects(
-                        &Value::Array(nested.clone()),
-                        stack_object,
-                        bindings,
-                        decisions,
-                        provider,
-                    )?;
-                }
-                if let Some(prior) = prior_binding {
-                    bindings.insert(binding_id.to_string(), prior);
-                } else {
-                    bindings.remove(binding_id);
-                }
+                self.execute_object_iteration(effect, stack_object, bindings, decisions, provider)?;
             }
             Some("chooseOneEffect") => {
                 let Some(player_id) =

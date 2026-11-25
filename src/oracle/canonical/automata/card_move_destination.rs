@@ -80,6 +80,13 @@ fn recognize_attacked_player(
         && cursor
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("opponent"));
+    // `For each opponent, ... attacking that opponent|player`: the member
+    // of the population being iterated (CR 608.2c) is the attacked player.
+    if that && environment.acting_player && environment.player_target.is_none() {
+        let noun = if opponent { "opponent" } else { "player" };
+        cursor.consume_phrase(&["that", noun])?;
+        return Ok(super::BoundPlayerReference::ActingPlayer);
+    }
     let event_attacked = environment.player_target.is_none()
         && environment.player.is_none()
         && (environment.frame.defending_player || environment.frame.event_player);

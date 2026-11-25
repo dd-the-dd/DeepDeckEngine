@@ -189,6 +189,7 @@ mod player_sacrifice;
 mod player_set;
 mod player_spell_tax_draw;
 mod power_toughness;
+mod program_iteration;
 mod protected_attack_trigger;
 mod protection;
 mod put_counters;
@@ -463,6 +464,7 @@ pub(super) use player_sacrifice::*;
 pub(super) use player_set::*;
 pub(super) use player_spell_tax_draw::*;
 pub(super) use power_toughness::*;
+pub(super) use program_iteration::*;
 pub(super) use protected_attack_trigger::*;
 pub(super) use protection::*;
 pub(super) use put_counters::*;
@@ -2318,6 +2320,9 @@ pub(super) enum LocalEffectNode {
     TemporaryPlayerPermission(TemporaryPlayerPermissionNode),
     /// `choose DOMAIN`: a typed decision whose binding later references use.
     Choose(ChooseInstructionNode),
+    /// `repeat this process` (CR 608.2c): the program read before it is
+    /// performed again.
+    RepeatProcess(RepeatProcessNode),
 }
 
 /// Verb frame `tap OBJECT`: the object slot is the shared permanent operand
@@ -2562,6 +2567,9 @@ pub(super) struct EffectSequenceNode {
     /// Action ranges performed later by a delayed triggered ability
     /// (CR 603.7), each inside the sentence that states its timing.
     pub delayed: Vec<DelayedFrameNode>,
+    /// `For each PLAYER|of SET, ...` sentences (CR 608.2c): action ranges
+    /// performed once per member of a population or bound set.
+    pub iterations: Vec<IterationFrameNode>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
