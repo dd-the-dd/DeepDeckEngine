@@ -4975,7 +4975,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("cardPlotted" | "reflexiveTriggerCreated") => {
             value_kind(&event["object"]) == Some("self")
         }
-        Some("selfDiscarded") => value_kind(&event["object"]) == Some("self"),
+        Some("selfDiscarded") => player_event_matchers::self_discard_event_supported(event),
         Some("landPlayed" | "landPlayedFromExile") => {
             player_reference_supported(&event["player"])
                 && event.get("excludeSource").is_none_or(Value::is_boolean)
@@ -5102,6 +5102,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 || event["opponentOfSourceController"].as_bool() == Some(true))
                 && event.get("where").is_none_or(card_filter_supported)
                 && event.get("loyaltyOnly").is_none_or(Value::is_boolean)
+                && event.get("abilityClass").is_none_or(Value::is_string)
                 && event
                     .get("minimumLoyaltyRemoved")
                     .is_none_or(|value| integer_value(value).is_some_and(|value| value > 0))
@@ -5234,6 +5235,9 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("playerDiscardedCard" | "cardCycled") => {
             player_action_events::player_card_action_event_supported(event)
         }
+        Some("playerDealtDamage") => player_event_matchers::received_damage_event_supported(event),
+        Some("cardsDiscarded") => player_event_matchers::discard_batch_event_supported(event),
+        Some("spellCounteredBy") => player_event_matchers::spell_countered_event_supported(event),
         Some("opponentDealtDamage") => {
             player_reference_supported(&event["player"])
                 && event.get("noncombatOnly").is_none_or(Value::is_boolean)
@@ -21830,6 +21834,14 @@ impl GameEngine {
                     })
                 })
             });
+        let triggering_class = self
+            .state
+            .stack
+            .iter()
+            .find(|object| object.id == triggering_stack_id)
+            .and_then(|object| object.ability_rule.as_ref())
+            .and_then(|rule| rule["abilityClass"].as_str())
+            .map(str::to_string);
         let triggering_loyalty_change = self
             .state
             .stack
@@ -21853,17 +21865,15 @@ impl GameEngine {
                             && triggered_event_variants(&rule["event"])
                                 .iter()
                                 .any(|event| {
-                                    let player_matches = if event["opponentOfSourceController"]
+                                    player_event_matchers::activation_player_observed(
+                                        event,
+                                        source,
+                                        activating_player_id,
+                                    ) && event["loyaltyOnly"]
                                         .as_bool()
-                                        == Some(true)
-                                    {
-                                        source.controller != activating_player_id
-                                    } else {
-                                        source.controller == activating_player_id
-                                    };
-                                    player_matches
-                                        && event["loyaltyOnly"].as_bool().is_none_or(|required| {
-                                            !required || triggering_is_loyalty
+                                        .is_none_or(|required| !required || triggering_is_loyalty)
+                                        && event["abilityClass"].as_str().is_none_or(|class| {
+                                            triggering_class.as_deref() == Some(class)
                                         })
                                         && integer_value(&event["minimumLoyaltyRemoved"])
                                             .is_none_or(|minimum| {
@@ -21892,10 +21902,16 @@ impl GameEngine {
             self.put_triggered_ability_on_stack_with_decisions(
                 &source,
                 rule,
-                BTreeMap::from([(
-                    "triggeringStackId".to_string(),
-                    Value::String(triggering_stack_id.to_string()),
-                )]),
+                BTreeMap::from([
+                    (
+                        "triggeringStackId".to_string(),
+                        Value::String(triggering_stack_id.to_string()),
+                    ),
+                    (
+                        "triggeringPlayerId".to_string(),
+                        Value::String(activating_player_id.to_string()),
+                    ),
+                ]),
             );
             if self.check_quantity_failure().is_err() {
                 return;
@@ -23347,6 +23363,12 @@ impl GameEngine {
                 }
             }
         }
+        if let Some(instance_id) = &discarded_id {
+            self.observe_discard_for_batch(discarding_player_id, instance_id);
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
         let discarded = self
             .state
             .events
@@ -23369,26 +23391,8 @@ impl GameEngine {
                     })
             });
         if let Some(discarded) = discarded {
-            let self_discard_rules = self
-                .effective_rules(&discarded)
-                .iter()
-                .filter(|rule| {
-                    triggered_rule_supported(rule)
-                        && triggered_event_variants(&rule["event"])
-                            .iter()
-                            .any(|event| value_kind(event) == Some("selfDiscarded"))
-                })
-                .cloned()
-                .collect::<Vec<_>>();
-            for rule in self_discard_rules {
-                self.put_triggered_ability_on_stack_with_decisions(
-                    &discarded,
-                    rule,
-                    BTreeMap::new(),
-                );
-                if self.check_quantity_failure().is_err() {
-                    return;
-                }
+            if !self.enqueue_self_discard_triggers(&discarded, discarding_player_id) {
+                return;
             }
             self.enqueue_cards_entered_graveyard_triggers_from(
                 discarding_player_id,
@@ -34335,6 +34339,7 @@ impl GameEngine {
         }
 
         let owner_index = self.player_index(&stack_object.card.owner)?;
+        let countered_definition = stack_object.card.definition.clone();
         let mut card = stack_object.card;
         let graveyard_owner = card.owner.clone();
         let spell_copy = is_spell_copy(&card);
@@ -34394,6 +34399,7 @@ impl GameEngine {
                 "stackId": stack_id,
             }),
         );
+        self.publish_spell_countered(source_controller, &countered_definition);
         if let Some(graveyard_card) = graveyard_card {
             self.enqueue_cards_entered_graveyard_triggers_from(
                 &graveyard_owner,

@@ -1,0 +1,1527 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "event-slots-player-events-batch10",
+  "cases": [
+    {
+      "id": "exact-soaring-lightbringer-you-attack-a-player",
+      "request": {
+        "cardName": "Soaring Lightbringer",
+        "typeLine": "Enchantment Creature — Bird Glimmer",
+        "manaCost": "{4}{W}",
+        "oracleText": "Flying\nOther enchantment creatures you control have flying.\nWhenever you attack a player, create a 1/1 white Glimmer enchantment creature token that's tapped and attacking that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attacked/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/event/attackers/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/attackers/where/value",
+                "equals": "Creature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-long-range-sensor-you-attack-a-player",
+      "request": {
+        "cardName": "Long-Range Sensor",
+        "typeLine": "Artifact",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever you attack a player, put a charge counter on this artifact.\n{1}, Remove two charge counters from this artifact: Discover 4. Activate only as a sorcery. (Exile cards from the top of your library until you exile a nonland card with mana value 4 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attacked/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/event/attackers/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/attackers/where/value",
+                "equals": "Creature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lulu-an-opponent-attacks-you",
+      "request": {
+        "cardName": "Lulu, Stern Guardian",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever an opponent attacks you, choose target creature attacking you. Put a stun counter on that creature.\n{3}{U}: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attacked",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/attackers/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-everett-ross-opponent-attacks-you-with-two-or-more",
+      "request": {
+        "cardName": "Everett K. Ross, Hapless Attaché",
+        "typeLine": "Legendary Creature — Human Advisor",
+        "manaCost": "{2}{W}",
+        "oracleText": "Commander creatures you control get +1/+1 and have lifelink.\nWhenever an opponent attacks you with two or more creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attacked",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/attackers/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/attackers/minimum",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-attacks-you-gain-life",
+      "request": {
+        "cardName": "Synthetic Attack Ward",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent attacks you, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attacked",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-player-attacks-one-of-your-opponents",
+      "request": {
+        "cardName": "Synthetic Defender Watch",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a player attacks one of your opponents, you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attacked",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-you-attack-a-player-with-one-or-more-artifact-creatures",
+      "request": {
+        "cardName": "Synthetic Convoy",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you attack a player with one or more artifact creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attackers/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-you-attack-without-recipient-keeps-the-declaration",
+      "request": {
+        "cardName": "Synthetic Raid",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you attack, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledCreaturesAttacked"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attack-recipient-union-is-an-engine-gap",
+      "request": {
+        "cardName": "Synthetic Bulwark",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent attacks you or a planeswalker you control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sun-droplet-you-are-dealt-damage",
+      "request": {
+        "cardName": "Sun Droplet",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you're dealt damage, put that many charge counters on this artifact.\nAt the beginning of each upkeep, you may remove a charge counter from this artifact. If you do, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerDealtDamage"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "perRecipient"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-blood-hound-you-are-dealt-damage",
+      "request": {
+        "cardName": "Blood Hound",
+        "typeLine": "Creature — Dog",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever you're dealt damage, you may put that many +1/+1 counters on this creature.\nAt the beginning of your end step, remove all +1/+1 counters from this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerDealtDamage"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "perRecipient"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-living-artifact-you-are-dealt-damage",
+      "request": {
+        "cardName": "Living Artifact",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{G}",
+        "oracleText": "Enchant artifact\nWhenever you're dealt damage, put that many vitality counters on this Aura.\nAt the beginning of your upkeep, you may remove a vitality counter from this Aura. If you do, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerDealtDamage"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "perRecipient"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-risona-combat-damage-is-dealt-to-you",
+      "request": {
+        "cardName": "Risona, Asari Commander",
+        "typeLine": "Legendary Creature — Human Samurai",
+        "manaCost": "{1}{R}{W}",
+        "oracleText": "Haste\nWhenever Risona deals combat damage to a player, if it doesn't have an indestructible counter on it, put an indestructible counter on it.\nWhenever combat damage is dealt to you, remove an indestructible counter from Risona.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerDealtDamage"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/combatOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-source-deals-damage-to-you-is-a-source-event",
+      "request": {
+        "cardName": "Synthetic Retort",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature deals damage to you, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/recipient/kind",
+                "equals": "player"
+              },
+              {
+                "pointer": "/event/recipient/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-player-is-dealt-combat-damage",
+      "request": {
+        "cardName": "Synthetic Witness",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a player is dealt combat damage, that player draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerDealtDamage"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/event/combatOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-damage-to-you-or-a-planeswalker-is-not-one-player",
+      "request": {
+        "cardName": "Synthetic Pharaoh",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever combat damage is dealt to you or a planeswalker you control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "event.player.received-damage.single-recipient",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-marauding-mako-discard-one-or-more",
+      "request": {
+        "cardName": "Marauding Mako",
+        "typeLine": "Creature — Shark Pirate",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you discard one or more cards, put that many +1/+1 counters on this creature.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "cardsDiscarded"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "eventObjectCount"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cryptcaller-chariot-discard-one-or-more",
+      "request": {
+        "cardName": "Cryptcaller Chariot",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{3}{B}",
+        "oracleText": "Menace\nWhenever you discard one or more cards, create that many tapped 2/2 black Zombie creature tokens.\nCrew 2",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "cardsDiscarded"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-doctor-doom-discard-one-or-more-land-cards",
+      "request": {
+        "cardName": "Doctor Doom, King of Latveria",
+        "typeLine": "Legendary Creature — Human Noble Villain",
+        "manaCost": "{1}{U}{B}{R}",
+        "oracleText": "Whenever you discard one or more land cards, each opponent loses 2 life.\nAt the beginning of combat on your turn, target Villain you control gains menace until end of turn. It connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "cardsDiscarded"
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Land"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-discard-one-or-more-creature-cards-draw",
+      "request": {
+        "cardName": "Synthetic Recycler",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you discard one or more creature cards, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "cardsDiscarded"
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Creature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-discard-a-card-is-per-card",
+      "request": {
+        "cardName": "Synthetic Pyre",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you discard a card, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerDiscardedCard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-titanbones-when-you-discard-this-card",
+      "request": {
+        "cardName": "Titanbones, Towering Heart",
+        "typeLine": "Legendary Creature — Skeleton Druid",
+        "manaCost": "{3}{G}",
+        "oracleText": "Reach\nWhenever you gain life, put two +1/+1 counters on Titanbones.\nWhen you discard this card, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "selfDiscarded"
+              },
+              {
+                "pointer": "/event/object",
+                "equals": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-edgars-awakening-when-you-discard-this-card",
+      "request": {
+        "cardName": "Edgar's Awakening",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Return target creature card from your graveyard to the battlefield.\nWhen you discard this card, you may pay {B}. When you do, return target creature card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "selfDiscarded"
+              },
+              {
+                "pointer": "/event/object",
+                "equals": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-psychic-purge-caused-discard",
+      "request": {
+        "cardName": "Psychic Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Psychic Purge deals 1 damage to any target.\nWhen a spell or ability an opponent controls causes you to discard this card, that player loses 5 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "selfDiscarded"
+              },
+              {
+                "pointer": "/event/cause/kind",
+                "equals": "resolvingStackObject"
+              },
+              {
+                "pointer": "/event/cause/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-metrognome-caused-discard",
+      "request": {
+        "cardName": "Metrognome",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "When a spell or ability an opponent controls causes you to discard this card, create four 1/1 colorless Gnome artifact creature tokens.\n{4}, {T}: Create a 1/1 colorless Gnome artifact creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "selfDiscarded"
+              },
+              {
+                "pointer": "/event/cause/kind",
+                "equals": "resolvingStackObject"
+              },
+              {
+                "pointer": "/event/cause/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-spell-alone-causing-a-discard-is-an-engine-gap",
+      "request": {
+        "cardName": "Synthetic Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "When a spell an opponent controls causes you to discard this card, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-you-cycle-this-card-stays-the-cycled-source",
+      "request": {
+        "cardName": "Synthetic Cycler",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "When you cycle this card, draw a card.\nCycling {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "sourceCycled"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-immolation-shaman-ability-of-a-source",
+      "request": {
+        "cardName": "Immolation Shaman",
+        "typeLine": "Creature — Lizard Shaman",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever an opponent activates an ability of an artifact, creature, or land that isn't a mana ability, this creature deals 1 damage to that player.\n{3}{R}{R}: This creature gets +3/+3 and gains menace until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "abilityActivated"
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-runic-armasaur-ability-of-a-creature-or-land",
+      "request": {
+        "cardName": "Runic Armasaur",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "Whenever an opponent activates an ability of a creature or land that isn't a mana ability, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "abilityActivated"
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-crackdown-construct-ability-of-an-artifact-or-creature",
+      "request": {
+        "cardName": "Crackdown Construct",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}",
+        "oracleText": "Whenever you activate an ability of an artifact or creature that isn't a mana ability, this creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "abilityActivated"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-burning-tree-shaman-any-player-activation",
+      "request": {
+        "cardName": "Burning-Tree Shaman",
+        "typeLine": "Creature — Centaur Shaman",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "Whenever a player activates an ability that isn't a mana ability, this creature deals 1 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "nonManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-activation-that-may-be-a-mana-ability",
+      "request": {
+        "cardName": "Synthetic Overseer",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you activate an ability of a creature, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "event.player.ability-query.relative",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-infernal-sovereign-play-a-land-or-cast-a-spell",
+      "request": {
+        "cardName": "Infernal Sovereign",
+        "typeLine": "Creature — Demon",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Flying, trample\nSkip your draw step.\nWhenever you play a land or cast a spell, you draw a card and you lose 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "landPlayed"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "spellCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-the-endstone-play-a-land-or-cast-a-spell",
+      "request": {
+        "cardName": "The Endstone",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{7}",
+        "oracleText": "Whenever you play a land or cast a spell, draw a card.\nAt the beginning of your end step, your life total becomes half your starting life total, rounded up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "landPlayed"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "spellCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-casts-a-spell-or-discards-a-card",
+      "request": {
+        "cardName": "Synthetic Tithe",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent casts a spell or discards a card, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "playerDiscardedCard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-briarbridge-patrol-damage-to-one-or-more-creatures",
+      "request": {
+        "cardName": "Briarbridge Patrol",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{3}{G}",
+        "oracleText": "Whenever this creature deals damage to one or more creatures, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nAt the beginning of each end step, if you sacrificed three or more Clues this turn, you may put a creature card from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "oneOrMore"
+              },
+              {
+                "pointer": "/event/recipient/kind",
+                "equals": "permanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-damage-to-a-creature-is-per-recipient",
+      "request": {
+        "cardName": "Synthetic Brawler",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature deals damage to a creature, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "damageDealtBySource"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lullmage-mentor-a-spell-or-ability-you-control-counters-a-spell",
+      "request": {
+        "cardName": "Lullmage Mentor",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Whenever a spell or ability you control counters a spell, you may create a 1/1 blue Merfolk creature token.\nTap seven untapped Merfolk you control: Counter target spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCounteredBy"
+              },
+              {
+                "pointer": "/event/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-baral-counters-a-spell",
+      "request": {
+        "cardName": "Baral, Chief of Compliance",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever a spell or ability you control counters a spell, you may draw a card. If you do, discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCounteredBy"
+              },
+              {
+                "pointer": "/event/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponents-spell-or-ability-counters-a-creature-spell",
+      "request": {
+        "cardName": "Synthetic Grudge",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a spell or ability an opponent controls counters a creature spell, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCounteredBy"
+              },
+              {
+                "pointer": "/event/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Creature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-spell-alone-countering-is-an-engine-gap",
+      "request": {
+        "cardName": "Synthetic Spite",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a spell you control counters a spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rangers-refueler-activate-an-exhaust-ability",
+      "request": {
+        "cardName": "Rangers' Refueler",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever you activate an exhaust ability, draw a card.\nExhaust — {4}: This Vehicle becomes an artifact creature. Put a +1/+1 counter on it. (Activate each exhaust ability only once.)\nCrew 2",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "nonManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/abilityClass",
+                "equals": "exhaust"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-frenzied-raider-activate-a-boast-ability",
+      "request": {
+        "cardName": "Frenzied Raider",
+        "typeLine": "Creature — Demon Berserker",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever you activate a boast ability, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "nonManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/abilityClass",
+                "equals": "boast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-activates-an-exhaust-ability",
+      "request": {
+        "cardName": "Synthetic Exhaust Watch",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent activates an exhaust ability, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "nonManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/abilityClass",
+                "equals": "exhaust"
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

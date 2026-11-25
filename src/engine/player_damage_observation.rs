@@ -9,7 +9,7 @@ impl GameEngine {
                 for event in triggered_event_variants(&rule["event"]) {
                     if matches!(
                         value_kind(event),
-                        Some("damageDealtToOpponent" | "opponentDealtDamage")
+                        Some("damageDealtToOpponent" | "opponentDealtDamage" | "playerDealtDamage")
                     ) && event
                         .get("aggregation")
                         .is_some_and(|v| !matches!(v.as_str(), Some("perRecipient" | "oneOrMore")))
@@ -24,7 +24,11 @@ impl GameEngine {
                     .filter(|e| {
                         matches!(
                             value_kind(e),
-                            Some("damageDealtToOpponent" | "opponentDealtDamage")
+                            Some(
+                                "damageDealtToOpponent"
+                                    | "opponentDealtDamage"
+                                    | "playerDealtDamage"
+                            )
                         )
                     })
                     .map(|e| e["aggregation"].as_str().unwrap_or("perRecipient"))
@@ -76,6 +80,12 @@ impl GameEngine {
                                             || event["noncombatOnly"].as_bool() != Some(true))
                                         && (combat || event["combatOnly"].as_bool() != Some(true))
                                 }
+                                Some("playerDealtDamage") => self.received_damage_observed(
+                                    event,
+                                    &source,
+                                    &r.player_id,
+                                    combat,
+                                ),
                                 _ => false,
                             })
                     })
@@ -86,7 +96,7 @@ impl GameEngine {
                 let one_or_more = variants.iter().any(|event| {
                     matches!(
                         value_kind(event),
-                        Some("damageDealtToOpponent" | "opponentDealtDamage")
+                        Some("damageDealtToOpponent" | "opponentDealtDamage" | "playerDealtDamage")
                     ) && event["aggregation"].as_str() == Some("oneOrMore")
                 });
                 let groups = if one_or_more {

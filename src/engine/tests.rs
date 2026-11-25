@@ -250,6 +250,10 @@ mod trigger_frame_runtime;
 mod player_action_event_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/event_slots_player_events_runtime.rs"]
+mod event_slots_player_events_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_damage_event_runtime.rs"]
 mod source_damage_event_runtime;
 

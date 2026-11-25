@@ -122,14 +122,6 @@ fn unrepresentable_received_damage_events_fail_at_their_own_state() {
             "trigger.object-event.verb-support",
         ),
         (
-            "Whenever you are dealt damage, draw a card.",
-            "trigger.program.player-event-support",
-        ),
-        (
-            "Whenever a player is dealt damage, draw a card.",
-            "trigger.program.player-event-support",
-        ),
-        (
             "Whenever one or more players gain life, draw a card.",
             "trigger.program.player-event-support",
         ),
@@ -142,6 +134,55 @@ fn unrepresentable_received_damage_events_fail_at_their_own_state() {
     ] {
         assert_eq!(failure_state(text), state, "{text}");
     }
+}
+
+#[test]
+fn a_received_damage_player_relation_other_than_an_opponent_is_the_player_observer() {
+    // The same received-damage event for each written player relation and
+    // surface (`you are`, the contracted `you're`, the damage as subject).
+    for (text, player, combat) in [
+        (
+            "Whenever you are dealt damage, draw a card.",
+            controller(),
+            false,
+        ),
+        (
+            "Whenever you're dealt damage, draw a card.",
+            controller(),
+            false,
+        ),
+        (
+            "Whenever combat damage is dealt to you, draw a card.",
+            controller(),
+            true,
+        ),
+        (
+            "Whenever a player is dealt damage, draw a card.",
+            json!({"kind": "eachPlayer"}),
+            false,
+        ),
+    ] {
+        let event = event(text);
+        assert_eq!(event["kind"], "playerDealtDamage", "{text}");
+        assert_eq!(event["player"], player, "{text}");
+        assert_eq!(event["aggregation"], "perRecipient", "{text}");
+        assert_eq!(event.get("combatOnly").is_some(), combat, "{text}");
+    }
+    // The opponent relation keeps the established observer.
+    assert_eq!(
+        event("Whenever an opponent is dealt damage, draw a card.")["kind"],
+        "opponentDealtDamage"
+    );
+}
+
+#[test]
+fn a_damage_recipient_union_is_not_one_players_received_damage() {
+    assert_eq!(
+        failure_state(
+            "Whenever combat damage is dealt to you or a planeswalker you control, draw a card."
+        ),
+        "event.player.received-damage.single-recipient"
+    );
 }
 
 #[test]

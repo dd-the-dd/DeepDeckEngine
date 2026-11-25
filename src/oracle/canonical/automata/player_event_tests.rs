@@ -90,9 +90,106 @@ fn player_event_unions_reject_mixed_objects_and_repeated_verbs() {
     // The card object is a card query, not a player or permanent relation.
     let failure = read("you discard a creature you control").expect_err("controller relation");
     assert_eq!(failure.state, "event.player.card-domain");
-    // A plural card object is a batch, not one discarded card.
-    let failure = read("you discard one or more cards").expect_err("plural object");
-    assert_eq!(failure.state, "event.player.card-determiner");
+}
+
+fn card_object(text: &str) -> PlayerEventCardObject {
+    match read(text).unwrap_or_else(|failure| panic!("{text}: {failure}")) {
+        LocalTriggerEventNode::PlayerEvent {
+            card: Some(card), ..
+        } => card,
+        other => panic!("{text}: {other:?}"),
+    }
+}
+
+#[test]
+fn the_card_object_types_its_cardinality_and_cause() {
+    // A plural card object is one batch of discarded cards (CR 603.2c),
+    // distinct from one discarded card.
+    assert_eq!(
+        card_object("you discard one or more cards").selection,
+        PlayerEventCardSelection::OneOrMore
+    );
+    assert_eq!(
+        card_object("you discard a card").selection,
+        PlayerEventCardSelection::One
+    );
+    let lands = card_object("an opponent discards one or more land cards");
+    assert!(lands.is_batch());
+    assert_ne!(
+        lands.query.predicate,
+        super::super::ObjectPredicate::ObjectKind(ObjectKind::Card)
+    );
+    // The source card itself (`When you discard this card`).
+    assert!(card_object("you discard this card").is_source_card());
+    // `you cycle this card` is the source-cycled event, not a card object.
+    assert_eq!(
+        read("you cycle this card")
+            .expect_err("cycled source")
+            .state,
+        "event.player.cycled-source"
+    );
+}
+
+#[test]
+fn a_caused_discard_keeps_the_causing_spell_or_ability() {
+    let tokens = recognize_oracle_entities(
+        "a spell or ability an opponent controls causes you to discard this card",
+    );
+    let mut cursor = OracleTokenCursor::new("player-event-test", &tokens);
+    let LocalTriggerEventNode::PlayerEvent {
+        actor,
+        actions,
+        card: Some(card),
+        ..
+    } = recognize_caused_player_event(&mut cursor).expect("a caused discard")
+    else {
+        panic!("a player event")
+    };
+    assert_eq!(actor, EventActorScope::Controller);
+    assert_eq!(actions, vec![PlayerEventAction::DiscardCard]);
+    assert!(card.is_source_card());
+    let cause = card.cause.expect("the cause");
+    assert_eq!(
+        cause.controller,
+        Some(super::super::ObjectControllerScope::OpponentOfAbilityController)
+    );
+    assert_eq!(
+        cause.kinds.len(),
+        3,
+        "a spell, an activated or triggered ability"
+    );
+}
+
+#[test]
+fn received_damage_reads_the_contracted_and_passive_forms() {
+    for (text, actor, kind) in [
+        (
+            "you're dealt damage",
+            EventActorScope::Controller,
+            DamageKind::Any,
+        ),
+        (
+            "combat damage is dealt to you",
+            EventActorScope::Controller,
+            DamageKind::Combat,
+        ),
+        (
+            "noncombat damage is dealt to an opponent",
+            EventActorScope::Opponent,
+            DamageKind::Noncombat,
+        ),
+        (
+            "a player is dealt damage",
+            EventActorScope::AnyPlayer,
+            DamageKind::Any,
+        ),
+    ] {
+        assert_eq!(
+            actions(text),
+            (actor, vec![PlayerEventAction::BeDealtDamage(kind)], false),
+            "{text}"
+        );
+    }
 }
 
 fn roll(minimum: Option<i64>, maximum: Option<i64>, batch: bool) -> PlayerEventAction {

@@ -21,6 +21,9 @@ pub(super) struct EventBatchState {
     depth: usize,
     shared: Option<SharedChildBatches>,
     fired: BTreeSet<(String, String, u64)>,
+    /// Discards of an open event, published as one `one or more` discard
+    /// per player when that event ends (CR 603.2c).
+    pending_discards: Vec<(u64, String, String)>,
 }
 
 /// One event per child position of a player iteration, reused by every player.
@@ -52,6 +55,24 @@ impl EventBatchState {
     /// The simultaneous event currently open, if any.
     pub(super) fn current_batch(&self) -> Option<u64> {
         self.current
+    }
+
+    /// Defers one discarded card of `player_id` to the end of `batch`.
+    pub(super) fn defer_discard(&mut self, batch: u64, player_id: &str, card_id: &str) {
+        self.pending_discards
+            .push((batch, player_id.to_string(), card_id.to_string()));
+    }
+
+    /// The deferred discards of `batch`, in discard order.
+    pub(super) fn take_discards(&mut self, batch: u64) -> Vec<(String, String)> {
+        let (taken, kept) = std::mem::take(&mut self.pending_discards)
+            .into_iter()
+            .partition::<Vec<_>, _>(|(pending, _, _)| *pending == batch);
+        self.pending_discards = kept;
+        taken
+            .into_iter()
+            .map(|(_, player_id, card_id)| (player_id, card_id))
+            .collect()
     }
 
     fn allocate(&mut self) -> u64 {
@@ -91,6 +112,9 @@ impl GameEngine {
         let ended = self.event_batches.current;
         self.event_batches.current = scope.previous;
         self.event_batches.depth -= 1;
+        if let Some(ended) = ended {
+            self.flush_discard_batch(ended);
+        }
         // A shared event stays open for the next player; its claims are
         // released when the whole iteration ends.
         if !scope.shared

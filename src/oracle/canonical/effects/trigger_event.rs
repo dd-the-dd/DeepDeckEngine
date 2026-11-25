@@ -1679,6 +1679,9 @@ fn lower_damage_dealt_event(
         return Ok(pattern);
     };
     lowered["recipient"] = match recipient {
+        DamageRecipient::PermanentBatch(query) => {
+            return lower_damage_recipient_batch(cursor, lowered, query);
+        }
         DamageRecipient::Player(actor) => {
             json!({"kind": "player", "player": event_actor_player(*actor)})
         }
@@ -1691,6 +1694,35 @@ fn lower_damage_dealt_event(
         }
     };
     Ok(lowered)
+}
+
+/// `deals damage to one or more PERMANENTS` (CR 603.2c): the generic damage
+/// pattern with the shared recipient query, triggering once per source and
+/// simultaneous event (`aggregation`), with the total amount dealt to the
+/// matching permanents.
+fn lower_damage_recipient_batch(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut lowered: Value,
+    query: &ObjectQueryNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.dealt-damage.recipient-batch-support");
+    let mut recipient = json!({"kind": "permanent"});
+    if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut recipient)? {
+        recipient["where"] = filter;
+    }
+    let mut pattern = json!({
+        "kind": "eventPattern",
+        "lemma": "dealDamage",
+        "source": lowered["source"].take(),
+        "recipient": recipient,
+        "aggregation": "oneOrMore",
+    });
+    for flag in ["combatOnly", "noncombatOnly"] {
+        if let Some(value) = lowered.get(flag) {
+            pattern[flag] = value.clone();
+        }
+    }
+    Ok(pattern)
 }
 
 /// The attacked object of an attack pattern (CR 506.2, 508.1b): each
@@ -2353,6 +2385,11 @@ fn lower_player_event(
     permanent: Option<&PlayerEventCardObject>,
 ) -> MachineResult<Value> {
     cursor.enter("trigger.program.player-event-support");
+    if let Some(lowered) =
+        lower_player_card_selection_event(cursor, actor, actions, one_or_more, card)
+    {
+        return lowered;
+    }
     if let [action] = actions
         && let Some(lowered) =
             lower_player_outcome_event(cursor, actor, *action, one_or_more, permanent)
@@ -2366,29 +2403,7 @@ fn lower_player_event(
             lower_tap_for_mana_event(cursor, actor, one_or_more, permanent)
         }
         [PlayerEventAction::ActivateAbility(kind)] => {
-            cursor.enter("trigger.player-event.activation-support");
-            cursor.require(
-                !one_or_more,
-                "a per-player activation event (no one-or-more player batch)",
-            )?;
-            let mut lowered = match actor {
-                EventActorScope::Controller => {
-                    json!({"kind": "nonManaAbilityActivated", "player": player})
-                }
-                EventActorScope::Opponent => {
-                    json!({"kind": "nonManaAbilityActivated", "opponentOfSourceController": true})
-                }
-                EventActorScope::AnyPlayer => {
-                    return Err(engine_gap(
-                        cursor,
-                        "an activation matcher for any player (the runtime matches the controller or an opponent)",
-                    ));
-                }
-            };
-            if *kind == ActivatedAbilityKind::Loyalty {
-                lowered["loyaltyOnly"] = json!(true);
-            }
-            Ok(lowered)
+            lower_ability_activation_event(cursor, actor, *kind, one_or_more, permanent)
         }
         [action]
             if !action.takes_card_object()
@@ -2534,17 +2549,7 @@ fn lower_fixed_player_event(
     one_or_more: bool,
 ) -> MachineResult<Value> {
     if let PlayerEventAction::BeDealtDamage(damage) = action {
-        // The runtime observes damage dealt to the controller's opponents,
-        // per recipient or as one event for the whole batch.
-        cursor.require(
-            actor == EventActorScope::Opponent,
-            "an opponent actor for a received-damage event (the runtime matches only opponents)",
-        )?;
-        let mut lowered = json!({
-            "kind": "opponentDealtDamage",
-            "player": player,
-            "aggregation": if one_or_more { "oneOrMore" } else { "perRecipient" },
-        });
+        let mut lowered = lower_player_received_damage(cursor, actor, player, one_or_more)?;
         apply_damage_event_kind(cursor, &mut lowered, damage)?;
         return Ok(lowered);
     }
@@ -2609,7 +2614,8 @@ fn lower_fixed_player_event(
             | PlayerEventAction::Clash { .. }
             | PlayerEventAction::Proliferate
             | PlayerEventAction::Exert
-            | PlayerEventAction::CompleteDungeon,
+            | PlayerEventAction::CompleteDungeon
+            | PlayerEventAction::CounterSpell,
             _,
         ) => unreachable!(
             "lowered by the received-damage, action-union, action-frame or outcome branches"
