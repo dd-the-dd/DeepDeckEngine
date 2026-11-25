@@ -2476,11 +2476,15 @@ fn recognize_effect_sequence_attempt_scoped(
                 }
                 // A quoted ability that ends with its own period has already
                 // closed this sentence inside the quotation marks.
+                // A capitalized `Then` after a quoted ability's own period
+                // opens the next sentence (`... with "This token can't
+                // block." Then if ...`); a lowercase one continues it.
                 let sentence_closed_by_quote = super::quoted_sentence_just_closed(cursor)
                     && !matches!(
                         cursor.peek().map(str::to_ascii_lowercase).as_deref(),
-                        Some("and" | "then" | ",")
-                    );
+                        Some("and" | ",")
+                    )
+                    && cursor.peek() != Some("then");
                 let sentence_head = if sentence_closed_by_quote {
                     Some(".".to_string())
                 } else {
