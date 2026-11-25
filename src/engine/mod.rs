@@ -189,6 +189,7 @@ mod mana_spend_prohibition;
 mod mana_value_execution;
 mod nominal_choices;
 mod numeric_evaluation;
+mod numeric_quantities;
 mod object_condition;
 mod object_context;
 mod object_event_history;
@@ -2631,6 +2632,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         return true;
     }
     if let Some(supported) = object_relation_eval::related_count_supported(expression) {
+        return supported;
+    }
+    if let Some(supported) = numeric_quantities::numeric_quantity_supported(expression) {
         return supported;
     }
     match value_kind(expression) {
@@ -9287,6 +9291,9 @@ impl GameEngine {
     }
 
     fn numeric_expression(&self, expression: &Value, controller_id: &str) -> Option<i32> {
+        if let Some(value) = self.numeric_quantity(expression, controller_id) {
+            return value;
+        }
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
@@ -9924,17 +9931,17 @@ impl GameEngine {
             )
         {
             let source = source?;
-            let counter = expression["counter"].as_str()?;
+            // One kind, or every kind when the expression names none.
+            let counter = expression["counter"].as_str();
             return self
                 .permanent_position(&source.instance_id)
                 .map(|(player_index, card_index)| {
-                    self.state.players[player_index].battlefield[card_index]
-                        .counters
-                        .get(counter)
-                        .copied()
-                        .unwrap_or(0)
+                    numeric_quantities::counter_total(
+                        &self.state.players[player_index].battlefield[card_index].counters,
+                        counter,
+                    )
                 })
-                .or_else(|| Some(source.counters.get(counter).copied().unwrap_or(0)));
+                .or_else(|| Some(numeric_quantities::counter_total(&source.counters, counter)));
         }
         if value_kind(expression) == Some("countAttachments")
             && matches!(
@@ -13351,6 +13358,7 @@ impl GameEngine {
             if let Some(binding) = cost["bindToughnessAs"].as_str() {
                 bound.push((binding.to_string(), self.current_toughness(permanent)));
             }
+            bound.extend(numeric_quantities::cost_mana_value_binding(cost, permanent));
         }
         bound
     }
@@ -27610,7 +27618,10 @@ impl GameEngine {
                 {
                     let power_binding = cost["bindPowerAs"].as_str();
                     let toughness_binding = cost["bindToughnessAs"].as_str();
-                    if power_binding.is_none() && toughness_binding.is_none() {
+                    if power_binding.is_none()
+                        && toughness_binding.is_none()
+                        && cost.get("bindManaValueAs").is_none()
+                    {
                         continue;
                     }
                     let Some(target_id) = cost["permanent"]["id"].as_str() else {
@@ -27637,6 +27648,10 @@ impl GameEngine {
                                 Value::from(self.current_toughness(permanent)),
                             );
                         }
+                        stack_decisions.extend(
+                            numeric_quantities::cost_mana_value_binding(cost, permanent)
+                                .map(|(binding, value)| (binding, Value::from(value))),
+                        );
                     }
                 }
                 stack_decisions.extend(attacking_entry::cost_attack_references(
@@ -31102,6 +31117,9 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        if let Some(value) = self.runtime_numeric_quantity(expression, stack_object, bindings) {
+            return value;
         }
         if let Some(value) = self.bound_object_numeric_read(expression, bindings, decisions) {
             return value;

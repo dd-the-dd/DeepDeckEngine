@@ -662,7 +662,11 @@ fn read_object_predicates(
                     }));
                 } else {
                     let delta = recognize_signed_power_toughness_delta(cursor)?;
-                    let scale = read_optional_for_each_count(cursor, source_subject)?;
+                    // The count may name the source (`for each counter on NAME`).
+                    let names = cursor.replace_source_names(Some(input.name_links.into()));
+                    let scale = read_optional_for_each_count(cursor, source_subject);
+                    cursor.replace_source_names(names);
+                    let scale = scale?;
                     let scaled = |amount: i64| match &scale {
                         None => integer(amount),
                         Some(_) if amount == 0 => integer(0),

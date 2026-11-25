@@ -73,6 +73,7 @@ fn visit(expression: &NumericExpression) -> Result<Option<i32>, TargetlessLoweri
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::BoundObjectProperty { .. }
+        | NumericExpression::Quantity(_)
         | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::ActionResultCount { .. }
         | NumericExpression::CardsInZone { .. } => return Ok(None),

@@ -65,6 +65,63 @@ pub(in crate::oracle::canonical) fn recognize_source_object_property(
     }
 }
 
+/// The end of the source's own printed name written in the possessive
+/// (`Skanos's`, `Captain America's`) at the cursor: the lexical name resolver
+/// links the name and leaves the possessive suffix outside the link's span.
+/// A link to another card never names the source.
+fn possessive_source_name_end(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let position = cursor.position();
+    let link = cursor.source_names().iter().find(|link| {
+        link.token_start == position
+            && matches!(
+                link.kind,
+                crate::oracle::syntax::NameLinkKind::CurrentCard
+                    | crate::oracle::syntax::NameLinkKind::CurrentFace
+            )
+    })?;
+    let last = cursor
+        .token_slice(link.token_end.checked_sub(1)?, link.token_end)
+        .first()?;
+    (link.token_end > position && link.span_end < last.span_end).then_some(link.token_end)
+}
+
+/// Lexical lookahead for `NAME's power|toughness` naming the ability source.
+pub(in crate::oracle::canonical) fn source_name_possessive_property_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    possessive_source_name_end(cursor).is_some_and(|end| {
+        cursor
+            .token_slice(end, end + 1)
+            .first()
+            .is_some_and(|token| object_property_word(&token.raw).is_some())
+    })
+}
+
+/// `NAME's power|toughness` (CR 201.5): the source named by its own printed
+/// name, the same object `this creature's power` reads (live, or as last
+/// known information once it left, CR 608.2h).
+pub(in crate::oracle::canonical) fn recognize_source_name_possessive_property(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.source-name-possessive.name");
+    let end = cursor.require_value(
+        possessive_source_name_end(cursor),
+        "the source's own name in the possessive",
+    )?;
+    cursor.advance_to(end)?;
+    cursor.enter("numeric.source-name-possessive.property");
+    let property = cursor
+        .peek()
+        .and_then(object_property_word)
+        .ok_or_else(|| cursor.fail("`power` or `toughness`"))?;
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&raw)?;
+    Ok(NumericExpression::ObjectProperty {
+        object: LocalObjectReference::SourceSelf,
+        property,
+    })
+}
+
 fn object_property_word(raw: &str) -> Option<NumericObjectProperty> {
     if raw.eq_ignore_ascii_case("power") {
         Some(NumericObjectProperty::Power)
@@ -75,14 +132,20 @@ fn object_property_word(raw: &str) -> Option<NumericObjectProperty> {
     }
 }
 
-/// Lexical lookahead for `its power|toughness`; the parent decides whether a
-/// subject antecedent exists before the child is allowed to read it.
+/// The gendered possessives Oracle uses for a named legendary source (`Storm
+/// deals damage equal to her power`). They name only the ability's own source.
+fn gendered_possessive(raw: &str) -> bool {
+    raw.eq_ignore_ascii_case("her") || raw.eq_ignore_ascii_case("his")
+}
+
+/// Lexical lookahead for `its|her|his power|toughness`; the parent decides
+/// whether a subject antecedent exists before the child is allowed to read it.
 pub(in crate::oracle::canonical) fn subject_possessive_property_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     cursor
         .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("its") || gendered_possessive(raw))
         && cursor
             .peek_ahead(1)
             .is_some_and(|raw| object_property_word(raw).is_some())
@@ -90,13 +153,24 @@ pub(in crate::oracle::canonical) fn subject_possessive_property_starts(
 
 /// `its power|toughness` bound to the subject supplied by the enclosing action
 /// frame. The pronoun never mints a reference: without a parent subject the
-/// arithmetic grammar does not offer this child at all.
+/// arithmetic grammar does not offer this child at all. A gendered `her|his`
+/// names a character (CR 201.5): it is accepted only when the subject is the
+/// ability's own source.
 pub(in crate::oracle::canonical) fn recognize_subject_possessive_property(
     cursor: &mut OracleTokenCursor<'_>,
     subject: LocalObjectReference,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.subject-possessive.pronoun");
-    cursor.consume("its")?;
+    let pronoun = cursor.peek().unwrap_or_default().to_owned();
+    if gendered_possessive(&pronoun) {
+        cursor.require(
+            subject == LocalObjectReference::SourceSelf,
+            "a gendered possessive whose antecedent is the named source",
+        )?;
+        cursor.consume(&pronoun)?;
+    } else {
+        cursor.consume("its")?;
+    }
     cursor.enter("numeric.subject-possessive.property");
     let property = cursor
         .peek()
@@ -201,9 +275,70 @@ pub(in crate::oracle::canonical) fn recognize_sacrificed_cost_object_property(
         "a registered possessive card type or object domain",
     )?;
     cursor.enter("numeric.sacrificed-cost-object.property");
-    let token = cursor.consume_type("propertyWord")?;
-    let property =
-        object_property_word(&token.raw).ok_or_else(|| cursor.fail("`power` or `toughness`"))?;
+    let property = recognize_cost_object_property(cursor)?;
+    Ok(NumericExpression::SacrificedCostObjectProperty(property))
+}
+
+/// The characteristic a paid cost records for the permanent it took: power,
+/// toughness (CR 208.1) or mana value (CR 202.3), each recorded as last known
+/// information when the cost was paid.
+fn recognize_cost_object_property(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericObjectProperty> {
+    Ok(match super::recognize_selector_numeric_property(cursor)? {
+        super::SelectorNumericProperty::Power => NumericObjectProperty::Power,
+        super::SelectorNumericProperty::Toughness => NumericObjectProperty::Toughness,
+        super::SelectorNumericProperty::ManaValue => NumericObjectProperty::ManaValue,
+    })
+}
+
+/// Lexical lookahead for `the PROPERTY of the sacrificed NOUN` (`the mana
+/// value of the sacrificed permanent`): the postposed genitive of the same
+/// paid-cost object.
+pub(in crate::oracle::canonical) fn sacrificed_cost_object_of_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let property_width = if word(1, "mana") && word(2, "value") {
+        2
+    } else if word(1, "power") || word(1, "toughness") {
+        1
+    } else {
+        return false;
+    };
+    word(0, "the")
+        && word(1 + property_width, "of")
+        && word(2 + property_width, "the")
+        && word(3 + property_width, "sacrificed")
+}
+
+/// `the PROPERTY of the sacrificed NOUN`: the postposed form of `the
+/// sacrificed NOUN's PROPERTY`, with the same paid-cost producer.
+pub(in crate::oracle::canonical) fn recognize_sacrificed_cost_object_of(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.sacrificed-cost-object-of.property");
+    cursor.consume("the")?;
+    let property = recognize_cost_object_property(cursor)?;
+    cursor.enter("numeric.sacrificed-cost-object-of.reference");
+    cursor.consume_phrase(&["of", "the", "sacrificed"])?;
+    cursor.enter("numeric.sacrificed-cost-object-of.object");
+    let noun = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("a card type or object domain"))?
+        .to_owned();
+    cursor.require(
+        matches!(
+            lookup_object_selector_lexeme(&noun),
+            Some(CharacteristicLexeme::CardType(_) | CharacteristicLexeme::ObjectDomain(_))
+        ),
+        "a registered card type or object domain",
+    )?;
+    cursor.consume(&noun)?;
     Ok(NumericExpression::SacrificedCostObjectProperty(property))
 }
 
@@ -315,6 +450,8 @@ pub(in crate::oracle::canonical) fn recognize_source_counter_count(
 ///         | "on" ("it" | "him" | "her")      the source, as the binding
 ///                                            environment's antecedent
 ///         | "you" "have"                     the controller's counters (CR 122.1)
+///         | "on" Collection                  each permanent of a battlefield
+///                                            collection (`lands you control`)
 /// ```
 ///
 /// Any other holder fails explicitly; a pronoun never mints a reference.
@@ -365,11 +502,20 @@ pub(in crate::oracle::canonical) fn recognize_source_counter_operand(
     } else {
         cursor.enter("numeric.source-counter.name");
         let names = cursor.source_names().to_vec();
-        cursor.require(
-            !names.is_empty()
-                && super::source_reference_starts_at(cursor.position(), None, &names, None),
-            "`this`, the source's name, or a pronoun naming the source",
-        )?;
+        if names.is_empty()
+            || !super::source_reference_starts_at(cursor.position(), None, &names, None)
+        {
+            // `+1/+1 counters on lands you control`: the counters of one
+            // kind on each permanent of a battlefield collection.
+            cursor.enter("numeric.source-counter.collection");
+            let holder = super::recognize_counter_query_holder_collection(cursor)?;
+            return Ok(NumericExpression::Quantity(Box::new(
+                super::NumericQuantity::Counters {
+                    counter: Some(counter),
+                    holder,
+                },
+            )));
+        }
         let reference = super::recognize_source_reference(cursor, &names, None)?;
         cursor.require(
             reference == LocalObjectReference::SourceSelf,

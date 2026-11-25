@@ -177,7 +177,15 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                 cursor.enter("replacement.entry-counters.scale");
                 if for_each_count_starts(cursor) {
                     let base = cursor.require_value(count.take(), "a counter quantity")?;
-                    let counted = recognize_for_each_count(cursor)?;
+                    // The entering source is the clause subject a pronoun
+                    // in the count names (`spent to cast it`).
+                    let counted = super::with_clause_subject(
+                        cursor,
+                        Some(super::PermanentEffectReference::Source(
+                            super::LocalObjectReference::SourceSelf,
+                        )),
+                        recognize_for_each_count,
+                    )?;
                     count = Some(cursor.require_value(
                         scale_by_for_each_count(&base, counted),
                         "a literal counter quantity multiplied by `for each`",

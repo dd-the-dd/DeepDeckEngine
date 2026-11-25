@@ -9,6 +9,10 @@ pub(in crate::oracle::canonical::automata) fn recognize_card_count_noun(
     count: &NumericExpression,
 ) -> MachineResult<()> {
     cursor.enter("counted-card.noun");
+    // `half their library`: the count already names the counted cards.
+    if super::super::super::count_names_its_cards(count) {
+        return Ok(());
+    }
     let noun = cursor
         .peek_token()
         .ok_or_else(|| cursor.fail("`card` or `cards` matching the count"))?
