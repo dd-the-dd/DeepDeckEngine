@@ -88,7 +88,15 @@ pub(super) fn relation_atom_supported(atom: &Value) -> bool {
         Some("attachedTo" | "blocking" | "blockedBy" | "convoked") => true,
         Some("sharesCharacteristic") => matches!(
             atom["characteristic"].as_str(),
-            Some("creatureType" | "cardType" | "permanentType" | "landType" | "color")
+            Some(
+                "creatureType"
+                    | "cardType"
+                    | "permanentType"
+                    | "landType"
+                    | "color"
+                    | "name"
+                    | "manaValue"
+            )
         ),
         _ => false,
     };
@@ -283,6 +291,24 @@ fn definition_values(
         },
         "color" => CharacteristicValues {
             values: colors,
+            all_creature_types: false,
+        },
+        // CR 201.2: two objects have the same name when a name of one is a
+        // name of the other; an object without a name has none in common
+        // (CR 708.2a face-down). A split card has both its names.
+        "name" => CharacteristicValues {
+            values: definition
+                .name
+                .split(" // ")
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(ToOwned::to_owned)
+                .collect(),
+            all_creature_types: false,
+        },
+        // CR 202.3: the mana value of the object's mana cost.
+        "manaValue" => CharacteristicValues {
+            values: BTreeSet::from([super::mana_value(definition).to_string()]),
             all_creature_types: false,
         },
         _ => CharacteristicValues::default(),

@@ -8,6 +8,11 @@
 //!           | Past ("or" Past)* "this" "turn"                    history
 //!           | "dealt" ["combat"] "damage" "to" Player "this" "turn"
 //!           | "targets" Targeted ("or" Targeted)*                  spell targets
+//!           | ("was" | "were") "put" "there" "from" "the" "battlefield"
+//!             "this" "turn"                                      zone history
+//!           | Have "the" "same" Same "as" Anchor                  name relation
+//! Have     := "has" | "have" | ("doesn't" | "don't") "have"
+//! Same     := "name" | "mana" "value"
 //! Past     := "entered" ["the" "battlefield"] | "attacked" | "blocked"
 //!           | ("was" | "were") "dealt" "damage" | "dealt" "damage"
 //!           | ("didn't" | "did" "not") Past
@@ -194,7 +199,99 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
                 && status_after_copula(cursor, 2)
             || past_fact_at(cursor, 1).is_some()
             || dealt_damage_to_player_at(cursor, 1).is_some()
-            || negated_past_at(cursor, 1).is_some())
+            || negated_past_at(cursor, 1).is_some()
+            || put_there_from_battlefield_at(cursor, 1).is_some()
+            || same_characteristic_possession_at(cursor, 1).is_some())
+}
+
+/// `was|were put there from the battlefield this turn` at `offset`, with its
+/// width: the zone history of a card in the zone its parent named (`cards
+/// in your graveyard that were put there ...`). `there` names that zone; a
+/// clause naming another zone (`put into a graveyard`) is a departure.
+fn put_there_from_battlefield_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    let copula = word_at(cursor, offset, "was") || word_at(cursor, offset, "were");
+    let phrase = ["put", "there", "from", "the", "battlefield", "this", "turn"];
+    (copula
+        && phrase
+            .iter()
+            .enumerate()
+            .all(|(index, expected)| word_at(cursor, offset + 1 + index, expected)))
+    .then_some(1 + phrase.len())
+}
+
+/// A relative clause after a card zone (`cards in your graveyard that were
+/// put there from the battlefield this turn`, `cards in your hand that have
+/// the same name as a creature you control`): the clauses this slot reads
+/// whose facts a card in a zone has. A pure lookahead; the zone parent
+/// composes the read predicate with its own.
+pub(in crate::oracle::canonical) fn card_zone_relative_clause_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    is_relative_pronoun(cursor)
+        && (put_there_from_battlefield_at(cursor, 1).is_some()
+            || same_characteristic_possession_at(cursor, 1).is_some())
+}
+
+/// `the same name as` / `the same mana value as` at `offset`: the compared
+/// characteristic and the phrase width up to the anchor (CR 201.2, 202.3).
+pub(in crate::oracle::canonical) fn same_characteristic_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(SharedCharacteristic, usize)> {
+    if !(word_at(cursor, offset, "the") && word_at(cursor, offset + 1, "same")) {
+        return None;
+    }
+    let (characteristic, width) = if word_at(cursor, offset + 2, "name") {
+        (SharedCharacteristic::Name, 1)
+    } else if word_at(cursor, offset + 2, "mana") && word_at(cursor, offset + 3, "value") {
+        (SharedCharacteristic::ManaValue, 2)
+    } else {
+        return None;
+    };
+    word_at(cursor, offset + 2 + width, "as").then_some((characteristic, 3 + width))
+}
+
+/// `has|have the same NAME as` and its negation `doesn't|don't have the same
+/// NAME as` at `offset`: the possession verb's width and its polarity.
+fn same_characteristic_possession_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(usize, bool)> {
+    let (width, negated) = if word_at(cursor, offset, "has") || word_at(cursor, offset, "have") {
+        (1, false)
+    } else if ["doesn't", "don't", "doesn\u{2019}t", "don\u{2019}t"]
+        .iter()
+        .any(|form| word_at(cursor, offset, form))
+        && word_at(cursor, offset + 1, "have")
+    {
+        (2, true)
+    } else {
+        return None;
+    };
+    same_characteristic_at(cursor, offset + width).map(|_| (width, negated))
+}
+
+/// `the same name as ANCHOR` (the caller read `with` or `has`): the object
+/// and the anchor have a value of that characteristic in common, the shared
+/// relation of the query (CR 201.2: a name; an object without a name shares
+/// none). The anchor is a bound object or a battlefield query, as for every
+/// relation of this slot.
+pub(in crate::oracle::canonical) fn recognize_same_characteristic_relation(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relation.same-characteristic");
+    let (characteristic, width) = cursor.require_value(
+        same_characteristic_at(cursor, 0),
+        "`the same name as` or `the same mana value as`",
+    )?;
+    consume_words(cursor, width)?;
+    let anchor = recognize_relation_anchor(cursor, false)?;
+    Ok(ObjectPredicate::Relation(ObjectRelation::Related(
+        RelatedObject {
+            kind: ObjectRelationKind::Shares(characteristic),
+            anchor,
+        },
+    )))
 }
 
 /// `targets PLAYER|a QUERY` at `offset`. `targets only a single ...` is a
@@ -353,6 +450,8 @@ pub(in crate::oracle::canonical) fn relative_predicate_starts(
         || negated_past_at(cursor, 0).is_some()
         || dealt_damage_to_player_at(cursor, 0).is_some()
         || targets_clause_starts(cursor, 0)
+        || put_there_from_battlefield_at(cursor, 0).is_some()
+        || same_characteristic_possession_at(cursor, 0).is_some()
 }
 
 /// The verb phrase of a relative clause after its pronoun (or after the
@@ -386,6 +485,27 @@ pub(in crate::oracle::canonical) fn recognize_relative_predicate(
                 anchor,
             },
         )));
+    }
+    if let Some((width, negated)) = same_characteristic_possession_at(cursor, 0) {
+        // `that has the same name as a creature you control`, `that doesn't
+        // have the same name as another permanent you control`.
+        cursor.enter("selector.relative-clause.same-characteristic");
+        consume_words(cursor, width)?;
+        let relation = recognize_same_characteristic_relation(cursor)?;
+        return Ok(if negated {
+            ObjectPredicate::Not(Box::new(relation))
+        } else {
+            relation
+        });
+    }
+    if let Some(width) = put_there_from_battlefield_at(cursor, 0) {
+        // `cards in your graveyard that were put there from the
+        // battlefield this turn` (CR 400.7, 603.10a).
+        cursor.enter("selector.relative-clause.zone-history");
+        consume_words(cursor, width)?;
+        return Ok(ObjectPredicate::Status(
+            ObjectStatus::PutThereFromBattlefieldThisTurn,
+        ));
     }
     if word_at(cursor, 0, "has") || word_at(cursor, 0, "have") {
         cursor.enter("selector.relative-clause.possession");
@@ -695,6 +815,10 @@ pub(in crate::oracle::canonical) enum SharedCharacteristic {
     PermanentType,
     LandType,
     Color,
+    /// The name (CR 201.2): `with the same name as`.
+    Name,
+    /// The mana value (CR 202.3): `with the same mana value as`.
+    ManaValue,
 }
 
 impl SharedCharacteristic {
@@ -705,6 +829,8 @@ impl SharedCharacteristic {
             Self::PermanentType => "permanentType",
             Self::LandType => "landType",
             Self::Color => "color",
+            Self::Name => "name",
+            Self::ManaValue => "manaValue",
         }
     }
 }
@@ -1007,7 +1133,7 @@ fn anchor_reference_lowerable(reference: PermanentEffectReference) -> bool {
 /// installed binding environment; an absent antecedent is a committed
 /// diagnostic. Otherwise, unless the relation takes a bound object only,
 /// the anchor is a battlefield query (`attached to a creature`).
-fn recognize_relation_anchor(
+pub(in crate::oracle::canonical) fn recognize_relation_anchor(
     cursor: &mut OracleTokenCursor<'_>,
     definite_only: bool,
 ) -> MachineResult<RelationAnchor> {

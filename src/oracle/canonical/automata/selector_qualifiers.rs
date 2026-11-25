@@ -9,6 +9,11 @@
 //!                         | MANA-SYMBOL "in" "its" "mana" "cost"
 //!                         | ["a"] KEYWORD ["ability" | "abilities"] )
 //! DamageHistory := "dealt" "damage" ["by" SOURCE] "this" "turn"
+//! Comparative   := "with" ["equal" "or"] ("greater" | "lesser") PROPERTY
+//!                  ["than" ANCHOR]                       CR 107.1
+//!                | "with" ANCHOR-POSSESSIVE PROPERTY      equal value
+//!                | "with" "the" "same" ("name" | "mana" "value") "as" ANCHOR
+//! ANCHOR        := "it" | "that" NOUN | "this" NOUN | NAME (a bound object)
 //! POPULATION    := "on" "the" "battlefield" | "they" "control"
 //!                | "that" "player" "controls" | "you" "control"
 //! ```
@@ -19,9 +24,13 @@
 //! `among` has no domain to rank in and fails.
 
 use crate::oracle::canonical::automata::{
-    DistinctProperty, Extreme, ExtremumPopulation, KeywordAbilityName, ManaCostSymbolClass,
-    NumericAtom, NumericExpression, ObjectControllerScope, ObjectKind, ObjectQualifier,
-    ObjectStatus, SelectorPredicate, recognize_query_numeric_expression,
+    DistinctProperty, EventNumericBinding, Extreme, ExtremumPopulation, KeywordAbilityName,
+    ManaCostSymbolClass, NumericAtom, NumericComparisonOperator, NumericExpression,
+    NumericObjectProperty, ObjectControllerScope, ObjectKind, ObjectQualifier, ObjectStatus,
+    PermanentEffectReference, SelectorNumericProperty, SelectorPredicate,
+    bound_object_numeric_property, bound_object_property_starts, bound_object_reference_starts,
+    installed_binding_environment, recognize_bound_object_property,
+    recognize_bound_object_reference, recognize_query_numeric_expression,
     recognize_source_reference,
 };
 use crate::oracle::canonical::{MachineResult, OracleTokenCursor};
@@ -336,6 +345,176 @@ fn recognize_extremum(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Objec
         extreme,
         among: Box::new(among),
         population,
+    })
+}
+
+/// The comparative forms of `with` (`with greater power`, `with equal or
+/// lesser mana value than that creature`, `with that spell's mana value`,
+/// `with the same name as that creature`). Pure lookahead: a keyword
+/// (`with flying`) or a counter is never one of them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ComparativeForm {
+    /// `with [equal or] greater|lesser PROPERTY [than ANCHOR]`.
+    Ordered,
+    /// `with ANCHOR's PROPERTY`: the candidate's property equals it.
+    Possessive,
+    /// `with the same name|mana value as ANCHOR`.
+    SameCharacteristic,
+}
+
+/// Width of `[equal or] greater|lesser` at `offset` and the operator it
+/// states for the candidate against its anchor.
+fn comparative_operator_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(usize, NumericComparisonOperator)> {
+    let inclusive = word_at(cursor, offset, "equal") && word_at(cursor, offset + 1, "or");
+    let at = if inclusive { offset + 2 } else { offset };
+    let operator = match (
+        cursor.peek_ahead(at)?.to_ascii_lowercase().as_str(),
+        inclusive,
+    ) {
+        ("greater", false) => NumericComparisonOperator::GreaterThan,
+        ("lesser", false) => NumericComparisonOperator::LessThan,
+        ("greater", true) => NumericComparisonOperator::GreaterThanOrEqual,
+        ("lesser", true) => NumericComparisonOperator::LessThanOrEqual,
+        _ => return None,
+    };
+    Some((at + 1 - offset, operator))
+}
+
+pub(super) fn comparative_with_form(cursor: &OracleTokenCursor<'_>) -> Option<ComparativeForm> {
+    if !word_at(cursor, 0, "with") {
+        return None;
+    }
+    if let Some((width, _)) = comparative_operator_at(cursor, 1)
+        && super::numeric_property_starts_at(cursor, 1 + width)
+    {
+        return Some(ComparativeForm::Ordered);
+    }
+    if super::super::same_characteristic_at(cursor, 1).is_some() {
+        return Some(ComparativeForm::SameCharacteristic);
+    }
+    let mut lookahead = cursor.clone();
+    (lookahead.consume("with").is_ok() && bound_object_property_starts(&lookahead))
+        .then_some(ComparativeForm::Possessive)
+}
+
+/// The object an anchorless comparative compares with (`creatures with
+/// greater power`): the subject of the clause being read, else the
+/// singular antecedent `it` would name, else the event's subject. Nothing
+/// is guessed: without one of them the comparative has no anchor and fails.
+fn implicit_comparison_anchor(cursor: &OracleTokenCursor<'_>) -> Option<PermanentEffectReference> {
+    let environment = installed_binding_environment(cursor);
+    environment
+        .subject
+        .or_else(|| environment.object.as_ref().map(|object| object.reference))
+        .or_else(|| {
+            environment
+                .frame
+                .event_object
+                .as_ref()
+                .filter(|slot| slot.subject)
+                .map(|slot| slot.reference)
+        })
+}
+
+/// The property of `expression` when it reads one property of one object.
+fn read_property(expression: &NumericExpression) -> Option<SelectorNumericProperty> {
+    match expression {
+        NumericExpression::BoundObjectProperty { property, .. }
+        | NumericExpression::QualifiedTargetProperty { property, .. } => Some(*property),
+        NumericExpression::ObjectProperty { property, .. } => Some(match property {
+            NumericObjectProperty::Power => SelectorNumericProperty::Power,
+            NumericObjectProperty::Toughness => SelectorNumericProperty::Toughness,
+        }),
+        NumericExpression::PowerOf(_) => Some(SelectorNumericProperty::Power),
+        NumericExpression::ManaValueOf(_)
+        | NumericExpression::EventValue(EventNumericBinding::CastSpellManaValue) => {
+            Some(SelectorNumericProperty::ManaValue)
+        }
+        _ => None,
+    }
+}
+
+/// Reads one comparative qualifier, `with` included, into the shared
+/// candidate comparison (CR 107.1) or the shared characteristic relation.
+/// The compared operand is the anchor's property; the consumer's admission
+/// decides whether it can evaluate it, as for every candidate comparison.
+pub(super) fn recognize_comparative_with(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: ComparativeForm,
+    admission: super::ComparisonRhsAdmission,
+) -> MachineResult<SelectorPredicate> {
+    cursor.enter("selector.comparative.relation");
+    cursor.consume("with")?;
+    let (property, operator, right) = match form {
+        ComparativeForm::SameCharacteristic => {
+            return super::super::recognize_same_characteristic_relation(cursor);
+        }
+        ComparativeForm::Possessive => {
+            cursor.enter("selector.comparative.possessive");
+            let environment = installed_binding_environment(cursor);
+            let right = recognize_bound_object_property(cursor, &environment)?;
+            let property = cursor.require_value(
+                read_property(&right),
+                "one property (power, toughness, mana value) of one bound object",
+            )?;
+            (property, NumericComparisonOperator::Equal, right)
+        }
+        ComparativeForm::Ordered => {
+            cursor.enter("selector.comparative.operator");
+            let (width, operator) = cursor.require_value(
+                comparative_operator_at(cursor, 0),
+                "`greater`, `lesser`, `equal or greater` or `equal or lesser`",
+            )?;
+            for _ in 0..width {
+                let raw = cursor.peek().unwrap_or_default().to_string();
+                cursor.consume(&raw)?;
+            }
+            cursor.enter("selector.comparative.property");
+            let property = recognize_selector_numeric_property(cursor)?;
+            cursor.enter("selector.comparative.anchor");
+            let anchor = if word_at(cursor, 0, "than") {
+                cursor.consume("than")?;
+                if bound_object_reference_starts(cursor) {
+                    let environment = installed_binding_environment(cursor);
+                    recognize_bound_object_reference(cursor, &environment)?
+                } else {
+                    let names = cursor.source_names().to_vec();
+                    PermanentEffectReference::Source(recognize_source_reference(
+                        cursor, &names, None,
+                    )?)
+                }
+            } else {
+                cursor.require_value(
+                    implicit_comparison_anchor(cursor),
+                    "an anchor for the comparison: `than NOUN`, or a clause subject or antecedent it compares with",
+                )?
+            };
+            let right = bound_object_numeric_property(
+                anchor,
+                property,
+                SelectorPredicate::ObjectKind(ObjectKind::Permanent),
+            )
+            .map_err(|expected| cursor.fail(expected))?;
+            (property, operator, right)
+        }
+    };
+    cursor.enter("selector.numeric-comparison.property-context");
+    cursor.require(
+        admission.admits_property(property),
+        "mana value as the proved candidate property for this resolution-card query",
+    )?;
+    cursor.enter("selector.numeric-comparison.rhs-context");
+    cursor.require(
+        admission.admits(&right),
+        "a query expression supported by this consumer's explicit numeric/source context",
+    )?;
+    Ok(SelectorPredicate::NumericComparison {
+        left: property,
+        operator,
+        right: Box::new(right),
     })
 }
 

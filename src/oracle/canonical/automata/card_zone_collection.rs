@@ -241,6 +241,17 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
                 additional_zones.push(other);
             }
         }
+        // `... in your graveyard that were put there from the battlefield
+        // this turn`: the shared relative slot qualifies the zone's cards.
+        let predicate = if super::card_zone_relative_clause_starts(&trial) {
+            let relative = super::recognize_relative_clause(&mut trial)?;
+            Some(ObjectPredicate::Intersection(vec![
+                predicate.unwrap_or(ObjectPredicate::ObjectKind(ObjectKind::Card)),
+                relative,
+            ]))
+        } else {
+            predicate
+        };
         if matches!(owner, CardZoneOwnerNode::Players(_)) {
             // Another player's hidden zone is not an open collection to
             // read or choose from (CR 400.2); only public zones admit a

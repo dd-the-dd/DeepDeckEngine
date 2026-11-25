@@ -37,6 +37,12 @@ pub(in crate::oracle::canonical) enum ObjectStatus {
     BlockedThisTurn,
     WasDealtDamageThisTurn,
     DealtDamageThisTurn,
+    /// `[cards in a zone] that were put there from the battlefield this
+    /// turn`: the card's latest arrival in the zone it is in was its
+    /// departure from the battlefield during this turn (CR 400.7: the card
+    /// is a new object that remembers this zone change, CR 603.10a). A fact
+    /// of a card in a zone, never of a permanent.
+    PutThereFromBattlefieldThisTurn,
 }
 
 impl ObjectStatus {
@@ -72,6 +78,17 @@ impl ObjectStatus {
             Self::BlockedThisTurn => ("blockedThisTurn", false),
             Self::WasDealtDamageThisTurn => ("wasDealtDamageThisTurn", false),
             Self::DealtDamageThisTurn => ("dealtDamageThisTurn", false),
+            Self::PutThereFromBattlefieldThisTurn => ("putThereFromBattlefieldThisTurn", false),
+        }
+    }
+
+    /// The domain a status is a fact of: the zone history of a card in a
+    /// zone is read on cards; every other status is a battlefield state or
+    /// history of a permanent.
+    pub(in crate::oracle::canonical) fn supports_domain(self, domain: ObjectKind) -> bool {
+        match self {
+            Self::PutThereFromBattlefieldThisTurn => domain == ObjectKind::Card,
+            _ => domain == ObjectKind::Permanent,
         }
     }
 }
@@ -592,10 +609,10 @@ impl ObjectPredicate {
             | Self::ChosenColor
             | Self::NumericComparison { .. } => true,
             Self::ObjectKind(actual) => *actual == domain,
-            Self::Status(_)
-            | Self::Designation(_)
-            | Self::OwnedByAbilityController { .. }
-            | Self::HasCounter(_) => domain == ObjectKind::Permanent,
+            Self::Status(status) => status.supports_domain(domain),
+            Self::Designation(_) | Self::OwnedByAbilityController { .. } | Self::HasCounter(_) => {
+                domain == ObjectKind::Permanent
+            }
             Self::Relation(relation) => relation.supports_domain(domain),
             Self::Qualifier(qualifier) => qualifier.supports_domain(domain),
             Self::PermanentCard => domain != ObjectKind::Permanent,
