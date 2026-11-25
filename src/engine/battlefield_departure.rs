@@ -3,7 +3,9 @@
 use super::card_zone_transition::{
     ObjectTransitionReason, ObjectZone, OwnedMovementCard, reset_movement_card,
 };
-use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
+use super::replacement_pipeline::{
+    GraveyardReplacementOrigin, ReplacedGraveyardZone, ReplacementOrder,
+};
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -26,6 +28,15 @@ pub(super) enum FrozenGraveyardDestination {
     Exile {
         replacement_source_id: String,
         replacement_controller_id: Option<String>,
+    },
+    /// A replacement that sends the object to another zone than its
+    /// owner's graveyard, or exiles it with a reflexive ability
+    /// (`replacement_pipeline.rs`).
+    Replaced {
+        replacement_source_id: String,
+        replacement_controller_id: Option<String>,
+        zone: ReplacedGraveyardZone,
+        reflexive: Option<(CardInstance, Value)>,
     },
 }
 #[derive(Clone)]
@@ -72,6 +83,9 @@ pub(super) struct InstalledGraveyardDeparture {
     pub(super) movement: Option<InstalledBattlefieldDeparture>,
     pub(super) on_replaced: Option<(CardInstance, Value)>,
     after_event: Option<AfterDepartureEvent>,
+    /// `When you do, ...` of an applied graveyard-destination replacement
+    /// (CR 603.12), published with the replacement's own event.
+    reflexive: Option<(CardInstance, Value)>,
 }
 impl InstalledGraveyardDeparture {
     pub(super) fn died(&self) -> Option<CardInstance> {
@@ -223,11 +237,22 @@ impl GameEngine {
                     proposal.program.origin,
                     GraveyardReplacementOrigin::SpecificCard { .. }
                 );
-                (
-                    proposal.source_id,
-                    proposal.program.controller,
-                    consume_specific,
-                )
+                let destination = if proposal.program.zone == ReplacedGraveyardZone::Exile
+                    && proposal.program.reflexive.is_none()
+                {
+                    FrozenGraveyardDestination::Exile {
+                        replacement_source_id: proposal.source_id,
+                        replacement_controller_id: proposal.program.controller,
+                    }
+                } else {
+                    FrozenGraveyardDestination::Replaced {
+                        replacement_source_id: proposal.source_id,
+                        replacement_controller_id: proposal.program.controller,
+                        zone: proposal.program.zone,
+                        reflexive: proposal.program.reflexive,
+                    }
+                };
+                (destination, consume_specific)
             });
         validate_zone_or_death_replacement_choice(
             &instance_id,
@@ -237,41 +262,36 @@ impl GameEngine {
             graveyard_replacement.is_some(),
             cause,
         )?;
-        let (outcome, consume_specific_graveyard_replacement) = if let Some((source, on_replaced)) =
-            death_replacement
-        {
-            (
-                PlannedGraveyardOutcome::DeathReplacedWithExile {
-                    source,
-                    on_replaced,
-                },
-                false,
-            )
-        } else if leaving_replacement {
-            (
-                PlannedGraveyardOutcome::LeavingBattlefieldReplacedWithExile,
-                false,
-            )
-        } else if let Some(modifier_kind) = death_rule_modifier {
-            (
-                PlannedGraveyardOutcome::DeathReplacedByRuleModifier { modifier_kind },
-                false,
-            )
-        } else if let Some((source_id, source_controller, consume_specific)) = graveyard_replacement
-        {
-            (
-                PlannedGraveyardOutcome::MoveTo(FrozenGraveyardDestination::Exile {
-                    replacement_source_id: source_id,
-                    replacement_controller_id: source_controller,
-                }),
-                consume_specific,
-            )
-        } else {
-            (
-                PlannedGraveyardOutcome::MoveTo(FrozenGraveyardDestination::Graveyard),
-                false,
-            )
-        };
+        let (outcome, consume_specific_graveyard_replacement) =
+            if let Some((source, on_replaced)) = death_replacement {
+                (
+                    PlannedGraveyardOutcome::DeathReplacedWithExile {
+                        source,
+                        on_replaced,
+                    },
+                    false,
+                )
+            } else if leaving_replacement {
+                (
+                    PlannedGraveyardOutcome::LeavingBattlefieldReplacedWithExile,
+                    false,
+                )
+            } else if let Some(modifier_kind) = death_rule_modifier {
+                (
+                    PlannedGraveyardOutcome::DeathReplacedByRuleModifier { modifier_kind },
+                    false,
+                )
+            } else if let Some((destination, consume_specific)) = graveyard_replacement {
+                (
+                    PlannedGraveyardOutcome::MoveTo(destination),
+                    consume_specific,
+                )
+            } else {
+                (
+                    PlannedGraveyardOutcome::MoveTo(FrozenGraveyardDestination::Graveyard),
+                    false,
+                )
+            };
         Ok(PlannedGraveyardDeparture {
             outcome,
             consume_specific_graveyard_replacement,
@@ -330,7 +350,15 @@ impl GameEngine {
         reset_movement_card(&mut card, &movement_source)?;
         card.controller = card.owner.clone();
         let owner_index = self.player_index(&card.owner)?;
-        let entered_graveyard = match destination {
+        let destination_name = match &destination {
+            FrozenGraveyardDestination::EvaluateLive => live_destination
+                .as_ref()
+                .map_or("graveyard", |plan| plan.destination()),
+            FrozenGraveyardDestination::Graveyard => "graveyard",
+            FrozenGraveyardDestination::Exile { .. } => "exile",
+            FrozenGraveyardDestination::Replaced { zone, .. } => zone.destination(),
+        };
+        match destination {
             FrozenGraveyardDestination::EvaluateLive => {
                 let plan = live_destination.ok_or_else(|| {
                     EngineError::new("missing prepared live graveyard destination")
@@ -342,7 +370,7 @@ impl GameEngine {
                         card,
                     },
                     plan,
-                )?
+                )?;
             }
             FrozenGraveyardDestination::Graveyard => {
                 let actual = ObjectZone::Graveyard(card.owner.clone());
@@ -353,7 +381,6 @@ impl GameEngine {
                     ObjectTransitionReason::Move,
                 )?;
                 self.state.players[owner_index].graveyard.push(card);
-                true
             }
             FrozenGraveyardDestination::Exile {
                 replacement_source_id,
@@ -380,17 +407,37 @@ impl GameEngine {
                     Some(instance_id.to_string()),
                     details,
                 );
-                false
             }
-        };
-        let destination = if entered_graveyard {
-            "graveyard"
-        } else {
-            "exile"
+            FrozenGraveyardDestination::Replaced {
+                replacement_source_id,
+                replacement_controller_id,
+                zone,
+                // Published with the replacement event of the departure.
+                reflexive: _,
+            } => {
+                let owner_id = self.state.players[owner_index].id.clone();
+                self.commit_card_zone_transition(
+                    &mut card,
+                    &movement_source,
+                    &zone.object_zone(&owner_id),
+                    ObjectTransitionReason::Move,
+                )?;
+                self.place_replaced_graveyard_card(owner_index, card, zone);
+                self.record_event(
+                    "graveyardDestinationReplaced",
+                    Some(owner_id),
+                    Some(instance_id.to_string()),
+                    super::replacement_pipeline::graveyard_replacement_detail(
+                        &replacement_source_id,
+                        replacement_controller_id.as_deref(),
+                        zone,
+                    ),
+                );
+            }
         };
         Ok(Some(InstalledBattlefieldDeparture {
             permanent: trigger_source,
-            destination,
+            destination: destination_name,
             was_earthbent,
             event: DepartureEvent::GraveyardMove,
             observers,
@@ -499,10 +546,11 @@ impl GameEngine {
         match movement.event {
             DepartureEvent::GraveyardMove => {
                 self.record_event(
-                    if movement.destination == "graveyard" {
-                        "permanentToGraveyard"
-                    } else {
-                        "permanentToExile"
+                    match movement.destination {
+                        "graveyard" => "permanentToGraveyard",
+                        "hand" => "permanentReturned",
+                        "library" => "permanentToLibrary",
+                        _ => "permanentToExile",
                     },
                     None,
                     Some(instance_id.clone()),
@@ -647,6 +695,7 @@ impl GameEngine {
         }
         let mut on_replaced = None;
         let mut after_event = None;
+        let mut reflexive = None;
         let movement = match &plan.outcome {
             PlannedGraveyardOutcome::DeathReplacedWithExile {
                 source,
@@ -698,17 +747,30 @@ impl GameEngine {
                     plan.target_numeric_snapshot.clone(),
                 )?
             }
-            PlannedGraveyardOutcome::MoveTo(destination) => self
-                .install_permanent_graveyard_move_with_target_numeric(
+            PlannedGraveyardOutcome::MoveTo(destination) => {
+                if let FrozenGraveyardDestination::Replaced {
+                    reflexive: ability, ..
+                } = destination
+                {
+                    reflexive = ability.clone();
+                }
+                self.install_permanent_graveyard_move_with_target_numeric(
                     instance_id,
                     destination.clone(),
                     plan.target_numeric_snapshot.clone(),
-                )?,
+                )?
+            }
         };
+        // A replacement that did not apply (the object already left)
+        // creates no reflexive ability (CR 603.12).
+        if movement.is_none() {
+            reflexive = None;
+        }
         Ok(InstalledGraveyardDeparture {
             movement,
             on_replaced,
             after_event,
+            reflexive,
         })
     }
     pub(super) fn publish_installed_graveyard_departure(
@@ -741,6 +803,7 @@ impl GameEngine {
         let Some(movement) = &installed.movement else {
             return;
         };
+        self.publish_graveyard_replacement_reflexive(installed.reflexive.clone());
         match installed.after_event {
             Some(AfterDepartureEvent::LeavingReplacement) => self.record_event(
                 "zoneChangeReplacedByExile",

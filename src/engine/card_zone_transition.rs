@@ -546,14 +546,40 @@ pub(super) enum PreparedGraveyardDestination {
         one_shot_modifier: Option<serde_json::Value>,
         detail: serde_json::Value,
     },
+    /// A static or effect-created replacement whose destination is any
+    /// zone (`replacement_pipeline.rs`), with its reflexive ability.
+    Replaced {
+        source_card_id: String,
+        zone: super::replacement_pipeline::ReplacedGraveyardZone,
+        detail: serde_json::Value,
+        reflexive: Option<(CardInstance, serde_json::Value)>,
+    },
 }
 
 impl PreparedGraveyardDestination {
     pub(super) fn source_card_id(&self) -> &str {
         match self {
-            Self::Graveyard { source_card_id } | Self::Exile { source_card_id, .. } => {
-                source_card_id
-            }
+            Self::Graveyard { source_card_id }
+            | Self::Exile { source_card_id, .. }
+            | Self::Replaced { source_card_id, .. } => source_card_id,
+        }
+    }
+
+    /// The zone the card actually enters under this plan.
+    pub(super) fn actual_zone(&self, owner: &str) -> ObjectZone {
+        match self {
+            Self::Graveyard { .. } => ObjectZone::Graveyard(owner.to_string()),
+            Self::Exile { .. } => ObjectZone::Exile,
+            Self::Replaced { zone, .. } => zone.object_zone(owner),
+        }
+    }
+
+    /// The departure destination name of this plan.
+    pub(super) fn destination(&self) -> &'static str {
+        match self {
+            Self::Graveyard { .. } => "graveyard",
+            Self::Exile { .. } => "exile",
+            Self::Replaced { zone, .. } => zone.destination(),
         }
     }
 }
@@ -564,7 +590,9 @@ impl GameEngine {
         player_index: usize,
         card: &CardInstance,
     ) -> PreparedGraveyardDestination {
-        use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
+        use super::replacement_pipeline::{
+            GraveyardReplacementOrigin, ReplacedGraveyardZone, ReplacementOrder,
+        };
         use super::*;
         // The finality counter is one of the proposed graveyard-destination
         // replacements (replacement_pipeline.rs).
@@ -588,7 +616,10 @@ impl GameEngine {
                         one_shot_modifier: Some(modifier),
                     }
                 }
-                GraveyardReplacementOrigin::Static | GraveyardReplacementOrigin::Temporary => {
+                GraveyardReplacementOrigin::Static | GraveyardReplacementOrigin::Temporary
+                    if proposal.program.zone == ReplacedGraveyardZone::Exile
+                        && proposal.program.reflexive.is_none() =>
+                {
                     PreparedGraveyardDestination::Exile {
                         source_card_id: card.instance_id.clone(),
                         one_shot_modifier: None,
@@ -597,6 +628,18 @@ impl GameEngine {
                             "replacementSourceId": proposal.source_id,
                             "replacementControllerId": proposal.program.controller.unwrap_or_default(),
                         }),
+                    }
+                }
+                GraveyardReplacementOrigin::Static | GraveyardReplacementOrigin::Temporary => {
+                    PreparedGraveyardDestination::Replaced {
+                        source_card_id: card.instance_id.clone(),
+                        zone: proposal.program.zone,
+                        detail: super::replacement_pipeline::graveyard_replacement_detail(
+                            &proposal.source_id,
+                            proposal.program.controller.as_deref(),
+                            proposal.program.zone,
+                        ),
+                        reflexive: proposal.program.reflexive,
                     }
                 }
             },
@@ -670,6 +713,24 @@ impl GameEngine {
                     Some(card_id),
                     detail,
                 );
+                Ok(false)
+            }
+            PreparedGraveyardDestination::Replaced {
+                zone,
+                detail,
+                reflexive,
+                ..
+            } => {
+                let card_id = card.instance_id.clone();
+                let owner = self.state.players[player_index].id.clone();
+                self.place_replaced_graveyard_card(player_index, card, zone);
+                self.record_event(
+                    "graveyardDestinationReplaced",
+                    Some(owner),
+                    Some(card_id),
+                    detail,
+                );
+                self.publish_graveyard_replacement_reflexive(reflexive);
                 Ok(false)
             }
         }

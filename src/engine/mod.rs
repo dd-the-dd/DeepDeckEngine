@@ -5939,10 +5939,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && integer_value(&modifier["factor"]).is_some_and(|factor| factor > 1)
         }
         Some("replaceGraveyardDestination") => {
-            player_reference_supported(&modifier["graveyardOwners"])
-                && modifier.get("where").is_none_or(card_filter_supported)
-                && value_kind(&modifier["from"]) == Some("anyZone")
-                && value_kind(&modifier["to"]) == Some("exile")
+            replacement_pipeline::graveyard_destination_modifier_supported(modifier)
         }
         Some("untapDuringOtherPlayersUntap") => value_kind(&modifier["object"]) == Some("self"),
         Some("nonbasicLandsEnterTapped") => true,

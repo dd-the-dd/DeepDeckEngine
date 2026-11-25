@@ -47,6 +47,9 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && card_filter_supported(&effect["where"])
                 && integer_value(&effect["amount"]).is_some_and(|amount| amount > 0)
         }
+        Some("installGraveyardDestinationReplacement") => {
+            super::super::replacement_pipeline::temporary_graveyard_destination_supported(effect)
+        }
         Some("installDeathExileReplacement") => {
             target_reference_supported(&effect["object"])
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
@@ -212,6 +215,9 @@ impl GameEngine {
         decisions: &mut BTreeMap<String, Value>,
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
+            Some("installGraveyardDestinationReplacement") => {
+                self.install_created_graveyard_destination_replacement(effect, stack_object);
+            }
             Some("installUntapRestriction") => {
                 let permanent = if matches!(
                     value_kind(&effect["permanent"]),
