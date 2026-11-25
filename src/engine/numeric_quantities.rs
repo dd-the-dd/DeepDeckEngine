@@ -36,6 +36,9 @@ fn zone_collection_supported(expression: &Value) -> bool {
 
 /// `Some(valid)` for a kind this module owns, `None` otherwise.
 pub(super) fn numeric_quantity_supported(expression: &Value) -> Option<bool> {
+    if let Some(supported) = state_condition_atoms::player_quantity_supported(expression) {
+        return Some(supported);
+    }
     let supported = match value_kind(expression) {
         Some("commanderCastsFromCommandZone" | "countOpponentsAttackedThisTurn") => {
             player_reference_supported(&expression["player"])
@@ -146,6 +149,9 @@ impl GameEngine {
         player_id: &str,
     ) -> Option<Option<i32>> {
         numeric_quantity_supported(expression)?;
+        if let Some(value) = self.player_quantity(expression, player_id) {
+            return Some(value);
+        }
         let value = match value_kind(expression) {
             Some("commanderCastsFromCommandZone") => {
                 let casts = self

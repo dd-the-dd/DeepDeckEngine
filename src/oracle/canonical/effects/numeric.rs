@@ -550,6 +550,7 @@ fn lower_numeric_expression_in_context(
             "kind": match fact {
                 PlayerNumericFact::LifeGainedThisTurn => "lifeGainedThisTurn",
                 PlayerNumericFact::LifeTotal => "lifeTotal",
+                PlayerNumericFact::StartingLifeTotal => "startingLifeTotal",
                 PlayerNumericFact::Counters(_) => unreachable!("lowered above"),
             },
             "player": controller(),

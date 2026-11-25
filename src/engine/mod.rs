@@ -1374,6 +1374,16 @@ fn default_max_hand_size() -> usize {
     DEFAULT_MAX_HAND_SIZE
 }
 
+/// CR 103.4: a two-player game's starting life total, for a state recorded
+/// before the player kept their own.
+fn default_starting_life() -> i32 {
+    20
+}
+
+fn is_default_starting_life(value: &i32) -> bool {
+    *value == default_starting_life()
+}
+
 fn is_false(value: &bool) -> bool {
     !value
 }
@@ -6306,6 +6316,7 @@ impl GameEngine {
                 starting_deck_size,
                 land_plays_remaining: 0,
                 max_hand_size: default_max_hand_size(),
+                starting_life: player.starting_life,
             });
         }
         unsupported_rules.sort_by(|left, right| {
@@ -9302,7 +9313,7 @@ impl GameEngine {
                     == 1
             }
             Some(kind) if state_condition_atoms::owns(kind) => {
-                self.state_condition_atom_with_source(condition, controller_id, source)
+                self.state_condition_atom_with_source(condition, controller_id, source, decisions)
             }
             _ => false,
         }
@@ -30231,6 +30242,11 @@ impl GameEngine {
                 card.flags.insert(flag, true);
             }
             mana_payment::record_mana_spent_flags(&mut card.flags, &stack_object.decisions);
+            card.flags.extend(
+                self.cast_choice_flags(&card.definition, &stack_object.decisions)
+                    .into_iter()
+                    .map(|flag| (flag, true)),
+            );
             let was_warped = stack_object
                 .decisions
                 .get("useWarp")
@@ -37144,6 +37160,12 @@ impl GameEngine {
         }
         self.clear_combat_state();
         self.transition_to_step(GameStep::BeginningOfCombat);
+        self.record_event(
+            "combatPhaseStarted",
+            Some(self.state.players[self.state.active_player].id.clone()),
+            None,
+            json!({}),
+        );
         self.enqueue_step_triggers("beginCombat");
         self.run_priority_window(provider)?;
         if self.state.outcome.is_some() || self.force_end_turn {

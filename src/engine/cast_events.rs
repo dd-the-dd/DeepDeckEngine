@@ -347,3 +347,94 @@ impl GameEngine {
             && self.cast_spell_matches(&event["where"], record)
     }
 }
+
+/// The record flag of a promised gift (CR 702.174a).
+const GIFT_FLAG: &str = "castChoice:gift";
+/// The record flag of a paid teamwork cost (CR 702.194).
+const TEAMWORK_FLAG: &str = "castChoice:teamwork";
+
+/// `castChoiceMade { spell: self, choice, mode?, manaCost? }`: `gift`,
+/// `teamwork`, or `alternativeCost` with exactly one of a casting `mode`
+/// and a printed `manaCost`.
+pub(super) fn cast_choice_supported(condition: &Value) -> bool {
+    value_kind(&condition["spell"]) == Some("self")
+        && match condition["choice"].as_str() {
+            Some("gift" | "teamwork") => {
+                condition.get("mode").is_none() && condition.get("manaCost").is_none()
+            }
+            Some("alternativeCost") => {
+                condition["mode"].is_string() != condition["manaCost"].is_string()
+                    && condition["manaCost"]
+                        .as_str()
+                        .is_none_or(|cost| !parse_mana_symbols(cost).is_empty())
+            }
+            _ => false,
+        }
+}
+
+/// A mana cost as the multiset of its symbols, so that the printed
+/// condition and the paid alternative cost compare by symbols.
+fn mana_cost_key(cost: &str) -> String {
+    let mut symbols = parse_mana_symbols(cost);
+    symbols.sort();
+    symbols.join(",")
+}
+
+/// The record flag a `castChoiceMade` condition asks for. A casting mode is
+/// the follow-up flag the permanent already keeps
+/// (`castWithAlternativeCost:MODE`).
+pub(super) fn cast_choice_flag(condition: &Value) -> Option<String> {
+    match condition["choice"].as_str()? {
+        "gift" => Some(GIFT_FLAG.to_string()),
+        "teamwork" => Some(TEAMWORK_FLAG.to_string()),
+        "alternativeCost" => match condition["mode"].as_str() {
+            Some(mode) => Some(format!("castWithAlternativeCost:{mode}")),
+            None => condition["manaCost"]
+                .as_str()
+                .map(|cost| format!("castWithAlternativeManaCost:{}", mana_cost_key(cost))),
+        },
+        _ => None,
+    }
+}
+
+impl GameEngine {
+    /// The choices the cast decisions of a spell record (CR 601.2b-f), as
+    /// the flags the permanent it becomes keeps: a promised gift, a paid
+    /// teamwork cost, the casting mode and the mana cost of a paid
+    /// alternative cost. A copy of the spell carries the same decisions
+    /// (CR 707.10).
+    pub(super) fn cast_choice_flags(
+        &self,
+        definition: &CardDefinition,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Vec<String> {
+        let mut flags = Vec::new();
+        if decisions.get("giftRecipient").is_some_and(Value::is_string) {
+            flags.push(GIFT_FLAG.to_string());
+        }
+        if decisions.get("teamworkPaid").and_then(Value::as_bool) == Some(true) {
+            flags.push(TEAMWORK_FLAG.to_string());
+        }
+        if decisions.get("useAlternativeCost").and_then(Value::as_bool) == Some(true) {
+            if let Some(mode) = decisions.get("alternativeCostMode").and_then(Value::as_str) {
+                flags.push(format!("castWithAlternativeCost:{mode}"));
+            }
+            if let Some(ability) = self.selected_alternative_cost(definition, decisions) {
+                for cost in ability["costs"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|cost| value_kind(cost) == Some("payMana"))
+                {
+                    if let Some(mana) = cost["manaCost"].as_str() {
+                        flags.push(format!(
+                            "castWithAlternativeManaCost:{}",
+                            mana_cost_key(mana)
+                        ));
+                    }
+                }
+            }
+        }
+        flags
+    }
+}

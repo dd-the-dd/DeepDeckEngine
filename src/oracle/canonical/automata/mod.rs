@@ -1033,6 +1033,8 @@ pub(super) struct PermanentCountNode {
 pub(super) enum PlayerNumericFact {
     LifeGainedThisTurn,
     LifeTotal,
+    /// The player's starting life total (CR 103.4).
+    StartingLifeTotal,
     /// The counters of one kind the player has (CR 122.1: experience,
     /// poison, energy).
     Counters(crate::oracle::counter_name::CounterName),

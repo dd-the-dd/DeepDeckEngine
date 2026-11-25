@@ -381,6 +381,9 @@ fn read_condition_atom(
     if let Some(atom) = super::try_recognize_random_outcome_condition(cursor, context.scope)? {
         return Ok(atom);
     }
+    if let Some(atom) = super::try_recognize_history_static_atom(cursor, context)? {
+        return Ok(atom);
+    }
     // ObjectControl: `you controlled it`, `you don't control that creature`.
     if let Some((width, negated)) = object_control_verb(cursor) {
         return recognize_object_control_atom(cursor, context, width, negated);
@@ -2428,7 +2431,7 @@ fn recognize_existential_counter_atom(
 /// the latest declared card target, or the current card-collection result.
 /// Outside an effect program, `it` denotes the source when the parent's
 /// subject is its source.
-fn resolve_object_anaphor(
+pub(in crate::oracle::canonical) fn resolve_object_anaphor(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionObjectReference> {
