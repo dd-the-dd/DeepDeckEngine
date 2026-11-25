@@ -413,7 +413,24 @@ fn recognize_keyword_atom_list_with_choice(
                         continue;
                     }
                 }
-                if cursor.peek().is_some_and(|raw| raw == ",") {
+                // A printed keyword line may join its keywords with
+                // semicolons (`Flying; fear`, CR 702.1). A semicolon is a
+                // list separator only when another keyword atom follows it;
+                // otherwise it belongs to the enclosing text.
+                if cursor.peek() == Some(";") && {
+                    let mut trial = cursor.clone();
+                    trial.consume(";").is_ok()
+                        && recognize_keyword_atoms(
+                            &mut trial,
+                            allow_parameterized,
+                            quoted_type_line,
+                            &mut KeywordResourceCommitment::None,
+                        )
+                        .is_ok()
+                } {
+                    cursor.consume(";")?;
+                    KeywordListState::Item
+                } else if cursor.peek().is_some_and(|raw| raw == ",") {
                     cursor.consume(",")?;
                     if cursor
                         .peek()
