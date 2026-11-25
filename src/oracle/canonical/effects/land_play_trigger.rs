@@ -52,6 +52,12 @@ pub(in crate::oracle::canonical) fn parse_promoted_land_play_trigger(
         player == LocalPlayerReference::Controller,
         "the source controller as the land-playing player",
     )?;
+    // `A or B` is one resolution choice (CR 608.2d): only the shared program
+    // lowering frames it; this family lowers a plain sequence.
+    cursor.require(
+        !effects.connectors.contains(&EffectConnector::Or),
+        "a plain effect sequence without an `or` choice",
+    )?;
     let mut lowered_effects = Vec::new();
     for (effect_index, effect) in effects.effects.iter().enumerate() {
         lowered_effects.extend(

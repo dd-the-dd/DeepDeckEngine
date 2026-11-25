@@ -23374,7 +23374,15 @@ impl GameEngine {
         );
     }
 
-    fn record_cards_entered_graveyard_event(&mut self, player_id: &str, cards: &[CardInstance]) {
+    /// Records one batched graveyard arrival with its origin zone when the
+    /// recorder knows it. The per-card departure, mill and discard records
+    /// precede it; zone-history readers classify the batch by its origin.
+    fn record_cards_entered_graveyard_event(
+        &mut self,
+        player_id: &str,
+        cards: &[CardInstance],
+        from: Option<&'static str>,
+    ) {
         if cards.is_empty() {
             return;
         }
@@ -23382,7 +23390,7 @@ impl GameEngine {
             "cardsEnteredGraveyard",
             Some(player_id.to_string()),
             None,
-            event_history::graveyard_arrival_detail(cards),
+            event_history::graveyard_arrival_detail_from(cards, from),
         );
     }
 
@@ -23503,7 +23511,7 @@ impl GameEngine {
             .map(|card| card.instance_id.clone())
             .collect::<Vec<_>>();
         if record_event {
-            self.record_cards_entered_graveyard_event(player_id, cards);
+            self.record_cards_entered_graveyard_event(player_id, cards, from);
         }
         for (observer, rule, matching) in arrival_observers {
             let occurrences = if triggered_event_variants(&rule["event"])

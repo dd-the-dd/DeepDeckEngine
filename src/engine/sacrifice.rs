@@ -207,7 +207,7 @@ impl GameEngine {
             }
         }
         for (owner, cards) in &graveyard_groups {
-            self.record_cards_entered_graveyard_event(owner, cards);
+            self.record_cards_entered_graveyard_event(owner, cards, Some("battlefield"));
         }
         // Source-linked copy/control effects expire in the completed event's
         // resulting state. Frozen look-back observers remain independent.

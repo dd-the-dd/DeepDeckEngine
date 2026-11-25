@@ -61,16 +61,29 @@ fn constant(value: bool) -> Value {
     json!({ "kind": if value { "and" } else { "or" }, "operands": [] })
 }
 
-/// Whether `event` records an arrival of `instance_id` in a zone.
-fn names_arrival(event: &GameEvent, instance_id: &str) -> bool {
+/// How `event` records an arrival of `instance_id` in a zone, if it does:
+/// `Some(true)` for a departure from the battlefield, `Some(false)` for any
+/// other arrival. The batched graveyard arrival is recorded after the
+/// per-card departure, mill or discard record of the same move, so it is
+/// classified by its recorded origin zone; an arrival whose origin the
+/// recorder did not know is never read as a battlefield departure.
+fn arrival_from_battlefield(event: &GameEvent, instance_id: &str) -> Option<bool> {
     if event.kind == "cardsEnteredGraveyard" {
-        return event.detail["cardIds"]
+        let names_card = event.detail["cardIds"]
             .as_array()
             .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(instance_id)));
+        return names_card.then(|| event.detail["from"].as_str() == Some("battlefield"));
     }
-    (BATTLEFIELD_DEPARTURES.contains(&event.kind.as_str())
-        || OTHER_ARRIVALS.contains(&event.kind.as_str()))
-        && event.card_instance_id.as_deref() == Some(instance_id)
+    if event.card_instance_id.as_deref() != Some(instance_id) {
+        return None;
+    }
+    if BATTLEFIELD_DEPARTURES.contains(&event.kind.as_str()) {
+        Some(true)
+    } else if OTHER_ARRIVALS.contains(&event.kind.as_str()) {
+        Some(false)
+    } else {
+        None
+    }
 }
 
 impl GameEngine {
@@ -84,8 +97,8 @@ impl GameEngine {
             .iter()
             .rev()
             .take_while(|event| event.turn_number == self.state.turn_number)
-            .find(|event| names_arrival(event, instance_id))
-            .is_some_and(|event| BATTLEFIELD_DEPARTURES.contains(&event.kind.as_str()))
+            .find_map(|event| arrival_from_battlefield(event, instance_id))
+            .unwrap_or(false)
     }
 
     /// `filter` with every card history leaf replaced by its value for

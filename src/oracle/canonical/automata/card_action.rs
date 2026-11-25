@@ -415,31 +415,23 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     frame: CardActionReadContext<'_>,
 ) -> MachineResult<Option<CardActionNode>> {
     let supplied_duration = frame.preposed_duration;
+    if cursor.peek().is_none() {
+        return Ok(None);
+    }
+    // `target instant card in your graveyard gains flashback until end of
+    // turn`: the card operand is the clause subject, read before the verb.
+    // Committed once the subject, the `gain` lemma and a cost-keyword name
+    // are read; anything else leaves the clause to the other readers.
+    match try_recognize_card_keyword_grant(cursor, supplied_duration, operand) {
+        CardKeywordGrantAttempt::Recognized(node) => {
+            return Ok(Some(CardActionNode::GrantKeyword(node)));
+        }
+        CardKeywordGrantAttempt::FailedCommitted(failure) => return Err(failure),
+        CardKeywordGrantAttempt::NotClaimed => {}
+    }
     let Some(head) = cursor.peek() else {
         return Ok(None);
     };
-    if card_keyword_grant_follows(cursor) {
-        // `target instant card in your graveyard gains flashback until end
-        // of turn`: the card operand is the clause subject. Committed once
-        // the keyword is read; an unread subject leaves the clause to others.
-        let mut trial = cursor.clone();
-        let start = trial.position();
-        match recognize_card_keyword_grant(&mut trial, operand) {
-            Ok(node) => {
-                *cursor = trial;
-                return Ok(Some(CardActionNode::GrantKeyword(node)));
-            }
-            Err(failure)
-                if trial
-                    .token_slice(start, trial.position())
-                    .iter()
-                    .any(|token| token.raw.eq_ignore_ascii_case("flashback")) =>
-            {
-                return Err(failure);
-            }
-            Err(_) => {}
-        }
-    }
     if permission_head_starts(cursor) || imperative_cast_starts(cursor) {
         return recognize_card_permission(cursor, frame, None)
             .map(|node| Some(CardActionNode::Permit(node)));

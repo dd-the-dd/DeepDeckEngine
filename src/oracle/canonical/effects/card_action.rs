@@ -1753,14 +1753,39 @@ impl CardCollectionMemory {
                     } else {
                         cards
                     };
-                let GrantedCardKeywordNode::Flashback(GrantedFlashbackCostNode::ManaCostOfCard) =
-                    grant.keyword;
-                // CR 702.34a: within the granted ability, `its mana cost` is
-                // the mana cost of the card that has it (`abilitySource`).
+                cursor.enter("lower.card-action.grant-keyword.cost");
+                // A cost keyword is granted with the cost a later sentence
+                // states; without one the grant has no complete ability.
+                let cost = match grant.keyword.cost {
+                    Some(GrantedKeywordCostNode::ManaCostOfCard) => {
+                        // CR 702.34a: within the granted ability, `its mana
+                        // cost` is the mana cost of the card that has it.
+                        json!({"kind":"manaCostOf", "card":{"kind":"abilitySource"}})
+                    }
+                    None => {
+                        return Err(cursor.fail(
+                            "a sentence stating the cost of the granted keyword (`The flashback cost is equal to ...`)",
+                        ));
+                    }
+                };
+                cursor.enter("lower.card-action.grant-keyword.duration");
+                // The card permission runtime expires at the end of the
+                // turn it was granted; no other window is modelled.
+                cursor.require(
+                    grant.duration == EffectDurationNode::UntilEndOfCurrentTurn,
+                    "a granted card keyword lasting until end of turn",
+                )?;
+                let ability = match grant.keyword.name {
+                    KeywordAbilityName::Flashback => json!({"kind":"flashback", "cost":cost}),
+                    KeywordAbilityName::Cycling
+                    | KeywordAbilityName::Kicker
+                    | KeywordAbilityName::Awaken => {
+                        return Err(cursor.fail("flashback granted to a card"));
+                    }
+                };
                 effects.push(json!({"kind":"grantAbility", "object":object,
                     "duration":{"kind":"untilEndOfCurrentTurn"},
-                    "ability":{"kind":"flashback",
-                        "cost":{"kind":"manaCostOf", "card":{"kind":"abilitySource"}}}}));
+                    "ability":ability}));
             }
             CardActionNode::Shuffle { owner } => {
                 cursor.enter("lower.card-action.shuffle");

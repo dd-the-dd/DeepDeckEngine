@@ -1932,6 +1932,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         LocalEffectNode::CardAction(super::CardActionNode::Permit(node)) => {
                             node.duration.as_ref() == Some(duration)
                         }
+                        LocalEffectNode::CardAction(super::CardActionNode::GrantKeyword(node)) => {
+                            &node.duration == duration
+                        }
                         LocalEffectNode::TemporaryPlayerPermission(node) => {
                             node.duration == super::TemporaryRuleDuration::Effect(duration.clone())
                         }
@@ -2514,6 +2517,17 @@ fn recognize_effect_sequence_attempt_scoped(
                                 memory.effects.last_mut(),
                             )?;
                             cursor.enter("sequence.type-retention.terminator");
+                            cursor.consume(".")?;
+                        }
+                        if super::granted_keyword_cost_amendment_starts(cursor) {
+                            // CR 702.34a: the sentence states the cost of the
+                            // keyword the sentence just closed granted.
+                            attempt_frame.commit();
+                            super::recognize_granted_keyword_cost_amendment(
+                                cursor,
+                                memory.effects.last_mut(),
+                            )?;
+                            cursor.enter("sequence.granted-keyword-cost.terminator");
                             cursor.consume(".")?;
                         }
                         if library_look_reminder_starts_at(cursor)
