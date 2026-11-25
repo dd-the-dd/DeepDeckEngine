@@ -33305,6 +33305,9 @@ mod damage_prevention_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/described_object_anchor_runtime.rs"]
 mod described_object_anchor_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/engine_gaps_lane_runtime.rs"]
+mod engine_gaps_lane_runtime;
 #[path = "tests/equal_amount_reflexive_runtime.rs"]
 mod equal_amount_reflexive_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
@@ -33342,6 +33345,3 @@ mod stack_and_damage_cells_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/static_frame_runtime.rs"]
 mod static_frame_runtime;
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[path = "tests/engine_gaps_lane_runtime.rs"]
-mod engine_gaps_lane_runtime;
