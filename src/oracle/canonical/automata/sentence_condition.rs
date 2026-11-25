@@ -304,10 +304,45 @@ fn optional_outcome_atom(cursor: &OracleTokenCursor<'_>) -> Option<bool> {
     } else {
         return None;
     };
-    cursor
-        .peek_ahead(2)
-        .is_some_and(|raw| matches!(raw, "," | "." | "or" | "and"))
-        .then_some(performed)
+    // A bare `If you do,` after an unguarded `you may ...` sentence is the
+    // outcome connector the effect-program parent reads with its producer
+    // (`binding_environment.rs`); this atom claims only the forms that parent
+    // does not: a disjunction (`If you do or if you control ...`) and an
+    // outcome of an optional instruction a sentence conditional guards.
+    match cursor.peek_ahead(2) {
+        Some("or") => performed.then_some(true),
+        Some(",") => previous_sentence_guards_an_option(cursor).then_some(performed),
+        _ => None,
+    }
+}
+
+/// Whether the sentence before the current one (the cursor stands after
+/// its opening `if`) is a sentence conditional whose branch grants an
+/// option: `If it shares a creature type with this creature, you may reveal
+/// it.` Lexical lookback only; the program lowering proves the instruction.
+fn previous_sentence_guards_an_option(cursor: &OracleTokenCursor<'_>) -> bool {
+    let position = cursor.position();
+    let Some(period) = position.checked_sub(2) else {
+        return false;
+    };
+    let tokens = cursor.token_slice(0, period + 1);
+    if tokens.get(period).is_none_or(|token| token.raw != ".") {
+        return false;
+    }
+    let start = tokens[..period]
+        .iter()
+        .rposition(|token| token.raw == ".")
+        .map_or(0, |index| index + 1);
+    let sentence = &tokens[start..period];
+    let is = |index: usize, expected: &str| {
+        sentence
+            .get(index)
+            .is_some_and(|token| token.raw.eq_ignore_ascii_case(expected))
+    };
+    let Some(comma) = sentence.iter().position(|token| token.raw == ",") else {
+        return false;
+    };
+    is(0, "if") && is(comma + 1, "you") && is(comma + 2, "may")
 }
 
 /// True at a sentence-initial `if` whose condition this child may read, or
