@@ -191,6 +191,18 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                         "a literal counter quantity multiplied by `for each`",
                     )?);
                 }
+                // `with X +1/+1 counters on it, where X is EXPR` (CR 107.3):
+                // the shared postposed definition replaces the X it defines.
+                if count.as_ref().is_some_and(NumericExpression::uses_x)
+                    && super::where_x_definition_starts(cursor)
+                {
+                    let definition = super::recognize_where_x_definition(cursor)?;
+                    let base = cursor.require_value(count.take(), "a counter quantity")?;
+                    count = Some(cursor.require_value(
+                        base.substitute_x(&definition),
+                        "a counter quantity whose X the definition replaces",
+                    )?);
+                }
                 State::Condition
             }
             State::Condition => {

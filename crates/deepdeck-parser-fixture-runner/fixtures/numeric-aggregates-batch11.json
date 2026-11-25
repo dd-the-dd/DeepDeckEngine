@@ -530,6 +530,178 @@
       }
     },
     {
+      "id": "exact-prime-speaker-zegana",
+      "request": {
+        "cardName": "Prime Speaker Zegana",
+        "typeLine": "Legendary Creature — Merfolk Wizard",
+        "manaCost": "{2}{G}{G}{U}{U}",
+        "oracleText": "Prime Speaker Zegana enters with X +1/+1 counters on it, where X is the greatest power among other creatures you control.\nWhen Prime Speaker Zegana enters, draw cards equal to its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-ambitious-dragonborn",
+      "request": {
+        "cardName": "Ambitious Dragonborn",
+        "typeLine": "Creature — Dragon Barbarian",
+        "manaCost": "{3}{G}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the greatest power among creatures you control and creature cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-inferno-project",
+      "request": {
+        "cardName": "Inferno Project",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{6}{R}",
+        "oracleText": "Trample\nThis creature enters with X +1/+1 counters on it, where X is the total mana value of instant and sorcery cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-realm-seekers",
+      "request": {
+        "cardName": "Realm Seekers",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{4}{G}{G}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the total number of cards in all players' hands.\n{2}{G}, Remove a +1/+1 counter from this creature: Search your library for a land card, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-towering-titan",
+      "request": {
+        "cardName": "Towering Titan",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{4}{G}{G}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the total toughness of other creatures you control.\nSacrifice a creature with defender: All creatures gain trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-custodi-soulbinders",
+      "request": {
+        "cardName": "Custodi Soulbinders",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{3}{W}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the number of other creatures on the battlefield.\n{2}{W}, Remove a +1/+1 counter from this creature: Create a 1/1 white Spirit creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-academy-elite",
+      "request": {
+        "cardName": "Academy Elite",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the number of instant and sorcery cards in all graveyards.\n{2}{U}, Remove a +1/+1 counter from this creature: Draw a card, then discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-stag-beetle",
+      "request": {
+        "cardName": "Stag Beetle",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the number of other creatures on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-drakestown-forgotten",
+      "request": {
+        "cardName": "Drakestown Forgotten",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{4}{B}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the number of creature cards in all graveyards.\n{2}{B}, Remove a +1/+1 counter from this creature: Target creature gets -1/-1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-ignition-team",
+      "request": {
+        "cardName": "Ignition Team",
+        "typeLine": "Creature — Goblin Warrior",
+        "manaCost": "{5}{R}{R}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the number of tapped lands on the battlefield.\n{2}{R}, Remove a +1/+1 counter from this creature: Target land becomes a 4/4 red Elemental creature until end of turn. It's still a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-voracious-wurm",
+      "request": {
+        "cardName": "Voracious Wurm",
+        "typeLine": "Creature — Wurm",
+        "manaCost": "{1}{G}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is the amount of life you've gained this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
       "id": "sibling-no-code-creature-types-in-graveyard-damage",
       "request": {
         "cardName": "Aggregate Probe Alpha",
@@ -800,6 +972,28 @@
         "typeLine": "Sorcery",
         "manaCost": "{1}{G}",
         "oracleText": "Draw cards equal to the greatest colors among permanents you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entry-counters-circular-definition",
+      "request": {
+        "cardName": "Aggregate Probe Rho",
+        "typeLine": "Creature — Ooze",
+        "manaCost": "{2}{G}",
+        "oracleText": "This creature enters with X +1/+1 counters on it, where X is X plus the greatest power among creatures you control.",
         "layout": "normal",
         "faces": []
       },
