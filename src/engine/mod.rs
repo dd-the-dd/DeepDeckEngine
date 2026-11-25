@@ -33445,7 +33445,13 @@ impl GameEngine {
         if self.execute_myriad_effect(effect, stack_object, decisions, provider)? {
             return Ok(());
         }
-        if self.execute_random_outcome_effect(effect, stack_object, bindings, decisions, provider)? {
+        if self.execute_random_outcome_effect(
+            effect,
+            stack_object,
+            bindings,
+            decisions,
+            provider,
+        )? {
             return Ok(());
         }
         if self.execute_ascend_effect(effect, stack_object, bindings)? {
