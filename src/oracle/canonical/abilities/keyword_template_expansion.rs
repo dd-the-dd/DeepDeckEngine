@@ -215,6 +215,9 @@ fn lower_ninjutsu(
     });
     // CR 702.49a: the ability functions only while the card is in a hand.
     rule["activationZone"] = json!("hand");
+    // CR 509.1h: no attacker is unblocked before blockers are declared, so
+    // the ability is activatable only from the declare-blockers step on.
+    rule["activationCondition"] = json!({ "kind": "ninjutsuTiming" });
     Ok(rule)
 }
 

@@ -180,93 +180,107 @@ fn malformed_state_atoms_are_refused_by_the_validator() {
 }
 
 /// Rite of the Serpent (`Destroy target creature. If that creature had a
-/// +1/+1 counter on it, ...`): the departed target is read from the state
-/// its departure recorded (CR 608.2h), never from the card in its new zone,
-/// whose counters are gone.
+/// +1/+1 counter on it, ...`), Desculpting Blast (bounce, `if it was
+/// attacking`) and Brackish Blunder (bounce, `if it was tapped`): the
+/// departed target is read from the state its departure recorded (CR
+/// 608.2h), never from the card in its new zone, whose counters and status
+/// are gone. Every battlefield writer (graveyard, hand, library) publishes
+/// that state.
 #[test]
 fn a_departed_target_answers_its_last_known_counters_and_combat_state() {
-    let mut engine = test_engine(2);
-    let mut creature = test_instance(
-        "destroyed-creature",
-        test_definition("destroyed-creature", "Creature - Snake"),
-        "player-1",
-    );
-    creature.counters.insert("+1/+1".to_string(), 1);
-    creature.flags.insert("attacking".to_string(), true);
-    let mut graveyard_card = creature.clone();
-    graveyard_card.counters.clear();
-    graveyard_card.flags.clear();
-    engine.state.players[1].graveyard.push(graveyard_card);
-    let stack_object = StackObject {
-        id: "stack:rite".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "rite-source",
-            test_definition("rite-source", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::from([(
-            "target-0".to_string(),
-            TargetRef::Permanent {
-                instance_id: "destroyed-creature".to_string(),
-            },
-        )]),
-    };
-    let had_counter = json!({
-        "kind": "departedObjectMatches",
-        "object": { "kind": "chosenTarget", "id": "target-0" },
-        "where": { "kind": "hasCounter", "counter": "+1/+1" },
-    });
-    let was_attacking = json!({
-        "kind": "departedObjectMatches",
-        "object": { "kind": "chosenTarget", "id": "target-0" },
-        "where": { "kind": "isAttacking" },
-    });
-    assert!(event_history::departed_object_condition_supported(
-        &had_counter
-    ));
-    assert!(event_history::departed_object_condition_supported(
-        &was_attacking
-    ));
-    let holds = |engine: &GameEngine, condition: &Value| {
-        engine.runtime_condition_value(condition, &stack_object, &BTreeMap::new(), &BTreeMap::new())
-    };
-    // A departure record without the state answers nothing: false.
-    engine.record_event(
-        "permanentLeftBattlefield",
-        Some("player-1".to_string()),
-        Some("destroyed-creature".to_string()),
-        json!({
-            "destination": "graveyard",
-            "typeLine": "Creature - Snake",
-            "wasCreature": true,
-            "owner": "player-1",
-        }),
-    );
-    assert!(!holds(&engine, &had_counter));
-    engine.record_event(
-        "permanentLeftBattlefield",
-        Some("player-1".to_string()),
-        Some("destroyed-creature".to_string()),
-        json!({
-            "destination": "graveyard",
-            "typeLine": "Creature - Snake",
-            "wasCreature": true,
-            "owner": "player-1",
-            "lastKnownState": state_condition_atoms::departure_state_record(&creature),
-        }),
-    );
-    assert!(holds(&engine, &had_counter));
-    assert!(holds(&engine, &was_attacking));
-    let mut two_counters = had_counter.clone();
-    two_counters["where"]["minimum"] = json!(2);
-    assert!(!holds(&engine, &two_counters));
-    let mut no_counters = had_counter.clone();
-    no_counters["where"] = json!({ "kind": "hasCounter", "minimum": 0, "maximum": 0 });
-    assert!(!holds(&engine, &no_counters));
+    for destination in ["graveyard", "hand", "library"] {
+        let mut engine = test_engine(2);
+        let mut creature = test_instance(
+            "departed-creature",
+            test_definition("departed-creature", "Creature - Snake"),
+            "player-1",
+        );
+        creature.counters.insert("+1/+1".to_string(), 1);
+        creature.flags.insert("attacking".to_string(), true);
+        creature.tapped = true;
+        engine.state.players[1].battlefield.push(creature);
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let stack_object = StackObject {
+            id: "stack:departure".to_string(),
+            controller: "player-0".to_string(),
+            card: test_instance(
+                "departure-source",
+                test_definition("departure-source", "Sorcery"),
+                "player-0",
+            ),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: None,
+            ability_rule: None,
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::from([(
+                "target-0".to_string(),
+                TargetRef::Permanent {
+                    instance_id: "departed-creature".to_string(),
+                },
+            )]),
+        };
+        let departed = |filter: Value| {
+            let condition = json!({
+                "kind": "departedObjectMatches",
+                "object": { "kind": "chosenTarget", "id": "target-0" },
+                "where": filter,
+            });
+            assert!(event_history::departed_object_condition_supported(
+                &condition
+            ));
+            condition
+        };
+        let had_counter = departed(json!({ "kind": "hasCounter", "counter": "+1/+1" }));
+        let was_attacking = departed(json!({ "kind": "isAttacking" }));
+        let was_tapped = departed(json!({ "kind": "isTapped" }));
+        let was_blocking = departed(json!({ "kind": "isBlocking" }));
+        let holds = |engine: &GameEngine, condition: &Value| {
+            engine.runtime_condition_value(
+                condition,
+                &stack_object,
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+            )
+        };
+        match destination {
+            "graveyard" => engine
+                .move_permanent_to_graveyard("departed-creature", "destroyed")
+                .expect("the creature is destroyed"),
+            "hand" => engine
+                .return_permanent_to_hand("departed-creature")
+                .expect("the creature is bounced"),
+            _ => engine
+                .put_permanent_on_owner_library("departed-creature", "top")
+                .expect("the creature is put on top of its owner's library"),
+        }
+        assert!(
+            engine.permanent_position("departed-creature").is_none(),
+            "{destination}"
+        );
+        assert!(holds(&engine, &had_counter), "{destination}");
+        assert!(holds(&engine, &was_attacking), "{destination}");
+        assert!(holds(&engine, &was_tapped), "{destination}");
+        assert!(!holds(&engine, &was_blocking), "{destination}");
+        let mut two_counters = had_counter.clone();
+        two_counters["where"]["minimum"] = json!(2);
+        assert!(!holds(&engine, &two_counters), "{destination}");
+        let mut no_counters = had_counter.clone();
+        no_counters["where"] = json!({ "kind": "hasCounter", "minimum": 0, "maximum": 0 });
+        assert!(!holds(&engine, &no_counters), "{destination}");
+        // The record also carries the owner and last-known creature status
+        // every departure consumer reads.
+        let record = engine
+            .state
+            .events
+            .iter()
+            .rev()
+            .find(|event| event.kind == "permanentLeftBattlefield")
+            .expect("the departure is recorded");
+        assert_eq!(record.detail["destination"], destination);
+        assert_eq!(record.detail["owner"], "player-1");
+        assert_eq!(record.detail["wasCreature"], true);
+    }
 }

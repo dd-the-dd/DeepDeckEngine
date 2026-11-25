@@ -371,6 +371,44 @@
       }
     },
     {
+      "id": "sibling-choice-with-shared-noun-first-strike",
+      "request": {
+        "cardName": "First Strike Choice Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Put your choice of a +1/+1, first strike, or vigilance counter on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-choice-shared-noun-unclassified-word",
+      "request": {
+        "cardName": "Unclassified Counter Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Put your choice of a +1/+1, each, or trample counter on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "counter-name.shared-noun"
+          }
+        ]
+      }
+    },
+    {
       "id": "sibling-two-plus-one-and-a-trample-counter",
       "request": {
         "cardName": "Synthetic Boon",

@@ -678,6 +678,28 @@
       }
     },
     {
+      "id": "near-miss-source-put-tapped-and-attacking",
+      "request": {
+        "cardName": "Source Attack Entry Probe",
+        "typeLine": "Creature — Human Ninja",
+        "manaCost": "{2}{U}",
+        "oracleText": "{2}{U}: Put this card from your hand onto the battlefield tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.move-source.put.entry-support"
+          }
+        ]
+      }
+    },
+    {
       "id": "sibling-revealed-creature-attacking-defending-player-or-planeswalker",
       "request": {
         "cardName": "Frame Tail Witness",

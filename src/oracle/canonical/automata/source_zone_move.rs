@@ -281,9 +281,10 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
             cursor.require(
                 !modifiers.face_down
                     && modifiers.attached_to.is_none()
+                    && modifiers.attacking.is_none()
                     && modifiers.controller
                         == super::CardMoveOwnerNode::Player(super::LocalPlayerReference::Controller),
-                "a source entry tapped, transformed or with counters (face-down, attached and other-controller entries have no source-move writer)",
+                "a source entry tapped, transformed or with counters (face-down, attached, attacking and other-controller entries have no source-move writer)",
             )?;
             cursor.enter("effect.move-source.complete");
             Ok(MoveSourceEffectNode {

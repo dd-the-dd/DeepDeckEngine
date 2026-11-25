@@ -321,3 +321,47 @@ fn exert_is_an_attack_option_with_its_reflexive_ability() {
     engine.enqueue_exert_reflexive_triggers();
     assert_eq!(engine.state.stack.len(), stack_before + 1);
 }
+
+/// `Any player may cast spells as though they had flash.`: the player-set
+/// actor compiles to a hand-zone casting permission for each player, and
+/// the runtime lifts the timing restriction for the opponent's sorcery as
+/// well as the controller's, only while the source is on the battlefield.
+#[test]
+fn a_player_set_flash_permission_lifts_timing_for_every_player() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Any Player Flash Probe".to_string(),
+        type_line: "Enchantment".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some("Any player may cast spells as though they had flash.".to_string()),
+        layout: None,
+        faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.abilities);
+    let rules = parsed
+        .abilities
+        .into_iter()
+        .map(|ability| ability.rule.expect("the ability has a rule"))
+        .inspect(|rule| assert!(rule_is_executable(rule), "{rule:#}"))
+        .collect::<Vec<_>>();
+    let mut engine = test_engine(2);
+    let sorcery = test_definition("sorcery", "Sorcery");
+    for player in ["player-0", "player-1"] {
+        assert!(!engine.card_casts_with_static_flash(player, &sorcery, "hand"));
+    }
+    let mut source = test_definition("flash-source", "Enchantment");
+    source.rules = rules;
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("flash-source", source, "player-0"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    for player in ["player-0", "player-1"] {
+        assert!(
+            engine.card_casts_with_static_flash(player, &sorcery, "hand"),
+            "{player} casts with flash"
+        );
+        // The permission is for spells cast from the usual zone only.
+        assert!(!engine.card_casts_with_static_flash(player, &sorcery, "graveyard"));
+    }
+}

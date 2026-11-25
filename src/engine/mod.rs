@@ -9119,24 +9119,18 @@ impl GameEngine {
                             && self.state.stack.is_empty()
                     })
             }
-            Some("ninjutsuTiming") => {
-                matches!(
-                    self.state.step,
-                    GameStep::DeclareBlockers | GameStep::CombatDamage
-                ) && self.state.combat.attackers.iter().any(|attacker| {
-                    self.permanent_position(&attacker.attacker_id).is_some_and(
-                        |(player_index, card_index)| {
-                            self.state.players[player_index].battlefield[card_index].controller
-                                == controller_id
-                        },
-                    ) && !self
-                        .state
-                        .combat
-                        .blockers
-                        .iter()
-                        .any(|blocker| blocker.attacker_id == attacker.attacker_id)
-                })
-            }
+            // CR 702.49a/509.1h: an unblocked attacker you control exists,
+            // read through the shared block-status atom.
+            Some("ninjutsuTiming") => self.state.combat.attackers.iter().any(|attacker| {
+                self.permanent_position(&attacker.attacker_id).is_some_and(
+                    |(player_index, card_index)| {
+                        let permanent = &self.state.players[player_index].battlefield[card_index];
+                        permanent.controller == controller_id
+                            && self.combat_block_status_matches(permanent, "isUnblockedAttacker")
+                                == Some(true)
+                    },
+                )
+            }),
             Some("duringControllerMainPhase") => {
                 self.state.players[self.state.active_player].id == controller_id
                     && matches!(
@@ -33957,6 +33951,9 @@ impl GameEngine {
             .remove(card_index);
         self.confirm_target_numeric_departure(target_numeric_departure);
         let last_known = card.clone();
+        // CR 608.2h: the last-known creature status, read while the
+        // permanent's continuous effects still describe it.
+        let last_known_was_creature = self.permanent_is_creature(&last_known);
         card_zone_transition::reset_movement_card(&mut card, &movement_source)?;
         let owner_index = self.player_index(&card.owner)?;
         let destination = card_zone_transition::ObjectZone::Hand(card.owner.clone());
@@ -33973,15 +33970,7 @@ impl GameEngine {
             Some(instance_id.to_string()),
             json!({}),
         );
-        self.record_event(
-            "permanentLeftBattlefield",
-            Some(last_known.controller.clone()),
-            Some(instance_id.to_string()),
-            json!({
-                "destination": "hand",
-                "typeLine": last_known.definition.type_line,
-            }),
-        );
+        self.record_permanent_left_battlefield(&last_known, "hand", last_known_was_creature);
         self.enqueue_permanent_left_triggers_with_sources(&last_known, "hand", &observers, None);
         self.handle_attachment_target_left(instance_id);
         self.refresh_control_effects();
@@ -34011,6 +34000,9 @@ impl GameEngine {
             .remove(card_index);
         self.confirm_target_numeric_departure(target_numeric_departure);
         let last_known = card.clone();
+        // CR 608.2h: the last-known creature status, read while the
+        // permanent's continuous effects still describe it.
+        let last_known_was_creature = self.permanent_is_creature(&last_known);
         card_zone_transition::reset_movement_card(&mut card, &movement_source)?;
         let owner_index = self.player_index(&card.owner)?;
         let destination = card_zone_transition::ObjectZone::Library(card.owner.clone());
@@ -34043,15 +34035,7 @@ impl GameEngine {
             Some(instance_id.to_string()),
             json!({ "owner": last_known.owner, "position": position }),
         );
-        self.record_event(
-            "permanentLeftBattlefield",
-            Some(last_known.controller.clone()),
-            Some(instance_id.to_string()),
-            json!({
-                "destination": "library",
-                "typeLine": last_known.definition.type_line,
-            }),
-        );
+        self.record_permanent_left_battlefield(&last_known, "library", last_known_was_creature);
         self.enqueue_permanent_left_triggers_with_sources(&last_known, "library", &observers, None);
         self.handle_attachment_target_left(instance_id);
         self.refresh_control_effects();

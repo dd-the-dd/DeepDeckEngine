@@ -57,6 +57,40 @@ pub(in crate::oracle::canonical) fn recognize_counter_name(
     }
 }
 
+/// A counter name whose `counter(s)` noun is shared with a later option of
+/// a coordinated list (`a +1/+1, first strike, or trample counter`). The lexer
+/// classifies only the span right before the noun, so each earlier name is
+/// read here with the lexer's same token-class check, and ends at `,` or
+/// `or`, which this mode leaves to the list.
+pub(in crate::oracle::canonical) fn recognize_counter_name_sharing_noun(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CounterName> {
+    cursor.enter("counter-name.shared-noun");
+    let mut parts = Vec::new();
+    loop {
+        let token = cursor
+            .peek_token()
+            .ok_or_else(|| cursor.fail("a counter name before `,` or `or`"))?;
+        if token.raw == "," || token.raw.eq_ignore_ascii_case("or") {
+            break;
+        }
+        cursor.require(
+            is_counter_name_part(token)
+                || crate::oracle::syntax::is_counter_name_part_candidate(token)
+                || crate::oracle::syntax::is_keyword_counter_name_head(
+                    &token.raw,
+                    cursor.peek_ahead(1),
+                ),
+            "a counter name part before `,` or `or`",
+        )?;
+        parts.push(token.raw.clone());
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    cursor.enter("counter-name.shared-noun.complete");
+    CounterName::from_parts(parts.iter().map(String::as_str))
+        .ok_or_else(|| cursor.fail("a non-empty canonical counter name"))
+}
+
 fn is_counter_name_part(token: &crate::oracle::model::RecognizedEntity) -> bool {
     matches!(
         token.token_type.as_str(),

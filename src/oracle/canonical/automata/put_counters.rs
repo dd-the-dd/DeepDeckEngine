@@ -149,8 +149,8 @@ fn recognize_listed_counter_placements(
 /// One option's counter kind inside `your choice of`. A kind written before
 /// its own `counter(s)` noun is the lexer's resolved counter name; a kind
 /// that shares the list's final noun (`a +1/+1, first strike, or trample
-/// counter`) is the opaque span up to its `,` or `or`, resolved by this
-/// frame exactly as the lexer resolves the span before a noun.
+/// counter`) is read by the shared counter-name reader in its shared-noun
+/// mode, with the lexer's token-class check.
 fn recognize_choice_counter_name(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<crate::oracle::counter_name::CounterName> {
@@ -165,23 +165,7 @@ fn recognize_choice_counter_name(
         return recognize_counter_name(cursor);
     }
     cursor.enter("effect.put-counters.choice.shared-noun-kind");
-    let mut parts = Vec::new();
-    while let Some(raw) = cursor.peek() {
-        if boundary(raw) || noun(raw) {
-            break;
-        }
-        cursor.require(
-            parts.len() < 3
-                && raw.chars().all(|character| {
-                    character.is_alphanumeric() || matches!(character, '+' | '-' | '/')
-                }),
-            "a counter kind of at most three words before `,` or `or`",
-        )?;
-        parts.push(raw.to_owned());
-        cursor.advance_to(cursor.position() + 1)?;
-    }
-    crate::oracle::counter_name::CounterName::from_parts(parts.iter().map(String::as_str))
-        .ok_or_else(|| cursor.fail("a counter kind before `,` or `or`"))
+    super::recognize_counter_name_sharing_noun(cursor)
 }
 
 /// `your choice of OPTION (, OPTION)* [,] or OPTION`: each option is

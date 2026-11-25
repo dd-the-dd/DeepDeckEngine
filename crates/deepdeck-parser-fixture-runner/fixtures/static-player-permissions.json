@@ -551,6 +551,56 @@
       }
     },
     {
+      "id": "sibling-outlaw-flash-permission-batch-reminder",
+      "request": {
+        "cardName": "Outlaw Flash Probe",
+        "typeLine": "Creature — Human Rogue",
+        "manaCost": "{2}{B}",
+        "oracleText": "You may cast outlaw spells as though they had flash. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-historic-glossary-after-a-creature-permission",
+      "request": {
+        "cardName": "Foreign Glossary Probe",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{2}{U}",
+        "oracleText": "Flying\nYou may cast creature spells as though they had flash. (Artifacts, legendaries, and Sagas are historic.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.permission.action"
+          }
+        ]
+      }
+    },
+    {
       "id": "unused-combination-zone-origin-flash",
       "request": {
         "cardName": "Probe Necromancer",

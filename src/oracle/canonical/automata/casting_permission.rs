@@ -485,34 +485,31 @@ fn recognize_flash_timing_reminder(
     )
 }
 
-/// `(Artifacts, legendaries, and Sagas are historic.)`: the glossary of
-/// the defined term `historic` (CR 700.6), read only when the permission's
-/// own text uses that term.
-fn recognize_historic_glossary(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
-    cursor.enter("permission.reminder.historic");
-    cursor.require(
-        cursor
-            .token_slice(0, cursor.position())
-            .iter()
-            .any(|token| token.raw.eq_ignore_ascii_case("historic")),
-        "a glossary of a defined term the permission uses",
-    )?;
-    consume_words(
-        cursor,
-        &[
-            "(",
-            "artifacts",
-            ",",
-            "legendaries",
-            ",",
-            "and",
-            "sagas",
-            "are",
-            "historic",
-            ".",
-            ")",
-        ],
-    )
+/// The object predicates a permission names (its spells or cards), in
+/// written order: a characteristic-batch reminder after the permission must
+/// describe a batch one of them uses (CR 207.2).
+fn permission_predicates<'a>(node: &'a PlayerPermissionNode, out: &mut Vec<&'a ObjectPredicate>) {
+    match node {
+        PlayerPermissionNode::Act(permission) => {
+            for action in &permission.actions {
+                match action {
+                    PermittedActionNode::Cast { spells, .. } => out.push(&spells.predicate),
+                    PermittedActionNode::Play { cards } => out.push(cards),
+                }
+            }
+        }
+        PlayerPermissionNode::AlternativeManaCost { spells, .. } => out.push(spells),
+        PlayerPermissionNode::Conjoined(members) => {
+            for member in members {
+                permission_predicates(member, out);
+            }
+        }
+        PlayerPermissionNode::LookAtLibraryTopAnyTime { .. }
+        | PlayerPermissionNode::CastSelf(_)
+        | PlayerPermissionNode::ExertAsAttacks { .. }
+        | PlayerPermissionNode::AssignCombatDamageAsThoughUnblocked
+        | PlayerPermissionNode::MayChooseNotToUntap => {}
+    }
 }
 
 /// `(It won't untap during your next untap step.)` / `(An exerted creature
@@ -564,7 +561,14 @@ fn recognize_permission_reminders(
             recognize_exert_reminder(cursor)?;
             continue;
         }
-        recognize_historic_glossary(cursor)?;
+        // `(Artifacts, legendaries, and Sagas are historic.)`: the shared
+        // registry-driven batch reminder, matched against the batch the
+        // permission's own spells or cards use (CR 700.6).
+        cursor.enter("permission.reminder.characteristic-batch");
+        let mut predicates = Vec::new();
+        permission_predicates(node, &mut predicates);
+        let predicate = ObjectPredicate::Union(predicates.into_iter().cloned().collect());
+        recognize_optional_batch_reminder_for(cursor, &predicate)?;
     }
     Ok(())
 }

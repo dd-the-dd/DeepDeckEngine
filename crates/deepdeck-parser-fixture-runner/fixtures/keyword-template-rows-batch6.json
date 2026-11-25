@@ -45,6 +45,12 @@
                 "equals": "hand"
               },
               {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
+              },
+              {
                 "pointer": "/rules/0/costs/0",
                 "equals": {
                   "kind": "payMana",
@@ -131,6 +137,12 @@
                 "equals": "hand"
               },
               {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
+              },
+              {
                 "pointer": "/rules/0/costs/0",
                 "equals": {
                   "kind": "payMana",
@@ -215,6 +227,12 @@
               {
                 "pointer": "/rules/0/activationZone",
                 "equals": "hand"
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
               },
               {
                 "pointer": "/rules/0/costs/0",
@@ -1108,6 +1126,12 @@
               {
                 "pointer": "/rules/0/activationZone",
                 "equals": "hand"
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
               },
               {
                 "pointer": "/rules/0/costs/0",

@@ -481,6 +481,72 @@
       }
     },
     {
+      "id": "near-miss-found-set-shares-a-creature-type-is-a-runtime-capability",
+      "request": {
+        "cardName": "Shared Creature Type Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for up to two creature cards that share a creature type, reveal them, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.search-card.shared-characteristic.capability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-found-set-shares-no-land-types",
+      "request": {
+        "cardName": "Shared No Land Type Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for up to two basic land cards that share no land types, put them onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relative-clause.share-set.polarity"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-found-set-shares-a-land-type-with-an-anchor",
+      "request": {
+        "cardName": "Anchored Land Type Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for up to two basic land cards that share a land type with target land, put them onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.connector-or-end"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-three-dreams-found-set-with-different-names",
       "request": {
         "cardName": "Three Dreams",

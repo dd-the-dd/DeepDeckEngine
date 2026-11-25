@@ -273,6 +273,59 @@ fn ninjutsu_is_not_offered_without_an_unblocked_attacker() {
     }));
 }
 
+/// CR 509.1h: an attacker is not unblocked before blockers are declared, so
+/// ninjutsu is not offered in the declare-attackers step even though an
+/// attacker has been declared and nothing blocks it yet.
+#[test]
+fn ninjutsu_is_not_offered_before_blockers_are_declared() {
+    let ninja = parsed_rules(
+        "Ninja of the Deep Hours",
+        "Creature \u{2014} Human Ninja",
+        "{3}{U}",
+        NINJA_OF_THE_DEEP_HOURS,
+    );
+    let mut engine = test_engine(2);
+    engine.state.active_player = 0;
+    engine.state.priority_player = Some(0);
+    engine.state.step = GameStep::DeclareAttackers;
+    let mut bear = test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-0",
+    );
+    bear.flags.insert("attacking".to_string(), true);
+    engine.state.players[0].battlefield = vec![
+        bear,
+        mana_source("island-0", "Basic Land - Island", "{U}", None),
+        mana_source("island-1", "Basic Land - Island", "{U}", None),
+    ];
+    engine.state.players[0].hand = vec![test_instance(
+        "ninja",
+        card("ninja", "Creature - Human Ninja", "{3}{U}", ninja),
+        "player-0",
+    )];
+    engine.state.combat.attackers = vec![DeclaredAttacker {
+        attacker_id: "bear".to_string(),
+        defender: TargetRef::Player {
+            player_id: "player-1".to_string(),
+        },
+        defending_player_id: "player-1".to_string(),
+    }];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let offered = |engine: &GameEngine| {
+        engine.legal_priority_actions(0).into_iter().any(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("ninja")
+        })
+    };
+    assert!(!offered(&engine), "no unblocked attacker before blocks");
+    // The same board offers it once the declare-blockers step has begun.
+    engine.state.step = GameStep::DeclareBlockers;
+    assert!(offered(&engine));
+}
+
 const CALLER_OF_THE_PACK: &str = "Trample\nMyriad (Whenever this creature attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)";
 
 fn myriad_engine(players: usize) -> GameEngine {

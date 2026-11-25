@@ -3344,13 +3344,22 @@ fn recognize_search_card_selector_with(
                     cursor.enter("selector.search-card.with-qualifier");
                     predicates.push(qualifiers::recognize_with_qualifier(cursor, form, plural)?);
                     SearchCardSelectorState::QualifierOrComplete
-                } else if plural && shared_characteristic_set_clause_starts(cursor) {
+                } else if plural && super::shared_characteristic_set_clause_starts(cursor) {
                     // `up to two basic land cards that share a land type`:
-                    // a constraint over the found set (CR 205.3i).
+                    // a constraint over the found set (CR 205.3i), read by
+                    // the shared share-clause readers in their set mode.
                     cursor.enter("selector.search-card.shared-characteristic");
-                    cursor.consume_phrase(&["that", "share", "a", "land", "type"])?;
+                    let characteristic = super::recognize_shared_characteristic_set_clause(cursor)?;
+                    // The found-set check the runtime has compares land
+                    // types only; another shared characteristic is read by
+                    // the same clause and refused here, never approximated.
+                    cursor.enter("selector.search-card.shared-characteristic.capability");
+                    cursor.require(
+                        characteristic == super::SharedCharacteristic::LandType,
+                        "a found set sharing a land type (the only shared-set check the runtime performs)",
+                    )?;
                     predicates.push(ObjectPredicate::Qualifier(
-                        super::ObjectQualifier::SharedValue(super::SharedCharacteristic::LandType),
+                        super::ObjectQualifier::SharedValue(characteristic),
                     ));
                     SearchCardSelectorState::QualifierOrComplete
                 } else if cursor
@@ -3440,22 +3449,6 @@ fn recognize_search_card_selector_with(
             }
         };
     }
-}
-
-/// `that share a land type` closing the set (not `... with ANCHOR`, which
-/// relates each card to another object). Lexical lookahead only.
-fn shared_characteristic_set_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    let word = |offset: usize, expected: &str| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
-    };
-    word(0, "that")
-        && word(1, "share")
-        && word(2, "a")
-        && word(3, "land")
-        && word(4, "type")
-        && !word(5, "with")
 }
 
 /// Separately headed card phrases sharing one parent quantity: `a basic land

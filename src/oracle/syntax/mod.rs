@@ -17,7 +17,9 @@ pub(crate) use classifier::{
     is_promoted_spell_cost_increase_envelope, root_activation_effect_start,
 };
 pub(crate) use context::AbilityInput;
-pub(crate) use counter_name_resolver::resolve_counter_name_spans;
+pub(crate) use counter_name_resolver::{
+    is_counter_name_part_candidate, is_keyword_counter_name_head, resolve_counter_name_spans,
+};
 #[allow(unused_imports)]
 pub(crate) use name_resolver::{
     ExactNameTokenIndex, NameLinkKind, NameResolution, NameResolutionContext,
