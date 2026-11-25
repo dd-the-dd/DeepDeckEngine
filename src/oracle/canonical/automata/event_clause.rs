@@ -4,6 +4,7 @@
 //! TriggerCondition := EventClause ([","] "and" EventClause)* BOUNDARY
 //! EventClause := "at the beginning of" Step [EventTime]
 //!              | ("when" | "whenever") Occurrence [ModifierTail] [EventTime]
+//!              | "when" StateCondition            -- `state_trigger.rs`, CR 603.8
 //! EventTime   := "while" CONDITION          -- `event_modifiers.rs`
 //! Occurrence  := SUBJECT LEMMA-FRAME
 //!   SUBJECT    the source, a quantified object query, a player actor, an
@@ -206,6 +207,12 @@ fn close_occurrence(
     let event = split_damage_recipients(event);
     let (event, mut time) = absorb_modifiers(cursor, event, tail)?;
     if super::while_condition_starts(cursor) {
+        // A state trigger's condition is its whole trigger (CR 603.8).
+        cursor.enter("event.state-trigger.while");
+        cursor.require(
+            !matches!(event, GenericTriggerEventNode::StateCondition(_)),
+            "one state condition for a state trigger (no `while` condition)",
+        )?;
         time.condition = Some(super::recognize_while_condition(
             cursor,
             name_links,
@@ -457,6 +464,37 @@ fn absorb_modifiers(
                     union_kind,
                     during_combat: true,
                 },
+                time,
+            ))
+        }
+        // A state is not an occurrence: no event modifier applies (CR 603.8).
+        GenericTriggerEventNode::StateCondition(_) if !tail.is_empty() => {
+            cursor.enter("event.state-trigger.modifier");
+            Err(cursor.fail("a state trigger without event modifiers (CR 603.8)"))
+        }
+        // `for the first time each turn` on a player event: the first
+        // occurrence of that event this turn, evaluated by the runtime's
+        // turn history of the event.
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::PlayerEvent {
+            actor,
+            actions,
+            one_or_more,
+            card,
+            permanent,
+            first_time_each_turn,
+        }) if tail.first_time_each_turn && !tail.not_blocked && !tail.during_combat => {
+            cursor.enter("event.modifier.distinct");
+            cursor.require(!first_time_each_turn, "each event modifier at most once")?;
+            time.turn_owner = tail.turn_owner;
+            Ok((
+                GenericTriggerEventNode::Local(LocalTriggerEventNode::PlayerEvent {
+                    actor,
+                    actions,
+                    one_or_more,
+                    card,
+                    permanent,
+                    first_time_each_turn: true,
+                }),
                 time,
             ))
         }
@@ -889,6 +927,20 @@ fn read_occurrence_alternatives(
                 .expect("a committed alternative always concludes");
         }
         Err(failure) if plural => return EventClauseAttempt::Committed(failure),
+        Err(failure) => reading.reject(cursor, failure),
+    }
+    // `When CONDITION,` (CR 603.8): a state trigger, tried after every
+    // occurrence so that a known event is never reread as a state.
+    match super::recognize_state_trigger_condition(cursor, name_links, name_failure) {
+        Ok(condition) => {
+            if let Some(outcome) = reading.finish(
+                cursor,
+                GenericTriggerEventNode::StateCondition(condition),
+                BoundaryPolicy::Backtrack,
+            ) {
+                return outcome;
+            }
+        }
         Err(failure) => reading.reject(cursor, failure),
     }
     reading.unclaimed(cursor)

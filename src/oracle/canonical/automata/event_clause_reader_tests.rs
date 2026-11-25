@@ -85,7 +85,8 @@ fn shared_modifiers_are_typed_on_the_subject_kinds_that_absorb_them() {
 
 #[test]
 fn a_modifier_on_an_occurrence_without_its_matcher_is_an_engine_gap() {
-    let (attempt, _) = clause("Whenever you gain life for the first time each turn, draw a card.");
+    let (attempt, _) =
+        clause("Whenever another creature dies for the first time each turn, draw a card.");
     let EventClauseAttempt::Committed(failure) = attempt else {
         panic!("committed engine gap")
     };

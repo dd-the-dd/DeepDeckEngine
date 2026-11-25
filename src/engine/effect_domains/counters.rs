@@ -1013,10 +1013,11 @@ impl GameEngine {
         }
         self.record_event(
             "proliferated",
-            Some(player_id),
+            Some(player_id.clone()),
             Some(stack_object.card.instance_id.clone()),
             json!({}),
         );
+        self.publish_proliferated(&player_id);
         Ok(())
     }
 }

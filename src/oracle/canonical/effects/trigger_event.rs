@@ -203,6 +203,9 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
         GenericTriggerEventNode::SourceCounterState(event) => {
             lower_source_counter_state_event(cursor, event)
         }
+        GenericTriggerEventNode::StateCondition(condition) => {
+            lower_state_trigger_event(cursor, condition)
+        }
     }
 }
 
@@ -237,6 +240,13 @@ fn lower_compound_trigger_event(
             "a flat trigger condition list",
         )?;
         let mut lowered = lower_generic_trigger_event(cursor, event)?;
+        // The first-occurrence history is kept per rule, not per member.
+        if lowered.get("firstTimeEachTurn").is_some() {
+            return Err(engine_gap(
+                cursor,
+                "an engine event matcher for `for the first time each turn` on a member of a trigger condition list",
+            ));
+        }
         if let Some(condition) = condition {
             let kind = lowered["kind"].as_str().unwrap_or_default();
             if !MEMBER_EVENT_CONDITION_KINDS.contains(&kind) {
@@ -1158,10 +1168,7 @@ fn lower_object_event(
                 "a `one or more` subject (per-object attack and damage matchers are separate)",
             )?;
             if !event.attacked.is_empty() {
-                return Err(engine_gap(
-                    cursor,
-                    "an attack-declaration matcher with a per-attacker attacked recipient",
-                ));
+                return lower_attackers_attacked_player(cursor, event);
             }
             cursor.require(
                 subject.query.controller == Some(ObjectControllerScope::AbilityController)
@@ -1826,14 +1833,18 @@ fn lower_local_event(
             one_or_more,
             card,
             permanent,
-        } => lower_player_event(
-            cursor,
-            *actor,
-            actions,
-            *one_or_more,
-            card.as_ref(),
-            permanent.as_ref(),
-        ),
+            first_time_each_turn,
+        } => {
+            let lowered = lower_player_event(
+                cursor,
+                *actor,
+                actions,
+                *one_or_more,
+                card.as_ref(),
+                permanent.as_ref(),
+            )?;
+            apply_first_time_each_turn(cursor, lowered, *first_time_each_turn)
+        }
         LocalTriggerEventNode::AttackDeclaration(node) => lower_attack_declaration(cursor, node),
         // Aura and Equipment attachments share the attached-object selector
         // of the generic targeting matcher (CR 115.1).
@@ -1989,7 +2000,7 @@ fn lower_attached_block_event(
 /// action is recognized but has no inspected producer and fails explicitly.
 const SIGNALLED_NAMED_ACTIONS: [&str; 3] = ["scry", "surveil", "amass"];
 
-fn event_actor_player(actor: EventActorScope) -> Value {
+pub(in crate::oracle::canonical) fn event_actor_player(actor: EventActorScope) -> Value {
     match actor {
         EventActorScope::Controller => controller(),
         EventActorScope::Opponent => json!({"kind": "opponentsOf", "player": controller()}),
@@ -2009,6 +2020,12 @@ fn lower_player_event(
     permanent: Option<&PlayerEventCardObject>,
 ) -> MachineResult<Value> {
     cursor.enter("trigger.program.player-event-support");
+    if let [action] = actions
+        && let Some(lowered) =
+            lower_player_outcome_event(cursor, actor, *action, one_or_more, permanent)
+    {
+        return lowered;
+    }
     let player = event_actor_player(actor);
     match actions {
         [] => Err(cursor.fail("at least one player-event verb")),
@@ -2040,10 +2057,6 @@ fn lower_player_event(
             }
             Ok(lowered)
         }
-        [PlayerEventAction::CommitCrime] => Err(engine_gap(
-            cursor,
-            "an engine matcher for a committed crime (CR 700.13)",
-        )),
         [action]
             if !action.takes_card_object()
                 && !matches!(action, PlayerEventAction::NamedAction(_)) =>
@@ -2087,10 +2100,13 @@ fn lower_tap_for_mana_event(
             "anyPlayer": true,
             "where": filter,
         })),
-        EventActorScope::Opponent => Err(engine_gap(
-            cursor,
-            "a mana-ability observer for an opponent's permanent",
-        )),
+        // The observer matches the tapped permanent's controller with the
+        // written relation (`tapped_for_mana_observed`).
+        EventActorScope::Opponent => Ok(json!({
+            "kind": "controlledPermanentManaAbilityActivated",
+            "player": event_actor_player(actor),
+            "where": filter,
+        })),
     }
 }
 
@@ -2254,9 +2270,17 @@ fn lower_fixed_player_event(
             | PlayerEventAction::NamedAction(_)
             | PlayerEventAction::ActivateAbility(_)
             | PlayerEventAction::TapForMana
-            | PlayerEventAction::CommitCrime,
+            | PlayerEventAction::CommitCrime
+            | PlayerEventAction::RollDie(_)
+            | PlayerEventAction::FlipCoin { .. }
+            | PlayerEventAction::Clash { .. }
+            | PlayerEventAction::Proliferate
+            | PlayerEventAction::Exert
+            | PlayerEventAction::CompleteDungeon,
             _,
-        ) => unreachable!("lowered by the received-damage, action-union or action-frame branches"),
+        ) => unreachable!(
+            "lowered by the received-damage, action-union, action-frame or outcome branches"
+        ),
     }
 }
 

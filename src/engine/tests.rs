@@ -16441,10 +16441,6 @@ fn reflecting_pool_derives_unique_types_without_recursive_bootstrap() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Fertile Ground; see docs/coverage-targets.md"
-)]
 #[test]
 fn enchanted_land_mana_triggers_are_folded_into_the_mana_action() {
     let mut engine = test_engine(2);

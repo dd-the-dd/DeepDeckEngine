@@ -366,6 +366,7 @@ impl GameEngine {
                         "targets": committed_targets,
                     }),
                 );
+                self.publish_committed_crime(&stack_id, &committed_targets);
                 self.enqueue_targeting_triggers(&stack_id, &committed_targets)?;
             }
         }

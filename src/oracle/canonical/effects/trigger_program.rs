@@ -148,12 +148,18 @@ fn compile_recognized_trigger_program(
         "at least one executable action",
     )?;
     // CR 605.1b: a trigger on an enchanted permanent's mana ability whose
-    // program adds mana is a triggered mana ability. The checked mana
-    // discovery refuses that program until its recipient and timing context
-    // are typed, so a rule with it would fail when the land is tapped; any
-    // other program is an ordinary triggered ability.
+    // program adds mana is a triggered mana ability. It resolves at once as
+    // part of that mana ability (CR 605.4a) when every action adds mana to
+    // the enchanted permanent's controller and nothing is declared; any
+    // other mana-adding program has no typed runtime context. A program
+    // that adds no mana is an ordinary triggered ability.
     if event["kind"] == "attachedPermanentManaAbilityActivated"
         && lowered.effects.iter().any(adds_mana)
+        && !(condition.is_none()
+            && event_condition.is_none()
+            && !node.once_each_turn
+            && lowered.decisions.is_empty()
+            && attached_mana_trigger_is_folded(&lowered.effects))
     {
         cursor.enter("trigger.program.attached-mana-ability");
         return Err(cursor.engine_gap(

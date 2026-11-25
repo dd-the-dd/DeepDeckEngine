@@ -68,6 +68,10 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
     /// `SOURCE has N or more|no COUNTERS on it` (CR 603.8): a state trigger,
     /// checked whenever a player would receive priority.
     SourceCounterState(SourceCounterStateNode),
+    /// `When CONDITION,` (CR 603.8): a state trigger over the shared
+    /// condition language (`you control no Islands`, `you have 30 or more
+    /// life`), read by `state_trigger.rs`.
+    StateCondition(super::SentenceConditionNode),
 }
 
 /// The counter threshold a state-triggered ability watches on its source.
