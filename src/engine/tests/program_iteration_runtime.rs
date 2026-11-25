@@ -326,28 +326,33 @@ fn a_per_player_target_admits_one_permanent_of_each_opponent() {
     engine
         .admit_explicit_test_fixture_objects()
         .expect("fixture objects are admitted");
-    let declarations = engine
+    let casts = engine
         .legal_priority_actions(0)
         .into_iter()
         .filter(|action| action.kind == ActionKind::CastSpell)
-        .map(|action| declared(&action))
         .collect::<Vec<_>>();
     // CR 601.2c: one permanent of each opponent, never two of the same one,
     // never the controller's own.
     assert!(
-        declarations
+        casts
             .iter()
-            .all(|targets| !targets.contains("own-relic"))
+            .all(|action| !declared(action).contains("own-relic"))
     );
-    assert!(
-        declarations.iter().all(
-            |targets| !(targets.contains("first-relic-a") && targets.contains("first-relic-b"))
-        )
-    );
-    engine.state.players[0]
-        .hand
-        .retain(|card| card.instance_id != "iteration-source");
-    cast(&mut engine, &card, &["first-relic-a", "second-relic"]);
+    assert!(casts.iter().all(|action| {
+        let targets = declared(action);
+        !(targets.contains("first-relic-a") && targets.contains("first-relic-b"))
+    }));
+    let wanted = ["first-relic-a", "second-relic"]
+        .into_iter()
+        .map(str::to_string)
+        .collect::<BTreeSet<_>>();
+    let cast = casts
+        .into_iter()
+        .find(|action| declared(action) == wanted)
+        .expect("one artifact of each opponent is a legal declaration");
+    engine
+        .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
+        .unwrap_or_else(|error| panic!("the spell is cast: {}", error.message));
     resolve(&mut engine);
     assert!(!on_battlefield(&engine, "first-relic-a"));
     assert!(!on_battlefield(&engine, "second-relic"));
