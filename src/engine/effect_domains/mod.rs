@@ -315,7 +315,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "ventureDungeon"
             | "restrictPlayerActions",
         ) => Some(Domain::PlayerStatus),
-        Some("becomeMonarch" | "temptWithRing" | "skipTurnPart") => {
+        Some("becomeMonarch" | "takeInitiative" | "temptWithRing" | "skipTurnPart") => {
             Some(Domain::PlayerDesignations)
         }
         Some("removeFromCombat") => Some(Domain::CombatRemoval),

@@ -24,7 +24,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                     && permanent_filter_supported(&effect["object"]["where"])
                     && effect["object"]
                         .get("player")
-                        .is_none_or(player_reference_supported)))
+                        .is_none_or(player_reference_supported))
+                || object_relation_eval::related_collection_supported(&effect["object"]))
                 && numeric_expression_supported(&effect["power"])
                 && numeric_expression_supported(&effect["toughness"])
                 && matches!(
@@ -136,6 +137,20 @@ impl GameEngine {
                                     decisions,
                                 )
                                 .unwrap_or_default(),
+                            // A relation (`blocking this creature`) is
+                            // prepared by the shared runtime collection.
+                            Some("eachPermanent")
+                                if object_relation_eval::filter_has_relation(
+                                    &effect["object"]["where"],
+                                ) =>
+                            {
+                                self.resolve_runtime_object_ids_checked(
+                                    &effect["object"],
+                                    stack_object,
+                                    bindings,
+                                    decisions,
+                                )?
+                            }
                             Some("eachPermanent") => self
                                 .state
                                 .players

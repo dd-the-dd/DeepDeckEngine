@@ -342,7 +342,7 @@ pub(super) fn activated_rule_limit_supported(rule: &Value) -> bool {
         .get("activationZone")
         .and_then(Value::as_str)
         .is_some_and(|zone| zone != "battlefield");
-    !off_battlefield
+    (!off_battlefield || zone_of_function::hand_activation_limit_supported(rule))
         && limit["id"].is_string()
         && match value_kind(limit) {
             Some("oncePerGameObject" | "oncePerGameObjectAbility" | "oncePerTurn") => true,

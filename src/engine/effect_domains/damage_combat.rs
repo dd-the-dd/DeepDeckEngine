@@ -186,9 +186,11 @@ impl GameEngine {
                             spell_profile.as_ref(),
                         )?;
                     }
-                } else if let Some(target) =
+                } else if let Some(target) = if value_kind(&effect["recipient"]) == Some("self") {
+                    self.self_damage_recipient(stack_object)
+                } else {
                     self.resolve_target(&effect["recipient"], stack_object, bindings)
-                {
+                } {
                     let lethal_threshold = match &target {
                         TargetRef::Permanent { instance_id } => self
                             .permanent_position(instance_id)

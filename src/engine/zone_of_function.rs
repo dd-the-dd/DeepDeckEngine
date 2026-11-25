@@ -88,6 +88,47 @@ pub(super) fn card_zone_static_rule_supported(rule: &Value) -> bool {
         })
 }
 
+/// An activation limit of an ability activated from its owner's hand
+/// (forecast, CR 702.57a-b: `only once each turn`). The use is recorded on
+/// the card in hand, which stays there when its cost only reveals it; a card
+/// that leaves and returns is a new object with no use (CR 400.7). Another
+/// limit or another off-battlefield zone keeps no use record and is refused.
+pub(super) fn hand_activation_limit_supported(rule: &Value) -> bool {
+    rule["activationZone"].as_str() == Some("hand")
+        && value_kind(&rule["activationLimit"]) == Some("oncePerTurn")
+        && rule["activationLimit"]["id"].is_string()
+}
+
+impl GameEngine {
+    /// Records one use of a hand-activated ability's limit on the card in
+    /// hand (see [`hand_activation_limit_supported`]). A source that left the
+    /// hand while its costs were paid keeps no record: it is a new object.
+    pub(super) fn record_hand_activation_use(
+        &mut self,
+        player_index: usize,
+        zone_name: &str,
+        instance_id: &str,
+        rule: &Value,
+        rule_index: usize,
+    ) {
+        if zone_name != "hand" || !hand_activation_limit_supported(rule) {
+            return;
+        }
+        let Some(flag) =
+            activation_limit_flag(&rule["activationLimit"], self.state.turn_number, rule_index)
+        else {
+            return;
+        };
+        if let Some(card) = self.state.players[player_index]
+            .hand
+            .iter_mut()
+            .find(|card| card.instance_id == instance_id)
+        {
+            card.flags.insert(flag, true);
+        }
+    }
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
