@@ -139,6 +139,10 @@ mod arcane_denial_runtime;
 #[path = "tests/effect_created_rules_runtime.rs"]
 mod effect_created_rules_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/replacement_vocabulary_runtime.rs"]
+mod replacement_vocabulary_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/counter_protection_runtime.rs"]
 mod counter_protection_runtime;
