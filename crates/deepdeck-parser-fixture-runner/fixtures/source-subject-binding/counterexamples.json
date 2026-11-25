@@ -97,6 +97,28 @@
       }
     },
     {
+      "id": "near-miss-player-event-has-no-object-for-it",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a player draws a card, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "reference.source-or-anaphor.start"
+          }
+        ]
+      }
+    },
+    {
       "id": "local-target-overrides-source-event",
       "request": {
         "cardName": "Source Binding Witness",

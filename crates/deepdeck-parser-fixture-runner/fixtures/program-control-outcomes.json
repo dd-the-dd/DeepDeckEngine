@@ -639,6 +639,28 @@
       }
     },
     {
+      "id": "near-miss-labeled-instead-without-an-earlier-instruction",
+      "request": {
+        "cardName": "Synthetic Threshold",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Threshold — If seven or more cards are in your graveyard, instead draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.instead"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-rhystic-tutor-preposed-unless-any-player",
       "request": {
         "cardName": "Rhystic Tutor",

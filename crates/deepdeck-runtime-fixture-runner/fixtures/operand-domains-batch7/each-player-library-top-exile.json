@@ -1,7 +1,7 @@
 {
   "schemaVersion": "deepdeck-runtime-fixture/v1",
   "id": "each-player-library-top-card-is-exiled",
-  "seed": 11,
+  "seed": 0,
   "rule": {
     "kind": "spellAbility",
     "source": {
@@ -119,6 +119,11 @@
       "playerId": "player-1",
       "zone": "library",
       "equals": 1
+    },
+    {
+      "kind": "libraryTopIs",
+      "playerId": "player-0",
+      "definitionId": "own-bottom"
     },
     {
       "kind": "libraryTopIs",

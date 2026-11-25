@@ -584,6 +584,28 @@
           }
         ]
       }
+    },
+    {
+      "id": "near-miss-plural-pronoun-for-one-entering-creature",
+      "request": {
+        "cardName": "Unsupported Observed Source",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever a creature you control enters, they deal 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
+          }
+        ]
+      }
     }
   ]
 }
