@@ -660,3 +660,35 @@ désigné absente du moteur), Miracle (aucun producteur de
 plancher à 0 que les évaluateurs numériques ne partagent pas), Gift
 (condition `the gift was promised` non typée), Dethrone et Training
 (prédicats d'événement d'attaque).
+
+## Lot 10 : coûts alternatifs depuis une zone, Reconfigure, listes à points-virgules
+
+Lignes de `casting_keyword.rs` (lecture partagée lexème / paramètre / rappel
+validé) réduites par `alternative_cost_native.rs` au mot-clé d'exécution que
+le moteur exécute (`src/engine/keyword_programs.rs`) :
+
+| Mot-clé | CR | IR | Exécution |
+|---|---|---|---|
+| Madness | 702.35a-b | `madness {cost: payMana}` | toute défausse depuis une main passe par `prepare_discard_destination` : la carte est exilée (`graveyardDestinationReplaced {replacement: madness}`) ; le déclencheur lié compose `castOneCard {alternativeCost: madness}` puis `moveCards` exil → cimetière du propriétaire si la carte n'a pas été lancée |
+| Aftermath | 702.127a | `aftermath` (sur la moitié qui le porte) | route `Aftermath` depuis le cimetière ; légalité partagée : cette moitié seulement depuis un cimetière, l'autre moitié seulement par une autre route ; `exileOnLeaveStack` sur un lancement depuis le cimetière |
+| Disturb | 702.146a-b | `disturb {cost: payMana}` | source de lancement « face arrière » pour chaque carte du cimetière ; coût alternatif `disturb` ; la carte est sur la pile face arrière et se résout transformée ; valeur de mana de la face avant (CR 712.8e) |
+| Casualty N | 702.153a-b | `casualty {minimumPower}` (éphémère/rituel) | déclaration `casualtySacrifice:i` par instance, sacrifice au paiement, une copie par instance payée (nouvelles cibles permises) |
+
+Le coût alternatif d'un lancement pendant la résolution (`castOneCard.alternativeCost`,
+CR 118.9) est une permission temporaire lue par le constructeur d'actions de
+lancement ; elle ne sert qu'aux cartes offertes par cet effet.
+
+Ligne de modèle `reconfigure` (paramètre `manaCost`, CR 702.151a) : les deux
+capacités activées citées se compilent par l'analyseur partagé. La règle
+CR 702.151b est intrinsèque au moteur : un Équipement attaché dont une règle
+porte la provenance `reconfigure` n'est pas une créature.
+
+La liste partagée de mots-clés accepte `;` comme séparateur quand un autre
+atome de mot-clé suit (`Flying; fear`).
+
+Limites mesurées : la défausse payée par retrace / jump-start garde le
+cimetière (pas de déclencheur de madness à ce point du lancement) ; une
+`Ward—[coût non mana]` (défausse, sacrifice) a une exécution mais son nœud
+(`KeywordAtomNode::Ward`) traverse des fichiers d'autres thèmes ; Backup,
+Champion, Hideaway, Miracle, Sneak hors éphémère et Morph à coût non mana
+restent bloqués (voir le rapport du lot).

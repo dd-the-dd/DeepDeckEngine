@@ -36,6 +36,11 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["optional"].is_boolean()
                 && effect["bind"].is_string()
                 && effect.get("spellWhere").is_none_or(stack_filter_supported)
+                // CR 118.9: an alternative cost the cast pays instead of the
+                // mana cost (madness, CR 702.35a).
+                && super::super::keyword_programs::resolution_alternative_cost_supported(effect)
+                && (effect.get("alternativeCost").is_none()
+                    || effect["normalCostsApply"].as_bool() == Some(true))
         }
         Some("castAnyNumber") => {
             cast_any_number_supported(effect) && effect.get("bind").is_none_or(Value::is_string)
@@ -338,13 +343,16 @@ impl GameEngine {
                     .filter(|card| card_ids.contains(&card.instance_id))
                     .cloned()
                     .collect::<Vec<_>>();
-                let mut options = self.cast_one_card_actions(
+                self.open_resolution_alternative_cost(effect, &stack_object.id, &player_id, &cards);
+                let options = self.cast_one_card_actions(
                     player_index,
                     &cards,
                     source_zone,
                     effect["normalCostsApply"].as_bool() == Some(true),
                     effect.get("spellWhere"),
-                )?;
+                );
+                self.close_resolution_alternative_cost(&stack_object.id);
+                let mut options = options?;
                 // An absent hit or a card with no legal resulting spell
                 // does not ask the player to decline an impossible cast.
                 if options.is_empty() {

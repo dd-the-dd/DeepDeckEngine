@@ -431,6 +431,7 @@ impl GameEngine {
             && !self.spell_casting_prohibited(player_id)
             && !self.spell_cast_from_zone_prohibited(player_id, source_zone, &card.definition)
             && self.spell_cast_restrictions_allow(player_id, card)
+            && self.aftermath_cast_allowed(player_id, card, source_zone)
     }
 
     /// Whether `player_id` may begin to cast `card` now under the card's own

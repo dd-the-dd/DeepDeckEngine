@@ -674,6 +674,21 @@
       ]
     },
     {
+      "canonicalId": "reconfigure",
+      "templateVersion": 1,
+      "lexeme": "reconfigure",
+      "parameter": "manaCost",
+      "rulesClause": "reconfigure.cr-702-151a",
+      "rulesSection": "702.151a",
+      "abilities": [
+        "$cost: Attach this permanent to another target creature you control. Activate only as a sorcery.",
+        "$cost: Unattach this permanent. Activate only if this permanent is attached to a creature and only as a sorcery."
+      ],
+      "reminders": [
+        "$cost: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature."
+      ]
+    },
+    {
       "canonicalId": "ascend",
       "templateVersion": 1,
       "lexeme": "ascend",

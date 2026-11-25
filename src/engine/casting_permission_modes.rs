@@ -15,6 +15,9 @@ pub(super) enum CastingRoute<'a> {
     ArcadeGannon,
     StaticPermission,
     GraveyardLand,
+    /// CR 702.127a: the aftermath half of a split card in its owner's
+    /// graveyard; only that half is cast through this route.
+    Aftermath,
     TopOfLibrary,
     CardPermission(&'a Value),
 }
@@ -150,6 +153,8 @@ impl GameEngine {
                     Some(CastingRoute::StaticPermission)
                 } else if self.can_play_lands_from_graveyard(&player.id) && is_land(definition) {
                     Some(CastingRoute::GraveyardLand)
+                } else if super::keyword_programs::split_card_has_aftermath(definition) {
+                    Some(CastingRoute::Aftermath)
                 } else {
                     None
                 }

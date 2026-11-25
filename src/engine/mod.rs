@@ -2469,14 +2469,16 @@ fn permanent_filter_supported(filter: &Value) -> bool {
 }
 
 fn mana_value(card: &CardDefinition) -> i32 {
-    parse_mana_symbols(&card.mana_cost)
-        .into_iter()
-        .map(|symbol| {
-            symbol
-                .parse::<i32>()
-                .unwrap_or_else(|_| i32::from(symbol != "X"))
-        })
-        .sum()
+    parse_mana_symbols(
+        keyword_programs::front_face_mana_cost(card).unwrap_or(card.mana_cost.as_str()),
+    )
+    .into_iter()
+    .map(|symbol| {
+        symbol
+            .parse::<i32>()
+            .unwrap_or_else(|_| i32::from(symbol != "X"))
+    })
+    .sum()
 }
 
 fn distinct_card_types<'a>(
@@ -4074,6 +4076,10 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || rebound::rebound_ability_supported(&rule["ability"])
                 || suspend_ability_supported(&rule["ability"])
                 || mayhem_ability_supported(&rule["ability"])
+                || keyword_programs::madness_ability_supported(&rule["ability"])
+                || keyword_programs::aftermath_ability_supported(&rule["ability"])
+                || keyword_programs::disturb_ability_supported(&rule["ability"])
+                || keyword_programs::casualty_ability_supported(&rule["ability"])
                 || value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
                 || escape_ability_supported(&rule["ability"])
                 || blitz_ability_supported(&rule["ability"])
@@ -10768,6 +10774,11 @@ impl GameEngine {
 
     fn permanent_has_card_type(&self, permanent: &CardInstance, card_type: &str) -> bool {
         if card_type.eq_ignore_ascii_case("Creature")
+            && keyword_programs::reconfigured_while_attached(permanent)
+        {
+            return false;
+        }
+        if card_type.eq_ignore_ascii_case("Creature")
             && permanent
                 .flags
                 .get("impendingCostPaid")
@@ -13644,7 +13655,7 @@ impl GameEngine {
                 .position(|candidate| candidate.instance_id == instance_id)
                 .ok_or_else(|| EngineError::new("discard cost card is no longer in hand"))?;
             let (discarded, graveyard_destination) =
-                self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                self.take_hand_card_for_discard(player_index, card_index)?;
             self.put_owned_card_into_prepared_graveyard(
                 player_index,
                 discarded,
@@ -14137,7 +14148,7 @@ impl GameEngine {
                     })
                     .ok_or_else(|| EngineError::new("keyword discard is no longer payable"))?;
                 let (discarded, graveyard_destination) =
-                    self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                    self.take_hand_card_for_discard(player_index, card_index)?;
                 self.put_owned_card_into_prepared_graveyard(
                     player_index,
                     discarded,
@@ -16442,6 +16453,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
+        assignments = self.expand_casualty_declarations(card, controller_id, assignments);
         if let Some(enchant_ability) = card.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("enchant"))
@@ -17305,6 +17317,14 @@ impl GameEngine {
                         .decisions
                         .insert("xValue".to_string(), Value::from(0));
                 }
+                if !self.prepare_resolution_cast_declaration(
+                    card,
+                    &player_id,
+                    source_zone,
+                    &mut declaration.decisions,
+                ) {
+                    continue;
+                }
                 if source_zone == "hand"
                     && declaration.targets.values().any(|target| {
                         matches!(
@@ -17737,6 +17757,12 @@ impl GameEngine {
                     .into_iter()
                     .map(|(card, source_zone)| (card, source_zone, None, false)),
             )
+            // CR 702.146a, 712.8c: a disturb card on its back face.
+            .chain(
+                self.disturb_casting_sources(player)
+                    .into_iter()
+                    .map(|(card, source_zone)| (card, source_zone, None, false)),
+            )
             .collect::<Vec<_>>();
 
         for (card, source_zone, split_face_index, fused) in casting_sources
@@ -17951,6 +17977,13 @@ impl GameEngine {
                     declaration
                         .decisions
                         .insert("exileOnLeaveStack".to_string(), Value::Bool(true));
+                }
+                if !self.prepare_priority_cast_declaration(
+                    card,
+                    source_zone,
+                    &mut declaration.decisions,
+                ) {
+                    continue;
                 }
                 if *source_zone == "graveyard"
                     && let Some(source_id) = self.arcade_gannon_source_for_card(&player.id, card)
@@ -23303,6 +23336,7 @@ impl GameEngine {
     }
 
     fn enqueue_card_discarded_triggers(&mut self, discarding_player_id: &str) {
+        self.enqueue_madness_trigger(discarding_player_id);
         let discarded_id = self
             .state
             .events
@@ -25690,6 +25724,11 @@ impl GameEngine {
                     .ok_or_else(|| EngineError::new("spell source is no longer available"))?;
                 let source_definition =
                     adventure::casting_definition(&action.decisions, source_definition)?;
+                let source_definition = self.transformed_casting_definition(
+                    &action.decisions,
+                    action.card_instance_id.as_deref(),
+                    source_definition,
+                );
                 let cast_source_zone = action
                     .decisions
                     .get("castSourceZone")
@@ -25929,6 +25968,7 @@ impl GameEngine {
                 // CR 716.3b: on the stack, only the Adventure's characteristics.
                 card.definition =
                     adventure::casting_definition(&action.decisions, card.definition.clone())?;
+                keyword_programs::apply_transformed_cast(&action.decisions, &mut card)?;
                 if action
                     .decisions
                     .get("fused")
@@ -26215,6 +26255,7 @@ impl GameEngine {
                 let optional_sacrifice_count = self.apply_optional_casting_sacrifices(action)?;
                 self.apply_casting_land_sacrifices(action)?;
                 let conspire_count = self.apply_conspire_costs(action, &spell_definition)?;
+                let casualty_count = self.apply_casualty_costs(action, &spell_definition)?;
                 let gravestorm_copy_count = if has_gravestorm {
                     self.state
                         .events
@@ -26319,6 +26360,7 @@ impl GameEngine {
                         );
                     }
                 }
+                self.enqueue_casualty_copies(casualty_count, &stack_id, &action.player_id);
                 if !replicate_counts.is_empty()
                     && let Some(source) = self
                         .state
@@ -27138,7 +27180,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
                     let (card, graveyard_destination) =
-                        self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                        self.take_hand_card_for_discard(player_index, card_index)?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -27239,7 +27281,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("typed cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
                     let (card, graveyard_destination) =
-                        self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                        self.take_hand_card_for_discard(player_index, card_index)?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -28869,8 +28911,8 @@ impl GameEngine {
                             .iter()
                             .position(|candidate| candidate.instance_id == instance_id)
                         {
-                            let (discarded, graveyard_destination) = self
-                                .take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                            let (discarded, graveyard_destination) =
+                                self.take_hand_card_for_discard(player_index, card_index)?;
                             self.put_owned_card_into_prepared_graveyard(
                                 player_index,
                                 discarded,
@@ -38229,7 +38271,7 @@ impl GameEngine {
                 .ok_or_else(|| EngineError::new("discard action has no card"))?;
             let card_index = self.hand_position(active, instance_id)?;
             let (card, graveyard_destination) =
-                self.take_zone_card_for_graveyard(active, "hand", card_index)?;
+                self.take_hand_card_for_discard(active, card_index)?;
             let card_id = card.instance_id.clone();
             self.put_owned_card_into_prepared_graveyard(active, card, graveyard_destination)?;
             eprintln!(

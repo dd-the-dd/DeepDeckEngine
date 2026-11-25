@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/disturb-casting-keyword",
+  "cases": [
+    {
+      "id": "exact-lunarch-veteran",
+      "request": {
+        "cardName": "Lunarch Veteran // Luminous Phantom",
+        "typeLine": "Creature — Human Cleric // Creature — Spirit Cleric",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "Lunarch Veteran:face-0",
+            "name": "Lunarch Veteran",
+            "typeLine": "Creature — Human Cleric",
+            "manaCost": "{W}",
+            "oracleText": "Whenever another creature you control enters, you gain 1 life.\nDisturb {1}{W} (You may cast this card from your graveyard transformed for its disturb cost.)",
+            "power": "1",
+            "toughness": "1",
+            "loyalty": null
+          },
+          {
+            "id": "Luminous Phantom:face-1",
+            "name": "Luminous Phantom",
+            "typeLine": "Creature — Spirit Cleric",
+            "manaCost": "",
+            "oracleText": "Flying\nWhenever another creature you control leaves the battlefield, you gain 1 life.\nIf Luminous Phantom would be put into a graveyard from anywhere, exile it instead.",
+            "power": "1",
+            "toughness": "1",
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 5,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "disturb",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{1}{W}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-covetous-castaway-five-mana",
+      "request": {
+        "cardName": "Covetous Castaway // Ghostly Castigator",
+        "typeLine": "Creature — Human // Creature — Spirit",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "Covetous Castaway:face-0",
+            "name": "Covetous Castaway",
+            "typeLine": "Creature — Human",
+            "manaCost": "{1}{U}",
+            "oracleText": "When this creature dies, mill three cards. (Put the top three cards of your library into your graveyard.)\nDisturb {3}{U}{U} (You may cast this card from your graveyard transformed for its disturb cost.)",
+            "power": "1",
+            "toughness": "3",
+            "loyalty": null
+          },
+          {
+            "id": "Ghostly Castigator:face-1",
+            "name": "Ghostly Castigator",
+            "typeLine": "Creature — Spirit",
+            "manaCost": "",
+            "oracleText": "Flying\nWhen this creature enters, you may shuffle up to three target cards from your graveyard into your library.\nIf Ghostly Castigator would be put into a graveyard from anywhere, exile it instead.",
+            "power": "3",
+            "toughness": "4",
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 5,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "disturb",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{3}{U}{U}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-disturb-cost-sequence",
+      "request": {
+        "cardName": "Generic Disturb Source",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{W}",
+        "oracleText": "Disturb—Pay 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.static.subject"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-disturb-foreign-reminder",
+      "request": {
+        "cardName": "Generic Disturb Source",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{W}",
+        "oracleText": "Disturb {1}{W} (You may cast this card from your hand transformed for its disturb cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.reminder.body"
+          }
+        ]
+      }
+    }
+  ]
+}

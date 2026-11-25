@@ -1,0 +1,172 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/reconfigure-keyword-template",
+  "cases": [
+    {
+      "id": "exact-lizard-blades",
+      "request": {
+        "cardName": "Lizard Blades",
+        "typeLine": "Artifact Creature — Equipment Lizard",
+        "manaCost": "{1}{R}",
+        "oracleText": "Double strike\nEquipped creature has double strike.\nReconfigure {2} ({2}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "reconfigure"
+              },
+              {
+                "pointer": "/parameters/cost",
+                "equals": "{2}"
+              },
+              {
+                "pointer": "/definition/rulesSection",
+                "equals": "702.151a"
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/costs/0/manaCost",
+                "equals": "{2}"
+              },
+              {
+                "pointer": "/rules/0/activationCondition/kind",
+                "equals": "sorceryTiming"
+              },
+              {
+                "pointer": "/rules/1/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/1/costs/0/manaCost",
+                "equals": "{2}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-rabbit-battery-colored-cost",
+      "request": {
+        "cardName": "Rabbit Battery",
+        "typeLine": "Artifact Creature — Equipment Rabbit",
+        "manaCost": "{R}",
+        "oracleText": "Haste\nEquipped creature gets +1/+1 and has haste.\nReconfigure {R} ({R}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "reconfigure"
+              },
+              {
+                "pointer": "/parameters/cost",
+                "equals": "{R}"
+              },
+              {
+                "pointer": "/definition/rulesSection",
+                "equals": "702.151a"
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/costs/0/manaCost",
+                "equals": "{R}"
+              },
+              {
+                "pointer": "/rules/0/activationCondition/kind",
+                "equals": "sorceryTiming"
+              },
+              {
+                "pointer": "/rules/1/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/1/costs/0/manaCost",
+                "equals": "{R}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-reconfigure-foreign-reminder",
+      "request": {
+        "cardName": "Generic Reconfigure Source",
+        "typeLine": "Artifact Creature — Equipment Lizard",
+        "manaCost": "{1}{R}",
+        "oracleText": "Reconfigure {2} ({2}: Attach to target creature you control. Reconfigure only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.template.reminder.body"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-reconfigure-alternative-costs",
+      "request": {
+        "cardName": "Generic Reconfigure Source",
+        "typeLine": "Artifact Creature — Equipment Ogre",
+        "manaCost": "{3}{B}",
+        "oracleText": "Reconfigure—Pay {1} or {3}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.static.subject"
+          }
+        ]
+      }
+    }
+  ]
+}

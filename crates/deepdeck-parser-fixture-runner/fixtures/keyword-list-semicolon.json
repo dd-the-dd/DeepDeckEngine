@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/keyword-list-semicolon",
+  "cases": [
+    {
+      "id": "exact-bayou-dragonfly",
+      "request": {
+        "cardName": "Bayou Dragonfly",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{1}{G}",
+        "oracleText": "Flying; swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbilityGroup",
+              "source": {
+                "kind": "self"
+              },
+              "abilities": [
+                {
+                  "kind": "flying"
+                },
+                {
+                  "kind": "swampwalk"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-three-keywords-semicolons",
+      "request": {
+        "cardName": "Generic Semicolon Source",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{2}{R}",
+        "oracleText": "Trample; haste; shroud (This creature can't be the target of spells or abilities.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbilityGroup",
+              "source": {
+                "kind": "self"
+              },
+              "abilities": [
+                {
+                  "kind": "trample"
+                },
+                {
+                  "kind": "haste"
+                },
+                {
+                  "kind": "shroud"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-defender-reach-semicolon",
+      "request": {
+        "cardName": "Generic Semicolon Source",
+        "typeLine": "Creature — Plant Wall",
+        "manaCost": "{2}{G}",
+        "oracleText": "Defender; reach (This creature can block creatures with flying.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbilityGroup",
+              "source": {
+                "kind": "self"
+              },
+              "abilities": [
+                {
+                  "kind": "defender"
+                },
+                {
+                  "kind": "reach"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-semicolon-before-a-sentence",
+      "request": {
+        "cardName": "Generic Semicolon Source",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{1}{G}",
+        "oracleText": "Flying; you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}
