@@ -28,7 +28,12 @@ pub(in crate::oracle::canonical) fn recognize_that_many_event_value(
         // Without an event quantity the antecedent is the result of an
         // earlier action of the same program (CR 608.2c); the program
         // lowering binds it or fails explicitly.
-        None => super::action_result_anaphor(cursor, quantity.eq_ignore_ascii_case("much")),
+        // The first action of an activation restates its payer-chosen
+        // cost number (`Remove any number of counters: ... that many`).
+        None => match super::cost_chosen_amount_anaphor(cursor) {
+            Some(amount) => Ok(amount),
+            None => super::action_result_anaphor(cursor, quantity.eq_ignore_ascii_case("much")),
+        },
     }
 }
 
@@ -466,6 +471,10 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// `your highest commander tax among your commanders` (CR 903.8): the
     /// greatest tax among the controller's commanders, zero without one.
     HighestCommanderTax,
+    /// The number the payer chose while paying a cost of this activation
+    /// (`for each storage counter removed this way`, CR 601.2h via 602.2b):
+    /// the activation's `costChosenAmount` declaration (`quantity_slot.rs`).
+    CostChosenAmount,
 }
 
 /// The per-turn record of the resolving ability itself (CR 113.3, 602.1,
@@ -568,6 +577,7 @@ impl NumericQuantity {
             | Self::PlayersAtExtremum { .. }
             | Self::ControllerMeasure(_)
             | Self::HighestCommanderTax
+            | Self::CostChosenAmount
             | Self::Counters {
                 holder: CounterHolder::Source,
                 ..
@@ -594,6 +604,7 @@ impl NumericQuantity {
             | Self::PlayersAtExtremum { .. }
             | Self::ControllerMeasure(_)
             | Self::HighestCommanderTax
+            | Self::CostChosenAmount
             | Self::Counters { .. } => false,
         }
     }
@@ -621,7 +632,8 @@ impl NumericQuantity {
             | Self::PlayersComparedWithController { .. }
             | Self::PlayersAtExtremum { .. }
             | Self::ControllerMeasure(_)
-            | Self::HighestCommanderTax => false,
+            | Self::HighestCommanderTax
+            | Self::CostChosenAmount => false,
         }
     }
 }

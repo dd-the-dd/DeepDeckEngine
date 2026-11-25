@@ -1,0 +1,736 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch9/choice-quantity-targets",
+  "cases": [
+    {
+      "id": "exact-mage-ring-network-storage-counters-removed-this-way",
+      "request": {
+        "cardName": "Mage-Ring Network",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{1}, {T}: Put a storage counter on this land.\n{T}, Remove any number of storage counters from this land: Add {C} for each storage counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "manaAbility"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/costs/1/counter",
+                "equals": "storage"
+              },
+              {
+                "pointer": "/costs/1/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "costChosenAmount"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "costChosenAmount"
+              },
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseNumber"
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": {
+                  "kind": "countCounters",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "counter": "storage"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-saprazzan-cove-storage-land",
+      "request": {
+        "cardName": "Saprazzan Cove",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Put a storage counter on this land.\n{T}, Remove any number of storage counters from this land: Add {U} for each storage counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-hollow-trees-storage-land",
+      "request": {
+        "cardName": "Hollow Trees",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {G} for each storage counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          },
+          {
+            "index": 3,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fountain-of-cho-storage-land",
+      "request": {
+        "cardName": "Fountain of Cho",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Put a storage counter on this land.\n{T}, Remove any number of storage counters from this land: Add {W} for each storage counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bottomless-vault-storage-land",
+      "request": {
+        "cardName": "Bottomless Vault",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {B} for each storage counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          },
+          {
+            "index": 3,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-geistflame-reservoir-that-much-damage-from-removed-counters",
+      "request": {
+        "cardName": "Geistflame Reservoir",
+        "typeLine": "Artifact",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, put a charge counter on this artifact.\n{1}{R}, {T}, Remove any number of charge counters from this artifact: It deals that much damage to any target.\n{1}{R}, {T}: Exile the top card of your library. You may play that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/2/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "costChosenAmount"
+                }
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-astonishing-ant-man-that-many-tokens-from-removed-counters",
+      "request": {
+        "cardName": "The Astonishing Ant-Man",
+        "typeLine": "Legendary Creature — Human Scientist Hero",
+        "manaCost": "{G}{U}",
+        "oracleText": "Whenever you draw a card, put a +1/+1 counter on The Astonishing Ant-Man.\n{2}{G}, {T}, Remove any number of +1/+1 counters from The Astonishing Ant-Man: Create that many 1/1 green Insect creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-painbringer-cards-exiled-this-way",
+      "request": {
+        "cardName": "Painbringer",
+        "typeLine": "Creature — Human Minion",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "{T}, Exile any number of cards from your graveyard: Target creature gets -X/-X until end of turn, where X is the number of cards exiled this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "costChosenAmount"
+              },
+              {
+                "pointer": "/declaration/decisions/1/quantity",
+                "equals": {
+                  "kind": "exactly",
+                  "value": {
+                    "kind": "decisionResult",
+                    "decisionId": "costChosenAmount"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-corpseweft-one-or-more-creature-cards",
+      "request": {
+        "cardName": "Corpseweft",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "{1}{B}, Exile one or more creature cards from your graveyard: Create a tapped X/X black Zombie Horror creature token, where X is twice the number of cards exiled this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-procrastinate-twice-x-counters",
+      "request": {
+        "cardName": "Procrastinate",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}",
+        "oracleText": "Tap target creature. Put twice X stun counters on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-reprocess-sacrifice-any-number-draw-for-each",
+      "request": {
+        "cardName": "Reprocess",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Sacrifice any number of artifacts, creatures, and/or lands. Draw a card for each permanent sacrificed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "sacrificePermanents"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-any-number-of-artifacts-draw-for-each",
+      "request": {
+        "cardName": "Quantity Slot Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Sacrifice any number of artifacts. Draw a card for each artifact sacrificed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "sacrificePermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-up-to-two-then-draw-that-many",
+      "request": {
+        "cardName": "Quantity Range Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Sacrifice up to two creatures, then draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/maximum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "recombination-removed-counters-gain-life-for-each",
+      "request": {
+        "cardName": "Removed Counter Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Remove any number of time counters from this artifact: You gain 1 life for each time counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "costChosenAmount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "recombination-sacrifice-one-or-more-chosen-cost-that-many-damage",
+      "request": {
+        "cardName": "Chosen Sacrifice Probe",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "{T}, Sacrifice one or more other Goblins: This creature deals that much damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-any-number-of-unnamed-counter-kinds",
+      "request": {
+        "cardName": "Unnamed Counter Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Remove any number of counters from this artifact: You gain 1 life for each counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-up-to-x-without-producer",
+      "request": {
+        "cardName": "Undeclared Range Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Sacrifice up to X artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-removed-this-way-without-cost-producer",
+      "request": {
+        "cardName": "Missing Producer Probe",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C} for each storage counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cost-up-to-x-is-two-numbers",
+      "request": {
+        "cardName": "Cost Range Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{X}, {T}, Sacrifice up to X creatures: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-last-one-standing-creature-at-random-destroy-the-rest",
+      "request": {
+        "cardName": "Last One Standing",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Choose a creature at random, then destroy the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/0/selection",
+                "equals": {
+                  "kind": "random"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "recombination-land-you-control-at-random-sacrifice-the-rest",
+      "request": {
+        "cardName": "Random Keep Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Choose a land you control at random, then sacrifice the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-random-range-has-no-random-size",
+      "request": {
+        "cardName": "Random Range Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Choose up to two creatures at random, then destroy the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "choose.domain.object.selection"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-renounce-gain-life-for-each-permanent-sacrificed",
+      "request": {
+        "cardName": "Renounce",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Sacrifice any number of permanents. You gain 2 life for each permanent sacrificed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pitiless-carnage-then-draw-that-many",
+      "request": {
+        "cardName": "Pitiless Carnage",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Sacrifice any number of permanents you control, then draw that many cards.\nPlot {1}{B}{B} (You may pay {1}{B}{B} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-malevolent-witchkite-enters-sacrifice-any-number",
+      "request": {
+        "cardName": "Malevolent Witchkite",
+        "typeLine": "Creature — Dragon Warlock",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Flying\nWhen this creature enters, sacrifice any number of artifacts, enchantments, and/or tokens, then draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    }
+  ]
+}

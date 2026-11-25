@@ -33298,9 +33298,7 @@ impl GameEngine {
                     })
             }
             Some("sacrificePermanents") => {
-                let Some(count) = integer_value(&action["count"])
-                    .and_then(|count| usize::try_from(count.max(0)).ok())
-                else {
+                let Some(count) = card_selection::literal_selection_minimum(action) else {
                     return false;
                 };
                 let Some(player_id) =

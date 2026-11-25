@@ -6,6 +6,10 @@ use crate::oracle::model::{
 
 const X_VALUE: &str = "xValue";
 
+/// Decision id of the number a cost's payer chooses while paying
+/// (`quantity_slot.rs`, CR 601.2h via 602.2b).
+const COST_CHOSEN_AMOUNT: &str = "costChosenAmount";
+
 /// Prefix of the `bind` ids that carry a postposed `where X is EXPR` value
 /// (CR 107.3). The sentence that defines X is lowered without knowing its
 /// face; this validator rejects a face that also supplies X by another
@@ -245,6 +249,20 @@ pub(crate) fn validate_native_contextual_bindings(
                 trace: Vec::new(),
                 owner: None,
             });
+            continue;
+        }
+        // The number a cost's payer chose (`remove any number of storage
+        // counters`, CR 601.2h) is declared by that cost's own activation;
+        // no other rule borrows it.
+        if references_decision(rule, COST_CHOSEN_AMOUNT)
+            && !declares_number(rule, COST_CHOSEN_AMOUNT)
+        {
+            reject_binding(
+                ability,
+                "binding.cost-chosen-amount.source",
+                "a cost of this rule whose number the payer chooses while paying",
+                "The canonical rule reads the number a cost's payer chose, but no cost of this rule declares it.",
+            );
             continue;
         }
         if !references_decision(rule, X_VALUE) || declares_number(rule, X_VALUE) {

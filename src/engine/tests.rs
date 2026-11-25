@@ -33263,6 +33263,9 @@ mod leveler_band_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/object_condition_cost_paid_runtime.rs"]
 mod object_condition_cost_paid_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/choice_quantity_runtime.rs"]
+mod choice_quantity_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/object_query_runtime.rs"]
 mod object_query_runtime;

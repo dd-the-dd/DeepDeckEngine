@@ -6,9 +6,11 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum SacrificeEffectNode {
     Source(SacrificeSourceEffectNode),
+    /// `sacrifice N QUERY`, or a range the sacrificing player picks from
+    /// (`sacrifice any number of artifacts`, `up to three creatures`).
     Selected {
         object: ObjectQueryNode,
-        count: NumericExpression,
+        count: SelectionCount,
     },
 }
 
@@ -142,25 +144,41 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
     owner: SacrificeOperandOwner,
 ) -> MachineResult<SacrificeEffectNode> {
     cursor.enter("effect.sacrifice.quantity");
-    // The shared object determiner reads the count; the parent only admits a
-    // chosen exact count. `another` has no lowered source exclusion here, so
-    // it is refused at the determiner instead of failing inside a number.
-    let count = match recognize_object_determiner(cursor)? {
-        Some(ObjectDeterminer::Chosen {
-            quantity: ChosenObjectQuantity::Exactly(count),
-            another: false,
-        }) => count,
-        Some(ObjectDeterminer::Chosen { another: true, .. }) => {
-            cursor.enter("effect.sacrifice.source-exclusion");
-            return Err(cursor.fail("a sacrifice whose source exclusion this parent lowers"));
-        }
-        _ => {
-            cursor.enter("effect.sacrifice.quantity.determiner");
-            return Err(cursor.fail("a sacrifice count: `a`, `an`, a number or X"));
-        }
+    // A range the sacrificing player picks from (`any number of`, `one or
+    // more`, `up to N`) is the shared quantity slot. Only the ability's
+    // controller chooses one here: a quantified player's own sacrifice keeps
+    // its stated count.
+    let range = if owner == SacrificeOperandOwner::AbilityController {
+        recognize_chosen_quantity_range(cursor)?
+    } else {
+        None
+    };
+    // The shared object determiner reads a stated count; the parent only
+    // admits a chosen exact count. `another` has no lowered source exclusion
+    // here, so it is refused at the determiner instead of failing inside a
+    // number.
+    let count = match range {
+        Some(range) => SelectionCount::Range(range),
+        None => match recognize_object_determiner(cursor)? {
+            Some(ObjectDeterminer::Chosen {
+                quantity: ChosenObjectQuantity::Exactly(count),
+                another: false,
+            }) => SelectionCount::Exactly(count),
+            Some(ObjectDeterminer::Chosen { another: true, .. }) => {
+                cursor.enter("effect.sacrifice.source-exclusion");
+                return Err(cursor.fail("a sacrifice whose source exclusion this parent lowers"));
+            }
+            _ => {
+                cursor.enter("effect.sacrifice.quantity.determiner");
+                return Err(cursor.fail(
+                "a sacrifice count: `a`, `an`, a number, X, `any number of`, `one or more` or `up to N`",
+            ));
+            }
+        },
     };
     cursor.enter("effect.sacrifice.object-query");
-    let mut query = recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count))?;
+    let mut query =
+        recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count.quota()))?;
     // `a creature other than this creature`: the source is not a candidate.
     let exclude_source = query.take_source_exclusion();
     cursor.require(

@@ -61,6 +61,9 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && card_filter_supported(&effect["candidates"]["where"])
                 && numeric_expression_supported(&effect["minimum"])
                 && numeric_expression_supported(&effect["maximum"])
+                && effect
+                    .get("selection")
+                    .is_none_or(|selection| value_kind(selection) == Some("random"))
         }
         Some("chooseCardName") => {
             effect["id"].is_string()
@@ -625,6 +628,22 @@ impl GameEngine {
                     )?
                     .max(0)
                     .min(objects.len() as i32) as usize;
+                // `at random` (CR 608.2d): the game picks the objects, so no
+                // player decides; the pick is recorded like a choice.
+                if value_kind(&effect["selection"]) == Some("random") {
+                    let picked = card_selection::random_selection(self, objects, maximum);
+                    self.record_event(
+                        "permanentsChosenAtRandom",
+                        Some(choosing_player_id),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "decisionId": decision_id, "objects": picked }),
+                    );
+                    decisions.insert(
+                        decision_id.to_string(),
+                        Value::Array(picked.into_iter().map(Value::String).collect()),
+                    );
+                    return Ok(());
+                }
                 let mut values = Vec::new();
                 for count in minimum..=maximum {
                     values.extend(Self::resolution_selections(

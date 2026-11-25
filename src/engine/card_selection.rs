@@ -61,6 +61,67 @@ pub(super) fn flashback_grant_objects_supported(object: &Value) -> bool {
     target_reference_supported(object) || object_collection_expression_supported(object)
 }
 
+/// The cardinality of a resolution selection: a stated `count`, or a range
+/// the choosing player picks a member of (`minimum` and an optional
+/// `maximum`; `any number of` has no maximum, CR 608.2d). Exactly one form.
+pub(super) fn selection_cardinality_supported(effect: &Value) -> bool {
+    match (effect.get("count"), effect.get("minimum")) {
+        (Some(count), None) => {
+            numeric_expression_supported(count) && effect.get("maximum").is_none()
+        }
+        (None, Some(minimum)) => {
+            integer_value(minimum).is_some_and(|minimum| minimum >= 0)
+                && effect
+                    .get("maximum")
+                    .is_none_or(numeric_expression_supported)
+        }
+        _ => false,
+    }
+}
+
+/// The fewest members a selection takes, when it is a literal: a stated
+/// literal count or a range's minimum. An optional instruction is available
+/// only when that many candidates exist (CR 608.2d).
+pub(super) fn literal_selection_minimum(effect: &Value) -> Option<usize> {
+    integer_value(effect.get("minimum").unwrap_or(&effect["count"]))
+        .and_then(|count| usize::try_from(count.max(0)).ok())
+}
+
+/// `count` members picked at random among `candidates` (CR 608.2d: the
+/// game, not a player, makes the choice), in candidate order.
+pub(super) fn random_selection(
+    engine: &mut GameEngine,
+    mut candidates: Vec<String>,
+    count: usize,
+) -> Vec<String> {
+    use rand::seq::SliceRandom;
+    candidates.shuffle(&mut engine.rng);
+    candidates.truncate(count);
+    candidates
+}
+
+/// Bounded previews of every selection of `minimum..=maximum` members.
+/// They are previews, not the legal domain: a direct response may pick any
+/// subset of the candidates within the bounds.
+pub(super) fn bounded_selections(
+    candidates: &[String],
+    minimum: usize,
+    maximum: usize,
+) -> Vec<Vec<String>> {
+    let mut previews = Vec::new();
+    for count in minimum..=maximum {
+        if previews.len() >= 128 {
+            break;
+        }
+        previews.extend(GameEngine::resolution_selections(
+            candidates,
+            count,
+            128 - previews.len(),
+        ));
+    }
+    previews
+}
+
 pub(super) fn ordinary_bound_selection(effect: &Value) -> bool {
     value_kind(&effect["candidates"]) != Some("cards")
         && !effect["sameLandType"].as_bool().unwrap_or(false)
@@ -71,6 +132,41 @@ pub(super) fn ordinary_bound_selection(effect: &Value) -> bool {
 }
 
 impl GameEngine {
+    /// The bounds of a selection's cardinality (`selection_cardinality_supported`)
+    /// under the resolving object: `(minimum, maximum)`, where `None` leaves
+    /// only the candidates to bound the choice. A stated count is both.
+    pub(super) fn selection_cardinality(
+        &self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+        field: &'static str,
+    ) -> Result<(usize, Option<usize>), EngineError> {
+        let amount = |expression: &Value| {
+            self.checked_runtime_numeric_expression(
+                expression,
+                stack_object,
+                bindings,
+                decisions,
+                field,
+            )
+            .map(|amount| amount.max(0) as usize)
+        };
+        let Some(minimum) = effect.get("minimum") else {
+            let count = amount(&effect["count"])?;
+            return Ok((count, Some(count)));
+        };
+        let minimum = amount(minimum)?;
+        let maximum = effect.get("maximum").map(amount).transpose()?;
+        if maximum.is_some_and(|maximum| maximum < minimum) {
+            return Err(EngineError::new(format!(
+                "{field}: the selection minimum exceeds its maximum"
+            )));
+        }
+        Ok((minimum, maximum))
+    }
+
     /// The top `count` cards of each library the expression names, each
     /// library top first (CR 401.2), libraries in the population's player
     /// order. The set is identified when evaluated; a `bind` fixes it for

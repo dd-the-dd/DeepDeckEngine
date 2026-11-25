@@ -89,6 +89,12 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     /// frame whose recipient is omitted exactly there restates the replaced
     /// damage's recipient (CR 608.2c). `None` otherwise.
     pub replacing_instead_at: Option<usize>,
+    /// The number the payer chose while paying a cost of this activation
+    /// (`remove any number of storage counters`, CR 601.2h via 602.2b),
+    /// which `for each counter removed this way` / `that many` restate.
+    /// Only the activation parent sets it from its own typed costs
+    /// (`quantity_slot.rs`); `None` otherwise.
+    pub cost_chosen_amount: Option<super::CostChosenAmountSlot>,
 }
 
 impl FrameBindings {

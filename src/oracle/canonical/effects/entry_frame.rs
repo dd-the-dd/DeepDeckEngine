@@ -234,7 +234,7 @@ fn entry_revealed_card_filter<'a>(
         PaymentActionNode::Reveal {
             objects:
                 PaymentObjectsNode::Chosen(ChosenPaymentObjectsNode {
-                    count: NumericAtom::Integer(1),
+                    count: CostQuantity::Exactly(NumericAtom::Integer(1)),
                     exclude_source: false,
                     filter: PaymentObjectFilter::Cards(filter),
                     method: CollectionSelectionMethod::Choice,

@@ -741,6 +741,9 @@ fn activation_body_context(
         context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
     }
     context.source_numeric_reads = permanent_face;
+    // A number the payer chose while paying (`remove any number of storage
+    // counters`) is what `for each counter removed this way` restates.
+    context.frame.cost_chosen_amount = costs.cost_chosen_amount_slot();
     // A permanent face's activation names its source; a cost that may move
     // the source keeps the reference (CR 113.7a) as `RetainedOrDeparted`.
     context.activation_source_availability = if permanent_face {

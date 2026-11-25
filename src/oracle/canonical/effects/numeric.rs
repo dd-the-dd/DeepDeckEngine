@@ -833,6 +833,10 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
             pending[ACTION_RESULT_TOTAL_FIELD] = json!(selector_property_ir_name(*property));
             Some(pending)
         }
+        // The number the activation declared for its payer-chosen cost
+        // (CR 601.2h via 602.2b); the card-level binding proves the rule
+        // declares it (`contextual_binding.rs`).
+        NumericQuantity::CostChosenAmount => Some(decision_result(COST_CHOSEN_AMOUNT)),
     }
 }
 

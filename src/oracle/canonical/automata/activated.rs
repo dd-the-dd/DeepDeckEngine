@@ -49,7 +49,14 @@ pub(in crate::oracle::canonical) fn recognize_activated_mana_ability(
             }
             ActivationState::Effect => {
                 cursor.enter("activation.mana.effect");
-                memory.effect = Some(recognize_add_mana_effect(cursor)?);
+                // `Add {C} for each storage counter removed this way`: the
+                // production reads the number the payer chose for a cost.
+                let slot = cursor
+                    .require_value(memory.costs.as_ref(), "populated activation costs")?
+                    .cost_chosen_amount_slot();
+                memory.effect = Some(super::with_cost_chosen_amount(cursor, slot, |cursor| {
+                    recognize_add_mana_effect(cursor)
+                })?);
                 ActivationState::EffectTerminator
             }
             ActivationState::EffectTerminator => {
@@ -90,12 +97,11 @@ pub(in crate::oracle::canonical) fn recognize_activated_mana_ability(
                 // by a followup's self-reference (`This land doesn't untap`).
                 let mut context =
                     super::EffectRecognitionContext::default().with_sentence_conditionals();
+                let costs =
+                    cursor.require_value(memory.costs.as_ref(), "populated activation costs")?;
                 context.activation_source_availability =
-                    super::ExplicitActivationSourceAvailability::from_costs(
-                        cursor
-                            .require_value(memory.costs.as_ref(), "populated activation costs")?,
-                        false,
-                    );
+                    super::ExplicitActivationSourceAvailability::from_costs(costs, false);
+                context.frame.cost_chosen_amount = costs.cost_chosen_amount_slot();
                 memory.followup = Some(super::recognize_effect_sequence_with_context(
                     cursor,
                     name_links,

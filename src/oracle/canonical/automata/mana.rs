@@ -434,6 +434,11 @@ fn recognize_optional_mana_for_each_count(
                 node.measure == PermanentCountMeasure::Objects
             }
             NumericExpression::CountCounters { .. } => true,
+            // The number this activation's cost chose (`for each storage
+            // counter removed this way`): a declared value of the activation.
+            NumericExpression::Quantity(quantity) => {
+                matches!(quantity.as_ref(), super::NumericQuantity::CostChosenAmount)
+            }
             // Only zone counts with a holder every evaluator reads.
             NumericExpression::CountQuery(query) => {
                 crate::oracle::canonical::effects::lower_scoped_object_query_amount(query).is_some()

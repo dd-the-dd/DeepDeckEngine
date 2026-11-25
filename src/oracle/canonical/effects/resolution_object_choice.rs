@@ -107,7 +107,7 @@ pub(in crate::oracle::canonical) fn lower_object_choice(
     }
     // CR 609.3: with fewer candidates than the count, every candidate is
     // chosen; the decision clamps its bounds to the candidates.
-    let choose = json!({
+    let mut choose = json!({
         "kind": "choosePermanents",
         "id": decision,
         "player": controller(),
@@ -115,6 +115,10 @@ pub(in crate::oracle::canonical) fn lower_object_choice(
         "minimum": minimum,
         "maximum": maximum,
     });
+    // `at random` (CR 608.2d): the engine picks the objects itself.
+    if choice.random {
+        choose["selection"] = json!({"kind": "random"});
+    }
     let chosen = decision_result(&decision);
     let Some(action) = &choice.remainder else {
         let binding = chosen_objects_binding(effect_index);
