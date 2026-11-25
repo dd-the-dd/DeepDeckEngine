@@ -197,6 +197,15 @@ impl GenericTriggerEventNode {
             }
             // The counters one placement put (CR 122.6).
             Self::CounterPlacement(_) => Some(EventNumericBinding::CountersPut),
+            // `discard one or more CARDS`: the matching cards of the one
+            // action (CR 603.2c).
+            Self::Local(LocalTriggerEventNode::PlayerEvent { card, .. })
+                if card
+                    .as_ref()
+                    .is_some_and(super::PlayerEventCardObject::is_batch) =>
+            {
+                Some(EventNumericBinding::EventObjectCount)
+            }
             // `one or more CREATURES you control attack`: the attackers the
             // one batch occurrence matched (CR 508.1, 603.2c).
             Self::Object(super::ObjectEventNode {
@@ -234,6 +243,15 @@ impl GenericTriggerEventNode {
         match self {
             Self::Compound(members) => members.iter().any(Self::requires_permanent_face),
             Self::Conditioned { event, .. } => event.requires_permanent_face(),
+            // `When you discard this card` is observed by the discarded
+            // card where the discard put it (CR 113.6).
+            Self::Local(LocalTriggerEventNode::PlayerEvent { card, .. })
+                if card
+                    .as_ref()
+                    .is_some_and(super::PlayerEventCardObject::is_source_card) =>
+            {
+                false
+            }
             _ => !matches!(
                 self,
                 Self::Local(LocalTriggerEventNode::SourceCycled { .. })

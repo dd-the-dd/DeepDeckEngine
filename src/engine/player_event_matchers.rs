@@ -76,6 +76,78 @@ pub(super) fn player_outcome_event_supported(event: &Value) -> Option<bool> {
     Some(supported)
 }
 
+/// `playerDealtDamage` (CR 120.3): damage dealt to a player in a written
+/// relation to the observer (`you`, `a player`), per damaged player or as
+/// one `oneOrMore` event, optionally restricted to combat or noncombat
+/// damage. `opponentDealtDamage` keeps the established opponent observer.
+pub(super) fn received_damage_event_supported(event: &Value) -> bool {
+    has_only_fields(
+        event,
+        &[
+            "kind",
+            "player",
+            "aggregation",
+            "combatOnly",
+            "noncombatOnly",
+        ],
+    ) && player_action_events::event_player_reference_supported(&event["player"])
+        && event
+            .get("aggregation")
+            .is_none_or(|value| matches!(value.as_str(), Some("perRecipient" | "oneOrMore")))
+        && event.get("combatOnly").is_none_or(Value::is_boolean)
+        && event.get("noncombatOnly").is_none_or(Value::is_boolean)
+        && !(event["combatOnly"].as_bool() == Some(true)
+            && event["noncombatOnly"].as_bool() == Some(true))
+}
+
+/// `cardsDiscarded` (CR 701.9, 603.2c): one discard action of a player in
+/// a written relation (one resolving instruction, one cost) that discarded
+/// at least one card matching `where`.
+pub(super) fn discard_batch_event_supported(event: &Value) -> bool {
+    has_only_fields(event, &["kind", "player", "where", "excludeSource"])
+        && player_action_events::event_player_reference_supported(&event["player"])
+        && event.get("where").is_none_or(card_filter_supported)
+        && event.get("excludeSource").is_none_or(Value::is_boolean)
+}
+
+/// `selfDiscarded`: the observing card itself was discarded, optionally
+/// caused by a resolving spell or ability with a controller relation
+/// (`cause`).
+pub(super) fn self_discard_event_supported(event: &Value) -> bool {
+    has_only_fields(event, &["kind", "object", "cause"])
+        && value_kind(&event["object"]) == Some("self")
+        && event.get("cause").is_none_or(|cause| {
+            has_only_fields(cause, &["kind", "controller"])
+                && value_kind(cause) == Some("resolvingStackObject")
+                && cause
+                    .get("controller")
+                    .is_none_or(player_action_events::event_player_reference_supported)
+        })
+}
+
+/// Whether an activation observer's player relation admits the activating
+/// player (CR 602.2): an opponent of the observer's controller, any player
+/// (`eachPlayer`), else the observer's controller.
+pub(super) fn activation_player_observed(
+    event: &Value,
+    source: &CardInstance,
+    activating_player_id: &str,
+) -> bool {
+    if event["opponentOfSourceController"].as_bool() == Some(true) {
+        source.controller != activating_player_id
+    } else if value_kind(&event["player"]) == Some("eachPlayer") {
+        true
+    } else {
+        source.controller == activating_player_id
+    }
+}
+
+/// Whether a damage kind restriction admits one damage record (CR 120.2).
+fn damage_kind_admits(event: &Value, combat: bool) -> bool {
+    (!combat || event["noncombatOnly"].as_bool() != Some(true))
+        && (combat || event["combatOnly"].as_bool() != Some(true))
+}
+
 /// Whether a die-roll pattern observes one die showing `result` (CR 706.2).
 fn die_result_matches(event: &Value, result: i32) -> bool {
     event.get("aggregation").is_none()
@@ -274,6 +346,183 @@ impl GameEngine {
                     .is_none_or(|filter| matches_card_filter(&definition, filter))
             },
         );
+    }
+
+    /// One discarded card of `player_id`: inside an open simultaneous event
+    /// (a resolving instruction, CR 603.2c) it joins that event's discard;
+    /// outside any event (a cost, cleanup) it is its own discard action.
+    pub(super) fn observe_discard_for_batch(&mut self, player_id: &str, card_id: &str) {
+        match self.event_batches.current_batch() {
+            Some(batch) => self.event_batches.defer_discard(batch, player_id, card_id),
+            None => self.publish_cards_discarded(player_id, &[card_id.to_string()]),
+        }
+    }
+
+    /// The discards of an ended simultaneous event: one discard action per
+    /// discarding player, in first-discard order.
+    pub(super) fn flush_discard_batch(&mut self, batch: u64) {
+        let mut groups: Vec<(String, Vec<String>)> = Vec::new();
+        for (player_id, card_id) in self.event_batches.take_discards(batch) {
+            match groups.iter_mut().find(|(player, _)| *player == player_id) {
+                Some((_, cards)) => cards.push(card_id),
+                None => groups.push((player_id, vec![card_id])),
+            }
+        }
+        for (player_id, card_ids) in groups {
+            self.publish_cards_discarded(&player_id, &card_ids);
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
+    }
+
+    /// One discard action of `player_id` (CR 701.9): `one or more` observers
+    /// whose player relation matches trigger once when at least one of the
+    /// discarded cards matches, with the matching cards' number as the
+    /// event's object count (`that many`).
+    fn publish_cards_discarded(&mut self, player_id: &str, card_ids: &[String]) {
+        let cards = card_ids
+            .iter()
+            .filter_map(|card_id| self.card_after_player_action(card_id))
+            .collect::<Vec<_>>();
+        let triggers = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .flat_map(|player| player.battlefield.iter())
+            .flat_map(|source| {
+                self.effective_rules(source)
+                    .iter()
+                    .filter(|rule| {
+                        triggered_rule_supported(rule) && self.rule_active_for_source(source, rule)
+                    })
+                    .filter_map(|rule| {
+                        let count = triggered_event_variants(&rule["event"])
+                            .into_iter()
+                            .filter(|event| {
+                                value_kind(event) == Some("cardsDiscarded")
+                                    && self.event_player_reference_matches(
+                                        &event["player"],
+                                        source,
+                                        player_id,
+                                    )
+                            })
+                            .map(|event| {
+                                cards
+                                    .iter()
+                                    .filter(|card| {
+                                        self.player_card_action_matches(
+                                            event,
+                                            source,
+                                            player_id,
+                                            Some(card),
+                                        )
+                                    })
+                                    .count()
+                            })
+                            .max()
+                            .unwrap_or(0);
+                        (count > 0).then(|| (source.clone(), rule.clone(), count))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        for (source, rule, count) in triggers {
+            let decisions = BTreeMap::from([
+                (
+                    "triggeringPlayerId".to_string(),
+                    Value::String(player_id.to_string()),
+                ),
+                ("eventObjectCount".to_string(), Value::from(count as u64)),
+            ]);
+            self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions);
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
+    }
+
+    /// The controller of the resolving spell or ability whose effect made
+    /// `player_id` discard their latest discarded card; `None` for a cost,
+    /// a cleanup discard or any other discard without a recorded cause.
+    fn latest_discard_cause_controller(&self, player_id: &str) -> Option<String> {
+        self.state
+            .events
+            .iter()
+            .rev()
+            .find(|event| {
+                event.kind == "cardDiscarded" && event.player_id.as_deref() == Some(player_id)
+            })
+            .filter(|event| event.detail["reason"].as_str() == Some("ability"))
+            .and_then(|event| event.detail["sourceControllerId"].as_str())
+            .map(str::to_string)
+    }
+
+    /// `When you discard this card` (CR 701.9): the discarded card's own
+    /// `selfDiscarded` rules trigger from where the discard put it. A rule
+    /// with a cause triggers only when a resolving spell or ability whose
+    /// controller satisfies the relation caused the discard, and binds that
+    /// controller as the triggering player (`that player`); otherwise the
+    /// discarding player is bound. False when a quantity failure stops the
+    /// publication.
+    pub(super) fn enqueue_self_discard_triggers(
+        &mut self,
+        discarded: &CardInstance,
+        discarding_player_id: &str,
+    ) -> bool {
+        let cause_controller = self.latest_discard_cause_controller(discarding_player_id);
+        let triggers = self
+            .effective_rules(discarded)
+            .iter()
+            .filter(|rule| triggered_rule_supported(rule))
+            .filter_map(|rule| {
+                triggered_event_variants(&rule["event"])
+                    .into_iter()
+                    .filter(|event| value_kind(event) == Some("selfDiscarded"))
+                    .find_map(|event| match event.get("cause") {
+                        None => Some(discarding_player_id.to_string()),
+                        Some(cause) => cause_controller.clone().filter(|controller_id| {
+                            cause.get("controller").is_none_or(|relation| {
+                                self.event_player_reference_matches(
+                                    relation,
+                                    discarded,
+                                    controller_id,
+                                )
+                            })
+                        }),
+                    })
+                    .map(|triggering_player| (rule.clone(), triggering_player))
+            })
+            .collect::<Vec<_>>();
+        for (rule, triggering_player) in triggers {
+            self.put_triggered_ability_on_stack_with_decisions(
+                discarded,
+                rule,
+                BTreeMap::from([(
+                    "triggeringPlayerId".to_string(),
+                    Value::String(triggering_player),
+                )]),
+            );
+            if self.check_quantity_failure().is_err() {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// `playerDealtDamage` observed by `source` for damage dealt to
+    /// `damaged_player_id` (CR 120.3): the damaged player satisfies the
+    /// written relation and the damage kind is admitted.
+    pub(super) fn received_damage_observed(
+        &self,
+        event: &Value,
+        source: &CardInstance,
+        damaged_player_id: &str,
+        combat: bool,
+    ) -> bool {
+        self.event_player_reference_matches(&event["player"], source, damaged_player_id)
+            && damage_kind_admits(event, combat)
     }
 
     /// `controlledPermanentManaAbilityActivated` observed by `source` for a
