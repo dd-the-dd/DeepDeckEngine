@@ -342,6 +342,10 @@ mod damage_event_model_runtime;
 mod zone_change_event_model_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/event_slot_tails_runtime.rs"]
+mod event_slot_tails_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/cast_event_model_runtime.rs"]
 mod cast_event_model_runtime;
 

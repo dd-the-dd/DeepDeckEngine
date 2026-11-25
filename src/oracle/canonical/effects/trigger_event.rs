@@ -118,7 +118,8 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             )?;
             let events = event.actions.iter().map(|action| match action {
                 ActorObjectEventAction::SacrificePermanent => lower_sacrifice_event(cursor, &SacrificeEventNode {
-                    actor: event.actor, object: event.object.clone(), exclude_source: event.exclude_source,
+                    actor: event.actor, object: Some(event.object.clone()), exclude_source: event.exclude_source,
+                    source: false, one_or_more: false,
                 }),
                 ActorObjectEventAction::CreateToken => {
                     cursor.enter("trigger.creation.actor-scope-support");
@@ -534,6 +535,15 @@ fn reject_object_event_modifiers(
     if matches!(event.verb, ObjectEventVerb::Enter | ObjectEventVerb::Die) {
         modifiers.during_combat = false;
     }
+    // The departure and arrival patterns read their own event slots: the
+    // destination of a departure (`without dying`) and the excluded origin
+    // of an arrival (`from anywhere other than ZONE`).
+    if event.verb == ObjectEventVerb::LeaveBattlefield {
+        modifiers.without_dying = false;
+    }
+    if matches!(event.verb, ObjectEventVerb::PutIntoGraveyard(..)) {
+        modifiers.excluded_origin = None;
+    }
     match modifiers.first_modifier_name() {
         Some(name) => Err(engine_gap(
             cursor,
@@ -845,6 +855,16 @@ fn lower_departure_move_pattern(
     if event.verb == ObjectEventVerb::PutIntoGraveyardFromBattlefield {
         lowered["to"] = json!("graveyard");
     }
+    // `leaves the battlefield without dying` (CR 700.4): the same departure
+    // whose destination is not a graveyard, a field of the move pattern.
+    if event.modifiers.without_dying {
+        cursor.enter("trigger.object-event.without-dying");
+        cursor.require(
+            event.verb == ObjectEventVerb::LeaveBattlefield,
+            "`without dying` on a departure to any zone",
+        )?;
+        lowered["withoutDying"] = json!(true);
+    }
     // `one or more`: one trigger per simultaneous event (CR 603.2c).
     if matches!(
         event.subject.multiplicity,
@@ -895,6 +915,14 @@ fn lower_graveyard_arrival_pattern(
     });
     if let Some(origin) = origin {
         lowered["from"] = json!(origin);
+    }
+    // `from anywhere other than ZONE`: the arrival's excluded origin.
+    if let Some(excluded) = event.modifiers.excluded_origin {
+        cursor.require(
+            origin.is_none(),
+            "one origin relation: a written origin or an excluded origin",
+        )?;
+        lowered["fromNot"] = json!(excluded);
     }
     if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. }) {
         lowered["aggregation"] = json!("oneOrMore");
@@ -976,7 +1004,10 @@ fn lower_object_event(
                 .supports_domain(ObjectKind::Permanent),
             "a permanent leaving the battlefield",
         )?;
-        if per_event || subject.query.controller != Some(ObjectControllerScope::AbilityController) {
+        if per_event
+            || subject.query.controller != Some(ObjectControllerScope::AbilityController)
+            || event.modifiers.without_dying
+        {
             return lower_departure_move_pattern(cursor, event);
         }
         let mut lowered = json!({
@@ -1039,7 +1070,8 @@ fn lower_object_event(
             || (matches!(
                 event.verb,
                 ObjectEventVerb::Attack | ObjectEventVerb::TurnedFaceUp
-            ) && !per_event),
+            ) && !per_event)
+            || generic_per_combatant_block(event),
         "an object event without an unproved source exclusion",
     )?;
     cursor.enter("trigger.object-event.verb-support");
@@ -1164,13 +1196,22 @@ fn lower_object_event(
                 ));
             }
             cursor.require(
-                subject.query.controller == Some(ObjectControllerScope::AbilityController)
-                    && subject
-                        .query
-                        .predicate
-                        .supports_domain(ObjectKind::Permanent),
-                "permanents the ability controller controls",
+                subject
+                    .query
+                    .predicate
+                    .supports_domain(ObjectKind::Permanent),
+                "a permanent batch subject",
             )?;
+            // The controller relation is an optional typed field of the
+            // subject query (`one or more creatures attack`, `... your
+            // opponents control attack`); the batch matchers count only the
+            // ability controller's permanents.
+            if subject.query.controller != Some(ObjectControllerScope::AbilityController) {
+                return Err(engine_gap(
+                    cursor,
+                    "a one-or-more attack or combat-damage batch matcher for permanents of another controller relation",
+                ));
+            }
             let filter = lower_permanent_object_predicate(&subject.query.predicate);
             let minimum = match subject.multiplicity {
                 EventMultiplicity::PerEvent { minimum } => minimum,
@@ -1245,6 +1286,26 @@ fn lower_object_event(
                 "aggregation": "oneOrMore",
             }))
         }
+        // `a creature [an opponent controls] blocks`: the generic block
+        // pattern with the subject's own controller relation, once per
+        // combat for each blocker or each blocked attacker (CR 509.1a,
+        // 509.1h, 509.3a, 509.3c).
+        ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked
+            if generic_per_combatant_block(event) =>
+        {
+            cursor.enter("trigger.object-event.block-subject");
+            let object = lower_any_controller_permanents(cursor, subject, "a combatant")?;
+            let role = if event.verb == ObjectEventVerb::Block {
+                "blocker"
+            } else {
+                "attacker"
+            };
+            Ok(json!({
+                "kind": "eventPattern",
+                "lemma": "block",
+                "subject": {"role": role, "object": object},
+            }))
+        }
         ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked => {
             // One trigger per blocking creature, or once per combat for each
             // attacking creature that becomes blocked (CR 509.1h).
@@ -1278,6 +1339,25 @@ fn lower_object_event(
                 !per_event,
                 "a singular damaged-object subject (the runtime has no one-or-more matcher for permanents dealt damage)",
             )?;
+            // A damaged permanent of any controller or of an opponent: the
+            // generic received-damage pattern, one occurrence per damaged
+            // permanent and damage event, from any source (CR 120.3).
+            if subject.query.controller != Some(ObjectControllerScope::AbilityController) {
+                cursor.enter("trigger.object-event.damaged-permanent");
+                let mut recipient = json!({"kind": "permanent"});
+                if let Some(filter) =
+                    lower_damage_permanent_query(cursor, &subject.query, &mut recipient)?
+                {
+                    recipient["where"] = filter;
+                }
+                let mut lowered = json!({
+                    "kind": "eventPattern",
+                    "lemma": "dealDamage",
+                    "recipient": recipient,
+                });
+                apply_damage_event_kind(cursor, &mut lowered, damage)?;
+                return Ok(lowered);
+            }
             cursor.require(
                 subject.query.controller == Some(ObjectControllerScope::AbilityController)
                     && subject
@@ -1301,6 +1381,61 @@ fn lower_object_event(
             unreachable!("dealt damage is lowered by the shared damage-event branch")
         }
     }
+}
+
+/// A per-object block event lowered by the generic block pattern: a subject
+/// of any controller or an opponent's, or the ability controller's with a
+/// source exclusion. The ability controller's own unexcluded subject keeps
+/// its established historical matcher.
+fn generic_per_combatant_block(event: &ObjectEventNode) -> bool {
+    matches!(
+        event.verb,
+        ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked
+    ) && event.subject.multiplicity == EventMultiplicity::PerObject
+        && (event.subject.query.controller != Some(ObjectControllerScope::AbilityController)
+            || event.subject.exclude_source)
+}
+
+/// The `permanents` object of a generic event pattern: the subject query's
+/// optional controller relation (any player, the ability controller or an
+/// opponent), its effective-characteristics predicate and `another`.
+fn lower_any_controller_permanents(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: &QuantifiedEventSubjectNode,
+    role: &str,
+) -> MachineResult<Value> {
+    cursor.require(
+        subject
+            .query
+            .predicate
+            .supports_domain(ObjectKind::Permanent)
+            && domain_filter_is_representable(&subject.query.predicate),
+        &format!("a representable {role} predicate"),
+    )?;
+    let mut object = json!({"kind": "permanents"});
+    match subject.query.controller {
+        None => {}
+        Some(ObjectControllerScope::AbilityController) => object["controller"] = controller(),
+        Some(ObjectControllerScope::OpponentOfAbilityController) => {
+            object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+        }
+        Some(
+            ObjectControllerScope::NotAbilityController
+            | ObjectControllerScope::EventPlayer
+            | ObjectControllerScope::Player(_),
+        ) => {
+            return Err(cursor.fail(&format!("a positive controller relation for {role}")));
+        }
+    }
+    if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+        let filter = lower_permanent_object_predicate(&subject.query.predicate);
+        cursor.require(!filter.is_null(), &format!("a lowered {role} predicate"))?;
+        object["where"] = filter;
+    }
+    if subject.exclude_source {
+        object["excludeSource"] = json!(true);
+    }
+    Ok(object)
 }
 
 /// One permanent per event (`a creature you control deals ...`): the damage
@@ -1609,6 +1744,8 @@ fn snapshot_permanent_event_predicate(predicate: &ObjectPredicate) -> bool {
 }
 
 /// Shared by the generic event parent and the established sacrifice adapter.
+/// The source alternative (`this Aura`, `SOURCE or another QUERY`) and the
+/// object query are alternatives of one sacrifice pattern (CR 701.21a).
 pub(in crate::oracle::canonical) fn lower_sacrifice_event(
     cursor: &mut OracleTokenCursor<'_>,
     event: &SacrificeEventNode,
@@ -1619,7 +1756,38 @@ pub(in crate::oracle::canonical) fn lower_sacrifice_event(
             cursor.fail("an accepted shared sacrifice matcher for the opponent actor scope")
         );
     }
-    if event.object.predicate.contains_numeric_comparison() {
+    if event.one_or_more {
+        // The sacrifice publication is one occurrence per sacrificed
+        // permanent; no matcher groups a sacrifice event (CR 603.2c).
+        return Err(engine_gap(
+            cursor,
+            "a one-or-more sacrifice batch matcher (one occurrence per sacrifice event)",
+        ));
+    }
+    let mut events = Vec::new();
+    if event.source {
+        // Only a permanent's controller sacrifices it, so `you sacrifice
+        // this PERMANENT` is the source's own sacrifice, observed by the
+        // source looking back (CR 603.10a).
+        events.push(json!({"kind": "permanentSacrificed", "object": self_ref()}));
+    }
+    if let Some(object) = &event.object {
+        events.push(lower_sacrificed_object(cursor, event, object)?);
+    }
+    cursor.enter("trigger.sacrifice.object");
+    match events.len() {
+        0 => Err(cursor.fail("a sacrificed source or object query")),
+        1 => Ok(events.pop().expect("one sacrifice alternative")),
+        _ => Ok(json!({"kind": "oneOf", "events": events})),
+    }
+}
+
+fn lower_sacrificed_object(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &SacrificeEventNode,
+    object: &ObjectQueryNode,
+) -> MachineResult<Value> {
+    if object.predicate.contains_numeric_comparison() {
         cursor.enter("trigger.sacrifice.numeric-snapshot-support");
         return Err(cursor.fail(
             "a predicate without numeric sacrificed-object characteristics (not captured at departure)",
@@ -1629,11 +1797,11 @@ pub(in crate::oracle::canonical) fn lower_sacrifice_event(
     // captured as the object left the battlefield (CR 603.10a).
     cursor.enter("trigger.sacrifice.characteristic-snapshot-support");
     cursor.require(
-        snapshot_permanent_event_predicate(&event.object.predicate)
-            && domain_filter_is_representable(&event.object.predicate),
+        snapshot_permanent_event_predicate(&object.predicate)
+            && domain_filter_is_representable(&object.predicate),
         "a predicate over the characteristics captured at departure",
     )?;
-    let mut lowered = json!({"kind":"permanentSacrificed", "where":lower_permanent_object_predicate(&event.object.predicate)});
+    let mut lowered = json!({"kind":"permanentSacrificed", "where":lower_permanent_object_predicate(&object.predicate)});
     if event.actor == EventActorScope::Controller {
         lowered["player"] = controller();
     }
@@ -1811,6 +1979,22 @@ fn lower_local_event(
             "player": controller(),
             "drawOrdinal": ordinal,
         })),
+        // The draw matcher counts the drawing player's draws this turn
+        // (CR 121.2), whichever player draws.
+        LocalTriggerEventNode::PlayerOrdinalCardDrawn { player, ordinal } => {
+            cursor.enter("trigger.program.draw-ordinal");
+            cursor.require(*ordinal > 0, "a positive draw ordinal")?;
+            Ok(match player {
+                PlayerPredicate::Any => {
+                    json!({"kind": "cardDrawn", "anyPlayer": true, "drawOrdinal": ordinal})
+                }
+                PlayerPredicate::Opponent => json!({
+                    "kind": "cardDrawn",
+                    "opponentOfSourceController": true,
+                    "drawOrdinal": ordinal,
+                }),
+            })
+        }
         LocalTriggerEventNode::CardDrawn {
             player,
             exception: None,

@@ -264,7 +264,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "event.sacrifice.object-head"
+            "state": "engine.gap.event-matcher"
           }
         ]
       }

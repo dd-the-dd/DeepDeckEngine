@@ -19,7 +19,11 @@ pub(in crate::oracle::canonical) enum TargetedObjectDomain {
 pub(in crate::oracle::canonical) struct TargetedObjectSelectorNode {
     pub domain: TargetedObjectDomain,
     pub predicate: ObjectPredicate,
-    pub controller: ObjectControllerScope,
+    /// The selector's controller relation, an optional typed field of the
+    /// shared object query: `None` is an object of any controller.
+    pub controller: Option<ObjectControllerScope>,
+    /// `another PERMANENT`: the ability source is excluded.
+    pub exclude_source: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,15 +46,6 @@ pub(in crate::oracle::canonical) struct BecameTargetEventNode {
     pub targeting_stack: TargetingStackSelectorNode,
 }
 
-/// Whether the targeting stack object needs a written controller relation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum TargetingControllerPolicy {
-    /// The object-selector observers are matched with a controller relation.
-    Required,
-    /// The source observer matches a stack object of any controller.
-    Optional,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SubjectState {
     Article,
@@ -64,15 +59,21 @@ fn recognize_targeted_object_selectors(
 ) -> MachineResult<Vec<TargetedObjectSelectorNode>> {
     let mut state = SubjectState::Article;
     let mut selectors = Vec::new();
+    let mut exclude_source = false;
     loop {
         state = match state {
             SubjectState::Article => {
                 cursor.enter("event.became-target.subject.article");
                 let article = cursor
                     .peek()
-                    .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+                    .filter(|raw| {
+                        raw.eq_ignore_ascii_case("a")
+                            || raw.eq_ignore_ascii_case("an")
+                            || raw.eq_ignore_ascii_case("another")
+                    })
                     .ok_or_else(|| cursor.fail("`a` or `an` before a targeted-object selector"))?
                     .to_string();
+                exclude_source = article.eq_ignore_ascii_case("another");
                 cursor.consume(&article)?;
                 SubjectState::Selector
             }
@@ -92,13 +93,15 @@ fn recognize_targeted_object_selectors(
                     )?;
                     TargetedObjectDomain::Permanent
                 };
+                cursor.require(
+                    !(exclude_source && domain == TargetedObjectDomain::Spell),
+                    "`another` before a permanent selector (a spell is never the source)",
+                )?;
                 selectors.push(TargetedObjectSelectorNode {
                     domain,
                     predicate: query.predicate,
-                    controller: cursor.require_value(
-                        query.controller,
-                        "a controller qualifier for the targeted object",
-                    )?,
+                    controller: query.controller,
+                    exclude_source,
                 });
                 SubjectState::ConnectorOrEvent
             }
@@ -167,9 +170,10 @@ enum StackSourceState {
 }
 
 /// Reads `a spell [or ability] [CONTROLLER]` after `becomes the target of`.
+/// The controller relation is an optional typed field: absent, the spell or
+/// ability of any player (CR 115.1).
 pub(in crate::oracle::canonical) fn recognize_targeting_stack_selector(
     cursor: &mut OracleTokenCursor<'_>,
-    policy: TargetingControllerPolicy,
 ) -> MachineResult<TargetingStackSelectorNode> {
     let mut state = StackSourceState::Article;
     let mut kinds = Vec::new();
@@ -215,8 +219,7 @@ pub(in crate::oracle::canonical) fn recognize_targeting_stack_selector(
                 }
             }
             StackSourceState::Controller => {
-                if policy == TargetingControllerPolicy::Required || controller_scope_starts(cursor)
-                {
+                if controller_scope_starts(cursor) {
                     controller = Some(recognize_controller_scope(cursor)?);
                 }
                 StackSourceState::Complete
@@ -276,8 +279,9 @@ pub(in crate::oracle::canonical) fn recognize_became_target_event(
         VerbAgreement::ThirdPersonSingular,
     )?;
     consume_targeting_relation(cursor)?;
-    let targeting_stack =
-        recognize_targeting_stack_selector(cursor, TargetingControllerPolicy::Required)?;
+    // The targeting object's controller is an optional typed relation, as
+    // for the source observer: absent, a spell or ability of any player.
+    let targeting_stack = recognize_targeting_stack_selector(cursor)?;
     Ok(BecameTargetEventNode {
         objects,
         targeting_stack,

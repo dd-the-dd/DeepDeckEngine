@@ -232,7 +232,10 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
         // no caster and the source spell's caster is its controller.
         || matches!(
             event,
-            GenericTriggerEventNode::Local(LocalTriggerEventNode::CardDrawn { .. })
+            GenericTriggerEventNode::Local(
+                LocalTriggerEventNode::CardDrawn { .. }
+                    | LocalTriggerEventNode::PlayerOrdinalCardDrawn { .. }
+            )
         )
         || matches!(
             event,
@@ -426,7 +429,9 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 ObjectEventVerb::Die | ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
                     subject_slot(true)
                 }
+                // A blocker is the block record's object (CR 509.1a).
                 ObjectEventVerb::Attack
+                | ObjectEventVerb::Block
                 | ObjectEventVerb::BecomeBlocked
                 | ObjectEventVerb::BeDealtDamage(_)
                 | ObjectEventVerb::DealCombatDamageToPlayer
@@ -465,7 +470,8 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                     .objects
                     .iter()
                     .all(|object| object.controller == controller)
-                    .then_some(controller),
+                    .then_some(controller)
+                    .flatten(),
             })
         }
         // An occurrence with its event-time condition binds what its event

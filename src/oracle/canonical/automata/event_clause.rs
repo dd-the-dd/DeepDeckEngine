@@ -202,6 +202,7 @@ fn close_occurrence(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<GenericTriggerEventNode> {
+    let event = super::read_event_qualifiers(cursor, event)?;
     let tail = super::read_event_modifier_tail(cursor)?;
     let event = split_damage_recipients(event);
     let (event, mut time) = absorb_modifiers(cursor, event, tail)?;

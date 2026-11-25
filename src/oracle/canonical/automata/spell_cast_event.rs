@@ -109,10 +109,16 @@ struct SpellCastEventFrame {
     targets: Option<SpellTargetsNode>,
     origin: Option<SpellOriginNode>,
     turn: Option<SpellTurnNode>,
+    /// The turn owner was written distributively (`during each opponent's
+    /// turn`), which names the turn as the ordinal's counting period.
+    distributive_turn: bool,
 }
 
 /// Reads `from [your|a] ZONE` or `from anywhere other than your hand`.
-fn recognize_spell_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellOriginNode> {
+fn recognize_spell_origin(
+    cursor: &mut OracleTokenCursor<'_>,
+    third_person_caster: bool,
+) -> MachineResult<SpellOriginNode> {
     cursor.enter("event.spell-cast.origin");
     cursor.consume("from")?;
     let excluded = peek_word(cursor, 0, "anywhere");
@@ -125,6 +131,15 @@ fn recognize_spell_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<S
         cursor.consume("your")?;
     } else if peek_word(cursor, 0, "a") {
         cursor.consume("a")?;
+    } else if peek_word(cursor, 0, "their") {
+        // `a player casts a spell from their hand`: the caster's own zone,
+        // anaphoric to a third-person caster (no relation to the ability
+        // controller is written).
+        cursor.require(
+            third_person_caster,
+            "`their` zone owner after a third-person caster",
+        )?;
+        cursor.consume("their")?;
     }
     cursor.enter("event.spell-cast.origin-zone");
     let zone = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
@@ -161,8 +176,11 @@ fn recognize_spell_targets(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
     let mut alternatives = Vec::new();
     loop {
         cursor.enter("event.spell-cast.target");
-        let target = if peek_word(cursor, 0, "this") {
-            super::recognize_source_reference(cursor, &[], None)?;
+        // `this creature` or the source's printed name (`a spell that
+        // targets Brigone`), through the installed name links.
+        let target = if peek_word(cursor, 0, "this") || super::current_source_name_at(cursor) {
+            let names = cursor.source_names().to_vec();
+            super::recognize_source_reference(cursor, &names, None)?;
             SpellTargetNode::Source
         } else if let Some(player) = super::try_recognize_event_actor_scope(cursor)? {
             SpellTargetNode::Player(player)
@@ -286,23 +304,35 @@ pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
                     let article = cursor.peek().expect("checked article").to_string();
                     cursor.consume(&article)?;
                     SpellCastEventState::Query
-                } else if cursor
+                } else if ((cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
                     && cursor
                         .peek_ahead(1)
-                        .is_some_and(|raw| raw.eq_ignore_ascii_case("spell"))
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("spell")))
+                    || super::current_source_name_at(cursor))
                     && frame.caster == Some(SpellCastEventCaster::Controller)
                     && !frame.also_copy
                 {
-                    // `When you cast this spell`: the source itself.
+                    // `When you cast this spell` or `When you cast NAME`:
+                    // the source itself, named through the installed links.
                     cursor.enter("event.spell-cast.source-spell");
-                    cursor.consume_phrase(&["this", "spell"])?;
+                    if super::current_source_name_at(cursor) {
+                        let names = cursor.source_names().to_vec();
+                        super::recognize_source_reference(cursor, &names, None)?;
+                    } else {
+                        cursor.consume_phrase(&["this", "spell"])?;
+                    }
                     frame.source_spell = true;
                     frame.query = Some(SpellCastQueryNode {
                         predicate: ObjectPredicate::ObjectKind(ObjectKind::Spell),
                         caster: None,
                     });
+                    // `When you cast this spell from your hand` (CR 601.2a):
+                    // the cast record's origin, the same field as any cast.
+                    if peek_word(cursor, 0, "from") {
+                        frame.origin = Some(recognize_spell_origin(cursor, false)?);
+                    }
                     SpellCastEventState::Complete
                 } else {
                     cursor.enter("event.spell-cast.ordinal-owner");
@@ -390,10 +420,13 @@ pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
                     frame.targets = Some(recognize_spell_targets(cursor)?);
                 }
                 if peek_word(cursor, 0, "from") {
-                    frame.origin = Some(recognize_spell_origin(cursor)?);
+                    let third_person = frame.caster != Some(SpellCastEventCaster::Controller);
+                    frame.origin = Some(recognize_spell_origin(cursor, third_person)?);
                 }
                 if peek_word(cursor, 0, "during") {
-                    frame.turn = Some(super::recognize_turn_owner_modifier(cursor)?);
+                    let (owner, distributive) = super::recognize_turn_owner_period(cursor)?;
+                    frame.turn = Some(owner);
+                    frame.distributive_turn = distributive;
                 }
                 if frame.ordinal.is_some() {
                     SpellCastEventState::Period
@@ -403,7 +436,12 @@ pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
             }
             SpellCastEventState::Period => {
                 cursor.enter("event.spell-cast.ordinal-period");
-                cursor.consume_phrase(&["each", "turn"])?;
+                // `your first spell during each opponent's turn`: the
+                // distributive turn owner already names the counting period
+                // of the ordinal, the turn (CR 500.1).
+                if !(frame.distributive_turn && !peek_word(cursor, 0, "each")) {
+                    cursor.consume_phrase(&["each", "turn"])?;
+                }
                 SpellCastEventState::Complete
             }
             SpellCastEventState::Complete => {

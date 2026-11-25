@@ -322,7 +322,13 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
     if !claimed && let Some(failure) = unclassified_label_before_trigger(cursor) {
         return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
     }
-    match super::read_event_clause(cursor, name_links, name_failure, ",") {
+    // The occurrence's own children (a spell's targets, a sacrificed
+    // object) may name the source by its printed name: the ability's name
+    // links are installed for them, as for a permanent subject.
+    let previous = cursor.replace_source_names(Some(name_links.into()));
+    let clause = super::read_event_clause(cursor, name_links, name_failure, ",");
+    cursor.replace_source_names(previous);
+    match clause {
         super::EventClauseAttempt::Recognized(event) => recognized(cursor, event, has_ability_word),
         super::EventClauseAttempt::Committed(failure) => {
             GenericTriggerEnvelopeAttempt::FailedCommitted(failure)
@@ -338,6 +344,20 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
             GenericTriggerEnvelopeAttempt::NotClaimed
         }
     }
+}
+
+/// Whether the installed name links name the current card or face at the
+/// cursor (a lexical probe; `recognize_source_reference` reads it).
+pub(in crate::oracle::canonical) fn current_source_name_at(cursor: &OracleTokenCursor<'_>) -> bool {
+    let position = cursor.position();
+    cursor.source_names().iter().any(|link| {
+        link.token_start == position
+            && matches!(
+                link.kind,
+                crate::oracle::syntax::NameLinkKind::CurrentCard
+                    | crate::oracle::syntax::NameLinkKind::CurrentFace
+            )
+    })
 }
 
 /// A short label closed by an em dash and followed by a trigger word is the
