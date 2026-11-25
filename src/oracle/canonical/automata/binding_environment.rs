@@ -83,6 +83,12 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     /// moved permanent as its antecedent (`inherit_program_step_antecedents`,
     /// CR 400.7, 608.2c). Only the program parent sets it; `None` otherwise.
     pub inherited_moved_selector: Option<TargetSelector>,
+    /// The token index where a replacing sentence's postposed `instead`
+    /// was written (`If COND, NAME deals 4 damage instead.`). Only the
+    /// replacing parent sets it (`recognize_replacing_sequence`); a damage
+    /// frame whose recipient is omitted exactly there restates the replaced
+    /// damage's recipient (CR 608.2c). `None` otherwise.
+    pub replacing_instead_at: Option<usize>,
 }
 
 impl FrameBindings {
@@ -145,6 +151,12 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// gates the declaring action; it is never a permanent operand. The
     /// program parent publishes it (`publish_program_antecedents`).
     pub declared_target: Option<DeclaredTargetAntecedent>,
+    /// The recipient of the damage the latest action of the program dealt,
+    /// as a later reference to it: the slot it declared, or the fixed or
+    /// bound group it named. A replacing sentence's `deals N damage
+    /// instead` restates that recipient (CR 608.2c); the program parent
+    /// publishes it (`publish_program_antecedents`).
+    pub restated_damage_recipient: Option<super::DamageRecipientNode>,
 }
 
 /// A singular declared target that need not be a battlefield permanent: the
@@ -215,6 +227,7 @@ pub(in crate::oracle::canonical) fn publish_program_antecedents(
     environment.player_target = program_player_target(effects);
     environment.result_object = super::permanent_subject::program_action_result(effects);
     environment.declared_target = program_declared_target(effects);
+    environment.restated_damage_recipient = restated_damage_recipient(effects);
     retype_moved_object(&mut environment, effects);
     environment
 }
@@ -421,6 +434,44 @@ pub(in crate::oracle::canonical) fn publish_installed_declared_target(
 /// the recipient of damage or of a prevention shield written `any target`.
 /// A later action that declares a target of its own is the nearer
 /// declaration, so nothing earlier is published past it.
+/// The recipient of the program's latest action when it dealt damage, as
+/// a reference that declares nothing: one declared slot becomes the bound
+/// target it is; a fixed or bound group is the same group. Several slots or
+/// a variable slot have no single restatement.
+fn restated_damage_recipient(
+    effects: &[super::LocalEffectNode],
+) -> Option<super::DamageRecipientNode> {
+    let (effect_index, super::LocalEffectNode::DealDamage(damage)) =
+        effects.iter().enumerate().last()?
+    else {
+        return None;
+    };
+    match &damage.recipient {
+        super::DamageRecipientNode::Targets(targets) => match targets.slots.as_slice() {
+            [slot] if slot.cardinality == super::TargetCardinality::EXACTLY_ONE => {
+                // A targeted damage source occupies the action's first slot.
+                (!matches!(damage.source, super::PermanentOperandNode::Targets(_))).then_some(
+                    super::DamageRecipientNode::BoundObject(PermanentEffectReference::Target(
+                        super::TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                    )),
+                )
+            }
+            _ => None,
+        },
+        super::DamageRecipientNode::All(groups)
+            if groups
+                .iter()
+                .any(|group| matches!(group, super::DamageRecipientNode::Targets(_))) =>
+        {
+            None
+        }
+        recipient => Some(recipient.clone()),
+    }
+}
+
 fn program_declared_target(effects: &[super::LocalEffectNode]) -> Option<DeclaredTargetAntecedent> {
     for (effect_index, effect) in effects.iter().enumerate().rev() {
         let targets = match effect {
@@ -628,6 +679,7 @@ impl BindingEnvironment {
             player_target: None,
             result_object: None,
             declared_target: None,
+            restated_damage_recipient: None,
         }
     }
 }
@@ -2472,9 +2524,9 @@ fn participle_property_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 /// `the VERBed NOUN's PROPERTY` (CR 608.2c, 608.2h): the property of the one
 /// object an earlier action of this program VERBed, when its selection
 /// guarantees the nominal; read as last known information once it left the
-/// battlefield. `the sacrificed NOUN's power|toughness` without such an
-/// action keeps its reading as the permanent sacrificed to pay a cost of
-/// this ability (`recognize_sacrificed_cost_object_property`). Any other
+/// battlefield. `the sacrificed|tapped NOUN's PROPERTY` without such an
+/// action keeps its reading as the permanent sacrificed or tapped to pay a
+/// cost of this ability (`recognize_sacrificed_cost_object_property`). Any other
 /// participle without a producing action is a committed diagnostic.
 fn recognize_participle_object_property(
     cursor: &mut OracleTokenCursor<'_>,
@@ -2506,7 +2558,13 @@ fn recognize_participle_object_property(
             bound_object_numeric_property(reference, property, nominal.as_predicate())
                 .map_err(|expected| cursor.fail(expected))
         }
-        None if verb == super::ActionResultVerb::Sacrificed => {
+        // A sacrifice or tap cost of this ability is the other producer of
+        // `the sacrificed|tapped NOUN's PROPERTY` (`cost_paid_object.rs`).
+        None if matches!(
+            verb,
+            super::ActionResultVerb::Sacrificed | super::ActionResultVerb::Tapped
+        ) =>
+        {
             *cursor = start;
             super::recognize_sacrificed_cost_object_property(cursor)
         }

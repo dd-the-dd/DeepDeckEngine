@@ -140,9 +140,17 @@ fn trailing_condition_gates_the_entry_replacement() {
 
 #[test]
 fn near_miss_unsupported_trailing_condition_is_not_dropped() {
-    let failure = parse(
+    // The cast-from-hand record is a shared condition atom (CR 601.2a).
+    let draft = parse(
         "Creature - Human",
         "This creature enters with a +1/+1 counter on it if you cast it from your hand.",
+    )
+    .expect("a cast-record entry condition");
+    assert_eq!(draft.rule["condition"]["kind"], "wasCastFromHand");
+    // Near miss: a cast zone the record does not name stays explicit.
+    let failure = parse(
+        "Creature - Human",
+        "This creature enters with a +1/+1 counter on it if you cast it from your graveyard.",
     )
     .expect_err("an unread condition has no entry-counter representation");
     assert!(failure.to_string().contains("condition"), "{failure}");

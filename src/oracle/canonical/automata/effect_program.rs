@@ -821,7 +821,7 @@ fn recognize_optional_action_block(
         // A reflexive ability resolves on its own (CR 603.12): only an
         // `If you do` body shares its producer's resolution bindings.
         &if outcome == PerformanceOutcome::Reflexive {
-            context.clone()
+            reflexive_body_context(context, reading.result.as_ref())
         } else {
             inherit_sequence_antecedents(context, &action)
         },
@@ -1031,7 +1031,7 @@ fn recognize_instruction_outcome_block(
         // As for a permission's outcome: only an `If you do` body shares its
         // producer's resolution bindings (CR 603.12, 608.2c).
         &if outcome == PerformanceOutcome::Reflexive {
-            context.clone()
+            reflexive_body_context(context, reading.result.as_ref())
         } else {
             inherit_sequence_antecedents(context, &action)
         },
@@ -1303,6 +1303,22 @@ fn read_outcome_connector(
         restated: false,
         result: None,
     })
+}
+
+/// The context of a reflexive ability's body. A `When you VERB NOUN this
+/// way` event restates the affected objects (CR 603.12, 608.2c): a pronoun
+/// of its body names them, never the enclosing ability's source, so the
+/// source is no default antecedent there. The restated objects have no
+/// pronoun binding yet, so such a pronoun fails explicitly.
+fn reflexive_body_context(
+    context: &EffectRecognitionContext,
+    result: Option<&ReflexiveResultNode>,
+) -> EffectRecognitionContext {
+    let mut body = context.clone();
+    if result.is_some() {
+        body.permanent_subject_scope = super::PermanentSubjectScope::Local(None);
+    }
+    body
 }
 
 /// One read outcome connector.

@@ -3196,6 +3196,27 @@ fn recognize_keyword_action_frame(
 ) -> Option<MachineResult<LocalEffectNode>> {
     let word = cursor.peek()?.to_string();
     let word = word.as_str();
+    // A resolved card name that begins with a verb and continues past it
+    // (`Turn to Slag deals 5 damage`) is the clause's subject, never the
+    // keyword action's verb. A name that is exactly the keyword action
+    // (`Manifest dread.` on Manifest Dread, no predicate after the name)
+    // stays the action.
+    let position = cursor.position();
+    if inputs.name_links.iter().any(|link| {
+        link.token_start == position
+            && link.token_end > position + 1
+            // The name is the subject only when a predicate follows it.
+            && cursor
+                .peek_ahead(link.token_end - position)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | "("))
+            && matches!(
+                link.kind,
+                crate::oracle::syntax::NameLinkKind::CurrentCard
+                    | crate::oracle::syntax::NameLinkKind::CurrentFace
+            )
+    }) {
+        return None;
+    }
     if super::PermanentKeywordAction::from_imperative_object_verb(word).is_some() {
         return Some(
             super::recognize_imperative_permanent_keyword_action(

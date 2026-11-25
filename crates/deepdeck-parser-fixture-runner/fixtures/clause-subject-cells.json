@@ -337,7 +337,7 @@
       }
     },
     {
-      "id": "near-miss-single-base-stat-is-not-a-pair",
+      "id": "single-base-power-sets-power-alone",
       "request": {
         "cardName": "Clause Subject Witness",
         "typeLine": "Instant",
@@ -347,12 +347,25 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "setPower"
+              },
+              {
+                "pointer": "/effects/0/power",
+                "equals": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              }
+            ]
           }
         ]
       }

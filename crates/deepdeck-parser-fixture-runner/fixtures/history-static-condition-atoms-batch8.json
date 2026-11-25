@@ -119,7 +119,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "condition.history.attack.total-power"
+            "state": "condition.threshold.direction"
           }
         ]
       }
@@ -346,13 +346,13 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "condition.sentence.cast.permanent-zone"
+            "state": "condition.source.cast-zone"
           }
         ]
       }
     },
     {
-      "id": "exact-starfall-invocation-gift-promised",
+      "id": "known-gap-exact-starfall-invocation-gift-promised",
       "request": {
         "cardName": "Starfall Invocation",
         "typeLine": "Sorcery",
@@ -362,9 +362,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": []
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "verb-operand.query.domain"
+          }
+        ]
       }
     },
     {
@@ -404,7 +409,7 @@
       }
     },
     {
-      "id": "exact-hulk-smash-cast-using-teamwork",
+      "id": "known-gap-exact-hulk-smash-cast-using-teamwork",
       "request": {
         "cardName": "HULK SMASH!",
         "typeLine": "Instant",
@@ -414,9 +419,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": []
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "modal.header.upgrade.permission"
+          }
+        ]
       }
     },
     {

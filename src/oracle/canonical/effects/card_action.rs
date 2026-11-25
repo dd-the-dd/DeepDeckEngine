@@ -258,7 +258,6 @@ impl CardCollectionMemory {
             && self.view_zone == other.view_zone
             && self.view_zone_noun == other.view_zone_noun
             && self.view_from_library_top == other.view_from_library_top
-            && self.view_library_of_controller == other.view_library_of_controller
             && self.last_revealed == other.last_revealed
             && self.last_exiled == other.last_exiled
             && self.last_cast == other.last_cast
@@ -269,6 +268,15 @@ impl CardCollectionMemory {
             && self.singular_focus == other.singular_focus
             && self.plural_focus == other.plural_focus
             && self.removed_up_to_size == other.removed_up_to_size
+    }
+
+    /// Where the observed cards are is a fact, not an antecedent: after a
+    /// conditional branch that may have moved them out of the library, only
+    /// what every branch keeps is still proved (`same_scope` ignores it, so a
+    /// branch-local move keeps the card antecedent).
+    pub(in crate::oracle::canonical) fn keep_common_location_facts(&mut self, others: &[&Self]) {
+        self.view_library_of_controller &=
+            others.iter().all(|other| other.view_library_of_controller);
     }
 
     pub(in crate::oracle::canonical) fn clear_antecedent(&mut self) {
@@ -2162,11 +2170,15 @@ impl CardCollectionMemory {
                         CardOperandNode::Selection(_)
                         | CardOperandNode::Targets(_)
                         | CardOperandNode::ZoneCollection(_) => true,
-                        // The card a zone change put into a public zone.
+                        // The card a zone change put into a public zone, or
+                        // the cards an earlier sentence declared as targets
+                        // (`Choose target creature card ... Put that card onto
+                        // the battlefield`): identities fixed by the
+                        // declaration (CR 115.1, 601.2c).
                         CardOperandNode::Reference(_)
                             if matches!(
                                 value_kind_name(&cards),
-                                Some("triggeringCard" | "cardsExiledWithSource")
+                                Some("triggeringCard" | "cardsExiledWithSource" | "chosenTargets")
                             ) =>
                         {
                             true

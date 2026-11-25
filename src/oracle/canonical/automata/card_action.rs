@@ -335,6 +335,12 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
         CardCollectionReferenceAttempt::NotClaimed
         | CardCollectionReferenceAttempt::RejectedCandidate(_) => {}
     }
+    if let Some(object) = demonstrative_permanent_set_antecedent(cursor) {
+        return Ok(CardOperandNode::ObjectAntecedent {
+            reference: CardCollectionReferenceNode::Antecedent,
+            object,
+        });
+    }
     match try_recognize_card_selection_operand(cursor) {
         CardSelectionOperandAttempt::Recognized(fragment) => {
             Ok(CardOperandNode::Selection(fragment.node))
@@ -359,6 +365,39 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
 /// into a public zone, the frame's event card answers instead. Nothing is
 /// guessed: without such an antecedent the operand stays a collection
 /// reference whose lowering requires an observation.
+/// `those NOUNs` naming the plural permanent set the preceding action
+/// declared (`Choose two target creatures ... Return those creatures to
+/// their owners' hands`): the same antecedent as the plural pronoun `them`
+/// (`card_pronoun_object_antecedent`), resolved by the shared object-set
+/// reference, which proves the stated number and that the nominal follows
+/// from the declared selector (CR 608.2c). A set the reference rejects, or
+/// a collection rather than a bound set, is left to the other readers.
+fn demonstrative_permanent_set_antecedent(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> Option<PermanentEffectReference> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("those"))
+        || !super::object_set_reference_starts(cursor)
+    {
+        return None;
+    }
+    let environment = cursor.binding_environment()?.clone();
+    if environment.frame.event_card.is_some() {
+        return None;
+    }
+    let mut trial = cursor.clone();
+    match super::recognize_object_set_reference(&mut trial, &environment) {
+        Ok(super::PermanentOperandNode::BoundReference(
+            reference @ PermanentEffectReference::TargetSet(_),
+        )) => {
+            *cursor = trial;
+            Some(reference)
+        }
+        _ => None,
+    }
+}
+
 fn card_pronoun_object_antecedent(
     cursor: &OracleTokenCursor<'_>,
     reference: CardCollectionReferenceNode,

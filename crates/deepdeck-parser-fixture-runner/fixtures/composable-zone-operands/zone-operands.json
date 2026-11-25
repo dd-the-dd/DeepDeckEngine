@@ -590,7 +590,7 @@
       }
     },
     {
-      "id": "unsupported-library-collection",
+      "id": "whole-library-exile-collection",
       "request": {
         "cardName": "Shared Zone Negative",
         "typeLine": "Sorcery",
@@ -599,13 +599,23 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/zone/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "exile"
+              }
+            ]
           }
         ]
       }

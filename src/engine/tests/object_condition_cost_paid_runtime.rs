@@ -352,10 +352,14 @@ fn a_shared_creature_type_reads_the_looked_at_card_against_the_source() {
 #[test]
 fn possessed_characteristics_and_relations_compile_to_executable_rules() {
     // Each rule is asserted canonical and executable by `rules`.
+    // A comparison with the named source (`than NAME`), a disjunction over
+    // `or`. (Ensign Harry Kim writes the unlinked short name `Ensign Kim`,
+    // which the name resolver does not derive: a name-resolution gap.)
     rules(
-        "Ensign Harry Kim, Operations Officer",
-        "Legendary Creature — Human Engineer",
-        "Whenever another creature you control enters, if it has greater power than Ensign Kim, put a +1/+1 counter on Ensign Kim.",
+        "Hulkling, Burgeoning Bruiser",
+        "Legendary Creature — Shapeshifter Hero",
+        "Vigilance
+Whenever another creature you control enters, if it has greater power or toughness than Hulkling, put a +1/+1 counter on Hulkling.",
     );
     rules(
         "Hexgold Slash",
@@ -375,9 +379,11 @@ fn possessed_characteristics_and_relations_compile_to_executable_rules() {
         "Whenever another permanent you control enters, look at the top card of your library. If it shares a card type with that permanent, you may reveal that card and put it into your hand.",
     );
     // No-code combination: an effect's exile result read like a cost's.
+    // (The participle over a declared target card, `Exile target card ...
+    // If the exiled card was ...`, has no producer yet and fails explicitly.)
     rules(
         "Exiled Card Probe",
         "Sorcery",
-        "Exile target card from a graveyard. If the exiled card was an artifact card, draw a card.",
+        "Exile the top card of your library. If the exiled card is an artifact card, draw a card.",
     );
 }

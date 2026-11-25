@@ -243,7 +243,7 @@
       }
     },
     {
-      "id": "unused-combination-exiled-card-was-an-artifact",
+      "id": "known-gap-exiled-target-card-participle",
       "request": {
         "cardName": "Exiled Card Probe",
         "typeLine": "Sorcery",
@@ -253,13 +253,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.participle-antecedent"
           }
         ]
       }

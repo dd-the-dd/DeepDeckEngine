@@ -189,7 +189,7 @@
       }
     },
     {
-      "id": "search-result-does-not-reuse-an-earlier-target-binding",
+      "id": "search-result-is-the-later-antecedent-not-an-earlier-target",
       "request": {
         "cardName": "Ambiguous Research Lesson",
         "typeLine": "Sorcery",
@@ -199,20 +199,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [{
           "index": 0,
-          "status": "unsupported",
-          "recognizer": "native"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "contextual-effect-program",
-          "state": "effect.untap-target.reference",
-          "found": "it"
+          "status": "canonical",
+          "recognizer": "native",
+          "ruleAssertions": [
+            { "pointer": "/effects/2/bind", "equals": "movedOntoBattlefield" },
+            { "pointer": "/effects/5/kind", "equals": "untapPermanent" },
+            { "pointer": "/effects/5/permanent", "equals": { "kind": "singleBoundObject", "binding": "movedOntoBattlefield" } }
+          ]
         }]
       }
     },

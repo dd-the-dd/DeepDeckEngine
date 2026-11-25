@@ -270,6 +270,10 @@ const RULES: &[LexicalRule] = &[
         ],
         ("magicVocabulary", "actionWord"),
     ),
+    // `win(s) the game` (CR 104.2b), `win the flip` (CR 705.2), `win the
+    // clash` (CR 701.30d): a game outcome verb, never a mechanic name, so a
+    // flavor label may contain it (`Water Always Wins —`).
+    Words(&["win", "wins"], ("magicVocabulary", "outcomeWord")),
     Words(&["while"], ("syntax", "temporalConnectorWord")),
     Words(&["could"], ("logic", "modalWord")),
     Words(&["kicked"], ("magicVocabulary", "keywordStateWord")),

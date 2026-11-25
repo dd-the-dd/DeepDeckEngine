@@ -91,7 +91,7 @@
       }
     },
     {
-      "id": "exact-dread-slaver-returned-dying-creature-retyped",
+      "id": "known-gap-exact-dread-slaver-returned-dying-creature-retyped",
       "request": {
         "cardName": "Dread Slaver",
         "typeLine": "Creature \u2014 Zombie Horror",
@@ -101,13 +101,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "type-change.types"
           }
         ]
       }
@@ -201,7 +200,7 @@
       }
     },
     {
-      "id": "exact-swift-warkite-step-inherits-moved-permanent",
+      "id": "known-gap-exact-swift-warkite-step-inherits-moved-permanent",
       "request": {
         "cardName": "Swift Warkite",
         "typeLine": "Creature \u2014 Dragon",
@@ -211,23 +210,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 2,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
-          },
-          {
-            "index": 1,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
           }
         ]
       }
     },
     {
-      "id": "exact-ilharg-step-inherits-moved-permanent-delayed-return",
+      "id": "known-gap-exact-ilharg-step-inherits-moved-permanent-delayed-return",
       "request": {
         "cardName": "Ilharg, the Raze-Boar",
         "typeLine": "Legendary Creature \u2014 Boar God",
@@ -237,27 +231,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 3,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
-          },
-          {
-            "index": 1,
-            "status": "canonical"
-          },
-          {
-            "index": 2,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
           }
         ]
       }
     },
     {
-      "id": "exact-dawn-of-the-dead-optional-return-step-inheritance",
+      "id": "known-gap-exact-dawn-of-the-dead-optional-return-step-inheritance",
       "request": {
         "cardName": "Dawn of the Dead",
         "typeLine": "Enchantment",
@@ -267,17 +252,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 2,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical"
-          },
-          {
-            "index": 1,
-            "status": "canonical"
+            "code": "oracle_machine_failure",
+            "state": "lower.delayed.object-references"
           }
         ]
       }

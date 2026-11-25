@@ -989,6 +989,20 @@ const VERB_LEXICON: &[VerbEntry] = &[
 /// a performed row: the engine runs the ordinary primitive as the
 /// performer's instruction (CR 608.2c).
 const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
+    // `you win the game` (CR 104.2b): the player status cell; `win a coin
+    // flip` / `win the clash` are read by their keyword actions.
+    VerbEntry {
+        lemma: VerbLemma::Win,
+        forms: VerbForms {
+            base: "win",
+            third_person_singular: "wins",
+            past: "won",
+            past_participle: "won",
+            present_participle: "winning",
+        },
+        frames: &[ArgumentFrame::Intransitive, ArgumentFrame::GameOutcome],
+        voices: &[Voice::Active],
+    },
     VerbEntry {
         lemma: VerbLemma::Unattach,
         forms: VerbForms {
@@ -1318,18 +1332,6 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "descending",
         },
         frames: &[ArgumentFrame::Intransitive],
-        voices: &[Voice::Active],
-    },
-    VerbEntry {
-        lemma: VerbLemma::Win,
-        forms: VerbForms {
-            base: "win",
-            third_person_singular: "wins",
-            past: "won",
-            past_participle: "won",
-            present_participle: "winning",
-        },
-        frames: &[ArgumentFrame::Intransitive, ArgumentFrame::GameOutcome],
         voices: &[Voice::Active],
     },
 ];

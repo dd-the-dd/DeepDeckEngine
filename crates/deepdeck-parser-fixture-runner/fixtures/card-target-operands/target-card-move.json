@@ -413,7 +413,7 @@
       }
     },
     {
-      "id": "unproved-card-colors-keep-common-syntax",
+      "id": "printed-card-color-filters-the-target-card",
       "request": {
         "cardName": "Synthetic targeted card movement",
         "typeLine": "Instant",
@@ -423,17 +423,27 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/0",
+                "equals": {
+                  "kind": "colorContains",
+                  "value": "Red"
+                }
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "unproved-card-power-keeps-common-syntax",
+      "id": "printed-card-power-filters-the-target-card",
       "request": {
         "cardName": "Synthetic targeted card movement",
         "typeLine": "Instant",
@@ -443,11 +453,23 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left",
+                "equals": {
+                  "kind": "powerOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                }
+              }
+            ]
           }
         ]
       }

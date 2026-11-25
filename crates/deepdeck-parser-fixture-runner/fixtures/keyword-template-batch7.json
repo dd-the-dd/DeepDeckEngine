@@ -542,7 +542,7 @@
       }
     },
     {
-      "id": "near-miss-copy-exception-outside-the-typed-list",
+      "id": "copy-exception-legendary-supertype",
       "request": {
         "cardName": "Untyped Exception Fixture",
         "typeLine": "Creature — Cat",
@@ -552,14 +552,22 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "state": "token.copy.except.complement",
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/except/0",
+                "equals": {
+                  "kind": "addSupertype",
+                  "supertype": "Legendary"
+                }
+              }
+            ]
           }
         ]
       }

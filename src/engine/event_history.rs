@@ -210,7 +210,9 @@ fn event_filter_supported(filter: &Value) -> bool {
 pub(super) fn event_history_supported(expression: &Value) -> bool {
     history_scope(expression).is_some()
         && event_kinds(expression).is_some_and(|kinds| relation_supported(expression, &kinds))
-        && history_measure(expression).is_some()
+        && history_measure(expression).is_some_and(|measure| {
+            event_kinds(expression).is_some_and(|kinds| measure_recorded(measure, &kinds))
+        })
         && history_aggregate(expression).is_some()
         && expression
             .get("player")
@@ -234,6 +236,21 @@ pub(super) fn event_history_supported(expression: &Value) -> bool {
                     .all(|relation| player_relation_supported(relation))
             })
         })
+}
+
+/// Events whose recorded detail keeps the power an object had then: an
+/// attacker's power as it was declared (CR 508.1).
+const POWER_RECORDING_EVENTS: &[&str] = &["attackerDeclared"];
+
+/// Whether every event of the pattern records what `measure` reads. A
+/// measure an event does not record is refused, never read as zero.
+fn measure_recorded(measure: HistoryMeasure, kinds: &[&str]) -> bool {
+    match measure {
+        HistoryMeasure::Power => kinds
+            .iter()
+            .all(|kind| POWER_RECORDING_EVENTS.contains(kind)),
+        _ => true,
+    }
 }
 
 /// The recorded detail value a pattern field names: a top-level field, or a

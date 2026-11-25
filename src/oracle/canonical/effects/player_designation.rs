@@ -64,8 +64,14 @@ pub(in crate::oracle::canonical) fn lower_player_status_action(
     status: &PlayerStatusAction,
     player: Value,
 ) -> Result<Vec<Value>, &'static str> {
-    let PlayerStatusAction::GainKeywords(grant) = status else {
-        return Ok(vec![json!({ "kind": "loseGame", "player": player })]);
+    let grant = match status {
+        PlayerStatusAction::LoseGame => {
+            return Ok(vec![json!({ "kind": "loseGame", "player": player })]);
+        }
+        PlayerStatusAction::WinGame => {
+            return Ok(vec![json!({ "kind": "winGame", "player": player })]);
+        }
+        PlayerStatusAction::GainKeywords(grant) => grant,
     };
     let duration = match &grant.duration {
         EffectDurationNode::UntilEndOfCurrentTurn => json!({ "kind": "untilEndOfCurrentTurn" }),

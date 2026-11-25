@@ -201,6 +201,18 @@ fn parse_ability_body(
                 };
             }
         }
+        // The exact-count optional exile keeps its all-or-nothing primitive
+        // (`exileCards` with a literal count: it cannot be performed with
+        // fewer cards in the graveyard), which the shared measured group
+        // would otherwise lower as a capped choice. Only full success owns it.
+        if claims_promoted_optional_zone_action_trigger_family(input) {
+            if let Ok(draft) = parse_promoted_optional_zone_action_trigger(input) {
+                return CanonicalParseOutcome::Parsed {
+                    draft,
+                    recognizer: RecognizerProvenance::Native,
+                };
+            }
+        }
         match try_parse_generic_trigger_program(input) {
             GenericTriggerProgramAttempt::Parsed(draft) => {
                 return CanonicalParseOutcome::Parsed {

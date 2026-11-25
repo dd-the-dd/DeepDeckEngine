@@ -143,8 +143,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "static.continuous.type-change",
-            "found": "the"
+            "state": "static.continuous.characteristic-copula.lowering",
+            "found": "."
           }
         ]
       }

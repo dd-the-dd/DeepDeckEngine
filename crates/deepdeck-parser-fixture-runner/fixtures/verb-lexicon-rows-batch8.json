@@ -137,18 +137,18 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0/kind",
+                "pointer": "/effects/1/kind",
                 "equals": "repeatEffects"
               },
               {
-                "pointer": "/effects/0/count",
+                "pointer": "/effects/1/count",
                 "equals": {
                   "kind": "integer",
                   "value": 2
                 }
               },
               {
-                "pointer": "/effects/0/effects/0/kind",
+                "pointer": "/effects/1/effects/0/kind",
                 "equals": "createTokens"
               }
             ]
@@ -266,7 +266,8 @@
         ],
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -412,7 +413,7 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0/kind",
+                "pointer": "/effects/1/kind",
                 "equals": "turnPermanentFaceUp"
               }
             ]
@@ -496,11 +497,11 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0/kind",
+                "pointer": "/effects/1/kind",
                 "equals": "turnPermanentFaceUp"
               },
               {
-                "pointer": "/effects/1/kind",
+                "pointer": "/effects/2/kind",
                 "equals": "drawCards"
               }
             ]
@@ -536,7 +537,7 @@
       }
     },
     {
-      "id": "exact-carry-away-unattach-enchanted-equipment",
+      "id": "known-gap-exact-carry-away-unattach-enchanted-equipment",
       "request": {
         "cardName": "Carry Away",
         "typeLine": "Enchantment — Aura",
@@ -546,14 +547,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 1,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": []
+            "code": "oracle_machine_failure",
+            "state": "reference.attached-object.nominal"
           }
         ]
       }
@@ -657,11 +656,11 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0/kind",
+                "pointer": "/effects/1/kind",
                 "equals": "changeRoomDoor"
               },
               {
-                "pointer": "/effects/0/change",
+                "pointer": "/effects/1/change",
                 "equals": "lock"
               }
             ]

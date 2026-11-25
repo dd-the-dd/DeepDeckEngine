@@ -48,6 +48,8 @@ fn game() -> (GameEngine, StackObject) {
         &definition("returned", "Creature — Zombie"),
         402,
     ));
+    // Every fixture object enters the game with an admitted incarnation.
+    engine.admit_explicit_test_fixture_objects().unwrap();
     let stack = StackObject {
         id: "moved-antecedent-stack".into(),
         controller: "p0".into(),

@@ -140,6 +140,8 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
         return EffectProgramParseAttempt::NotApplicable;
     };
     let mut cursor = OracleTokenCursor::new("contextual-effect-program", input.tokens);
+    // The resolved source names are readable in every part of the ability.
+    cursor.replace_source_names(Some(input.name_links.into()));
     // Activation X belongs to this activation. Never borrow the source's
     // retained casting X from a trigger-only recognition context.
     let recognition_context = EffectRecognitionContext::default()

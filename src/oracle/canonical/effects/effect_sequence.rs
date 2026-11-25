@@ -2965,6 +2965,8 @@ impl ConditionalScopes {
                     // A branch-local card antecedent is not proven after the
                     // instruction; a later reference fails explicitly.
                     collections.clear_antecedent();
+                } else {
+                    collections.keep_common_location_facts(&[reference, before]);
                 }
             }
         }

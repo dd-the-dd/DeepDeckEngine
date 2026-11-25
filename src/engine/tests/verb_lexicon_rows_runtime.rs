@@ -435,3 +435,37 @@ fn fateseal_reorders_an_opponents_library_without_changing_its_cards() {
     assert_eq!(before, after, "the cards stay in that library");
     assert_eq!(engine.state.players[0].library.len(), own_before);
 }
+
+#[test]
+fn winning_the_game_ends_it_unless_the_winner_cant_win() {
+    // `you win the game` (CR 104.2b): every other player leaves and the
+    // game is over with the controller as its winner.
+    let rules = parsed_rules("Win Witness", "Sorcery", "You win the game.");
+    let mut engine = test_engine(3);
+    resolve(
+        &mut engine,
+        &rules[0]["effects"],
+        &spell_source("win", "Sorcery"),
+    );
+    let outcome = engine.state.outcome.clone().expect("the game ended");
+    assert_eq!(outcome.winner.as_deref(), Some("player-0"));
+    assert!(engine.state.players[1].has_lost && engine.state.players[2].has_lost);
+    assert_eq!(event_count(&engine, "playerWonGame"), 1);
+    // CR 104.2a: a player who can't win the game doesn't, and nothing
+    // happens to the other players (`Your opponents can't win the game.`
+    // on an opponent's permanent).
+    let prohibition = parsed_rules("Angel", "Artifact", "Your opponents can't win the game.");
+    let mut definition = test_definition("angel", "Artifact");
+    definition.rules = prohibition;
+    let mut engine = test_engine(2);
+    engine.state.players[1]
+        .battlefield
+        .push(test_instance("angel", definition, "player-1"));
+    resolve(
+        &mut engine,
+        &rules[0]["effects"],
+        &spell_source("win", "Sorcery"),
+    );
+    assert!(engine.state.outcome.is_none());
+    assert!(!engine.state.players[1].has_lost);
+}

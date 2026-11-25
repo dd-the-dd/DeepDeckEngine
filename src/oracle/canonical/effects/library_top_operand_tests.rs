@@ -159,8 +159,19 @@ fn unbounded_permission_over_exiled_cards_lasts_while_they_remain_exiled() {
     let effects = effects_of(&parsed, 0);
     assert_eq!(kinds(&effects), ["bind", "moveCards", "grantPermission"]);
     assert_eq!(effects[2]["duration"]["kind"], "whileInExile");
-    // Revealed (not exiled) cards have no zone that bounds the permission.
-    assert_not_canonical("Reveal the top card of your library. You may play that card.");
+    // Revealed (not exiled) cards stay in the library: with no stated
+    // window the permission is used while the spell resolves (Djinn of
+    // Wishes, CR 608.2g), from the caster's own observed library cards.
+    let parsed = parse(
+        "Sorcery",
+        "{1}{R}",
+        "Reveal the top card of your library. You may play that card.",
+    );
+    let effects = effects_of(&parsed, 0);
+    assert_eq!(kinds(&effects), ["bind", "revealCards", "castAnyNumber"]);
+    assert_eq!(effects[2]["sourceZone"], "library");
+    assert_eq!(effects[2]["timing"]["kind"], "duringResolution");
+    assert_eq!(effects[2]["playLands"], true);
 }
 
 /// The library holder is the shared possessive: a target player's library

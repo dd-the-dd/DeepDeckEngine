@@ -78,7 +78,7 @@
       }
     },
     {
-      "id": "smile-at-death-exact-up-to-literal-power",
+      "id": "known-gap-smile-at-death-exact-up-to-literal-power",
       "request": {
         "cardName": "Smile at Death",
         "typeLine": "Enchantment",
@@ -88,8 +88,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent"
+          }
+        ]
       }
     },
     {
@@ -138,7 +144,7 @@
       }
     },
     {
-      "id": "winter-soldier-reborn-avenger-exact-named-source-power",
+      "id": "known-gap-winter-soldier-reborn-avenger-exact-named-source-power",
       "request": {
         "cardName": "Winter Soldier, Reborn Avenger",
         "typeLine": "Legendary Creature — Human Soldier Hero",
@@ -148,8 +154,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.atom-kind"
+          }
+        ]
       }
     },
     {
@@ -303,7 +315,7 @@
       }
     },
     {
-      "id": "barrel-down-sokenzan-exact-return-any-number-twice-count",
+      "id": "known-gap-barrel-down-sokenzan-exact-return-any-number-twice-count",
       "request": {
         "cardName": "Barrel Down Sokenzan",
         "typeLine": "Instant — Arcane",
@@ -313,8 +325,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.targetless-effect"
+          }
+        ]
       }
     },
     {

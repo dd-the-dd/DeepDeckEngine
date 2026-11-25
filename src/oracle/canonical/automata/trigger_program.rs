@@ -662,6 +662,7 @@ pub(in crate::oracle::canonical) fn event_frame(
         event_card: event_card_zone(event),
         combat_defending_player: false,
         inherited_moved_selector: None,
+        replacing_instead_at: None,
         // A cast record binds its spell; a copy has no cast record.
         event_spell: matches!(
             event,

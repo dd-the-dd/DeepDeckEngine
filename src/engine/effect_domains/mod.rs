@@ -304,6 +304,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             "grantNoMaximumHandSize"
             | "grantPlayerKeyword"
             | "loseGame"
+            | "winGame"
             | "grantExtraTurn"
             | "ventureDungeon"
             | "restrictPlayerActions",

@@ -260,10 +260,36 @@ fn read_exception_item(
             cursor.consume_phrase(&["this", "ability"])?;
             exceptions.retains_this_ability = true;
         } else {
-            let list =
-                recognize_effect_owned_granted_ability_list(cursor, GRANTED_OBJECT_TYPE_LINE)?;
+            // `has flying and this ability`: the granted list ends where the
+            // coordinated `this ability` retention begins (CR 707.9b).
+            let retained = (0..)
+                .map_while(|offset| cursor.peek_ahead(offset).map(|raw| (offset, raw)))
+                .take_while(|(_, raw)| !matches!(*raw, "," | "." | ";"))
+                .find(|(offset, raw)| {
+                    raw.eq_ignore_ascii_case("and")
+                        && word_at(cursor, offset + 1, "this")
+                        && word_at(cursor, offset + 2, "ability")
+                })
+                .map(|(offset, _)| cursor.position() + offset);
+            let list = match retained {
+                Some(end) => cursor.bounded(end, |cursor| {
+                    recognize_effect_owned_granted_ability_list(cursor, GRANTED_OBJECT_TYPE_LINE)
+                })?,
+                None => {
+                    recognize_effect_owned_granted_ability_list(cursor, GRANTED_OBJECT_TYPE_LINE)?
+                }
+            };
             changes.characteristics.keywords.extend(list.keywords);
             changes.characteristics.abilities.extend(list.abilities);
+            if retained.is_some() {
+                cursor.enter("token.copy.except.this-ability");
+                cursor.require(
+                    !exceptions.retains_this_ability,
+                    "one `has this ability` exception",
+                )?;
+                cursor.consume_phrase(&["and", "this", "ability"])?;
+                exceptions.retains_this_ability = true;
+            }
         }
     } else if word_at(cursor, 0, "isn't") || word_at(cursor, 0, "aren't") {
         let raw = cursor.peek().expect("a negated copula").to_string();

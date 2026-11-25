@@ -210,7 +210,7 @@
       }
     },
     {
-      "id": "known-gap-triskaidekaphobia-exact-with-life-predicate",
+      "id": "triskaidekaphobia-exact-with-life-predicate",
       "request": {
         "cardName": "Triskaidekaphobia",
         "typeLine": "Enchantment",
@@ -220,14 +220,8 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure",
-            "state": "effect.start"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical"
       }
     },
     {

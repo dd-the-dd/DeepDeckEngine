@@ -291,8 +291,10 @@ pub(in crate::oracle::canonical) fn recognize_replacing_sequence(
                 .ok_or_else(|| cursor.fail("a period after the postposed `instead`"))?;
             tokens[instead] = period;
             let mut view = cursor.with_tokens(&tokens);
+            let mut restating = replacing.clone();
+            restating.frame.replacing_instead_at = Some(instead);
             let sequence = view.bounded(instead + 1, |view| {
-                recognize_effect_sequence_with_context(view, name_links, name_failure, &replacing)
+                recognize_effect_sequence_with_context(view, name_links, name_failure, &restating)
             })?;
             cursor.advance_to(instead + 2)?;
             if cursor.position() < sentence.end {
@@ -320,8 +322,10 @@ pub(in crate::oracle::canonical) fn recognize_replacing_sequence(
                 .ok_or_else(|| cursor.fail("a period after the postposed condition"))?;
             tokens[instead] = period_token;
             let mut view = cursor.with_tokens(&tokens);
+            let mut restating = replacing.clone();
+            restating.frame.replacing_instead_at = Some(instead);
             let mut sequence = view.bounded(instead + 1, |view| {
-                recognize_effect_sequence_with_context(view, name_links, name_failure, &replacing)
+                recognize_effect_sequence_with_context(view, name_links, name_failure, &restating)
             })?;
             cursor.enter("program.replacing.postposed-body");
             cursor.require(

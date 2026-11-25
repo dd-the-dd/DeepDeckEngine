@@ -96,6 +96,8 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
 pub(in crate::oracle::canonical) enum PlayerStatusAction {
     /// `lose(s) the game` (CR 104.3a): the acting player loses the game.
     LoseGame,
+    /// `win(s) the game` (CR 104.2b): the acting player wins the game.
+    WinGame,
     /// `gain(s) KEYWORDS DURATION`: the keywords a player can have, for the
     /// stated duration.
     GainKeywords(PlayerKeywordGrantNode),
@@ -156,7 +158,9 @@ pub(in crate::oracle::canonical) fn player_status_action_follows(
             .peek()
             .is_some_and(|raw| lookup_verb(raw, &[lemma]).is_some())
     };
-    (verb(VerbLemma::Lose) && word_at(cursor, 1, "the") && word_at(cursor, 2, "game"))
+    ((verb(VerbLemma::Lose) || verb(VerbLemma::Win))
+        && word_at(cursor, 1, "the")
+        && word_at(cursor, 2, "game"))
         || (verb(VerbLemma::Gain) && player_keyword_word_at(cursor, 1))
 }
 
@@ -179,6 +183,15 @@ pub(in crate::oracle::canonical) fn recognize_player_status_fragment(
         cursor.enter("player-action.lose-game.object");
         cursor.consume_phrase(&["the", "game"])?;
         return Ok(PlayerStatusAction::LoseGame);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| lookup_verb(raw, &[VerbLemma::Win]).is_some())
+    {
+        cursor.consume(super::verb_entry(VerbLemma::Win).surface(form.form()))?;
+        cursor.enter("player-action.win-game.object");
+        cursor.consume_phrase(&["the", "game"])?;
+        return Ok(PlayerStatusAction::WinGame);
     }
     cursor.consume(super::verb_entry(VerbLemma::Gain).surface(form.form()))?;
     let mut keywords = Vec::new();

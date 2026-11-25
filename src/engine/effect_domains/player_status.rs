@@ -11,7 +11,7 @@ fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
         Some("grantExtraTurn") => player_reference_supported(&effect["player"]),
         Some("grantNoMaximumHandSize") => player_reference_supported(&effect["player"]),
-        Some("loseGame") => player_reference_supported(&effect["player"]),
+        Some("loseGame" | "winGame") => player_reference_supported(&effect["player"]),
 
         Some("ventureDungeon") => {
             player_reference_supported(&effect["player"])
@@ -122,6 +122,36 @@ impl GameEngine {
                 }
             }
 
+            // CR 104.2b: an effect states that a player wins the game. The
+            // game ends with that player as the winner: every other player
+            // still in the game leaves it. A player who can't win the game
+            // (CR 104.2a, `cantWinGame`) doesn't, and nothing happens.
+            Some("winGame") => {
+                if let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                    && self
+                        .state
+                        .players
+                        .iter()
+                        .any(|player| player.id == player_id && !player.has_lost)
+                    && self.player_can_win(&player_id)
+                {
+                    let others = self
+                        .state
+                        .players
+                        .iter()
+                        .filter(|player| player.id != player_id && !player.has_lost)
+                        .map(|player| player.id.clone())
+                        .collect::<Vec<_>>();
+                    self.record_event(
+                        "playerWonGame",
+                        Some(player_id.clone()),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "reason": "effect" }),
+                    );
+                    self.eliminate_players(GameEndReason::SpellOrAbility, others);
+                }
+            }
             Some("grantExtraTurn") => {
                 if let Some(player_id) =
                     self.resolve_player(&effect["player"], stack_object, bindings)

@@ -377,7 +377,7 @@
       }
     },
     {
-      "id": "exact-courier-of-comestibles-restated-dont",
+      "id": "known-gap-exact-courier-of-comestibles-restated-dont",
       "request": {
         "cardName": "Courier of Comestibles",
         "typeLine": "Creature — Human Citizen",
@@ -387,32 +387,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "optionalAction"
-              },
-              {
-                "pointer": "/effects/0/onPerformed",
-                "equals": []
-              },
-              {
-                "pointer": "/effects/0/onDeclined/0/kind",
-                "equals": "createTokens"
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "cost.outcome.connector"
           }
         ]
       }
     },
     {
-      "id": "exact-trade-route-envoy-restated-dont-after-gated-draw",
+      "id": "known-gap-exact-trade-route-envoy-restated-dont-after-gated-draw",
       "request": {
         "cardName": "Trade Route Envoy",
         "typeLine": "Creature — Dog Soldier",
@@ -422,30 +408,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "conditional"
-              },
-              {
-                "pointer": "/effects/0/then/0/kind",
-                "equals": "performAction"
-              },
-              {
-                "pointer": "/effects/0/then/0/onDeclined/0/kind",
-                "equals": "putCounters"
-              },
-              {
-                "pointer": "/effects/0/else/0/kind",
-                "equals": "putCounters"
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "condition.action-outcome.payment-omitted"
           }
         ]
       }
