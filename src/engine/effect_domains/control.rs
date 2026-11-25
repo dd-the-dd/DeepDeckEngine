@@ -253,6 +253,7 @@ impl GameEngine {
                     return Ok(());
                 };
                 if self.once_per_turn_spent(effect, stack_object) {
+                    self.record_once_per_turn_unavailable(effect, stack_object);
                     return Ok(());
                 }
                 let effects = effect["effects"].as_array().cloned().unwrap_or_default();

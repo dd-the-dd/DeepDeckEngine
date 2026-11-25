@@ -1042,14 +1042,25 @@ fn recognize_activated_ability_query(
     }
     // `an exhaust ability`: the keyword labelling an activated ability, by
     // its catalog identity (`power-up`).
-    let labelled = cursor
-        .peek()
-        .filter(|_| !loyalty && word_at(cursor, 1, "ability"))
-        .and_then(|raw| lookup_exact_lexeme(&raw.to_ascii_lowercase()))
-        .and_then(|entry| super::ActivationKeyword::from_canonical_id(&entry.canonical_id));
-    if labelled.is_some() {
-        consume_verb_word(cursor)?;
+    // The mechanic catalog names it as `ActivationKeyword` does for `each
+    // exhaust ability` (one shared label reader).
+    let labelled = (!loyalty)
+        .then(|| {
+            crate::oracle::ability_catalog::match_catalog_mechanic(
+                cursor.token_slice(cursor.position(), usize::MAX),
+                0,
+            )
+        })
+        .flatten()
+        .filter(|matched| word_at(cursor, matched.end_token, "ability"))
+        .and_then(|matched| {
+            super::ActivationKeyword::from_canonical_id(matched.canonical_id)
+                .map(|keyword| (keyword, matched.end_token))
+        });
+    if let Some((_, width)) = labelled {
+        cursor.advance_to(cursor.position() + width)?;
     }
+    let labelled = labelled.map(|(keyword, _)| keyword);
     cursor.consume("ability")?;
     let source = if word_at(cursor, 0, "of") {
         cursor.enter("event.player.ability-query.source");
@@ -1061,13 +1072,26 @@ fn recognize_activated_ability_query(
             .ok_or_else(|| cursor.fail("`a` or `an` before the ability's source object"))?;
         cursor.consume(&article)?;
         // The relative clause qualifies the ability: the object query ends
-        // before it (or at the clause's punctuation).
-        let end = (0..)
+        // before it, so a comma-separated source list (`an artifact,
+        // creature, or land that isn't a mana ability`) stays one query.
+        // Without the clause it ends at the event's punctuation.
+        let sentence = (0..)
             .map_while(|offset| cursor.peek_ahead(offset).map(|raw| (offset, raw)))
-            .find(|(offset, raw)| {
-                matches!(*raw, "," | "." | ";") || non_mana_relative_at(cursor, *offset)
+            .take_while(|(_, raw)| !matches!(*raw, "." | ";"))
+            .map(|(offset, _)| offset)
+            .collect::<Vec<_>>();
+        let end = sentence
+            .iter()
+            .copied()
+            .find(|offset| non_mana_relative_at(cursor, *offset))
+            .or_else(|| {
+                sentence
+                    .iter()
+                    .copied()
+                    .find(|offset| cursor.peek_ahead(*offset) == Some(","))
             })
-            .map_or(cursor.position(), |(offset, _)| cursor.position() + offset);
+            .unwrap_or(sentence.len());
+        let end = cursor.position() + end;
         cursor.enter("event.player.ability-query.source-query");
         let query = cursor.bounded(end, recognize_object_query)?;
         cursor.enter("event.player.ability-query.source-domain");

@@ -211,10 +211,6 @@ fn near_misses_fail_explicitly_or_stay_with_other_parents() {
             "static.combat-restriction.complete",
         ),
         (
-            "This creature can't attack or block alone.",
-            "static.combat-restriction.complete",
-        ),
-        (
             "This creature can't block. You gain 1 life.",
             "static.combat-restriction.complete",
         ),
@@ -225,6 +221,11 @@ fn near_misses_fail_explicitly_or_stay_with_other_parents() {
     ] {
         assert_eq!(rejected_at(text), state, "{text}");
     }
+    // `alone` is a shared combat-clause qualifier now (CR 506.5): each verb
+    // of the coordination keeps its own marker.
+    let alone = parsed("This creature can't attack or block alone.");
+    assert_eq!(alone["modifiers"][0]["keyword"], "cantAttackAlone");
+    assert_eq!(alone["modifiers"][1]["keyword"], "cantBlockAlone");
     // The per-combat clauses read the defending player of each check.
     for (text, restriction) in [
         (

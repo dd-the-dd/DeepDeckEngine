@@ -54,12 +54,14 @@ fn stack_object(card: CardInstance, rule: &Value) -> StackObject {
 
 fn resolve(engine: &mut GameEngine, stack: &StackObject) {
     let effects = stack.ability_rule.as_ref().expect("a rule")["effects"].clone();
+    // Resolution starts from the decisions the stack object recorded when
+    // its costs were paid, as the engine's stack resolution does.
     execute_effects_at_resolution_start(
         engine,
         &effects,
         stack,
         &mut BTreeMap::new(),
-        &mut BTreeMap::new(),
+        &mut stack.decisions.clone(),
         &mut EmeritusDecisionProvider,
     )
     .expect("the compiled program executes");

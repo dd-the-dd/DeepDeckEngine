@@ -326,7 +326,13 @@ impl GameEngine {
         for created in created_tokens {
             let instance_id = created.instance_id.clone();
             if attacking {
-                self.put_token_onto_battlefield_attacking(&instance_id, stack_object, provider)?;
+                self.put_token_onto_battlefield_attacking(
+                    &instance_id,
+                    effect,
+                    stack_object,
+                    bindings,
+                    provider,
+                )?;
             }
             if effect["sacrificeAtNextEndStep"].as_bool().unwrap_or(false) {
                 self.state.rule_modifiers.push(json!({
@@ -720,7 +726,13 @@ impl GameEngine {
         for created in created_tokens {
             let instance_id = created.instance_id.clone();
             if attacking {
-                self.put_token_onto_battlefield_attacking(&instance_id, stack_object, provider)?;
+                self.put_token_onto_battlefield_attacking(
+                    &instance_id,
+                    effect,
+                    stack_object,
+                    bindings,
+                    provider,
+                )?;
             }
             for (flag, kind) in [
                 ("sacrificeAtNextEndStep", "sacrificeAtEndStep"),
@@ -794,9 +806,22 @@ impl GameEngine {
     fn put_token_onto_battlefield_attacking<P: DecisionProvider>(
         &mut self,
         token_id: &str,
+        effect: &Value,
         stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
         provider: &mut P,
     ) -> Result<(), EngineError> {
+        // `that's tapped and attacking that player`: the one defender the
+        // effect names, by the shared attacking-entry policy.
+        if let Some(policy) = effect.get("attackingDefender") {
+            return self.put_permanents_into_combat_attacking(
+                &[token_id.to_string()],
+                policy,
+                stack_object,
+                bindings,
+                provider,
+            );
+        }
         self.put_permanent_into_combat_attacking(
             token_id,
             &super::entering_attacking::AdmittedDefenders::Any,

@@ -1273,11 +1273,22 @@
         "oracleText": "Each player loses 1 life for each creature they control."
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/player/id",
+                "equals": "actingPlayer"
+              }
+            ]
           }
         ]
       }

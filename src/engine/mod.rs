@@ -2430,7 +2430,8 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "dealtDamageToControllerThisTurn"
             | "wasDealtDamageThisTurn"
             | "attackedThisTurn"
-            | "blockedThisTurn",
+            | "blockedThisTurn"
+            | "wasBlockedThisTurn",
         ) => true,
         Some("or" | "and") => filter["operands"]
             .as_array()
@@ -5342,6 +5343,7 @@ fn filter_reads_object_history(filter: &Value) -> bool {
         Some(
             "attackedThisTurn"
             | "blockedThisTurn"
+            | "wasBlockedThisTurn"
             | "dealtDamageThisTurn"
             | "wasDealtDamageThisTurn"
             | "dealtDamageToControllerThisTurn"
@@ -11158,6 +11160,7 @@ impl GameEngine {
             Some(
                 kind @ ("attackedThisTurn"
                 | "blockedThisTurn"
+                | "wasBlockedThisTurn"
                 | "dealtDamageThisTurn"
                 | "wasDealtDamageThisTurn"),
             ) => self.permanent_history_this_turn(permanent, kind),
@@ -11186,6 +11189,7 @@ impl GameEngine {
             Some(
                 kind @ ("attackedThisTurn"
                 | "blockedThisTurn"
+                | "wasBlockedThisTurn"
                 | "dealtDamageThisTurn"
                 | "wasDealtDamageThisTurn"),
             ) => self.permanent_history_this_turn(card, kind),
@@ -11218,6 +11222,16 @@ impl GameEngine {
                             && event.card_instance_id.as_deref()
                                 == Some(permanent.instance_id.as_str())
                             && same_object(&event.detail)
+                    }
+                    // CR 509.1h: a creature a blocker was declared for.
+                    "wasBlockedThisTurn" => {
+                        event.kind == "blockerDeclared"
+                            && event.detail["attackerId"].as_str()
+                                == Some(permanent.instance_id.as_str())
+                            && event
+                                .detail
+                                .get("attackerIdentity")
+                                .is_none_or(|identity| identity.is_null() || *identity == current)
                     }
                     "dealtDamageThisTurn" => {
                         event.kind == "damageDealt"

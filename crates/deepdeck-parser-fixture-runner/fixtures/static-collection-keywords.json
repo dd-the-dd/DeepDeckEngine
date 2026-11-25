@@ -623,20 +623,23 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "ability-frame.conditional.body"
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "flying"
+              }
+            ]
           }
         ]
       }

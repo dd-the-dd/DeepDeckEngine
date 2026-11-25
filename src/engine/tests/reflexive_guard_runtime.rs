@@ -6,8 +6,8 @@ use super::*;
 // and resolves only when it still holds.
 const TEXT: &str = "When this creature enters, you may discard a card. When you do, if you control an artifact, draw a card.";
 
-/// Performs every optional instruction; any other decision (the discarded
-/// card) takes its first option.
+/// Pays every offered optional resolution cost; any other decision (the
+/// discarded card) takes its first option.
 struct Perform;
 
 impl DecisionProvider for Perform {
@@ -19,9 +19,7 @@ impl DecisionProvider for Perform {
         Ok(request
             .options
             .iter()
-            .position(|option| {
-                option.decisions.get("performOptionalAction") == Some(&Value::Bool(true))
-            })
+            .position(|option| option.kind == ActionKind::ChooseResolution)
             .unwrap_or(0))
     }
 }
@@ -38,7 +36,10 @@ fn parsed_rule() -> Value {
     assert_eq!(parsed.status, "canonical", "{:#?}", parsed.abilities);
     let rule = parsed.abilities[0].rule.clone().expect("canonical rule");
     assert!(rule_is_executable(&rule), "{rule:#}");
-    let reflexive = &rule["effects"][0]["onPerformed"][0];
+    // An optional discard is an optional resolution cost (the established
+    // batch-9 shape); its reflexive ability is the performed effect.
+    assert_eq!(rule["effects"][0]["kind"], "optionalPayCostPerformEffects");
+    let reflexive = &rule["effects"][0]["effects"][0];
     assert_eq!(reflexive["kind"], "createReflexiveTrigger", "{rule:#}");
     assert!(
         reflexive["ability"]["condition"].is_object(),

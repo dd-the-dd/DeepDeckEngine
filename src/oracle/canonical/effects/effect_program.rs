@@ -169,11 +169,22 @@ fn lower_unlimited_program_step<E>(
         };
         let body = lower_with(cursor, body.inner_sequence(), &mut body_scope)?;
         let otherwise = match otherwise {
-            Some(otherwise) => Some(lower_with(
-                cursor,
-                otherwise.inner_sequence(),
-                &mut CardCollectionMemory::default(),
-            )?),
+            Some(otherwise) => {
+                let lowered = lower_with(
+                    cursor,
+                    otherwise.inner_sequence(),
+                    &mut CardCollectionMemory::default(),
+                )?;
+                // A declined branch written as its own permission keeps its
+                // optional wrapper (`Otherwise, you may ...`).
+                Some(match otherwise.as_ref() {
+                    EffectProgramNode::Optional { .. } => {
+                        wrap_lowered_effect_program(cursor, otherwise, lowered)
+                            .map_err(&program_failure)?
+                    }
+                    _ => lowered,
+                })
+            }
             None => None,
         };
         return lower_action_outcome(
@@ -1075,6 +1086,27 @@ fn install_reflexive_guard(
             card_focus: None,
             previous_action_result: None,
         },
+    )?;
+    // A pronoun of the guard names the instruction's own object as much as
+    // the enclosing trigger's event object (`put a quest counter on this
+    // enchantment. When you do, if it has four or more quest counters`): the
+    // shared trigger-guard reader binds it to the event object, an
+    // antecedent the reflexive frame does not prove.
+    fn reads_event_object(value: &Value) -> bool {
+        match value {
+            Value::Object(map) => {
+                matches!(
+                    map.get("kind").and_then(Value::as_str),
+                    Some("observedEventObject" | "eventObject" | "triggeringPermanent")
+                ) || map.values().any(reads_event_object)
+            }
+            Value::Array(items) => items.iter().any(reads_event_object),
+            _ => false,
+        }
+    }
+    cursor.require(
+        !reads_event_object(&condition),
+        "a reflexive intervening `if` without a pronoun whose antecedent the reflexive frame does not prove",
     )?;
     let mut installed = 0;
     lowered

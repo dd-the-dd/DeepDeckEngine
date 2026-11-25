@@ -778,6 +778,8 @@ fn a_stack_item_target_relates_each_stack_object_to_its_own_targets() {
             "player-1",
             "spellAbility",
         );
+        // A spell on the stack carries no ability kind (CR 112.1).
+        object.ability_kind = None;
         object.targets.insert("t".to_string(), target);
         object
     };

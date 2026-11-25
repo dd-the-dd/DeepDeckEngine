@@ -110,6 +110,13 @@ fn optional_single_targeted_action_keeps_declaration_outside_wrapper() {
 }
 
 #[test]
+fn each_of_your_main_phases_is_a_claimed_step_boundary() {
+    // Every main phase of the controller's turn, added ones included.
+    let rule = parsed("At the beginning of each of your main phases, draw a card.").rule;
+    assert_eq!(rule["effects"][0]["kind"], "drawCards", "{rule:#}");
+}
+
+#[test]
 fn unsupported_boundaries_remain_unclaimed() {
     for text in [
         "At the beginning of your upkeep, if you control a creature, draw a card.",
@@ -117,7 +124,6 @@ fn unsupported_boundaries_remain_unclaimed() {
         "At the end of turn, draw a card.",
         "At the beginning of your opponent's upkeep, draw a card.",
         "At the beginning of your third main phase, draw a card.",
-        "At the beginning of each of your main phases, draw a card.",
         "At the beginning of your upkeep and whenever a creature enters, draw a card.",
         "At the beginning of your upkeep draw a card.",
         "At the beginning of your upkeep, draw a card. This ability triggers only once each turn.",

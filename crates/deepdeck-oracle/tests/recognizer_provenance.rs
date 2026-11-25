@@ -81,12 +81,21 @@ fn one_native_ability_does_not_hide_an_unimplemented_keyword() {
     ));
     assert_eq!(spectacle.status, "canonical");
 
-    // Madness (CR 702.35) has no expansion yet and must stay visible.
-    let parsed = parse_oracle_card(request(
+    // Madness (CR 702.35) now expands to a casting keyword row.
+    let madness = parse_oracle_card(request(
         "Mixed Proof",
         "Instant",
         "{R}",
         "Madness {1}{R}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
+    ));
+    assert_eq!(madness.status, "canonical");
+
+    // Ripple (CR 702.60) has no expansion yet and must stay visible.
+    let parsed = parse_oracle_card(request(
+        "Mixed Proof",
+        "Instant",
+        "{R}",
+        "Ripple 4\nMixed Proof deals 3 damage to any target and you gain 3 life.",
     ));
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities.len(), 2);

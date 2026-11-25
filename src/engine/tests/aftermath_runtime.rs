@@ -47,36 +47,37 @@ fn split_face(id: &str, name: &str, mana_cost: &str, oracle: &str) -> Value {
     })
 }
 
-/// Dusk // Dawn, each half compiled from its real Oracle text.
-fn dusk_dawn() -> CardInstance {
-    let mut definition = test_definition("dusk-dawn", "Sorcery // Sorcery");
-    definition.name = "Dusk // Dawn".to_string();
-    definition.mana_cost = "{2}{W}{W} // {3}{W}{W}".to_string();
+/// Spring // Mind, each half compiled from its real Oracle text. (Dusk //
+/// Dawn's return of creature cards by power is not executable: a card-zone
+/// query reads no power, see `plural_effect_subject_runtime`.)
+fn spring_mind() -> CardInstance {
+    let mut definition = test_definition("spring-mind", "Sorcery // Sorcery");
+    definition.name = "Spring // Mind".to_string();
+    definition.mana_cost = "{2}{G} // {4}{U}{U}".to_string();
     definition.rules = vec![json!({
         "kind": "rulesMarker",
         "text": "Split card faces.",
         "splitFaces": [
             split_face(
-                "dusk",
-                "Dusk",
-                "{2}{W}{W}",
-                "Destroy all creatures with power 3 or greater.",
+                "spring",
+                "Spring",
+                "{2}{G}",
+                "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
             ),
             split_face(
-                "dawn",
-                "Dawn",
-                "{3}{W}{W}",
-                &format!(
-                    "Aftermath {AFTERMATH_REMINDER}\nReturn all creature cards with power 2 or less from your graveyard to your hand."
-                ),
+                "mind",
+                "Mind",
+                "{4}{U}{U}",
+                &format!("Aftermath {AFTERMATH_REMINDER}\nDraw two cards."),
             ),
         ],
     })];
-    test_instance("dusk-dawn", definition, "player-0")
+    test_instance("spring-mind", definition, "player-0")
 }
 
-fn white_mana(engine: &mut GameEngine) {
-    engine.state.players[0].mana_pool = ["W", "W", "C", "C", "C"]
+/// Enough mana for either half.
+fn mana(engine: &mut GameEngine) {
+    engine.state.players[0].mana_pool = ["G", "U", "U", "C", "C", "C", "C"]
         .into_iter()
         .map(|symbol| FloatingMana {
             symbol: symbol.to_string(),
@@ -91,7 +92,7 @@ fn half_casts(engine: &GameEngine) -> Vec<u64> {
         .into_iter()
         .filter(|action| {
             action.kind == ActionKind::CastSpell
-                && action.card_instance_id.as_deref() == Some("dusk-dawn")
+                && action.card_instance_id.as_deref() == Some("spring-mind")
         })
         .filter_map(|action| {
             action
@@ -108,31 +109,31 @@ fn the_aftermath_half_is_cast_from_the_graveyard_and_then_exiled() {
     let mut engine = test_engine(2);
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
-    white_mana(&mut engine);
-    engine.state.players[0].graveyard = vec![
-        dusk_dawn(),
-        test_instance(
-            "small-bear",
-            test_definition("small-bear", "Creature — Bear"),
-            "player-0",
-        ),
-    ];
+    mana(&mut engine);
+    engine.state.players[0].graveyard = vec![spring_mind()];
+    engine.state.players[0].library = (0..3)
+        .map(|index| {
+            let id = format!("library-{index}");
+            test_instance(&id, test_definition(&id, "Instant"), "player-0")
+        })
+        .collect();
     engine
         .admit_explicit_test_fixture_objects()
         .expect("fixture objects are admitted");
+    let hand_before = engine.state.players[0].hand.len();
 
     let halves = half_casts(&engine);
-    assert!(halves.contains(&1), "Dawn is cast from the graveyard");
+    assert!(halves.contains(&1), "Mind is cast from the graveyard");
     assert!(
         !halves.contains(&0),
-        "Dusk has no route from the graveyard: {halves:?}"
+        "Spring has no route from the graveyard: {halves:?}"
     );
     let cast = engine
         .legal_priority_actions(0)
         .into_iter()
         .find(|action| {
             action.kind == ActionKind::CastSpell
-                && action.card_instance_id.as_deref() == Some("dusk-dawn")
+                && action.card_instance_id.as_deref() == Some("spring-mind")
                 && action.decisions.get("splitFaceIndex") == Some(&json!(1))
         })
         .expect("the aftermath half can be cast");
@@ -142,29 +143,27 @@ fn the_aftermath_half_is_cast_from_the_graveyard_and_then_exiled() {
     );
     engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
-        .expect("cast Dawn");
+        .expect("cast Mind");
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("resolve Dawn");
-    assert!(
-        engine.state.players[0]
-            .hand
-            .iter()
-            .any(|card| card.instance_id == "small-bear"),
-        "Dawn returned the creature card"
+        .expect("resolve Mind");
+    assert_eq!(
+        engine.state.players[0].hand.len(),
+        hand_before + 2,
+        "Mind drew two cards"
     );
     assert!(
         engine.state.players[0]
             .exile
             .iter()
-            .any(|card| card.instance_id == "dusk-dawn"),
+            .any(|card| card.instance_id == "spring-mind"),
         "exiled as it left the stack"
     );
     assert!(
         !engine.state.players[0]
             .graveyard
             .iter()
-            .any(|card| card.instance_id == "dusk-dawn")
+            .any(|card| card.instance_id == "spring-mind")
     );
 }
 
@@ -174,16 +173,16 @@ fn only_the_first_half_is_cast_from_the_hand() {
     let mut engine = test_engine(2);
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
-    white_mana(&mut engine);
-    engine.state.players[0].hand = vec![dusk_dawn()];
+    mana(&mut engine);
+    engine.state.players[0].hand = vec![spring_mind()];
     engine
         .admit_explicit_test_fixture_objects()
         .expect("fixture objects are admitted");
 
     let halves = half_casts(&engine);
-    assert!(halves.contains(&0), "Dusk is cast from the hand");
+    assert!(halves.contains(&0), "Spring is cast from the hand");
     assert!(
         !halves.contains(&1),
-        "Dawn can't be cast from any zone other than a graveyard"
+        "Mind can't be cast from any zone other than a graveyard"
     );
 }

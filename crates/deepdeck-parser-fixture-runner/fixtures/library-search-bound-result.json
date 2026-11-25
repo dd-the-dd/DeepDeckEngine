@@ -344,15 +344,23 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 2,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "reference.source.start",
-            "found": "a"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "choosePermanents"
+              }
+            ]
           }
         ]
       }

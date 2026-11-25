@@ -102,6 +102,15 @@ pub(in crate::oracle::canonical) fn recognize_entering_attack(
 ) -> MachineResult<EnteringAttackNode> {
     cursor.enter("collection.destination.entry.attacking");
     cursor.consume("attacking")?;
+    recognize_entering_attack_defender(cursor)
+}
+
+/// The defender after `attacking` (CR 508.4): `that player|that opponent|
+/// defending player [or a planeswalker they control]`, else any defender.
+/// Shared by moved cards and created tokens.
+pub(in crate::oracle::canonical) fn recognize_entering_attack_defender(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<EnteringAttackNode> {
     let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
         cursor
             .peek_ahead(offset)

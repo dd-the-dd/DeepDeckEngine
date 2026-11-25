@@ -52,11 +52,11 @@ fn unclaimed_abilities_are_owned_by_their_structural_frame() {
             "pay",
         ),
         // A known subject with an unsupported predicate keeps the static
-        // frame's own diagnostic.
+        // frame's own diagnostic (High Ground's block capacity now compiles).
         (
-            "High Ground",
+            "Shadow Watch Probe",
             "Enchantment",
-            "Each creature you control can block an additional creature each combat.",
+            "Each creature you control can block creatures with shadow as though they didn't have shadow.",
             "static.continuous.defender-exception",
             "block",
         ),

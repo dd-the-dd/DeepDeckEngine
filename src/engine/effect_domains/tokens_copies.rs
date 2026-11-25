@@ -55,6 +55,10 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect.get("tapped").is_none_or(Value::is_boolean)
                 // CR 508.4: tokens put onto the battlefield attacking.
                 && effect.get("attacking").is_none_or(Value::is_boolean)
+                && effect.get("attackingDefender").is_none_or(|policy| {
+                    effect["attacking"].as_bool() == Some(true)
+                        && super::super::entering_attacking::entering_attack_supported(policy)
+                })
                 // CR 111.3, 303.4f: an Aura token entering attached to one
                 // object (the source, a target, a bound or observed object).
                 && effect.get("attachTo").is_none_or(|object| {

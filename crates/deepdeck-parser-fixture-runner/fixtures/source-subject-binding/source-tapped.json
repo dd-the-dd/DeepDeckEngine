@@ -565,14 +565,22 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "event.object.complement",
-            "found": "tapped"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentTapped"
+              },
+              {
+                "pointer": "/effects/0/source/kind",
+                "equals": "triggeringPermanent"
+              }
+            ]
           }
         ]
       }

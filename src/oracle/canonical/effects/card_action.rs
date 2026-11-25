@@ -250,6 +250,27 @@ impl CardCollectionMemory {
     }
 
     /// Selection bindings share one allocator across nested program scopes.
+    /// Claims the instruction IDs (`id` of each top-level instruction) a
+    /// lowering derived from its program position, so a nested optional
+    /// scope may carry them. `false`, claiming nothing, when one is already
+    /// allocated in this program: two producers would alias one decision.
+    pub(in crate::oracle::canonical) fn claim_instruction_ids(
+        &mut self,
+        effects: &[Value],
+    ) -> bool {
+        let ids = effects
+            .iter()
+            .filter_map(|effect| effect.get("id").and_then(Value::as_str))
+            .collect::<Vec<_>>();
+        let unique = ids.iter().collect::<std::collections::BTreeSet<_>>().len() == ids.len();
+        if !unique || ids.iter().any(|id| self.allocated_ids.contains(*id)) {
+            return false;
+        }
+        self.allocated_ids
+            .extend(ids.into_iter().map(ToOwned::to_owned));
+        true
+    }
+
     pub(in crate::oracle::canonical) fn allocate_selection_id(&mut self, prefix: &str) -> String {
         let id = fresh(prefix, &mut self.next_selection);
         self.allocated_ids.insert(id.clone());

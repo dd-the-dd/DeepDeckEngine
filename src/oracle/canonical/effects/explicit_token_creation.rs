@@ -89,6 +89,9 @@ pub(in crate::oracle::canonical) fn lower_token_creation_body(
     player: Value,
     quantity: Value,
 ) -> Result<Value, &'static str> {
+    if !attack_defender_lowered(node) {
+        return Err("an attacked player the triggering event records");
+    }
     let template = match &node.spec {
         TokenSpecNode::Described(template) => template,
         TokenSpecNode::CopyOf(_) => {
@@ -142,6 +145,24 @@ fn lower_entry_state(effect: &mut Value, node: &TokenCreationBodyNode) {
     if node.attacking {
         effect["attacking"] = json!(true);
     }
+    // The one defender the tokens attack (CR 508.4), by the shared
+    // attacking-entry policy; an unlowerable player stays unrecorded and is
+    // refused by `attack_defender_lowered`.
+    if let Some(policy) = node
+        .attack_defender
+        .as_ref()
+        .and_then(super::lower_entering_attack_policy)
+    {
+        effect["attackingDefender"] = policy;
+    }
+}
+
+/// Whether the tokens' stated defender has a lowering (a player the event
+/// records); otherwise the creation fails explicitly.
+fn attack_defender_lowered(node: &TokenCreationBodyNode) -> bool {
+    node.attack_defender
+        .as_ref()
+        .is_none_or(|defender| super::lower_entering_attack_policy(defender).is_some())
 }
 
 /// `createTokens` whose token is a copy of `object` (CR 707.2, 707.9b): the
@@ -154,6 +175,9 @@ pub(in crate::oracle::canonical) fn lower_token_copy_creation(
     player: Value,
     quantity: Value,
 ) -> Result<Value, &'static str> {
+    if !attack_defender_lowered(node) {
+        return Err("an attacked player the triggering event records");
+    }
     let mut except = match &copy.exceptions.changes {
         Some(changes) => lower_copiable_characteristic_changes(changes)?,
         None => Vec::new(),

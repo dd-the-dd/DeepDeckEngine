@@ -296,8 +296,10 @@ fn attacks_each_combat_if_able_is_required_only_while_its_condition_holds() {
 #[test]
 fn unrepresentable_neighbours_stay_explicitly_unsupported() {
     for oracle in [
-        "This creature can block an additional creature each combat.",
-        "This creature can't attack alone.",
+        // A fixed block capacity and `can't attack alone` now compile; a
+        // scaled capacity and an evasion conditioned on attacking alone do not.
+        "This creature can block an additional creature for each Forest you control.",
+        "This creature can't be blocked as long as it's attacking alone.",
         "This creature can't be blocked except by three or more creatures.",
     ] {
         let parsed = parse_oracle_card(OracleCardParseRequest {

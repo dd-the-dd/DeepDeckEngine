@@ -486,6 +486,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 2,
@@ -525,6 +526,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
@@ -660,6 +662,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 1,
@@ -686,6 +689,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
@@ -807,6 +811,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 1,
@@ -947,6 +952,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
@@ -1159,6 +1165,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
@@ -1228,6 +1235,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
@@ -1430,6 +1438,7 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,

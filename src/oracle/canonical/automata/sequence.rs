@@ -689,7 +689,7 @@ fn recognize_effect_sequence_attempt_scoped(
         ..SequenceMemory::default()
     };
     memory.sentence_anaphors = Some(memory.anaphor_snapshot());
-    loop {
+    'sequence: loop {
         state = match state {
             SequenceState::Effect => {
                 cursor.enter("sequence.effect");
@@ -1837,12 +1837,36 @@ fn recognize_effect_sequence_attempt_scoped(
                                     cursor.consume("otherwise")?;
                                     cursor.consume(",")?;
                                     let snapshot = memory.branch_snapshots[index].clone();
+                                    let branch_scope = memory.permanent_subject_scope;
+                                    let branch_player_target = memory.last_player_target;
                                     memory.restore_anaphors(snapshot);
+                                    // A target the `If` branch declared is
+                                    // declared on casting (CR 601.2c): it
+                                    // stays the player antecedent.
+                                    if memory.last_player_target.is_none() {
+                                        memory.last_player_target = branch_player_target;
+                                    }
+                                    // Without an antecedent before the
+                                    // conditional, the object the `If`
+                                    // branch named stays the pronoun's.
+                                    let mut restored = base_action_context.clone();
+                                    restored.permanent_subject_scope =
+                                        memory.permanent_subject_scope;
+                                    if super::permanent_subject::proven_permanent_antecedent(
+                                        &restored,
+                                    )
+                                    .is_none()
+                                    {
+                                        memory.permanent_subject_scope = branch_scope;
+                                    }
                                     memory.open_branch = Some(ConditionalBranch::Else(index));
                                     memory.else_candidate = None;
                                     attempt_frame.clear();
-                                    effect_start = cursor.position();
-                                    continue;
+                                    // The `Otherwise` sentence reads the
+                                    // restored antecedents: its action's
+                                    // binding environment is built again
+                                    // from them, not from the `If` branch.
+                                    continue 'sequence;
                                 }
                                 // `Then, if ...`: the comma punctuates the
                                 // sentence connector, not a clause boundary.
@@ -2073,6 +2097,16 @@ fn recognize_effect_sequence_attempt_scoped(
                             node.duration == super::TemporaryRuleDuration::Effect(duration.clone())
                         }
                         LocalEffectNode::RuleChange(node) => node.duration() == Some(duration),
+                        // `Until your next turn, ... you gain protection from
+                        // everything`: the player grant read the supplied
+                        // duration as its own (CR 611.2a).
+                        LocalEffectNode::PlayerAction(super::PlayerActionNode {
+                            action:
+                                super::SingularPlayerAction::Status(
+                                    super::PlayerStatusAction::GainKeywords(grant),
+                                ),
+                            ..
+                        }) => &grant.duration == duration,
                         LocalEffectNode::ControlChange(super::ControlChangeEffectNode {
                             change:
                                 super::ControlChange::Gain {

@@ -314,6 +314,13 @@ fn recognize_extremum(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Objec
         // `that player controls`: the player choosing among their own
         // permanents is the candidate's controller.
         Some(ObjectControllerScope::EventPlayer) => ExtremumPopulation::CandidateController,
+        // `each opponent sacrifices a creature with the greatest mana value
+        // among creatures they control`: the distributive `they` is the
+        // acting player, who chooses among their own permanents, the
+        // candidate's controller.
+        Some(ObjectControllerScope::Player(super::RelatedPlayer::Bound(
+            crate::oracle::canonical::BoundPlayerReference::ActingPlayer,
+        ))) => ExtremumPopulation::CandidateController,
         Some(_) => {
             return Err(cursor.fail(
                 "a superlative population on the battlefield or of the candidate's controller",

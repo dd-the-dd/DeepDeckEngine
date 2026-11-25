@@ -902,6 +902,20 @@ fn recognize_otherwise_complement(
     }
     cursor.enter("program.outcome.otherwise");
     cursor.consume_phrase(&["otherwise", ","])?;
+    // `Otherwise, you may return this creature to its owner's hand.`: the
+    // declined branch is a permission of its own sentence, read by the
+    // shared permission reader (Mistbreath Elder, CR 608.2c, 608.2d).
+    let body_end = sentence_end_with_reminders(cursor);
+    if sentence_has_root_may(cursor, body_end) {
+        let permission = cursor.attempt(|attempt| {
+            attempt.bounded(body_end, |cursor| {
+                recognize_permission_program(cursor, name_links, name_failure, context)
+            })
+        });
+        if let Ok(permission @ EffectProgramNode::Optional { .. }) = permission {
+            return Ok(Some(Box::new(permission)));
+        }
+    }
     let body = recognize_outcome_body(
         cursor,
         "program.outcome.otherwise.body",
@@ -911,6 +925,24 @@ fn recognize_otherwise_complement(
         context,
     )?;
     Ok(Some(Box::new(body)))
+}
+
+/// Lexical: a root `may` (outside reminders and quotes) before `end`.
+fn sentence_has_root_may(cursor: &OracleTokenCursor<'_>, end: usize) -> bool {
+    let mut depth = 0usize;
+    let mut quoted = false;
+    cursor
+        .token_slice(cursor.position(), end)
+        .iter()
+        .any(|token| {
+            match token.raw.as_str() {
+                "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+                "(" if !quoted => depth += 1,
+                ")" if !quoted => depth = depth.saturating_sub(1),
+                _ => {}
+            }
+            depth == 0 && !quoted && token.raw.eq_ignore_ascii_case("may")
+        })
 }
 
 /// Lexical: `Otherwise ,` at the cursor.

@@ -37,14 +37,20 @@ fn a_later_parameterized_item_or_the_separator_is_reported() {
     let (state, found) = failure("Flying, hexproof from multicolored");
     assert_eq!(state, "keyword.protection.quality");
     assert_eq!(found, "multicolored");
-    // Every item reads alone: the `;` list separator is what is missing.
-    let (state, found) = failure(
-        "Haste; horsemanship (This creature can't be blocked except by creatures with horsemanship.)",
-    );
-    assert_eq!(
-        (state.as_str(), found.as_str()),
-        ("ability-frame.keyword.list-separator", ";")
-    );
+    // Every item reads alone and `;` is now a shared list separator
+    // (Bayou Dragonfly's printed form), so the whole line compiles.
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Keyword List Probe".to_string(),
+        type_line: "Creature — Human Soldier".to_string(),
+        mana_cost: None,
+        oracle_text: Some(
+            "Haste; horsemanship (This creature can't be blocked except by creatures with horsemanship.)"
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
 }
 
 #[test]

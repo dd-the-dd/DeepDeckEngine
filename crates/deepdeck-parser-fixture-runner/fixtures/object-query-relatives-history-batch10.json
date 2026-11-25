@@ -198,7 +198,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "selector.relative-clause.unsupported"
+            "state": "selector.relation.anchor.query"
           }
         ]
       }

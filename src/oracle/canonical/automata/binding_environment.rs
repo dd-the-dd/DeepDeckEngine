@@ -2143,12 +2143,13 @@ pub(in crate::oracle::canonical) fn presupposed_source_nominal(
 
 /// A disjunctive nominal (`creature or planeswalker`) names a predicate when
 /// one of its nominals does, or when every branch of a disjunctive predicate
-/// is named by one of them (`target creature or planeswalker`).
+/// is named by one of them (`target creature or planeswalker`, `Kemba or
+/// another Cat you control`: each branch is a creature).
 fn predicate_names_nominals(predicate: &ObjectPredicate, nominals: &[TargetNominal]) -> bool {
     nominals
         .iter()
         .any(|nominal| predicate_names_nominal(predicate, *nominal))
-        || (nominals.len() > 1
+        || (!nominals.is_empty()
             && matches!(
                 predicate,
                 ObjectPredicate::Union(branches)
@@ -2460,8 +2461,14 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
             // `enchanted creature ... that creature`: the one permanent the
             // Aura enchants, whose kind its enchant ability fixes (CR
             // 303.4a); the anaphor names that object by a permanent nominal.
+            // When the event wrote the enchanted object with its own noun
+            // (`Whenever enchanted land becomes tapped`), that noun is what
+            // is known of it: `that creature` must follow from it.
             PermanentEffectReference::Attached(AttachedObjectRole::Enchanted)
-                if names_one_permanent_kind(nominals) =>
+                if names_one_permanent_kind(nominals)
+                    && environment.frame.event_object.as_ref().is_none_or(|slot| {
+                        slot.reference != antecedent.reference || slot.names(nominals)
+                    }) =>
             {
                 return Ok(antecedent.reference);
             }

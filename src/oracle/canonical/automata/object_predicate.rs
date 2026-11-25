@@ -35,6 +35,9 @@ pub(in crate::oracle::canonical) enum ObjectStatus {
     EnteredThisTurn,
     AttackedThisTurn,
     BlockedThisTurn,
+    /// `that was blocked this turn` (CR 509.1h): a blocker was declared for
+    /// the attacking object this turn.
+    WasBlockedThisTurn,
     WasDealtDamageThisTurn,
     DealtDamageThisTurn,
     /// `[cards in a zone] that were put there from the battlefield this
@@ -83,6 +86,7 @@ impl ObjectStatus {
             Self::EnteredThisTurn => ("enteredThisTurn", false),
             Self::AttackedThisTurn => ("attackedThisTurn", false),
             Self::BlockedThisTurn => ("blockedThisTurn", false),
+            Self::WasBlockedThisTurn => ("wasBlockedThisTurn", false),
             Self::WasDealtDamageThisTurn => ("wasDealtDamageThisTurn", false),
             Self::DealtDamageThisTurn => ("dealtDamageThisTurn", false),
             Self::PutThereFromBattlefieldThisTurn => ("putThereFromBattlefieldThisTurn", false),

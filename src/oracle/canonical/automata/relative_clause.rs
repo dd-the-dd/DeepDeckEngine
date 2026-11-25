@@ -102,6 +102,13 @@ fn past_fact_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(Object
     if word_at(cursor, offset, "blocked") {
         return Some((ObjectStatus::BlockedThisTurn, 1));
     }
+    // `was blocked this turn`; `was blocked by ANCHOR` is block history.
+    if (word_at(cursor, offset, "was") || word_at(cursor, offset, "were"))
+        && word_at(cursor, offset + 1, "blocked")
+        && word_at(cursor, offset + 2, "this")
+    {
+        return Some((ObjectStatus::WasBlockedThisTurn, 2));
+    }
     if (word_at(cursor, offset, "was") || word_at(cursor, offset, "were"))
         && word_at(cursor, offset + 1, "dealt")
         && word_at(cursor, offset + 2, "damage")
@@ -252,8 +259,9 @@ fn recognize_attacking_player(
 /// `dealt [combat] damage to ANCHOR this turn` at `offset` (CR 120.1,
 /// 510.2): the damage relation of the candidate, as a source, to a definite
 /// object, with the width up to the anchor. A player recipient is the
-/// player relation (`dealt_damage_to_player_at`); a query anchor is not
-/// read, since the damage was dealt to the object that existed then.
+/// player relation (`dealt_damage_to_player_at`). Any other recipient is
+/// claimed here, so a query anchor fails at the anchor reader: the damage
+/// was dealt to the object that existed then, which no query names.
 fn dealt_damage_to_object_at(
     cursor: &OracleTokenCursor<'_>,
     offset: usize,
@@ -267,19 +275,22 @@ fn dealt_damage_to_object_at(
         return None;
     }
     let anchor = damage + 2;
-    if targeted_player_at(cursor, anchor).is_some() {
+    if targeted_player_at(cursor, anchor).is_some()
+        || dealt_damage_to_player_at(cursor, offset).is_some()
+        || ["you", "player", "opponent", "players", "opponents"]
+            .iter()
+            .any(|word| word_at(cursor, anchor, word) || word_at(cursor, anchor + 1, word))
+    {
         return None;
     }
-    cursor_after(cursor, anchor)
-        .is_some_and(|trial| definite_anchor_starts(&trial))
-        .then_some((
-            if combat {
-                DEALT_COMBAT_DAMAGE_TO_THIS_TURN
-            } else {
-                DEALT_DAMAGE_TO_THIS_TURN
-            },
-            anchor - offset,
-        ))
+    cursor.peek_ahead(anchor).is_some().then_some((
+        if combat {
+            DEALT_COMBAT_DAMAGE_TO_THIS_TURN
+        } else {
+            DEALT_DAMAGE_TO_THIS_TURN
+        },
+        anchor - offset,
+    ))
 }
 
 /// The block-history relation at `offset` (CR 509.1, 509.1h): its relation
@@ -1615,7 +1626,19 @@ pub(in crate::oracle::canonical) fn recognize_relation_anchor(
             consume_words(cursor, 1)?;
             return Ok(RelationAnchor::Object(subject));
         }
-        let reference = super::recognize_bound_object_reference(cursor, &environment)?;
+        // A definite-only relation is a history of the anchor's identity
+        // (`that dealt damage to that creature this turn`, CR 608.2h): the
+        // anchor may name an event object that already left the battlefield.
+        let reference = if definite_only
+            && !cursor.peek().is_some_and(super::is_source_anaphor)
+            && cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+        {
+            super::recognize_nominal_object_read(cursor, &environment)?
+        } else {
+            super::recognize_bound_object_reference(cursor, &environment)?
+        };
         cursor.enter("selector.relation.anchor.binding");
         cursor.require(
             anchor_reference_lowerable(reference),

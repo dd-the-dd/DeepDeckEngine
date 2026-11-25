@@ -635,7 +635,7 @@
         "cardName": "Mixed Proof",
         "typeLine": "Instant",
         "manaCost": "{R}",
-        "oracleText": "Madness {1}{R}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
+        "oracleText": "Ripple 4\nMixed Proof deals 3 damage to any target and you gain 3 life.",
         "layout": "normal",
         "faces": []
       },
@@ -646,7 +646,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "keyword.unsupported.madness"
+            "state": "keyword.unsupported.ripple"
           }
         ],
         "abilities": [

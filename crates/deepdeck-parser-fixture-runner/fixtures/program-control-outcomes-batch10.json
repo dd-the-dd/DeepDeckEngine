@@ -64,7 +64,7 @@
             "ruleAssertions": [
               {
                 "pointer": "/effects/0/kind",
-                "equals": "optionalAction"
+                "equals": "optionalPayCostPerformEffects"
               },
               {
                 "pointer": "/effects/0/oncePerTurn",
@@ -618,10 +618,10 @@
             "ruleAssertions": [
               {
                 "pointer": "/effects/0/kind",
-                "equals": "optionalAction"
+                "equals": "optionalPayCostPerformEffects"
               },
               {
-                "pointer": "/effects/0/onPerformed/0/kind",
+                "pointer": "/effects/0/effects/0/kind",
                 "equals": "createReflexiveTrigger"
               }
             ]

@@ -28,7 +28,7 @@ impl DecisionProvider for Answer {
                     Some(chosen) => *chosen == Value::Bool(perform),
                     None => {
                         let declines = option.kind == ActionKind::DeclinePayment
-                            || option.label.starts_with("Decline");
+                            || option.label.contains("Decline");
                         declines != perform
                     }
                 },

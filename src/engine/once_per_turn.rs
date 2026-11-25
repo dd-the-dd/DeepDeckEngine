@@ -62,6 +62,25 @@ impl GameEngine {
         })
     }
 
+    /// Records that a spent limited instruction was not offered, the same
+    /// observation an impossible optional action makes (CR 608.2d).
+    pub(super) fn record_once_per_turn_unavailable(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+    ) {
+        self.record_event(
+            "optionalActionUnavailable",
+            Some(stack_object.controller.clone()),
+            Some(stack_object.card.instance_id.clone()),
+            json!({
+                "instruction": value_kind(effect),
+                "oncePerTurn": effect[ONCE_PER_TURN_FIELD],
+                "stackId": stack_object.id,
+            }),
+        );
+    }
+
     /// Records one performance of a limited instruction; an instruction
     /// without the rider records nothing.
     pub(super) fn record_once_per_turn(&mut self, effect: &Value, stack_object: &StackObject) {

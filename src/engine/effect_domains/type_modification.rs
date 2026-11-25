@@ -14,6 +14,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                 value_kind(&effect["object"]),
                 Some("self" | "abilitySource")
             ) || object_expression_supported(&effect["object"])
+                // One target, a chosen or captured permanent (CR 701.27a).
+                || target_reference_supported(&effect["object"])
         }
         Some("becomeCreature") => {
             (matches!(
@@ -141,6 +143,14 @@ impl GameEngine {
                     Some("self" | "abilitySource") => {
                         vec![stack_object.card.instance_id.clone()]
                     }
+                    _ if target_reference_supported(&effect["object"]) => self
+                        .resolve_target(&effect["object"], stack_object, bindings)
+                        .and_then(|target| match target {
+                            TargetRef::Permanent { instance_id } => Some(instance_id),
+                            _ => None,
+                        })
+                        .into_iter()
+                        .collect(),
                     _ => self
                         .resolve_runtime_object_ids(
                             &effect["object"],

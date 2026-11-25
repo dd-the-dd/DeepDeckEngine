@@ -317,7 +317,8 @@ pub(in crate::oracle::canonical) fn recognize_deck_construction_rule(
         consume_words(cursor, &["a", "deck", "can", "have"])?;
         cursor.enter("deck-construction.copy-limit.quantity");
         let maximum = if at_word(cursor, 0, "any") {
-            consume_words(cursor, &["any", "number"])?;
+            // `any number of cards`; a counted `up to seven cards` has no `of`.
+            consume_words(cursor, &["any", "number", "of"])?;
             None
         } else {
             consume_words(cursor, &["up", "to"])?;
@@ -330,7 +331,7 @@ pub(in crate::oracle::canonical) fn recognize_deck_construction_rule(
             Some(maximum)
         };
         cursor.enter("deck-construction.copy-limit.name");
-        consume_words(cursor, &["of", "cards", "named"])?;
+        consume_words(cursor, &["cards", "named"])?;
         let named = recognize_source_reference(cursor, name_links, name_failure)?;
         cursor.require(
             named == LocalObjectReference::SourceSelf,

@@ -638,6 +638,11 @@ fn lower_local_effect_sequence_with_collections(
         if let Some(chosen) = chosen.map_err(|expected| {
             EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
         })? {
+            if !collections.claim_instruction_ids(&chosen.choice) {
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("a program-unique decision for the operand chosen on resolution"),
+                ));
+            }
             effects.extend(chosen.choice);
             let key = resolution_choice_binding(effect_index);
             target_bindings.push((key, chosen.binding.clone()));

@@ -103,6 +103,7 @@ impl GameEngine {
                 };
                 // A once-each-turn payment already made this turn is spent.
                 if self.once_per_turn_spent(effect, stack_object) {
+                    self.record_once_per_turn_unavailable(effect, stack_object);
                     let declined = &effect["declineEffects"];
                     return self.execute_effects(
                         declined,
