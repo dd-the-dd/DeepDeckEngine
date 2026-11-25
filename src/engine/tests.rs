@@ -33169,6 +33169,10 @@ mod granted_ability_runtime;
 mod quantified_player_sacrifice_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_population_designation_runtime.rs"]
+mod player_population_designation_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/resolution_object_choice_runtime.rs"]
 mod resolution_object_choice_runtime;
 

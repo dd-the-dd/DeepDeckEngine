@@ -3304,6 +3304,12 @@ fn player_reference_supported(reference: &Value) -> bool {
         // CR 102.3: every player but the named one, teammates included.
         Some("playersExcept") => player_complement_reference_supported(reference),
         Some("chosenTarget" | "chosenObject" | "boundValue") => reference["id"].is_string(),
+        Some("filterPlayers") => {
+            effect_domains::player_designations::filtered_players_supported(reference)
+        }
+        Some("seatNeighbor") => {
+            effect_domains::player_designations::seat_neighbor_supported(reference)
+        }
         _ => false,
     }
 }
@@ -3311,7 +3317,7 @@ fn player_reference_supported(reference: &Value) -> bool {
 fn singular_player_reference_supported(reference: &Value) -> bool {
     !matches!(
         value_kind(reference),
-        Some("eachPlayer" | "opponentsOf" | "playersExcept")
+        Some("eachPlayer" | "opponentsOf" | "playersExcept" | "filterPlayers")
     ) && player_reference_supported(reference)
 }
 
@@ -30980,6 +30986,7 @@ impl GameEngine {
                 .get("triggeringPlayerId")
                 .and_then(Value::as_str)
                 .map(ToOwned::to_owned),
+            Some("seatNeighbor") => self.seat_neighbor(reference, stack_object, bindings),
             Some("controllerOfAttachedPermanent") => stack_object
                 .card
                 .attached_to
@@ -31061,6 +31068,7 @@ impl GameEngine {
                     .map(|player| player.id.clone())
                     .collect()
             }
+            Some("filterPlayers") => self.filtered_players(reference, stack_object, bindings),
             _ => self
                 .resolve_player(reference, stack_object, bindings)
                 .into_iter()
