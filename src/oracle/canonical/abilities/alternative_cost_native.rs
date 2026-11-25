@@ -635,6 +635,19 @@ fn lower_casting_keyword(
             "minimumPower": integer(keyword_count(cursor, node)?),
         }),
         CastingKeyword::Conspire => json!({ "kind": "conspire" }),
+        // CR 702.153a-b: the runtime declares the optional sacrifice as the
+        // spell is cast and copies the spell once per paid instance; a copy
+        // of a permanent spell (a token, CR 707.10c) has no copy runtime.
+        CastingKeyword::Casualty => {
+            cursor.require(
+                spell_face(face_type_line),
+                "an instant or sorcery face for casualty (a copied permanent spell becomes a token, which the copy runtime lacks)",
+            )?;
+            json!({
+                "kind": "casualty",
+                "minimumPower": integer(keyword_count(cursor, node)?),
+            })
+        }
         // CR 702.81a: cast from the graveyard by also discarding a land card.
         CastingKeyword::Retrace => json!({
             "kind": "graveyardCastWithDiscard",

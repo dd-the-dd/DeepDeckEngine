@@ -871,6 +871,195 @@ impl GameEngine {
 }
 
 // ---------------------------------------------------------------------------
+// Casualty (CR 702.153a-b)
+
+/// The declared creature one casualty instance sacrifices (empty: unpaid).
+fn casualty_decision_id(instance: usize) -> String {
+    format!("casualtySacrifice:{instance}")
+}
+
+/// `Casualty N` (CR 702.153a) on an instant or sorcery.
+pub(super) fn casualty_ability_supported(value: &Value) -> bool {
+    value_kind(value) == Some("casualty")
+        && integer_value(&value["minimumPower"]).is_some_and(|power| power > 0)
+}
+
+/// The minimum power of each casualty instance of a spell, in printed order
+/// (CR 702.153b: each instance is paid separately).
+fn casualty_minimum_powers(card: &CardDefinition) -> Vec<i32> {
+    card.printed_rules()
+        .iter()
+        .filter(|rule| {
+            value_kind(rule) == Some("keywordAbility")
+                && casualty_ability_supported(&rule["ability"])
+        })
+        .filter_map(|rule| integer_value(&rule["ability"]["minimumPower"]))
+        .collect()
+}
+
+/// `a creature with power N or greater` (CR 702.153a).
+fn casualty_creature_filter(minimum_power: i32) -> Value {
+    json!({
+        "kind": "and",
+        "operands": [
+            { "kind": "cardTypeContains", "value": "Creature" },
+            {
+                "kind": "compare",
+                "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+                "operator": ">=",
+                "right": { "kind": "integer", "value": minimum_power },
+            },
+        ],
+    })
+}
+
+impl GameEngine {
+    /// The casting declarations of each casualty instance (CR 702.153a, CR
+    /// 601.2b): unpaid, or one distinct creature the caster controls with
+    /// enough power, chosen as the spell is cast.
+    pub(super) fn expand_casualty_declarations(
+        &self,
+        card: &CardDefinition,
+        controller_id: &str,
+        mut assignments: Vec<CastingDeclaration>,
+    ) -> Vec<CastingDeclaration> {
+        for (instance, minimum_power) in casualty_minimum_powers(card).into_iter().enumerate() {
+            let decision_id = casualty_decision_id(instance);
+            let filter = casualty_creature_filter(minimum_power);
+            let candidates = self
+                .state
+                .players
+                .iter()
+                .flat_map(|player| player.battlefield.iter())
+                .filter(|permanent| {
+                    permanent.controller == controller_id
+                        && self.permanent_matches_effective_filter(permanent, &filter)
+                })
+                .map(|permanent| permanent.instance_id.clone())
+                .collect::<Vec<_>>();
+            let mut expanded = Vec::new();
+            for assignment in assignments {
+                let mut declined = assignment.clone();
+                declined
+                    .decisions
+                    .insert(decision_id.clone(), Value::Array(Vec::new()));
+                expanded.push(declined);
+                let used = (0..instance)
+                    .filter_map(|earlier| assignment.decisions.get(&casualty_decision_id(earlier)))
+                    .flat_map(|ids| ids.as_array().into_iter().flatten())
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect::<BTreeSet<_>>();
+                for candidate in candidates.iter().filter(|id| !used.contains(*id)) {
+                    if expanded.len() >= MAX_DECLARATION_OPTIONS {
+                        break;
+                    }
+                    let mut paid = assignment.clone();
+                    paid.decisions.insert(
+                        decision_id.clone(),
+                        Value::Array(vec![Value::String(candidate.clone())]),
+                    );
+                    expanded.push(paid);
+                }
+                if expanded.len() >= MAX_DECLARATION_OPTIONS {
+                    break;
+                }
+            }
+            assignments = expanded;
+        }
+        assignments
+    }
+
+    /// Pays each declared casualty cost (CR 601.2h): sacrifices its creature
+    /// after checking it still qualifies. Returns how many were paid.
+    pub(super) fn apply_casualty_costs(
+        &mut self,
+        action: &LegalAction,
+        spell: &CardDefinition,
+    ) -> Result<usize, EngineError> {
+        let mut chosen = Vec::new();
+        for (instance, minimum_power) in casualty_minimum_powers(spell).into_iter().enumerate() {
+            let Some(selection) = action
+                .decisions
+                .get(&casualty_decision_id(instance))
+                .and_then(Value::as_array)
+            else {
+                continue;
+            };
+            let ids = selection
+                .iter()
+                .map(|id| {
+                    id.as_str()
+                        .map(ToOwned::to_owned)
+                        .ok_or_else(|| EngineError::new("a casualty creature id is invalid"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let [instance_id] = ids.as_slice() else {
+                if ids.is_empty() {
+                    continue;
+                }
+                return Err(EngineError::new(
+                    "a paid casualty cost sacrifices one creature",
+                ));
+            };
+            let filter = casualty_creature_filter(minimum_power);
+            let qualifies =
+                self.permanent_position(instance_id)
+                    .is_some_and(|(player_index, card_index)| {
+                        let permanent = &self.state.players[player_index].battlefield[card_index];
+                        permanent.controller == action.player_id
+                            && self.permanent_matches_effective_filter(permanent, &filter)
+                            && self.permanent_can_be_sacrificed(permanent)
+                    });
+            if !qualifies || chosen.contains(instance_id) {
+                return Err(EngineError::new(
+                    "the casualty creature can no longer pay the cost",
+                ));
+            }
+            chosen.push(instance_id.clone());
+        }
+        for instance_id in &chosen {
+            self.move_permanent_to_graveyard(instance_id, "sacrificed")?;
+        }
+        Ok(chosen.len())
+    }
+
+    /// CR 702.153a: `When you cast this spell, if a casualty cost was paid
+    /// for it, copy it. If the spell has any targets, you may choose new
+    /// targets for the copy.` One trigger per paid instance (CR 702.153b).
+    pub(super) fn enqueue_casualty_copies(&mut self, paid: usize, stack_id: &str, player_id: &str) {
+        let Some(source) = self
+            .state
+            .stack
+            .iter()
+            .find(|object| object.id == stack_id)
+            .map(|object| object.card.clone())
+        else {
+            return;
+        };
+        for instance in 0..paid {
+            self.put_spell_copy_trigger_on_stack(
+                &source,
+                stack_id,
+                1,
+                true,
+                BTreeMap::from([(
+                    "originalStackId".to_string(),
+                    Value::String(stack_id.to_string()),
+                )]),
+                super::trigger_multiplicity::TriggerOrigin::ObjectAbility,
+            );
+            self.record_event(
+                "casualtyTriggered",
+                Some(player_id.to_string()),
+                Some(source.instance_id.clone()),
+                json!({ "instance": instance + 1, "stackId": stack_id }),
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Madness (CR 702.35a)
 
 /// The decision detail a madness exile records on the replaced graveyard

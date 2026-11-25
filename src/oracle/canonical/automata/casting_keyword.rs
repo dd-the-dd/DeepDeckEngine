@@ -7,7 +7,7 @@
 //! Line      := LEXEME Parameter ["."] [ "(" Reminder ")" ]
 //! Parameter := ε                         (conspire, gravestorm, paradigm,
 //!                                          retrace, jump-start, aftermath)
-//!            | N                         (teamwork)
+//!            | N                         (teamwork, casualty)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem,
 //!                                          emerge, sneak, bestow, disturb)
 //!            | MANA | "—" COSTS          (blitz, escalate, entwine, madness)
@@ -49,6 +49,9 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     /// CR 702.103a.
     Bestow,
     Blitz,
+    /// CR 702.153a: an optional sacrifice of a creature with power N or
+    /// greater as the spell is cast, and a copy of the spell when it is paid.
+    Casualty,
     Conspire,
     /// CR 702.146a: cast the card transformed from its owner's graveyard
     /// for this cost rather than its mana cost.
@@ -149,6 +152,16 @@ const DEFINITIONS: &[Definition] = &[
         parameter: Parameter::ManaOrCostSequence,
         reminders: &[
             "If you cast this spell for its blitz cost, it gains haste and \"When this creature dies, draw a card.\" Sacrifice it at the beginning of the next end step.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Casualty,
+        lexeme: "casualty",
+        rules_section: "702.153a",
+        parameter: Parameter::Count,
+        reminders: &[
+            "As you cast this spell, you may sacrifice a creature with power $N or greater. When you do, copy this spell.",
+            "As you cast this spell, you may sacrifice a creature with power $N or greater. When you do, copy this spell and you may choose a new target for the copy.",
         ],
     },
     Definition {

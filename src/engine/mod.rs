@@ -4075,6 +4075,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || keyword_programs::madness_ability_supported(&rule["ability"])
                 || keyword_programs::aftermath_ability_supported(&rule["ability"])
                 || keyword_programs::disturb_ability_supported(&rule["ability"])
+                || keyword_programs::casualty_ability_supported(&rule["ability"])
                 || value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
                 || escape_ability_supported(&rule["ability"])
                 || blitz_ability_supported(&rule["ability"])
@@ -16432,6 +16433,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
+        assignments = self.expand_casualty_declarations(card, controller_id, assignments);
         if let Some(enchant_ability) = card.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("enchant"))
@@ -26232,6 +26234,7 @@ impl GameEngine {
                 let optional_sacrifice_count = self.apply_optional_casting_sacrifices(action)?;
                 self.apply_casting_land_sacrifices(action)?;
                 let conspire_count = self.apply_conspire_costs(action, &spell_definition)?;
+                let casualty_count = self.apply_casualty_costs(action, &spell_definition)?;
                 let gravestorm_copy_count = if has_gravestorm {
                     self.state
                         .events
@@ -26336,6 +26339,7 @@ impl GameEngine {
                         );
                     }
                 }
+                self.enqueue_casualty_copies(casualty_count, &stack_id, &action.player_id);
                 if !replicate_counts.is_empty()
                     && let Some(source) = self
                         .state
