@@ -215,23 +215,54 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
             || past_fact_at(cursor, 1).is_some()
             || dealt_damage_to_player_at(cursor, 1).is_some()
             || negated_past_at(cursor, 1).is_some()
-            || put_there_from_battlefield_at(cursor, 1).is_some()
+            || zone_arrival_width_at(cursor, 1).is_some()
             || same_characteristic_possession_at(cursor, 1).is_some())
 }
 
-/// `was|were put there from the battlefield this turn` at `offset`, with its
-/// width: the zone history of a card in the zone its parent named (`cards
-/// in your graveyard that were put there ...`). `there` names that zone; a
-/// clause naming another zone (`put into a graveyard`) is a departure.
-fn put_there_from_battlefield_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
-    let copula = word_at(cursor, offset, "was") || word_at(cursor, offset, "were");
-    let phrase = ["put", "there", "from", "the", "battlefield", "this", "turn"];
-    (copula
-        && phrase
+/// The zone-arrival history of a card in the zone its parent named, at
+/// `offset`, with its width (CR 400.7, 603.10a):
+///
+/// ```text
+/// Arrival := ("was" | "were") ( "put" "there" "from" "the" "battlefield"
+///                             | "put" "there" | "milled" ) "this" "turn"
+/// ```
+///
+/// `there` names the parent's zone; a clause naming another zone (`put
+/// into a graveyard`) is a departure, read by `departure_clause_at`.
+fn zone_arrival_history_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(ObjectStatus, usize)> {
+    if !(word_at(cursor, offset, "was") || word_at(cursor, offset, "were")) {
+        return None;
+    }
+    let phrase_at = |phrase: &[&str]| {
+        phrase
             .iter()
             .enumerate()
-            .all(|(index, expected)| word_at(cursor, offset + 1 + index, expected)))
-    .then_some(1 + phrase.len())
+            .all(|(index, expected)| word_at(cursor, offset + 1 + index, expected))
+            .then_some(1 + phrase.len())
+    };
+    const FORMS: [(&[&str], ObjectStatus); 3] = [
+        (
+            &["put", "there", "from", "the", "battlefield", "this", "turn"],
+            ObjectStatus::PutThereFromBattlefieldThisTurn,
+        ),
+        (
+            &["put", "there", "this", "turn"],
+            ObjectStatus::PutThereThisTurn,
+        ),
+        (&["milled", "this", "turn"], ObjectStatus::MilledThisTurn),
+    ];
+    FORMS
+        .iter()
+        .find_map(|(phrase, status)| phrase_at(phrase).map(|width| (*status, width)))
+}
+
+/// `was|were put there from the battlefield this turn` (and the other
+/// zone-arrival histories) at `offset`, with its width.
+fn zone_arrival_width_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    zone_arrival_history_at(cursor, offset).map(|(_, width)| width)
 }
 
 /// A relative clause after a card zone (`cards in your graveyard that were
@@ -243,7 +274,7 @@ pub(in crate::oracle::canonical) fn card_zone_relative_clause_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     is_relative_pronoun(cursor)
-        && (put_there_from_battlefield_at(cursor, 1).is_some()
+        && (zone_arrival_width_at(cursor, 1).is_some()
             || same_characteristic_possession_at(cursor, 1).is_some())
 }
 
@@ -254,7 +285,7 @@ pub(in crate::oracle::canonical) fn card_zone_relative_clause_starts(
 pub(in crate::oracle::canonical) fn card_zone_history_clause_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    is_relative_pronoun(cursor) && put_there_from_battlefield_at(cursor, 1).is_some()
+    is_relative_pronoun(cursor) && zone_arrival_width_at(cursor, 1).is_some()
 }
 
 /// `the same name as` / `the same mana value as` at `offset`: the compared
@@ -485,7 +516,7 @@ pub(in crate::oracle::canonical) fn relative_predicate_starts(
         || negated_past_at(cursor, 0).is_some()
         || dealt_damage_to_player_at(cursor, 0).is_some()
         || targets_clause_starts(cursor, 0)
-        || put_there_from_battlefield_at(cursor, 0).is_some()
+        || zone_arrival_width_at(cursor, 0).is_some()
         || same_characteristic_possession_at(cursor, 0).is_some()
 }
 
@@ -533,14 +564,14 @@ pub(in crate::oracle::canonical) fn recognize_relative_predicate(
             relation
         });
     }
-    if let Some(width) = put_there_from_battlefield_at(cursor, 0) {
+    if let Some((history, width)) = zone_arrival_history_at(cursor, 0) {
         // `cards in your graveyard that were put there from the
-        // battlefield this turn` (CR 400.7, 603.10a).
+        // battlefield this turn`, `target creature card from a graveyard
+        // that was put there this turn`, `that was milled this turn` (CR
+        // 400.7, 603.10a).
         cursor.enter("selector.relative-clause.zone-history");
         consume_words(cursor, width)?;
-        return Ok(ObjectPredicate::Status(
-            ObjectStatus::PutThereFromBattlefieldThisTurn,
-        ));
+        return Ok(ObjectPredicate::Status(history));
     }
     if word_at(cursor, 0, "has") || word_at(cursor, 0, "have") {
         cursor.enter("selector.relative-clause.possession");
@@ -675,6 +706,28 @@ pub(in crate::oracle::canonical) fn recognize_relative_predicate(
         }
         break;
     }
+    if word_at(cursor, 0, "under") {
+        // `that entered the battlefield under your control this turn` (CR
+        // 110.2a): the player who controlled the permanent as it entered,
+        // which a later control change does not alter. Only one positive
+        // entry fact takes the adjunct.
+        cursor.enter("selector.relative-clause.entry-controller");
+        cursor.require(
+            matches!(
+                members.as_slice(),
+                [ObjectPredicate::Status(ObjectStatus::EnteredThisTurn)]
+            ),
+            "one positive `entered` fact before `under PLAYER's control`",
+        )?;
+        let (player, width) = cursor.require_value(
+            entry_controller_at(cursor, 1),
+            "`your control` or `an opponent's control` after `under`",
+        )?;
+        consume_words(cursor, 1 + width)?;
+        members = vec![ObjectPredicate::Qualifier(
+            super::ObjectQualifier::EnteredUnderControlThisTurn(player),
+        )];
+    }
     cursor.enter("selector.relative-clause.period");
     cursor.consume_phrase(&["this", "turn"])?;
     // `didn't attack or enter` is `not attacked and not entered`.
@@ -686,6 +739,22 @@ pub(in crate::oracle::canonical) fn recognize_relative_predicate(
         _ if all_negated => ObjectPredicate::Intersection(members),
         _ => ObjectPredicate::Union(members),
     })
+}
+
+/// `your control` / `an opponent's control` at `offset`: the entering
+/// permanent's controller relative to the ability controller, with the
+/// phrase width (the possessor and `control`).
+fn entry_controller_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(DamagedPlayer, usize)> {
+    let (player, width) = match possessive_player_at(cursor, offset)? {
+        (DeparturePlayer::AbilityController, width) => (DamagedPlayer::AbilityController, width),
+        (DeparturePlayer::OpponentOfAbilityController, width) => {
+            (DamagedPlayer::OpponentOfAbilityController, width)
+        }
+    };
+    word_at(cursor, offset + width, "control").then_some((player, width + 1))
 }
 
 /// One departure-history clause at the cursor: its token width, the offset
