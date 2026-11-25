@@ -211,3 +211,70 @@ fn a_set_constraint_needs_a_slot_that_may_declare_several_objects() {
     let failure = recognize_target_list(&mut cursor).unwrap_err();
     assert_eq!(failure.state, "target-list.slot.set-constraint");
 }
+
+/// Every `kind` occurring anywhere under `value`, in document order.
+fn kinds(value: &Value, out: &mut Vec<String>) {
+    match value {
+        Value::Object(map) => {
+            if let Some(kind) = map.get("kind").and_then(Value::as_str) {
+                out.push(kind.to_string());
+            }
+            map.values().for_each(|child| kinds(child, out));
+        }
+        Value::Array(items) => items.iter().for_each(|child| kinds(child, out)),
+        _ => {}
+    }
+}
+
+#[test]
+fn a_tapped_set_is_chosen_on_resolution_and_counted_by_its_result() {
+    // Marshaling the Troops: the choice is not a declaration (CR 608.2d);
+    // `tapped this way` reads exactly the permanents the tap action tapped
+    // (CR 608.2c), never a characteristic re-read on another population.
+    let rule = canonical(
+        "Marshaling the Troops",
+        "Sorcery",
+        "Tap any number of untapped creatures you control. You gain 4 life for each creature tapped this way.",
+    );
+    assert!(
+        rule["declaration"]["decisions"]
+            .as_array()
+            .is_none_or(Vec::is_empty)
+    );
+    let effects = rule["effects"].as_array().expect("effects");
+    assert_eq!(effects[0]["kind"], "choosePermanents");
+    assert_eq!(
+        effects[0]["maximum"],
+        json!({"kind":"countPermanents", "allPlayers":true})
+    );
+    assert_eq!(effects[1]["kind"], "tapPermanent");
+    assert_eq!(effects[1]["permanent"]["kind"], "decisionResult");
+    let binding = effects[1]["bind"]
+        .as_str()
+        .expect("the tap records its result");
+    let mut read = Vec::new();
+    kinds(&effects[2], &mut read);
+    assert!(read.contains(&"countObjects".to_string()), "{effects:?}");
+    assert!(effects[2].to_string().contains(binding), "{effects:?}");
+}
+
+#[test]
+fn a_distinct_controller_pair_lifts_to_the_declaration_constraint() {
+    let rule = canonical(
+        "Run Away Together",
+        "Instant",
+        "Choose two target creatures controlled by different players. Return those creatures to their owners' hands.",
+    );
+    let decision = &rule["declaration"]["decisions"][0];
+    assert_eq!(decision["kind"], "chooseTargets");
+    assert_eq!(
+        decision["selectionConstraint"],
+        json!({"kind":"distinctPermanentControllers"})
+    );
+    // The candidate filter no longer carries the set constraint.
+    assert!(
+        !decision["candidates"]
+            .to_string()
+            .contains("distinctPermanentControllers")
+    );
+}
