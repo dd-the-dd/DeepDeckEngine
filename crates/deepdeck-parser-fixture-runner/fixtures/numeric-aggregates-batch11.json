@@ -702,6 +702,36 @@
       }
     },
     {
+      "id": "exact-skemfar-shadowsage",
+      "request": {
+        "cardName": "Skemfar Shadowsage",
+        "typeLine": "Creature — Elf Cleric",
+        "manaCost": "{3}{B}",
+        "oracleText": "When this creature enters, choose one —\n• Each opponent loses X life, where X is the greatest number of creatures you control that have a creature type in common.\n• You gain X life, where X is the greatest number of creatures you control that have a creature type in common.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-basalt-ravager",
+      "request": {
+        "cardName": "Basalt Ravager",
+        "typeLine": "Creature — Giant Wizard",
+        "manaCost": "{3}{R}",
+        "oracleText": "When this creature enters, it deals X damage to any target, where X is the greatest number of creatures you control that have a creature type in common.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
       "id": "sibling-no-code-creature-types-in-graveyard-damage",
       "request": {
         "cardName": "Aggregate Probe Alpha",

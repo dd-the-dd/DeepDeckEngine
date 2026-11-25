@@ -213,3 +213,31 @@ fn distinct_counter_kinds_and_colors_read_each_member() {
     // White, blue and red; the colorless artifact adds no color.
     assert_eq!(read("colors"), Some(3));
 }
+
+#[test]
+fn the_most_common_creature_type_counts_the_members_that_share_it() {
+    let mut engine = engine();
+    put(
+        &mut engine,
+        0,
+        "battlefield",
+        &[
+            ("elf-warrior", "Creature - Elf Warrior", "{G}", Some(1)),
+            ("elf", "Creature - Elf", "{G}", Some(1)),
+            (
+                "goblin-warrior",
+                "Creature - Goblin Warrior",
+                "{R}",
+                Some(1),
+            ),
+            ("wall", "Artifact Creature - Wall", "{1}", Some(0)),
+        ],
+    );
+    let own = json!({ "kind": "eachPermanent", "player": controller() });
+    let shared = aggregate("mostCommon", "creatureTypes", own.clone());
+    assert_eq!(aggregate_objects_supported(&shared), Some(true));
+    // Elf and Warrior are each shared by two creatures.
+    assert_eq!(engine.numeric_expression(&shared, "player-0"), Some(2));
+    // No member: zero.
+    assert_eq!(engine.numeric_expression(&shared, "player-1"), Some(0));
+}

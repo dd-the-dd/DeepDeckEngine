@@ -83,7 +83,7 @@ pub(super) fn aggregate_objects_supported(expression: &Value) -> Option<bool> {
     let numeric = NUMERIC_PROPERTIES.contains(&property);
     let function = match expression["function"].as_str() {
         Some("greatest" | "least" | "total") => numeric,
-        Some("distinct") => numeric || SET_PROPERTIES.contains(&property),
+        Some("distinct" | "mostCommon") => numeric || SET_PROPERTIES.contains(&property),
         _ => false,
     };
     let members = expression
@@ -273,6 +273,22 @@ impl GameEngine {
             "greatest" => Some(numbers.iter().copied().max().unwrap_or(0)),
             "least" => Some(numbers.iter().copied().min().unwrap_or(0)),
             "total" => Some(numbers.iter().copied().fold(0_i32, i32::saturating_add)),
+            // The members sharing the most common value: each member counts
+            // once for every value it has.
+            "mostCommon" => {
+                let mut shares = BTreeMap::<String, i32>::new();
+                for value in &values {
+                    let member_values = match value {
+                        MemberValue::Number(Some(number)) => vec![number.to_string()],
+                        MemberValue::Number(None) => Vec::new(),
+                        MemberValue::Values(set) => set.iter().cloned().collect(),
+                    };
+                    for member_value in member_values {
+                        *shares.entry(member_value).or_default() += 1;
+                    }
+                }
+                Some(shares.values().copied().max().unwrap_or(0))
+            }
             "distinct" => {
                 let mut distinct = BTreeSet::new();
                 for value in &values {

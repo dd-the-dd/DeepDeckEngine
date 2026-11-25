@@ -517,15 +517,26 @@ pub(in crate::oracle::canonical) enum AggregateFunction {
     /// colors among`, `for each kind of counter on`); a member with several
     /// values (a multicolored permanent) contributes each of them.
     Distinct,
+    /// The number of members that have the most common value (`the
+    /// greatest number of creatures you control that have a creature type
+    /// in common`); zero over an empty set.
+    MostCommon,
 }
 
 impl AggregateFunction {
+    /// Whether the function counts values, so a value-set property (colors,
+    /// card types) is readable; an extremum or a total needs a number.
+    pub(in crate::oracle::canonical) const fn reads_any_property(self) -> bool {
+        matches!(self, Self::Distinct | Self::MostCommon)
+    }
+
     pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
         match self {
             Self::Greatest => "greatest",
             Self::Least => "least",
             Self::Total => "total",
             Self::Distinct => "distinct",
+            Self::MostCommon => "mostCommon",
         }
     }
 }
@@ -647,10 +658,10 @@ impl AggregateObjects {
 }
 
 impl ObjectAggregateNode {
-    /// The aggregate as a numeric expression. A function other than
-    /// `Distinct` over a non-numeric property is no number and is refused.
+    /// The aggregate as a numeric expression. An extremum or a total of a
+    /// non-numeric property is no number and is refused.
     pub(in crate::oracle::canonical) fn into_expression(self) -> Option<NumericExpression> {
-        (self.function == AggregateFunction::Distinct || self.property.is_numeric())
+        (self.function.reads_any_property() || self.property.is_numeric())
             .then(|| NumericExpression::Quantity(Box::new(NumericQuantity::Aggregate(self))))
     }
 }

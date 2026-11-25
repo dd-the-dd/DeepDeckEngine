@@ -935,6 +935,14 @@ pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
         "`greatest`, `highest`, `least` or `lowest`",
     )?;
     cursor.consume(&superlative)?;
+    // `the greatest number of PERMANENTS that have a creature type in
+    // common`: the members sharing the most common creature type.
+    if function == AggregateFunction::Greatest
+        && word_at(cursor, 0, "number")
+        && word_at(cursor, 1, "of")
+    {
+        return recognize_shared_value_count(cursor);
+    }
     cursor.enter("numeric.greatest-among.property");
     // The same numeric properties a selector compares (CR 208, 202.3).
     let property = recognize_selector_numeric_property(cursor)?;
@@ -957,6 +965,46 @@ pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
         cursor,
         function,
         AggregateProperty::from_selector(property),
+        objects,
+    )
+}
+
+/// The shared value a `greatest number of` count ranks its members by.
+const SHARED_CREATURE_TYPE: [&str; 7] = ["that", "have", "a", "creature", "type", "in", "common"];
+
+/// `number of SET that have a creature type in common` after `the
+/// greatest` (CR 205.3m): the number of members of the set that have the
+/// creature type most of them have (a changeling has every one).
+fn recognize_shared_value_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.most-common.quantifier");
+    cursor.consume_phrase(&["number", "of"])?;
+    cursor.enter("numeric.most-common.collection");
+    let end = (1..12)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            SHARED_CREATURE_TYPE
+                .iter()
+                .enumerate()
+                .all(|(index, word)| word_at(cursor, offset + index, word))
+        })
+        .map(|offset| cursor.position() + offset);
+    let end = cursor.require_value(
+        end,
+        "`that have a creature type in common` after the counted set",
+    )?;
+    let objects = cursor.bounded(end, recognize_aggregate_operand)?;
+    cursor.enter("numeric.most-common.shared-value");
+    cursor.consume_phrase(&SHARED_CREATURE_TYPE)?;
+    aggregate_expression(
+        cursor,
+        AggregateFunction::MostCommon,
+        AggregateProperty::CreatureTypes,
         objects,
     )
 }

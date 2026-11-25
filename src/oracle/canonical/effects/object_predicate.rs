@@ -988,7 +988,7 @@ pub(in crate::oracle::canonical) fn lower_object_aggregate(
     node: &ObjectAggregateNode,
     target: Option<&dyn Fn(TargetBinding) -> Option<Value>>,
 ) -> Option<Value> {
-    if node.function != AggregateFunction::Distinct && !node.property.is_numeric() {
+    if !node.function.reads_any_property() && !node.property.is_numeric() {
         return None;
     }
     let mut aggregate = json!({
