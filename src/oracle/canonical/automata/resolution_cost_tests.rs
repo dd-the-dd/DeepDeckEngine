@@ -1,7 +1,7 @@
 use super::*;
 use crate::oracle::canonical::automata::{
-    EffectProgramNode, EffectRecognitionContext, OutcomeProducer, PerformanceOutcome,
-    recognize_effect_program_with_context,
+    EffectProgramNode, EffectRecognitionContext, LocalEffectNode, OutcomeProducer,
+    PerformanceOutcome, SingularPlayerAction, recognize_effect_program_with_context,
 };
 use crate::oracle::syntax::recognize_entities;
 
@@ -129,9 +129,22 @@ fn cost_failure(text: &str) -> crate::oracle::canonical::MachineFailure {
 
 #[test]
 fn optional_cost_without_outcome_keeps_the_ordinary_optional_scope() {
-    // No outcome connector: the cost reader is never consulted.
-    let failure = program("you may pay {1}. Draw a card.").unwrap_err();
-    assert_ne!(failure.state, "cost.resolution.verb");
+    // No outcome connector: the cost reader is never consulted. The
+    // permission owns its own sentence, whose instruction is the ordinary
+    // payment instruction (`resource_payment.rs`); the next sentence is an
+    // independent step.
+    let EffectProgramNode::Steps(steps) = program("you may pay {1}. Draw a card.").unwrap() else {
+        panic!("a permission sentence and an independent step");
+    };
+    assert!(matches!(
+        steps.as_slice(),
+        [EffectProgramNode::Optional { body, .. }, EffectProgramNode::Sequence(_)]
+            if matches!(
+                body.inner_sequence().effects.as_slice(),
+                [LocalEffectNode::PlayerAction(action)]
+                    if matches!(action.action, SingularPlayerAction::Pay(_))
+            )
+    ));
 }
 
 #[test]
