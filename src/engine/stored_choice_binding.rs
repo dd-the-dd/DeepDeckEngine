@@ -32,6 +32,8 @@ fn bound_predicate(kind: &str, chosen: &str) -> Option<Value> {
         }
         "chosenCreatureType" => Some(json!({ "kind": "subtypeContains", "value": chosen })),
         "chosenCardType" => Some(json!({ "kind": "cardTypeContains", "value": chosen })),
+        // CR 201.2: the object's name is the name stored as it entered.
+        "chosenCardName" => Some(json!({ "kind": "nameEquals", "value": chosen })),
         _ => None,
     }
 }

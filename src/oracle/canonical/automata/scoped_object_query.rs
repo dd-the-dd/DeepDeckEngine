@@ -151,7 +151,8 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         ObjectPredicate::Relation(
             ObjectRelation::DealtDamageToPlayerThisTurn { .. }
             | ObjectRelation::Targets(_)
-            | ObjectRelation::Related(_),
+            | ObjectRelation::Related(_)
+            | ObjectRelation::CastFrom(_),
         ) => false,
         ObjectPredicate::IsCommander
         | ObjectPredicate::IsToken

@@ -352,7 +352,7 @@ impl GameEngine {
         if value_kind(effect) != Some("dealDamage")
             || !matches!(
                 value_kind(&effect["recipient"]),
-                Some("opponentsOf" | "eachPlayer")
+                Some("opponentsOf" | "eachPlayer" | "filterPlayers")
             )
         {
             return Ok(false);

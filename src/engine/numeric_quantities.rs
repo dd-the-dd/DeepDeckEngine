@@ -10,6 +10,7 @@
 //! { kind: countDistinctManaValues, zone, where, allPlayers? }  CR 202.3
 //!   zone: graveyard | hand | library (printed card filter) | battlefield
 //! { kind: countManaSymbolsAmongCards, zone, where, color, allPlayers? }
+//! { kind: countPlayers, players: filterPlayers }    CR 102.1-102.3 members
 //! ```
 //!
 //! A shape outside this grammar is refused by `numeric_quantity_supported`;
@@ -46,6 +47,11 @@ pub(super) fn numeric_quantity_supported(expression: &Value) -> Option<bool> {
                     expression["color"].as_str(),
                     Some("W" | "U" | "B" | "R" | "G")
                 )
+        }
+        // A bare `countPlayers` keeps its own evaluator; a population is
+        // counted here (`player_query.rs`).
+        Some("countPlayers") if expression.get("players").is_some() => {
+            super::player_query::countable_population_supported(&expression["players"])
         }
         _ => return None,
     };
@@ -154,6 +160,7 @@ impl GameEngine {
             Some("countOpponentsAttackedThisTurn") => {
                 Some(self.opponents_attacked_this_turn(player_id))
             }
+            Some("countPlayers") => self.population_member_count(&expression["players"], player_id),
             Some("countDistinctManaValues") => self
                 .zone_collection_cards(expression, player_id)
                 .and_then(|cards| {

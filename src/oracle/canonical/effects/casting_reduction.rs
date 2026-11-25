@@ -84,9 +84,34 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
                 spells.caster == Some(SpellCasterScope::AbilityController),
                 "a proved caster relation for the reduction subject",
             )?;
+            // CR 601.2a: the zone a spell is cast from is a record of the
+            // cast, read by the reduction itself (`sourceZone`), never as a
+            // characteristic filter.
+            cursor.enter("static.spell-cost-reduction.cast-origin");
+            let (filter, origin) = cursor.require_value(
+                split_cast_origin(&spells.predicate),
+                "one cast origin in the reduction's spell conjunction",
+            )?;
+            let mut modifier = json!({"kind":"reduceCastingCost","player":controller(),
+                "where":lower_spell_object_predicate(&filter).unwrap_or(Value::Null),"amount":amount});
+            if let Some((origin, negated)) = origin {
+                cursor.require(
+                    origin.zone != CastOriginZone::Library,
+                    "a cast zone the reduction records (hand, graveyard, exile)",
+                )?;
+                modifier[if negated {
+                    "sourceZoneNot"
+                } else {
+                    "sourceZone"
+                }] = json!(origin.zone.ir_name());
+                // `your graveyard` (CR 400.3): the card is the caster's own.
+                if origin.caster_owned && origin.zone != CastOriginZone::Hand {
+                    cursor.require(!negated, "a negated cast origin of the caster's own hand")?;
+                    modifier["sourceZoneOwner"] = json!("caster");
+                }
+            }
             json!({"kind":"staticAbility","source":self_ref(),"activeWhile":active_while_battlefield(),
-                "modifiers":[{"kind":"reduceCastingCost","player":controller(),
-                    "where":lower_spell_object_predicate(&spells.predicate).unwrap_or(Value::Null),"amount":amount}]})
+                "modifiers":[modifier]})
         }
     };
     Ok(draft(

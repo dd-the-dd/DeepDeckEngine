@@ -33253,6 +33253,9 @@ mod player_quantified_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_combat_restriction_runtime.rs"]
 mod source_combat_restriction_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/spell_set_grant_runtime.rs"]
+mod spell_set_grant_runtime;
 #[path = "tests/stack_and_damage_cells_runtime.rs"]
 mod stack_and_damage_cells_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

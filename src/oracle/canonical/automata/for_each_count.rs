@@ -168,6 +168,12 @@ fn recognize_counted_collection(
     if opponent_count_starts(cursor) {
         return recognize_opponent_count(cursor);
     }
+    // `opponent who lost life this turn`, `opponents who control an
+    // artifact`, `player with three or more poison counters`: the members of
+    // a restricted player population (`player_set.rs`).
+    if player_population_count_starts(cursor) {
+        return recognize_player_population_count(cursor);
+    }
     if history_count_collection_starts(cursor) {
         return recognize_history_count_collection(cursor);
     }
@@ -391,6 +397,8 @@ fn history_count_event(lemma: VerbLemma) -> Option<(HistoryEvent, ObjectKind)> {
         VerbLemma::Discard => (HistoryEvent::CardDiscarded, ObjectKind::Card),
         VerbLemma::Cycle => (HistoryEvent::CardCycled, ObjectKind::Card),
         VerbLemma::Sacrifice => (HistoryEvent::PermanentSacrificed, ObjectKind::Permanent),
+        // CR 111.1: a created token is a permanent the creation records.
+        VerbLemma::Create => (HistoryEvent::TokenCreated, ObjectKind::Permanent),
         _ => return None,
     })
 }
@@ -401,7 +409,15 @@ const HISTORY_COUNT_LEMMAS: &[VerbLemma] = &[
     VerbLemma::Discard,
     VerbLemma::Cycle,
     VerbLemma::Sacrifice,
+    VerbLemma::Create,
 ];
+
+/// The lemmas whose simple past (`tokens you created this turn`, `cards you
+/// drew this turn`) states the same recorded action as the perfect. `cast`
+/// is not among them: `spells you cast` is also the present relation.
+fn simple_past_history_lemma(lemma: VerbLemma) -> bool {
+    lemma != VerbLemma::Cast
+}
 
 /// The relative clause of a counted history collection at `offset`: its
 /// width before the verb, the actor, and the verb's lemma.
@@ -418,14 +434,29 @@ fn history_relative_at(
         (1, HistoryPlayer::Controller, VerbForm::PastParticiple)
     } else if word(offset, "you") && word(offset + 1, "have") {
         (2, HistoryPlayer::Controller, VerbForm::PastParticiple)
+    } else if word(offset, "your") && word(offset + 1, "opponents") && word(offset + 2, "have") {
+        // `cards your opponents have drawn this turn`: every opponent's
+        // recorded actions (CR 102.3).
+        (3, HistoryPlayer::Opponent, VerbForm::PastParticiple)
+    } else if word(offset, "you") {
+        (1, HistoryPlayer::Controller, VerbForm::Past)
     } else {
         return None;
     };
     let raw = cursor.peek_ahead(offset + width)?;
     let (entry, forms) = lookup_verb(raw, HISTORY_COUNT_LEMMAS)?;
+    // The simple past claims only a this-turn history (`cards you drew this
+    // turn`); `cards you discarded this way` is an action's result.
+    if form == VerbForm::Past
+        && !(simple_past_history_lemma(entry.lemma)
+            && word(offset + width + 1, "this")
+            && word(offset + width + 2, "turn"))
+    {
+        return None;
+    }
     // `NOUN that died this turn` is a departure of the shared object query
     // (`relative_clause.rs`), counted through the scoped query; this reader
-    // owns only the controller's own recorded actions.
+    // owns only recorded actions of the controller or its opponents.
     forms
         .contains(&form)
         .then_some((width, player, entry.lemma))
@@ -498,6 +529,18 @@ pub(in crate::oracle::canonical) fn recognize_history_count_collection(
         predicate.has_domain(domain) || predicate.supports_domain(domain),
         "a counted noun in the recorded event's object domain",
     )?;
+    // A creation records tokens (CR 111.1): the `token` noun restates the
+    // event and the rest is the created token's type line.
+    let predicate = if event == HistoryEvent::TokenCreated {
+        cursor.enter("numeric.history-count.created-token");
+        let rest = cursor.require_value(
+            created_token_filter(predicate),
+            "a token noun counted by its type-line characteristics",
+        )?;
+        rest.unwrap_or(ObjectPredicate::ObjectKind(domain))
+    } else {
+        predicate
+    };
     cursor.enter("numeric.history-count.relative");
     for _ in 0..=width {
         let raw = cursor.peek().unwrap_or_default().to_owned();
@@ -521,6 +564,42 @@ pub(in crate::oracle::canonical) fn recognize_history_count_collection(
             aggregate: HistoryAggregate::Total,
         },
     )))
+}
+
+/// The created-token filter of `[TYPE] tokens you created`: the `token`
+/// atom removed, the rest read on the recorded type line. `None` without a
+/// `token` noun or with a characteristic a creation record does not keep.
+fn created_token_filter(predicate: ObjectPredicate) -> Option<Option<ObjectPredicate>> {
+    fn type_line_only(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::CardType(_)
+            | ObjectPredicate::Subtype(_)
+            | ObjectPredicate::Supertype(_) => true,
+            ObjectPredicate::Not(operand) => type_line_only(operand),
+            ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(type_line_only)
+            }
+            _ => false,
+        }
+    }
+    let rest = match predicate {
+        ObjectPredicate::IsToken => None,
+        ObjectPredicate::Intersection(operands) if operands.contains(&ObjectPredicate::IsToken) => {
+            let mut rest = operands
+                .into_iter()
+                .filter(|operand| *operand != ObjectPredicate::IsToken)
+                .collect::<Vec<_>>();
+            Some(match rest.len() {
+                1 => rest.remove(0),
+                _ => ObjectPredicate::Intersection(rest),
+            })
+        }
+        _ => return None,
+    };
+    match rest {
+        Some(rest) if !type_line_only(&rest) => None,
+        rest => Some(rest),
+    }
 }
 
 /// `opponent(s) you attacked ...` / `opponents you have`: the counted
@@ -585,6 +664,63 @@ fn recognize_opponent_count(
     Ok(NumericExpression::OpponentCount(
         OpponentFact::AttackedByControllerThisCombat,
     ))
+}
+
+/// The population a player noun names after a counting introducer, and
+/// whether the noun is plural (`opponents who control`).
+fn counted_player_noun(raw: &str) -> Option<(PlayerSetReferenceNode, bool)> {
+    Some(match raw.to_ascii_lowercase().as_str() {
+        "opponent" => (PlayerSetReferenceNode::OpponentsOfAbilityController, false),
+        "opponents" => (PlayerSetReferenceNode::OpponentsOfAbilityController, true),
+        "player" => (PlayerSetReferenceNode::EachPlayer, false),
+        "players" => (PlayerSetReferenceNode::EachPlayer, true),
+        _ => return None,
+    })
+}
+
+/// Lexical lookahead: a player noun followed by a relative restriction
+/// (`who`, `whose`, `with`). A bare `opponent` count is not this reader's.
+fn player_population_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if cursor.peek().and_then(counted_player_noun).is_none() {
+        return false;
+    }
+    let mut lookahead = cursor.clone();
+    lookahead.advance_to(lookahead.position() + 1).is_ok()
+        && player_relative_clause_starts(&lookahead)
+        && !(lookahead
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("other")))
+}
+
+/// `PLAYER-NOUN RESTRICTION` counted (CR 102.1-102.3): the members of the
+/// population that satisfy the shared relative predicate. The restriction
+/// must state a predicate: a population exclusion alone names no
+/// independent fact a count reads here.
+fn recognize_player_population_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.player-count.population");
+    let raw = cursor
+        .peek()
+        .expect("the player noun was checked")
+        .to_string();
+    let (players, plural) = counted_player_noun(&raw).expect("the player noun was checked");
+    cursor.consume(&raw)?;
+    cursor.enter("numeric.player-count.restriction");
+    let query = recognize_player_population_restriction_in_number(
+        cursor,
+        players,
+        false,
+        &PlayerRelativeContext::default(),
+        plural,
+    )?;
+    cursor.require(
+        query.predicate.is_some() && query.except.is_none(),
+        "a relative predicate of each counted player",
+    )?;
+    Ok(NumericExpression::Quantity(Box::new(
+        NumericQuantity::Players(query),
+    )))
 }
 
 /// Lexical lookahead: the counted collection is followed by `in` before the
@@ -803,3 +939,11 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         None => false,
     }
 }
+
+#[cfg(test)]
+#[path = "player_population_count_tests.rs"]
+mod player_population_count_tests;
+
+#[cfg(test)]
+#[path = "history_count_relation_tests.rs"]
+mod history_count_relation_tests;
