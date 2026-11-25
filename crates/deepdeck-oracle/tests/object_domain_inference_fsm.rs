@@ -255,14 +255,18 @@ fn other_names_the_source_only_when_the_source_is_the_affected_object() {
 }
 
 #[test]
-fn other_is_refused_by_parents_that_cannot_lower_a_source_exclusion() {
-    // The greatest-among aggregate has no source exclusion: the explicit
-    // failure is kept instead of silently counting the source.
-    let parsed = parse(
+fn other_is_lowered_by_the_shared_aggregate_as_its_set_exclusion() {
+    // The shared aggregate (`numeric_aggregate`) reads `other` as the source
+    // exclusion of its set: the source is never silently counted.
+    let rule = rule(
         "Creature \u{2014} Elf",
         "When this creature enters, you gain life equal to the greatest toughness among other creatures you control.",
     );
-    assert_ne!(parsed.status, "canonical", "{:#?}", parsed.abilities);
+    let serialized = rule.to_string();
+    assert!(
+        serialized.contains("\"aggregateObjects\"") && serialized.contains("\"excludeSource\":true"),
+        "{rule:#}"
+    );
 }
 
 #[test]
