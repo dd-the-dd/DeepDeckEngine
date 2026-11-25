@@ -149,6 +149,9 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     /// `recruit` (CR 701.70a): draw, discard, then a Human Soldier token
     /// when the discarded card was a nonland card.
     Recruit,
+    /// `exchange your ZONE and ZONE` (CR 701.12a): a performed row; the
+    /// control exchange (`exchange control of`) keeps its own reader.
+    Exchange,
     /// `manifest the top card of your library` / `manifest dread` (CR
     /// 701.40a, 701.62a): a performed row, so `its controller manifests the
     /// top card of their library` is that player's own instruction.
@@ -273,6 +276,9 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     /// `with an opponent` (CR 701.30b): the player the acting player clashes
     /// with.
     ClashOpponent,
+    /// `your ZONE and [your] ZONE` (CR 701.12a): two zones of the acting
+    /// player whose cards trade places.
+    ZoneExchange,
 }
 
 impl ArgumentFrame {
@@ -308,7 +314,8 @@ impl ArgumentFrame {
             | Self::CombatRemoval
             | Self::CoinFlip
             | Self::DieRoll
-            | Self::ClashOpponent => None,
+            | Self::ClashOpponent
+            | Self::ZoneExchange => None,
         }
     }
 }
@@ -871,6 +878,18 @@ const VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "recruiting",
         },
         frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Exchange,
+        forms: VerbForms {
+            base: "exchange",
+            third_person_singular: "exchanges",
+            past: "exchanged",
+            past_participle: "exchanged",
+            present_participle: "exchanging",
+        },
+        frames: &[ArgumentFrame::ZoneExchange],
         voices: &[Voice::Active],
     },
     VerbEntry {

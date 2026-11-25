@@ -2395,6 +2395,8 @@ pub(super) enum ControllerKeywordAction {
     Clash,
     /// `recruit` (CR 701.70a).
     Recruit,
+    /// `exchange your ZONE and ZONE` (CR 701.12a): the two zones' cards.
+    ExchangeZones(ZoneExchange),
 }
 
 impl ControllerKeywordAction {

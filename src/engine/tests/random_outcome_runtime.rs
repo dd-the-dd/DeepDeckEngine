@@ -472,3 +472,46 @@ fn recruit_draws_discards_and_creates_a_soldier_for_a_nonland_discard() {
         assert_eq!(soldiers, usize::from(token), "{drawn_type}");
     }
 }
+
+#[test]
+fn an_exchange_trades_the_cards_of_hand_and_graveyard_at_once() {
+    let rule = compile(
+        "Harness Infinity",
+        "Instant",
+        "Exchange your hand and graveyard.\nExile Harness Infinity.",
+        0,
+    );
+    let (mut engine, stack) = position(11);
+    engine.state.players[0].hand = vec![
+        card_instance("player-0", &definition("held-a", "Instant", "{1}"), 7000),
+        card_instance("player-0", &definition("held-b", "Sorcery", "{2}"), 7001),
+    ];
+    engine.state.players[0].graveyard = vec![card_instance(
+        "player-0",
+        &definition("buried", "Creature", "{3}"),
+        7100,
+    )];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture admission");
+    run_effects(
+        &mut engine,
+        &stack,
+        &rule["effects"],
+        &mut FixedChoice::new(0),
+    );
+    let names = |cards: &[CardInstance]| {
+        let mut names = cards
+            .iter()
+            .map(|card| card.definition.id.clone())
+            .collect::<Vec<_>>();
+        names.sort();
+        names
+    };
+    // Each card moved once: the bound zones were read before either move.
+    assert_eq!(names(&engine.state.players[0].hand), ["buried"]);
+    assert_eq!(
+        names(&engine.state.players[0].graveyard),
+        ["held-a", "held-b"]
+    );
+}

@@ -1055,6 +1055,128 @@
       }
     },
     {
+      "id": "exact-harness-infinity-exchange-hand-and-graveyard",
+      "request": {
+        "cardName": "Harness Infinity",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}{B}{B}{G}{G}{G}",
+        "oracleText": "Exchange your hand and graveyard.\nExile Harness Infinity.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/2/from",
+                "equals": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/2/to",
+                "equals": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/3/to",
+                "equals": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exchange-operands-of-different-kinds",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{0}",
+        "oracleText": "{4}: Exchange your life total with this creature's power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exchange-with-a-library",
+      "request": {
+        "cardName": "Morality Shift",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{B}{B}",
+        "oracleText": "Exchange your graveyard and library. Then shuffle your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-kamigawa-flip-is-not-a-coin-flip",
       "request": {
         "cardName": "Random Outcome Witness",

@@ -22,9 +22,10 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    ActionResultQuantity, BooleanConditionNode, ConditionAtom, ConditionComparison, ConditionNode,
-    ConditionNumber, ConditionPlayerSubject, ConditionScope, NumericComparisonOperator, VerbForm,
-    VerbLemma, is_verb_form, lookup_verb, recognize_numeric_atom,
+    ActionResultQuantity, BooleanConditionNode, CardZoneName, ConditionAtom, ConditionComparison,
+    ConditionNode, ConditionNumber, ConditionPlayerSubject, ConditionScope,
+    NumericComparisonOperator, VerbForm, VerbLemma, is_verb_form, lookup_verb,
+    recognize_numeric_atom,
 };
 use super::{
     ControllerKeywordAction, ControllerKeywordActionNode, EffectRecognitionContext,
@@ -177,6 +178,9 @@ pub(in crate::oracle::canonical) fn recognize_controller_keyword_action(
         ControllerKeywordAction::FlipCoins => return recognize_coin_flip_arguments(cursor),
         ControllerKeywordAction::RollDice(_) => return recognize_die_roll_arguments(cursor),
         ControllerKeywordAction::Clash => return recognize_clash_arguments(cursor),
+        ControllerKeywordAction::ExchangeZones(_) => {
+            return recognize_zone_exchange_arguments(cursor);
+        }
         _ => {}
     }
     if action == ControllerKeywordAction::Manifest {
@@ -257,8 +261,10 @@ pub(in crate::oracle::canonical) enum RandomResultQuantity {
 }
 
 /// The controller action a lexicon verb claims: the random and contested
-/// outcomes (`flip`, `roll`, `clash`), whose arguments are read by the
-/// action's own frame, and `recruit` (CR 701.70a), which takes none.
+/// outcomes (`flip`, `roll`, `clash`) and the zone exchange (`exchange`),
+/// whose arguments are read by the action's own frame, and `recruit` (CR
+/// 701.70a), which takes none. `exchange control of` is claimed earlier by
+/// the control-change reader.
 pub(in crate::oracle::canonical) fn lexical_controller_action(
     raw: &str,
 ) -> Option<ControllerKeywordAction> {
@@ -270,6 +276,8 @@ pub(in crate::oracle::canonical) fn lexical_controller_action(
         Some(ControllerKeywordAction::RollDice(DieSides::UNREAD))
     } else if is_verb_form(raw, VerbLemma::Clash, VerbForm::Base) {
         Some(ControllerKeywordAction::Clash)
+    } else if is_verb_form(raw, VerbLemma::Exchange, VerbForm::Base) {
+        Some(ControllerKeywordAction::ExchangeZones(ZoneExchange::UNREAD))
     } else {
         None
     }
@@ -559,6 +567,64 @@ pub(in crate::oracle::canonical) fn try_recognize_random_outcome_condition(
         operator,
         right: ConditionNumber::Integer(right),
     })))
+}
+
+/// The two zones of the acting player whose cards an exchange trades (CR
+/// 701.12a). The claim of the verb carries `UNREAD`; the argument frame
+/// reads the zones and the lowering refuses an unread exchange.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ZoneExchange(pub Option<(CardZoneName, CardZoneName)>);
+
+impl ZoneExchange {
+    /// The exchange before the argument frame read its zones.
+    pub(in crate::oracle::canonical) const UNREAD: Self = Self(None);
+}
+
+/// A zone an exchange of the acting player's cards may name.
+fn exchanged_zone(raw: &str) -> Option<CardZoneName> {
+    [
+        ("hand", CardZoneName::Hand),
+        ("graveyard", CardZoneName::Graveyard),
+        ("library", CardZoneName::Library),
+    ]
+    .into_iter()
+    .find_map(|(word, zone)| raw.eq_ignore_ascii_case(word).then_some(zone))
+}
+
+/// `exchange your ZONE and [your] ZONE` (CR 701.12a). Both operands are
+/// zones of the acting player; `exchange your life total with ...` or `life
+/// totals with ...` trade operands of other kinds and fail here, and so does
+/// a library, which has no placement order for the cards it receives yet.
+fn recognize_zone_exchange_arguments(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ControllerKeywordActionNode> {
+    cursor.enter("effect.exchange.first-zone");
+    cursor.consume("your")?;
+    let first = cursor
+        .peek()
+        .and_then(exchanged_zone)
+        .ok_or_else(|| cursor.fail("a hand, graveyard or library of the acting player"))?;
+    consume_current(cursor)?;
+    cursor.enter("effect.exchange.connector");
+    cursor.consume("and")?;
+    if word_at(cursor, 0, "your") {
+        consume_current(cursor)?;
+    }
+    cursor.enter("effect.exchange.second-zone");
+    let second = cursor
+        .peek()
+        .and_then(exchanged_zone)
+        .ok_or_else(|| cursor.fail("a second zone of the same kind of operand"))?;
+    consume_current(cursor)?;
+    cursor.require(first != second, "two different zones exchanged")?;
+    cursor.require(
+        first != CardZoneName::Library && second != CardZoneName::Library,
+        "a hand or graveyard exchange (a library receives cards in no stated order yet)",
+    )?;
+    Ok(ControllerKeywordActionNode {
+        action: ControllerKeywordAction::ExchangeZones(ZoneExchange(Some((first, second)))),
+        quantity: None,
+    })
 }
 
 /// One bound of a die-result row: the face values it covers (CR 706.3:

@@ -547,7 +547,48 @@ pub(in crate::oracle::canonical) fn lower_controller_keyword_action(
         }
         ControllerKeywordAction::Clash => Ok(lower_clash_program(scope)),
         ControllerKeywordAction::Recruit => Ok(lower_recruit_program(scope)),
+        ControllerKeywordAction::ExchangeZones(ZoneExchange(Some((first, second)))) => {
+            Ok(lower_zone_exchange_program(first, second, scope))
+        }
+        ControllerKeywordAction::ExchangeZones(ZoneExchange(None)) => {
+            Err("the two zones of an exchange (CR 701.12a)".to_string())
+        }
     }
+}
+
+/// CR 701.12a: the cards of both zones trade places at once. Each zone's
+/// cards are bound before either moves, so no card moves twice; every card
+/// goes to its owner's zone (CR 400.3).
+fn lower_zone_exchange_program(
+    first: CardZoneName,
+    second: CardZoneName,
+    scope: &str,
+) -> Vec<Value> {
+    let zone = |name: CardZoneName| json!({ "kind": name.ir_name(), "player": controller() });
+    let first_id = format!("{scope}:exchangedFirst");
+    let second_id = format!("{scope}:exchangedSecond");
+    vec![
+        json!({
+            "kind": "bind", "id": first_id,
+            "value": { "kind": "cardsInZone", "zone": zone(first) },
+        }),
+        json!({
+            "kind": "bind", "id": second_id,
+            "value": { "kind": "cardsInZone", "zone": zone(second) },
+        }),
+        json!({
+            "kind": "moveCards",
+            "cards": { "kind": "boundObjects", "binding": first_id },
+            "from": zone(first),
+            "to": zone(second),
+        }),
+        json!({
+            "kind": "moveCards",
+            "cards": { "kind": "boundObjects", "binding": second_id },
+            "from": zone(second),
+            "to": zone(first),
+        }),
+    ]
 }
 
 /// CR 701.70a: "Recruit" means "Draw a card, then discard a card. If you
