@@ -3907,7 +3907,7 @@ fn recognize_return_frame(
     // `return enchanted creature to its owner's hand`: the one permanent the
     // source is attached to (CR 303.4e), the shared bound-reference action.
     if super::attached_object_operand_follows_verb(cursor) {
-        return super::recognize_referenced_permanent_action(
+        return super::referenced_permanent_action::recognize_referenced_permanent_action(
             cursor,
             super::ReferencedPermanentAction::ReturnToOwnerHand,
             inputs.name_links,
