@@ -237,6 +237,17 @@ pub(in crate::oracle::canonical) fn recognize_source_state_duration(
     Ok(SourceStateDuration::RemainsOnBattlefield)
 }
 
+impl SourceStateDuration {
+    /// The continuous-effect duration of this window.
+    pub(in crate::oracle::canonical) fn effect_duration(self) -> EffectDurationNode {
+        match self {
+            Self::Controlled => EffectDurationNode::WhileSourceControlled,
+            Self::RemainsTapped => EffectDurationNode::WhileSourceTapped,
+            Self::RemainsOnBattlefield => EffectDurationNode::WhileSourceOnBattlefield,
+        }
+    }
+}
+
 fn read_duration_source(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[crate::oracle::syntax::ResolvedNameLink],

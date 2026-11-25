@@ -1465,6 +1465,13 @@ pub(super) enum EffectDurationNode {
     /// ability's controller no longer controls that source object. Produced
     /// only by `recognize_source_control_duration` for consumers opting in.
     WhileSourceControlled,
+    /// `for as long as SOURCE remains tapped` (CR 611.2b): ends the first
+    /// time the same source object is untapped or leaves. Produced only by
+    /// `SourceStateDuration::effect_duration` for consumers opting in.
+    WhileSourceTapped,
+    /// `for as long as SOURCE remains on the battlefield` (CR 611.2b): ends
+    /// when that source object leaves the battlefield.
+    WhileSourceOnBattlefield,
     /// No stated duration (CR 611.2a): the effect lasts indefinitely, and an
     /// effect on an object ends when that object becomes a new object
     /// (CR 400.7). Produced only at the end of a continuous-effect clause.

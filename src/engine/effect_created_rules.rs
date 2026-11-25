@@ -40,6 +40,17 @@ const CREATED_DECISIONS: &str = "createdTriggerDecisions";
 const SOURCE_STATE_UNTAP_RESTRICTION: &str = "doesNotUntapWhileSourceState";
 /// The player whose next untap step a `skipNextUntap` restriction names.
 const UNTAP_STEP_PLAYER: &str = "untapStepPlayerId";
+/// A control change lasting while its source holds a state (CR 611.2b).
+const SOURCE_STATE_CONTROL: &str = "controlWhileSourceState";
+
+/// The watched source state of a `whileSource...` window.
+fn source_state_name(window: &str) -> &'static str {
+    if window == "whileSourceTapped" {
+        "tapped"
+    } else {
+        "onBattlefield"
+    }
+}
 
 fn lifetime_supported(duration: &Value) -> bool {
     match value_kind(duration) {
@@ -597,23 +608,14 @@ impl GameEngine {
                 "cardInstanceId": instance_id,
             }),
             Some(window @ ("whileSourceTapped" | "whileSourceOnBattlefield")) => {
-                let tapped_state = window == "whileSourceTapped";
-                let Some((player, index)) = self.permanent_position(&source_id) else {
-                    return;
-                };
-                let source = &self.state.players[player].battlefield[index];
-                // The same source object (CR 400.7) whose state holds now.
-                if Self::tracked_zone_identity(source)
-                    != Self::tracked_zone_identity(&stack_object.card)
-                    || (tapped_state && !source.tapped)
-                {
+                if !self.source_state_window_holds(stack_object, window) {
                     return;
                 }
                 json!({
                     "kind": SOURCE_STATE_UNTAP_RESTRICTION,
-                    "sourceState": if tapped_state { "tapped" } else { "onBattlefield" },
+                    "sourceState": source_state_name(window),
                     "sourceCardInstanceId": source_id,
-                    "sourceIdentity": Self::tracked_zone_identity(source),
+                    "sourceIdentity": Self::tracked_zone_identity(&stack_object.card),
                     "cardInstanceId": instance_id,
                 })
             }
@@ -622,9 +624,55 @@ impl GameEngine {
         self.state.rule_modifiers.push(modifier);
     }
 
-    /// Whether the watched state of a lasting untap restriction's source
-    /// still holds: the same source object (CR 400.7) on the battlefield and,
+    /// CR 611.2b: whether a `for as long as SOURCE remains ...` window may
+    /// start: the same source object (CR 400.7) is on the battlefield and,
     /// for `remains tapped`, tapped.
+    pub(super) fn source_state_window_holds(
+        &self,
+        stack_object: &StackObject,
+        window: &str,
+    ) -> bool {
+        self.permanent_position(&stack_object.card.instance_id)
+            .is_some_and(|(player, index)| {
+                let source = &self.state.players[player].battlefield[index];
+                Self::tracked_zone_identity(source)
+                    == Self::tracked_zone_identity(&stack_object.card)
+                    && (window != "whileSourceTapped" || source.tapped)
+            })
+    }
+
+    /// Records a control change that lasts while its source holds a state
+    /// (CR 611.2b, 613.1b); `refresh_control_effects` restores the original
+    /// controller once it lapses.
+    pub(super) fn record_source_state_control(
+        &mut self,
+        stack_object: &StackObject,
+        window: &str,
+        target_id: &str,
+        original_controller: &str,
+        controller_id: &str,
+    ) {
+        self.state.rule_modifiers.push(json!({
+            "kind": SOURCE_STATE_CONTROL,
+            "sourceState": source_state_name(window),
+            "sourceCardInstanceId": stack_object.card.instance_id,
+            "sourceIdentity": Self::tracked_zone_identity(&stack_object.card),
+            "sourceController": controller_id,
+            "targetCardInstanceId": target_id,
+            "originalController": original_controller,
+        }));
+    }
+
+    /// For a source-state control change, whether it lapsed; `None` for any
+    /// other control modifier.
+    pub(super) fn source_state_control_lapsed(&self, modifier: &Value) -> Option<bool> {
+        (value_kind(modifier) == Some(SOURCE_STATE_CONTROL))
+            .then(|| !self.untap_restriction_source_state_holds(modifier))
+    }
+
+    /// Whether the watched state of a lasting source-state effect still
+    /// holds: the same source object (CR 400.7) on the battlefield and, for
+    /// `remains tapped`, tapped.
     fn untap_restriction_source_state_holds(&self, modifier: &Value) -> bool {
         let Some((player, index)) = modifier["sourceCardInstanceId"]
             .as_str()

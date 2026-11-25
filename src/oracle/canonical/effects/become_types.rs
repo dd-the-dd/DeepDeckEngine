@@ -22,7 +22,9 @@ fn lower_become_types_duration(duration: Option<&EffectDurationNode>) -> Option<
             EffectDurationNode::UntilNextTurn { .. }
             | EffectDurationNode::UntilEndOfNextTurn { .. }
             | EffectDurationNode::Indefinite
-            | EffectDurationNode::WhileSourceControlled,
+            | EffectDurationNode::WhileSourceControlled
+            | EffectDurationNode::WhileSourceTapped
+            | EffectDurationNode::WhileSourceOnBattlefield,
         ) => None,
     }
 }

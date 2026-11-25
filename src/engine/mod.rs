@@ -21209,10 +21209,14 @@ impl GameEngine {
                         "controlWhileSourceTapped"
                             | "controlWhileSourceAttached"
                             | "controlWhileSourceControlled"
+                            | "controlWhileSourceState"
                     )
                 )
             })
             .filter(|modifier| {
+                if let Some(lapsed) = self.source_state_control_lapsed(modifier) {
+                    return lapsed;
+                }
                 let Some(source_id) = modifier["sourceCardInstanceId"].as_str() else {
                     return true;
                 };
@@ -21268,6 +21272,7 @@ impl GameEngine {
                     "controlWhileSourceTapped"
                         | "controlWhileSourceAttached"
                         | "controlWhileSourceControlled"
+                        | "controlWhileSourceState"
                 )
             ) || !expired.contains(modifier)
         });

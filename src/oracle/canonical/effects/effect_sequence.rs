@@ -80,6 +80,10 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         // Only the keyword grant has an indefinite primitive so far.
         EffectDurationNode::Indefinite => return None,
         EffectDurationNode::WhileSourceControlled => json!({ "kind": "whileSourceControlled" }),
+        EffectDurationNode::WhileSourceTapped => json!({ "kind": "whileSourceTapped" }),
+        EffectDurationNode::WhileSourceOnBattlefield => {
+            json!({ "kind": "whileSourceOnBattlefield" })
+        }
     })
 }
 
@@ -1558,13 +1562,15 @@ fn lower_local_effect_sequence_with_collections(
                             None => None,
                             Some(
                                 duration @ (EffectDurationNode::UntilEndOfCurrentTurn
-                                | EffectDurationNode::WhileSourceControlled),
+                                | EffectDurationNode::WhileSourceControlled
+                                | EffectDurationNode::WhileSourceTapped
+                                | EffectDurationNode::WhileSourceOnBattlefield),
                             ) => lower_duration(duration),
                             Some(_) => {
                                 return Err(
                                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                                         cursor.fail(
-                                            "an indefinite, until-end-of-turn or while-source-controlled control duration",
+                                            "an indefinite, until-end-of-turn or source-state control duration",
                                         ),
                                     ),
                                 );

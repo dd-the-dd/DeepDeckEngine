@@ -445,3 +445,50 @@ fn a_preposed_lifetime_scopes_an_entry_rule_and_a_draw_prohibition() {
         .expect("the draw is prohibited");
     assert_eq!(engine.state.players[0].library.len(), library);
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn control_lasts_while_the_source_remains_on_the_battlefield() {
+    // Sower of Temptation's window (CR 611.2b, 613.1b): control returns to
+    // the original controller once the source leaves the battlefield.
+    let rules = parsed_rules(
+        "Control Window Probe",
+        "Creature \u{2014} Faerie Wizard",
+        "{T}: Gain control of target creature for as long as this creature remains on the battlefield.",
+    );
+    let activated = rules[0].clone();
+    let mut engine = test_engine(2);
+    let sower = permanent("sower", "Creature - Faerie Wizard", "player-0", rules);
+    engine.state.players[0].battlefield = vec![sower.clone()];
+    engine.state.players[1].battlefield =
+        vec![permanent("bear", "Creature - Bear", "player-1", Vec::new())];
+    let target_id = activated["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let mut stack = stack_object(&sower, &activated);
+    stack.targets.insert(
+        target_id,
+        TargetRef::Permanent {
+            instance_id: "bear".to_string(),
+        },
+    );
+    resolve(&mut engine, &activated, &stack);
+    let controller = |engine: &GameEngine| {
+        let (player, index) = engine.permanent_position("bear").expect("bear");
+        engine.state.players[player].battlefield[index]
+            .controller
+            .clone()
+    };
+    engine.refresh_control_effects();
+    assert_eq!(controller(&engine), "player-0");
+    engine.state.players[0]
+        .battlefield
+        .retain(|card| card.instance_id != "sower");
+    engine.refresh_control_effects();
+    assert_eq!(
+        controller(&engine),
+        "player-1",
+        "control ended with the source"
+    );
+}

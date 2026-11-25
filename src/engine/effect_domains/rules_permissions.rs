@@ -74,7 +74,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect.get("duration").is_none_or(|duration| {
                     matches!(
                         value_kind(duration),
-                        Some("untilEndOfCurrentTurn" | "whileSourceControlled")
+                        Some(
+                            "untilEndOfCurrentTurn"
+                                | "whileSourceControlled"
+                                | "whileSourceTapped"
+                                | "whileSourceOnBattlefield"
+                        )
                     )
                 })
         }
@@ -272,6 +277,16 @@ impl GameEngine {
                 {
                     return Ok(());
                 }
+                // CR 611.2b: a source-state window never starts unless the
+                // same source object holds that state now.
+                let source_state = value_kind(&effect["duration"]).filter(|kind| {
+                    matches!(*kind, "whileSourceTapped" | "whileSourceOnBattlefield")
+                });
+                if let Some(window) = source_state
+                    && !self.source_state_window_holds(stack_object, window)
+                {
+                    return Ok(());
+                }
                 for instance_id in instance_ids {
                     let original_controller =
                         self.permanent_position(&instance_id)
@@ -298,6 +313,18 @@ impl GameEngine {
                                 "targetCardInstanceId": instance_id,
                                 "originalController": original_controller,
                             }));
+                        }
+                        if let Some(window) = source_state
+                            && let Some(original_controller) = original_controller.clone()
+                            && original_controller != controller_id
+                        {
+                            self.record_source_state_control(
+                                stack_object,
+                                window,
+                                &instance_id,
+                                &original_controller,
+                                &controller_id,
+                            );
                         }
                         if temporary
                             && let Some(original_controller) = original_controller

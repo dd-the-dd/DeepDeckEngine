@@ -249,6 +249,70 @@
       }
     },
     {
+      "id": "exact-sower-of-temptation-control-while-on-battlefield",
+      "request": {
+        "cardName": "Sower of Temptation",
+        "typeLine": "Creature — Faerie Wizard",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flying\nWhen this creature enters, gain control of target creature for as long as this creature remains on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "whileSourceOnBattlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-vedalken-shackles-control-while-tapped",
+      "request": {
+        "cardName": "Vedalken Shackles",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "You may choose not to untap this artifact during your untap step.\n{2}, {T}: Gain control of target creature with power less than or equal to the number of Islands you control for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-giants-grasp-aura-source-window",
+      "request": {
+        "cardName": "Giant's Grasp",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Enchant Giant you control\nWhen this Aura enters, gain control of target nonland permanent for as long as this Aura remains on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
       "id": "exact-courser-of-kruphix-revealed-top",
       "request": {
         "cardName": "Courser of Kruphix",
