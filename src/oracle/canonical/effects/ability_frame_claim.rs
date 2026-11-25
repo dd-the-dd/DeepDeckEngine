@@ -467,7 +467,8 @@ pub(in crate::oracle::canonical) enum ConditionalStaticAttempt {
     NotClaimed,
 }
 
-/// `("as long as" CONDITION | "during" TURN) "," BODY` (CR 611.3a, 113.6):
+/// `("as long as" CONDITION | "during" TURN | "if" CONDITION) "," BODY`
+/// (CR 611.3a, 113.6):
 /// the leading gate is read once with the shared static condition readers,
 /// then the body is dispatched through the ordinary frame classifier
 /// (`parse_body` reads the body as an ability of its own). The gate is
@@ -482,7 +483,11 @@ pub(in crate::oracle::canonical) fn try_parse_conditional_static_frame(
 ) -> ConditionalStaticAttempt {
     let tokens = input.tokens;
     let start = body_start(tokens);
-    if !(phrase_at(tokens, start, &["as", "long", "as"]) || word_at(tokens, start, "during")) {
+    // `as long as` / `during` (CR 611.3a), or `if` without a replaced event
+    // before its comma (an `if … would` replacement keeps its own frame).
+    let frame = recognize_ability_frame(input);
+    let allow_if = frame == AbilityFrame::ConditionalBody;
+    if !(frame == AbilityFrame::ConditionalStatic || allow_if) {
         return ConditionalStaticAttempt::NotClaimed;
     }
     let mut cursor = OracleTokenCursor::new("conditional-static", tokens);
@@ -492,7 +497,8 @@ pub(in crate::oracle::canonical) fn try_parse_conditional_static_frame(
     let mut committed = false;
     // A gate the shared condition grammar does not read stays with the frame
     // that already reported it.
-    let Ok(leading) = read_leading_static_conditions(&mut cursor, input, &mut committed) else {
+    let Ok(leading) = read_leading_static_conditions(&mut cursor, input, &mut committed, allow_if)
+    else {
         return ConditionalStaticAttempt::NotClaimed;
     };
     let body = cursor.position();
@@ -517,7 +523,21 @@ pub(in crate::oracle::canonical) fn try_parse_conditional_static_frame(
         name_resolution_failure: name_failure.as_ref(),
     };
     let mut draft = match parse_body(&body_input) {
+        // A leading `if` also introduces conditional spell instructions and
+        // other frames: it takes over the ability only for a static body.
+        CanonicalParseOutcome::Parsed { draft, .. }
+            if allow_if && draft.rule["kind"] != "staticAbility" =>
+        {
+            return ConditionalStaticAttempt::NotClaimed;
+        }
         CanonicalParseOutcome::Parsed { draft, .. } => draft,
+        CanonicalParseOutcome::Failed { .. }
+        | CanonicalParseOutcome::FailedWithCandidateEvidence { .. }
+        | CanonicalParseOutcome::Unsupported
+            if allow_if =>
+        {
+            return ConditionalStaticAttempt::NotClaimed;
+        }
         CanonicalParseOutcome::Failed { failure, .. }
         | CanonicalParseOutcome::FailedWithCandidateEvidence { failure, .. } => {
             return ConditionalStaticAttempt::Committed(rebase_machine_failure(failure, body));

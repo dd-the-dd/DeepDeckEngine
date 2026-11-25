@@ -308,6 +308,141 @@
       }
     },
     {
+      "id": "exact-dragon-grip-if-gated-flash-permission",
+      "request": {
+        "cardName": "Dragon Grip",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{R}",
+        "oracleText": "Ferocious — If you control a creature with power 4 or greater, you may cast this spell as though it had flash. (You may cast it any time you could cast an instant.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castAsThoughFlash"
+              },
+              {
+                "pointer": "/condition/kind",
+                "equals": "compare"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-avatar-of-fury-if-gated-own-cost-reduction",
+      "request": {
+        "cardName": "Avatar of Fury",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{6}{R}{R}",
+        "oracleText": "If an opponent controls seven or more lands, this spell costs {6} less to cast.\nFlying\n{R}: Avatar of Fury gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "stackOrCast"
+              },
+              {
+                "pointer": "/modifiers/0/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": 6
+                }
+              },
+              {
+                "pointer": "/modifiers/0/condition/condition/kind",
+                "equals": "compare"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-if-gated-collection-keyword",
+      "request": {
+        "cardName": "Generic Captain",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}",
+        "oracleText": "If you control three or more artifacts, creatures you control have vigilance.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "vigilance"
+              },
+              {
+                "pointer": "/condition/operator",
+                "equals": ">="
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-if-gated-spell-instruction-keeps-its-frame",
+      "request": {
+        "cardName": "Generic Insight",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "If you control a Swamp, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-thassa-devotion-reminder",
       "request": {
         "cardName": "Thassa, God of the Sea",

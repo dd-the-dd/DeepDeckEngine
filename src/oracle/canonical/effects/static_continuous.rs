@@ -174,11 +174,13 @@ fn source_graveyard_declaration_width(
 }
 
 /// Reads every leading gate of a static ability with its comma. A failure
-/// after `as long as` or `during` is committed: the frame owns the gate.
+/// after `as long as`, `during` or (when the caller admits it) `if` is
+/// committed: the frame owns the gate.
 pub(in crate::oracle::canonical) fn read_leading_static_conditions(
     cursor: &mut OracleTokenCursor<'_>,
     input: &AbilityInput<'_>,
     committed: &mut bool,
+    allow_if: bool,
 ) -> MachineResult<LeadingStaticCondition> {
     let mut conditions = Vec::new();
     let mut zone_of_function = None;
@@ -221,6 +223,18 @@ pub(in crate::oracle::canonical) fn read_leading_static_conditions(
                 condition_context(input, false),
                 condition_subject(input, false),
             )?);
+        } else if allow_if && word_in(cursor.peek(), &["if"]) {
+            // `If CONDITION, BODY` of a static body (the caller excluded a
+            // replaced event `if … would`): the same continuously
+            // evaluated gate as `as long as`.
+            cursor.enter("static.continuous.leading-condition");
+            cursor.consume("if")?;
+            *committed = true;
+            conditions.push(recognize_static_condition_for(
+                cursor,
+                condition_context(input, false),
+                condition_subject(input, false),
+            )?);
         } else {
             break;
         }
@@ -257,7 +271,7 @@ fn read_static_continuous_effect(
     zone_of_function: &mut Option<&'static str>,
 ) -> MachineResult<(Vec<Value>, Option<StaticConditionNode>)> {
     recognize_optional_ability_word_envelope(cursor)?;
-    let leading = read_leading_static_conditions(cursor, input, committed)?;
+    let leading = read_leading_static_conditions(cursor, input, committed, false)?;
     *zone_of_function = leading.zone_of_function;
     let condition = leading.condition;
     if cursor
