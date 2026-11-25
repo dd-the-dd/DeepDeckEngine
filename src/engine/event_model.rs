@@ -1246,7 +1246,7 @@ impl GameEngine {
 
     /// Bindings of a generic block pattern: both combatants, and the other
     /// combatant of the subject with its object identity (CR 400.7).
-    fn bind_generic_block_counterparts(
+    pub(super) fn bind_generic_block_counterparts(
         &self,
         rule: &Value,
         group: PublicationGroup,
@@ -1365,6 +1365,7 @@ impl GameEngine {
             self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions);
             self.check_quantity_failure()?;
         }
+        self.publish_created_blocker_triggers(record)?;
         for (source, rule) in self.combat_record_triggers(record, PublicationGroup::AttackerBlocked)
         {
             if self.aggregated_trigger_already_claimed(&source.instance_id, &rule) {

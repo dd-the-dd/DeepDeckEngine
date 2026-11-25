@@ -1,5 +1,5 @@
 //! A player's rules state changed by a one-shot instruction: a player
-//! designation (CR 724 the monarch), the Ring's temptation (CR 701.54) and a
+//! designation (CR 724 the monarch, CR 725 the initiative), the Ring's temptation (CR 701.54) and a
 //! skipped part of the player's future turns (CR 500.11).
 //! `None`/`Ok(false)` means not handled; `Some(false)` means recognized but invalid.
 use super::super::*;
@@ -7,6 +7,7 @@ use super::super::*;
 pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
     Some(match value_kind(effect) {
         Some("becomeMonarch" | "temptWithRing") => player_reference_supported(&effect["player"]),
+        Some("takeInitiative") => crate::engine::initiative::take_initiative_supported(effect),
         Some("skipTurnPart") => {
             player_reference_supported(&effect["player"])
                 && matches!(
@@ -45,6 +46,8 @@ impl GameEngine {
             // CR 724.4: the player becomes the monarch; the previous
             // monarch, if any, stops being the monarch.
             Some("becomeMonarch") => self.become_monarch(&player_id),
+            // CR 725.3-725.4: the initiative and its venture trigger.
+            Some("takeInitiative") => self.take_initiative(&player_id)?,
             Some("temptWithRing") => {
                 self.tempt_player_with_ring(&player_id, stack_object, provider)?;
             }

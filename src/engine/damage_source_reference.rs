@@ -117,6 +117,22 @@ impl GameEngine {
         }
     }
 
+    /// The ability's own source as the recipient of damage (`deals N damage
+    /// to itself`, `... to this creature`, CR 120.1): the source permanent
+    /// while it is still the object the ability came from (CR 400.7). A
+    /// source that left the battlefield, or a spell, is dealt no damage.
+    pub(in super::super) fn self_damage_recipient(
+        &self,
+        stack_object: &StackObject,
+    ) -> Option<TargetRef> {
+        let (player_index, card_index) = self.permanent_position(&stack_object.card.instance_id)?;
+        let permanent = &self.state.players[player_index].battlefield[card_index];
+        (Self::tracked_zone_identity(permanent) == Self::tracked_zone_identity(&stack_object.card))
+            .then(|| TargetRef::Permanent {
+                instance_id: permanent.instance_id.clone(),
+            })
+    }
+
     /// The ability's own source. A resolving spell has left the stack; its
     /// characteristics remain those of the spell for replacement effects that
     /// examine the damage source (CR 120.3, 609.7).

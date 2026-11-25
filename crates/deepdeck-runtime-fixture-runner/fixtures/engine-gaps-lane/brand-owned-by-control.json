@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "engine-gaps-lane/brand-regains-control-of-owned-permanents",
+  "seed": 213,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "kind": "gainControlPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "ownedBy",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Owner",
+        "hand": [
+          {
+            "id": "brand",
+            "name": "Brand",
+            "typeLine": "Instant",
+            "manaCost": ""
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "stolen",
+            "name": "Stolen Bear",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2",
+            "controllerId": "player-1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Thief",
+        "battlefield": [
+          {
+            "id": "theirs",
+            "name": "Their Bear",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "brand"
+  },
+  "assertions": [
+    {
+      "kind": "permanentController",
+      "playerId": "player-0",
+      "definitionId": "stolen",
+      "equals": "player-0"
+    },
+    {
+      "kind": "permanentController",
+      "playerId": "player-1",
+      "definitionId": "theirs",
+      "equals": "player-1"
+    }
+  ]
+}

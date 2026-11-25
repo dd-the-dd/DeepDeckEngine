@@ -104,6 +104,7 @@ fn created_trigger_event_published(event: &Value) -> bool {
             || combat_variant_published(variant)
             || damage_variant_published(variant)
             || cast_variant_published(variant)
+            || super::created_trigger_matchers::created_variant_published(variant)
     })
 }
 
@@ -414,7 +415,7 @@ impl GameEngine {
 
     /// The created triggers matching one occurrence, consuming the one-shot
     /// ones among them.
-    fn take_created_triggers(
+    pub(super) fn take_created_triggers(
         &mut self,
         matches: impl Fn(&Self, &CardInstance, &Value) -> bool,
     ) -> Vec<(CardInstance, Value)> {

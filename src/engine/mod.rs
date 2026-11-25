@@ -180,10 +180,12 @@ mod static_player_permissions;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
 mod captured_binding;
+mod created_trigger_matchers;
 mod effect_created_rules;
 mod effect_performer;
 mod event_history;
 mod extra_turn;
+mod initiative;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -244,6 +246,7 @@ mod resolution_permissions;
 mod resolution_preflight;
 mod resolution_records;
 mod riot;
+mod rule_executability;
 mod rule_execution;
 mod runtime_collections;
 mod runtime_object_filter;
@@ -2456,7 +2459,7 @@ fn permanent_filter_supported(filter: &Value) -> bool {
     match value_kind(filter) {
         Some("hasDesignation") => matches!(
             filter["designation"].as_str(),
-            Some("monstrous" | "renowned" | "suspected" | "kicked" | "faceDown")
+            Some("monstrous" | "renowned" | "suspected" | "kicked" | "faceDown" | "prepared")
         ),
         Some("hasCounter") => {
             filter.get("counter").is_none_or(Value::is_string)
@@ -3017,6 +3020,7 @@ fn library_zone_supported(zone: &Value) -> bool {
 }
 
 fn card_choice_candidates_supported(candidates: &Value) -> bool {
+    let candidates = &source_bound_operands::with_placeholder_bindings(candidates);
     if value_kind(candidates) != Some("cards") {
         return false;
     }
@@ -5766,8 +5770,11 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && integer_value(&modifier["factor"]).is_some_and(|factor| factor > 1)
         }
         Some("blockRestriction") => {
-            static_object_selector_supported(&modifier["attackers"])
-                && static_object_selector_supported(&modifier["blockers"])
+            static_object_selector_supported(&source_bound_operands::with_placeholder_bindings(
+                &modifier["attackers"],
+            )) && static_object_selector_supported(
+                &source_bound_operands::with_placeholder_bindings(&modifier["blockers"]),
+            )
         }
         Some("multiplyTriggeredAbility") => {
             static_object_selector_supported(&modifier["sources"])
@@ -6076,89 +6083,11 @@ fn eminence_static_rule_supported(rule: &Value) -> bool {
 }
 
 fn rule_supported(rule: &Value) -> bool {
-    if !entry_observation::reference_scope_supported(rule) || !band_gate::band_gate_supported(rule)
-    {
-        return false;
-    }
-    match value_kind(rule) {
-        Some("spellAbility") => spell_rule_supported(rule),
-        Some("prepareSpell") => prepare_spell_rule_supported(rule),
-        Some("adventureSpell") => adventure::adventure_spell_rule_supported(rule),
-        Some("manaAbility") => mana_rule_supported(rule),
-        Some("replacementEffect") => replacement_rule_supported(rule),
-        Some("activatedAbility") => activated_rule_supported(rule),
-        Some("triggeredAbility") => triggered_rule_supported(rule),
-        Some("dungeonRoom") => {
-            rule["room"].is_string()
-                && rule["nextRooms"]
-                    .as_array()
-                    .is_some_and(|rooms| rooms.iter().all(Value::is_string))
-                && rule["effects"].as_array().is_some_and(|effects| {
-                    !effects.is_empty() && effects.iter().all(effect_supported)
-                })
-                && declaration_shape_supported(rule)
-        }
-        Some("keywordAbility" | "keywordAbilityGroup") => keyword_rule_supported(rule),
-        Some("rulesMarker") => {
-            let legacy_text_marker = rule["text"].is_string()
-                && rule["splitFaces"].as_array().is_none_or(|faces| {
-                    !faces.is_empty()
-                        && faces.iter().all(|face| {
-                            face["name"].is_string()
-                                && face["typeLine"].is_string()
-                                && face["manaCost"].is_string()
-                                && face["rules"]
-                                    .as_array()
-                                    .is_some_and(|rules| rules.iter().all(rule_supported))
-                        })
-                });
-            let typed_saga_progression = rule["marker"].as_str() == Some("sagaProgression")
-                && value_kind(&rule["source"]) == Some("self")
-                && numeric_expression_supported(&rule["finalChapter"]);
-            rule.get("morbidSearchDestination").is_none()
-                && (legacy_text_marker || typed_saga_progression)
-        }
-        Some("staticAbility") => {
-            battlefield_static_rule_supported(rule)
-                || casting_static_rule_supported(rule)
-                || activated_rule_execution::cast_restriction_rule_supported(rule)
-                || eminence_static_rule_supported(rule)
-                // CR 604.3: statics that say they function from a graveyard,
-                // hand or exile join the continuous-effect collector there.
-                || zone_of_function::card_zone_static_rule_supported(rule)
-                // CR 309.2: a Dungeon stays in the command zone; its entry
-                // restriction is read there by the venture procedure.
-                || (zone_of_function::static_zone_of_function(rule)
-                    == Some(ZoneOfFunction::Command)
-                    && rule["modifiers"].as_array().is_some_and(|modifiers| {
-                        !modifiers.is_empty()
-                            && modifiers.iter().all(|modifier| {
-                                value_kind(modifier) == Some("dungeonEntryRestriction")
-                                    && modifier["procedure"].is_string()
-                            })
-                    }))
-                || (zone_of_function::static_zone_of_function(rule)
-                    == Some(ZoneOfFunction::Stack)
-                    && rule["modifiers"].as_array().is_some_and(|modifiers| {
-                        !modifiers.is_empty()
-                            && modifiers.iter().all(|modifier| {
-                                value_kind(modifier) == Some("cantBeCountered")
-                                    && value_kind(&modifier["object"]) == Some("self")
-                            })
-                    }))
-        }
-        Some(
-            "cantBlock" | "deathtouch" | "defender" | "doubleStrike" | "firstStrike" | "flying"
-            | "haste" | "hexproof" | "lifelink" | "menace" | "prowess" | "reach" | "trample"
-            | "shroud" | "vigilance",
-        ) => true,
-        Some("firebending") => keyword_kind_supported(rule),
-        _ => false,
-    }
+    rule_executability::rule_supported(rule)
 }
 
 pub fn rule_is_executable(rule: &Value) -> bool {
-    rule_supported(rule)
+    rule_executability::rule_supported(rule)
 }
 
 fn spell_cant_be_countered(card: &CardDefinition) -> bool {
@@ -10330,6 +10259,8 @@ impl GameEngine {
         selector: &Value,
         permanent: &CardInstance,
     ) -> bool {
+        let bound = self.bind_static_source_selector(selector, source);
+        let selector = bound.as_ref();
         if value_kind(selector) != Some("permanents") {
             return Self::static_selector_matches(source, selector, permanent);
         }
@@ -19241,6 +19172,7 @@ impl GameEngine {
                     let is_mana_ability = mana_rule_supported(rule);
                     if !(activated_rule_supported(rule) || is_mana_ability)
                         || !activated_rule_usable_from_zone(rule, zone_name)
+                        || self.activation_limit_reached(card, rule, rule_index)
                         || rule.get("activationCondition").is_some_and(|condition| {
                             !self.condition_value_with_source(
                                 condition,
@@ -22649,6 +22581,7 @@ impl GameEngine {
                 return;
             }
         }
+        self.publish_created_entry_triggers(source, entry_observation, &decisions);
     }
 
     fn enqueue_card_plotted_triggers(&mut self, source: &CardInstance) {
@@ -23117,6 +23050,7 @@ impl GameEngine {
     }
 
     fn enqueue_life_gained_triggers(&mut self, player_id: &str, amount: i32) {
+        self.publish_created_life_gained_triggers(player_id, amount);
         let sources = self
             .state
             .players
@@ -24782,6 +24716,11 @@ impl GameEngine {
             &record,
             &decisions,
         );
+        self.publish_created_controlled_combat_damage_triggers(
+            &damage_source,
+            player_id,
+            &decisions,
+        );
         for source in sources {
             let rules = self
                 .effective_rules(&source)
@@ -24887,6 +24826,7 @@ impl GameEngine {
         if amount > 0 && defender_is_monarch && damage_source.controller != player_id {
             self.become_monarch(&damage_source.controller);
         }
+        self.enqueue_initiative_combat_damage(player_id, &damage_source.controller, amount);
     }
 
     fn enqueue_spell_cast_triggers(
@@ -25358,6 +25298,7 @@ impl GameEngine {
     fn enqueue_step_triggers(&mut self, step: &str) {
         if step == "upkeep" {
             self.open_echo_upkeep_window();
+            self.enqueue_initiative_upkeep_venture();
         }
         let active_player_id = self.state.players[self.state.active_player].id.clone();
         let mut sources = self
@@ -27037,6 +26978,13 @@ impl GameEngine {
                         engine.apply_activated_chosen_object_costs(action, &rule)?;
                         let tapped_sources = engine.apply_payment(player_index, action)?;
                         engine.pay_activated_counter_costs(action, &rule, provider)?;
+                        engine.record_hand_activation_use(
+                            player_index,
+                            zone_name,
+                            instance_id,
+                            &rule,
+                            rule_index,
+                        );
                         let pending_cost_triggers = engine.state.stack.split_off(cost_stack_start);
                         let committed_cost_payment =
                             engine.commit_activated_cost_payment(&prepared_cost_payment)?;

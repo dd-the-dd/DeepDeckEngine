@@ -24,7 +24,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                         .is_none_or(Value::is_boolean)
                     && effect["permanent"]
                         .get("exclude")
-                        .is_none_or(object_expression_supported)))
+                        .is_none_or(object_expression_supported))
+                || object_relation_eval::related_collection_supported(&effect["permanent"]))
                 && effect.get("bind").is_none_or(Value::is_string)
                 && effect
                     .get("until")
@@ -178,6 +179,20 @@ impl GameEngine {
                             decisions,
                         )?
                         .unwrap_or_default(),
+                    // A relation (`blocked by this creature`, `attached to
+                    // it`) is prepared by the shared runtime collection.
+                    Some("eachPermanent")
+                        if object_relation_eval::filter_has_relation(
+                            &effect["permanent"]["where"],
+                        ) =>
+                    {
+                        self.resolve_runtime_object_ids_checked(
+                            &effect["permanent"],
+                            stack_object,
+                            bindings,
+                            decisions,
+                        )?
+                    }
                     Some("eachPermanent") => self
                         .state
                         .players
