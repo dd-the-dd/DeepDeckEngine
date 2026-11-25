@@ -1776,8 +1776,18 @@ fn lower_local_effect_sequence_with_collections(
                     )?),
                     None => None,
                 };
+                let times = match &keyword_action.times {
+                    Some(times) => Some(lower_sequence_bound_amount(
+                        cursor,
+                        times,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?),
+                    None => None,
+                };
                 cursor.enter("lower.keyword-action.controller");
-                effects.extend(
+                effects.extend(repeat_keyword_action(
                     lower_controller_keyword_action(
                         keyword_action.action,
                         quantity,
@@ -1788,7 +1798,8 @@ fn lower_local_effect_sequence_with_collections(
                             cursor.fail(&expected),
                         )
                     })?,
-                );
+                    times,
+                ));
             }
             LocalEffectNode::Attach(attach) => {
                 cursor.enter("lower.attach.attachment");

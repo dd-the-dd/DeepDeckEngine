@@ -40,7 +40,7 @@ fn clause_heads_name_their_deepest_component() {
         ("Look at the top card of your library.", "verb-unknown.look"),
         (
             "Switch target creature's power and toughness.",
-            "verb-unknown.switch",
+            "verb.switch",
         ),
         (
             "Players can't cast spells.",

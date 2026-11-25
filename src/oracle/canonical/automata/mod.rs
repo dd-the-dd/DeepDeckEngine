@@ -2299,6 +2299,15 @@ pub(super) enum PermanentKeywordAction {
     /// `put its|those counters on OBJECT`: as many counters of each kind as
     /// the referenced object has, or had as it last existed (CR 608.2h).
     PutCountersOf(PermanentEffectReference),
+    /// `turn OBJECT face up|down` (CR 708.2a, 708.8): the same object
+    /// changes its face status (`keyword_action.rs`).
+    TurnFace(FaceDirection),
+    /// `unattach OBJECT` (CR 701.3, 301.5c): an attached Equipment or
+    /// Fortification stays on the battlefield, attached to nothing.
+    Unattach,
+    /// `unlock|lock [or unlock] a [locked|unlocked] door of ROOM` (CR
+    /// 709.5f-g): the unlocked designation of one chosen door changes.
+    RoomDoor(DoorChange),
 }
 
 impl PermanentKeywordAction {
@@ -2318,7 +2327,7 @@ impl PermanentKeywordAction {
         match raw.to_ascii_lowercase().as_str() {
             "suspect" => Some(Self::Suspect),
             "detain" => Some(Self::Detain),
-            _ => None,
+            other => lexical_permanent_action(other),
         }
     }
 
@@ -2345,7 +2354,10 @@ impl PermanentKeywordAction {
             | Self::RemoveUnnamedCounters(
                 UnnamedCounterRemoval::Every | UnnamedCounterRemoval::AnyNumber,
             )
-            | Self::PutCountersOf(_) => KeywordQuantityPolicy::None,
+            | Self::PutCountersOf(_)
+            | Self::TurnFace(_)
+            | Self::Unattach
+            | Self::RoomDoor(_) => KeywordQuantityPolicy::None,
             Self::RemoveUnnamedCounters(UnnamedCounterRemoval::UpTo) => {
                 KeywordQuantityPolicy::Required
             }
@@ -2379,6 +2391,9 @@ impl PermanentKeywordAction {
             Self::RemoveFromCombat => "remove from combat",
             Self::RemoveUnnamedCounters(_) => "remove counters",
             Self::PutCountersOf(_) => "put counters of",
+            Self::TurnFace(direction) => direction.action_name(),
+            Self::Unattach => "unattach",
+            Self::RoomDoor(change) => change.action_name(),
         }
     }
 }
@@ -2422,6 +2437,13 @@ pub(super) enum ControllerKeywordAction {
     Recruit,
     /// `exchange your ZONE and ZONE` (CR 701.12a): the two zones' cards.
     ExchangeZones(ZoneExchange),
+    /// `incubate N` (CR 701.53a): an Incubator token with N +1/+1 counters.
+    Incubate,
+    /// `fateseal N` (CR 701.29a): scry over an opponent's library.
+    Fateseal,
+    /// `cloak` over the shared library-top operand (CR 701.58a): manifest
+    /// with ward {2}; the count is the quantity.
+    Cloak,
 }
 
 impl ControllerKeywordAction {
@@ -2437,7 +2459,10 @@ impl ControllerKeywordAction {
     }
 
     pub(super) fn takes_quantity(self) -> bool {
-        matches!(self, Self::Bolster | Self::Discover)
+        matches!(
+            self,
+            Self::Bolster | Self::Discover | Self::Incubate | Self::Fateseal
+        )
     }
 }
 
@@ -2445,6 +2470,9 @@ impl ControllerKeywordAction {
 pub(super) struct ControllerKeywordActionNode {
     pub action: ControllerKeywordAction,
     pub quantity: Option<NumericExpression>,
+    /// `incubate N twice|K times`: the whole action repeated, each time its
+    /// own event (`keyword_action.rs`).
+    pub times: Option<NumericExpression>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

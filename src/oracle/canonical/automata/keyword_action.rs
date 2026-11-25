@@ -34,6 +34,7 @@ use super::{
     PermanentKeywordActionNode, PermanentOperandNode, PutCountersOnObjectEffectNode, TargetBinding,
     TargetCardinality, TargetListNode, TargetSelector, TargetSlot,
     recognize_contextual_permanent_operand, recognize_numeric_expression,
+    recognize_repetition_adjunct, repetition_adjunct_starts,
 };
 
 /// Reads the numeric argument of a keyword action according to its policy.
@@ -106,19 +107,168 @@ pub(in crate::oracle::canonical) fn recognize_imperative_permanent_keyword_actio
         .peek()
         .ok_or_else(|| cursor.fail("an imperative keyword-action verb"))?
         .to_owned();
-    let action = PermanentKeywordAction::from_imperative_object_verb(&verb)
+    let mut action = PermanentKeywordAction::from_imperative_object_verb(&verb)
         .ok_or_else(|| cursor.fail("an imperative keyword-action verb"))?;
     let mut trial = cursor.clone();
     trial.consume(&verb)?;
+    // `unlock a locked door of ROOM`: the door noun phrase precedes the
+    // Room operand (CR 709.5j).
+    if let PermanentKeywordAction::RoomDoor(change) = action {
+        action = PermanentKeywordAction::RoomDoor(recognize_room_door_phrase(&mut trial, change)?);
+    }
     cursor.enter("effect.keyword-action.object");
     let targets =
         recognize_contextual_permanent_operand(&mut trial, name_links, name_failure, context)?;
     *cursor = trial;
+    // `turn OBJECT face up|down`: the face particle follows the operand and
+    // completes the claim of the verb (CR 708.2a, 708.8).
+    if action == PermanentKeywordAction::TurnFace(FaceDirection::Unread) {
+        action = PermanentKeywordAction::TurnFace(recognize_face_direction(cursor)?);
+    }
     Ok(PermanentKeywordActionNode {
         action,
         targets,
         quantity: None,
     })
+}
+
+/// The face status a `turn` instruction gives its object (CR 708). The claim
+/// of the verb (`lexical_permanent_action`) carries `Unread`, which the
+/// trailing `face up|down` particle replaces and the lowering refuses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum FaceDirection {
+    /// `turn` before its face particle was read.
+    Unread,
+    /// `face up` (CR 708.8): its copiable values revert to the printed card.
+    Up,
+    /// `face down` (CR 708.2a): a 2/2 creature with no text, name, subtypes
+    /// or mana cost.
+    Down,
+}
+
+impl FaceDirection {
+    pub(in crate::oracle::canonical) fn action_name(self) -> &'static str {
+        match self {
+            Self::Unread => "turn",
+            Self::Up => "turn face up",
+            Self::Down => "turn face down",
+        }
+    }
+}
+
+/// `face up` | `face down` after the turned object. `turn it sideways`, a
+/// bare `turn it` or any other particle fails at this state.
+fn recognize_face_direction(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<FaceDirection> {
+    cursor.enter("effect.keyword-action.turn.face");
+    cursor.consume("face")?;
+    cursor.enter("effect.keyword-action.turn.direction");
+    let direction = match cursor.peek() {
+        Some(raw) if raw.eq_ignore_ascii_case("up") => FaceDirection::Up,
+        Some(raw) if raw.eq_ignore_ascii_case("down") => FaceDirection::Down,
+        _ => return Err(cursor.fail("`up` or `down` after `face`")),
+    };
+    consume_current(cursor)?;
+    Ok(direction)
+}
+
+/// The permanent action a lexicon verb claims with an explicit object
+/// operand: `turn OBJECT face up|down` (CR 708), `unattach OBJECT` (CR
+/// 701.3) and `unlock|lock ... door of ROOM` (CR 709.5f-g). `turn` is the
+/// lexicon's `Turn` lemma, whose event voice (`is turned face up`) the
+/// trigger readers keep.
+pub(in crate::oracle::canonical) fn lexical_permanent_action(
+    raw: &str,
+) -> Option<PermanentKeywordAction> {
+    if is_verb_form(raw, VerbLemma::Turn, VerbForm::Base) {
+        Some(PermanentKeywordAction::TurnFace(FaceDirection::Unread))
+    } else if is_verb_form(raw, VerbLemma::Unattach, VerbForm::Base) {
+        Some(PermanentKeywordAction::Unattach)
+    } else if is_verb_form(raw, VerbLemma::Unlock, VerbForm::Base) {
+        Some(PermanentKeywordAction::RoomDoor(DoorChange::Unlock))
+    } else if is_verb_form(raw, VerbLemma::Lock, VerbForm::Base) {
+        Some(PermanentKeywordAction::RoomDoor(DoorChange::Lock))
+    } else {
+        None
+    }
+}
+
+/// How an instruction changes one door of a Room (CR 709.5f-g): the player
+/// chooses a locked door to unlock, an unlocked door to lock, or, for `lock
+/// or unlock a door`, any door whose designation then flips.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DoorChange {
+    Unlock,
+    Lock,
+    LockOrUnlock,
+}
+
+impl DoorChange {
+    pub(in crate::oracle::canonical) fn action_name(self) -> &'static str {
+        match self {
+            Self::Unlock => "unlock door",
+            Self::Lock => "lock door",
+            Self::LockOrUnlock => "lock or unlock door",
+        }
+    }
+
+    /// The runtime selector of the doors the player may choose.
+    pub(in crate::oracle::canonical) fn runtime_name(self) -> &'static str {
+        match self {
+            Self::Unlock => "unlock",
+            Self::Lock => "lock",
+            Self::LockOrUnlock => "lockOrUnlock",
+        }
+    }
+}
+
+/// `[or unlock|lock] a|an [locked|unlocked] door of` after the verb: the
+/// door of the Room operand that follows (CR 709.5j). A state adjective must
+/// agree with the change (`unlock a locked door`); `unlock an unlocked door`
+/// or a missing `door of` fails here.
+fn recognize_room_door_phrase(
+    cursor: &mut OracleTokenCursor<'_>,
+    change: DoorChange,
+) -> MachineResult<DoorChange> {
+    cursor.enter("effect.keyword-action.room-door.alternative");
+    let mut change = change;
+    if word_at(cursor, 0, "or") {
+        let other = match change {
+            DoorChange::Lock => VerbLemma::Unlock,
+            DoorChange::Unlock => VerbLemma::Lock,
+            DoorChange::LockOrUnlock => {
+                return Err(cursor.fail("one lock/unlock alternative"));
+            }
+        };
+        let opposite = cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| is_verb_form(raw, other, VerbForm::Base));
+        cursor.require(opposite, "the opposite door change after `or`")?;
+        consume_current(cursor)?;
+        consume_current(cursor)?;
+        change = DoorChange::LockOrUnlock;
+    }
+    cursor.enter("effect.keyword-action.room-door.determiner");
+    let determiner = cursor.peek().unwrap_or_default().to_ascii_lowercase();
+    cursor.require(
+        determiner == "a" || determiner == "an",
+        "`a` door of a Room (CR 709.5j)",
+    )?;
+    consume_current(cursor)?;
+    cursor.enter("effect.keyword-action.room-door.state");
+    let state = cursor.peek().unwrap_or_default().to_ascii_lowercase();
+    match (state.as_str(), change) {
+        ("locked", DoorChange::Unlock) | ("unlocked", DoorChange::Lock) => {
+            consume_current(cursor)?;
+        }
+        ("locked" | "unlocked", _) => {
+            return Err(cursor.fail("a door state that agrees with its change"));
+        }
+        _ => {}
+    }
+    cursor.enter("effect.keyword-action.room-door.noun");
+    cursor.consume("door")?;
+    cursor.consume("of")?;
+    Ok(change)
 }
 
 /// A permanent's own ability can name `this permanent` implicitly. Spells
@@ -183,16 +333,22 @@ pub(in crate::oracle::canonical) fn recognize_controller_keyword_action(
         }
         _ => {}
     }
-    if action == ControllerKeywordAction::Manifest {
+    if matches!(
+        action,
+        ControllerKeywordAction::Manifest | ControllerKeywordAction::Cloak
+    ) {
         cursor.enter("effect.keyword-action.manifest.object");
-        if cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("dread"))
+        // `manifest dread` (CR 701.62a); cloak has no `dread` form.
+        if action == ControllerKeywordAction::Manifest
+            && cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("dread"))
         {
             cursor.consume("dread")?;
             return Ok(ControllerKeywordActionNode {
                 action: ControllerKeywordAction::ManifestDread,
                 quantity: None,
+                times: None,
             });
         }
         // The cards come from the shared library-top operand; its owner is
@@ -208,6 +364,7 @@ pub(in crate::oracle::canonical) fn recognize_controller_keyword_action(
         return Ok(ControllerKeywordActionNode {
             action,
             quantity: Some(cards.count),
+            times: None,
         });
     }
     let quantity = if action.takes_quantity() {
@@ -224,7 +381,21 @@ pub(in crate::oracle::canonical) fn recognize_controller_keyword_action(
     } else {
         None
     };
-    Ok(ControllerKeywordActionNode { action, quantity })
+    // `incubate N twice|K times` (CR 701.53a): each repetition creates its
+    // own token with its own counters, so the action owns its repetition
+    // like `investigate twice`. An action that makes a resolution choice
+    // keeps the sequence's explicit repetition failure.
+    let times = if action == ControllerKeywordAction::Incubate && repetition_adjunct_starts(cursor)
+    {
+        Some(recognize_repetition_adjunct(cursor)?)
+    } else {
+        None
+    };
+    Ok(ControllerKeywordActionNode {
+        action,
+        quantity,
+        times,
+    })
 }
 
 /// The number of faces of each rolled die (CR 706.1). The claim of the verb
@@ -262,8 +433,10 @@ pub(in crate::oracle::canonical) enum RandomResultQuantity {
 
 /// The controller action a lexicon verb claims: the random and contested
 /// outcomes (`flip`, `roll`, `clash`) and the zone exchange (`exchange`),
-/// whose arguments are read by the action's own frame, and `recruit` (CR
-/// 701.70a), which takes none. `exchange control of` is claimed earlier by
+/// whose arguments are read by the action's own frame, `recruit` (CR
+/// 701.70a), which takes none, the counted `incubate N` (CR 701.53a) and
+/// `fateseal N` (CR 701.29a), and `cloak` over the library-top operand of
+/// manifest (CR 701.58a). `exchange control of` is claimed earlier by
 /// the control-change reader.
 pub(in crate::oracle::canonical) fn lexical_controller_action(
     raw: &str,
@@ -278,6 +451,12 @@ pub(in crate::oracle::canonical) fn lexical_controller_action(
         Some(ControllerKeywordAction::Clash)
     } else if is_verb_form(raw, VerbLemma::Exchange, VerbForm::Base) {
         Some(ControllerKeywordAction::ExchangeZones(ZoneExchange::UNREAD))
+    } else if is_verb_form(raw, VerbLemma::Incubate, VerbForm::Base) {
+        Some(ControllerKeywordAction::Incubate)
+    } else if is_verb_form(raw, VerbLemma::Fateseal, VerbForm::Base) {
+        Some(ControllerKeywordAction::Fateseal)
+    } else if is_verb_form(raw, VerbLemma::Cloak, VerbForm::Base) {
+        Some(ControllerKeywordAction::Cloak)
     } else {
         None
     }
@@ -315,6 +494,7 @@ fn recognize_coin_flip_arguments(
     Ok(ControllerKeywordActionNode {
         action: ControllerKeywordAction::FlipCoins,
         quantity: Some(count),
+        times: None,
     })
 }
 
@@ -362,6 +542,7 @@ fn recognize_die_roll_arguments(
     Ok(ControllerKeywordActionNode {
         action: ControllerKeywordAction::RollDice(DieSides(sides)),
         quantity: Some(count),
+        times: None,
     })
 }
 
@@ -376,6 +557,7 @@ fn recognize_clash_arguments(
     Ok(ControllerKeywordActionNode {
         action: ControllerKeywordAction::Clash,
         quantity: None,
+        times: None,
     })
 }
 
@@ -624,6 +806,7 @@ fn recognize_zone_exchange_arguments(
     Ok(ControllerKeywordActionNode {
         action: ControllerKeywordAction::ExchangeZones(ZoneExchange(Some((first, second)))),
         quantity: None,
+        times: None,
     })
 }
 

@@ -157,8 +157,26 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     /// top card of their library` is that player's own instruction.
     Manifest,
     /// `win the flip` (CR 705.2), `win` a clash (CR 701.30d): the outcome
-    /// a condition or an event reads; no instruction performs it.
+    /// a condition or an event reads; `win the game` (CR 104.2) is the
+    /// player-row frame `GameOutcome`.
     Win,
+    /// `incubate N` (CR 701.53a): an Incubator token with N +1/+1 counters.
+    Incubate,
+    /// `fateseal N` (CR 701.29a): look at the top N cards of an opponent's
+    /// library and put any number on the bottom, the rest on top.
+    Fateseal,
+    /// `cloak CARDS` (CR 701.58a): manifest with ward {2}.
+    Cloak,
+    /// `unattach OBJECT` (CR 701.3, 301.5c): the attachment stays on the
+    /// battlefield attached to nothing.
+    Unattach,
+    /// `switch OBJECT's power and toughness` (CR 613.4d): a characteristic
+    /// switch the characteristic-change readers own.
+    Switch,
+    /// `unlock a locked door of ROOM` (CR 709.5f).
+    Unlock,
+    /// `lock an unlocked door of ROOM` (CR 709.5g).
+    Lock,
 }
 
 /// One inflected form of a lemma.
@@ -279,6 +297,17 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     /// `your ZONE and [your] ZONE` (CR 701.12a): two zones of the acting
     /// player whose cards trade places.
     ZoneExchange,
+    /// `the game` after `lose` / `win` (CR 104.2, 104.3): the acting player
+    /// leaves the game with that outcome.
+    GameOutcome,
+    /// `OBJECT's power and toughness` | `the power and toughness of
+    /// OBJECTS` after `switch` (CR 613.4d).
+    PowerToughnessSwitch,
+    /// `OBJECTS face up|down` after `turn` (CR 708.2a, 708.8).
+    FaceStatus,
+    /// `[a|an] [locked|unlocked] door of ROOM` after `unlock` / `lock`
+    /// (CR 709.5f-g, 709.5j).
+    RoomDoor,
 }
 
 impl ArgumentFrame {
@@ -315,7 +344,11 @@ impl ArgumentFrame {
             | Self::CoinFlip
             | Self::DieRoll
             | Self::ClashOpponent
-            | Self::ZoneExchange => None,
+            | Self::ZoneExchange
+            | Self::GameOutcome
+            | Self::PowerToughnessSwitch
+            | Self::FaceStatus
+            | Self::RoomDoor => None,
         }
     }
 }
@@ -397,7 +430,11 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "lost",
             present_participle: "losing",
         },
-        frames: &[ArgumentFrame::LifeTotalChange, ArgumentFrame::Abilities],
+        frames: &[
+            ArgumentFrame::LifeTotalChange,
+            ArgumentFrame::Abilities,
+            ArgumentFrame::GameOutcome,
+        ],
         voices: &[Voice::Active],
     },
     VerbEntry {
@@ -904,6 +941,42 @@ const VERB_LEXICON: &[VerbEntry] = &[
         frames: &[ArgumentFrame::ObjectSelection],
         voices: &[Voice::Active],
     },
+    VerbEntry {
+        lemma: VerbLemma::Incubate,
+        forms: VerbForms {
+            base: "incubate",
+            third_person_singular: "incubates",
+            past: "incubated",
+            past_participle: "incubated",
+            present_participle: "incubating",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Fateseal,
+        forms: VerbForms {
+            base: "fateseal",
+            third_person_singular: "fateseals",
+            past: "fatesealed",
+            past_participle: "fatesealed",
+            present_participle: "fatesealing",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Cloak,
+        forms: VerbForms {
+            base: "cloak",
+            third_person_singular: "cloaks",
+            past: "cloaked",
+            past_participle: "cloaked",
+            present_participle: "cloaking",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
 ];
 
 /// Lemmas the effect clause dispatches on (`effect_head.rs`) whose actions
@@ -916,6 +989,54 @@ const VERB_LEXICON: &[VerbEntry] = &[
 /// a performed row: the engine runs the ordinary primitive as the
 /// performer's instruction (CR 608.2c).
 const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
+    VerbEntry {
+        lemma: VerbLemma::Unattach,
+        forms: VerbForms {
+            base: "unattach",
+            third_person_singular: "unattaches",
+            past: "unattached",
+            past_participle: "unattached",
+            present_participle: "unattaching",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Switch,
+        forms: VerbForms {
+            base: "switch",
+            third_person_singular: "switches",
+            past: "switched",
+            past_participle: "switched",
+            present_participle: "switching",
+        },
+        frames: &[ArgumentFrame::PowerToughnessSwitch],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Unlock,
+        forms: VerbForms {
+            base: "unlock",
+            third_person_singular: "unlocks",
+            past: "unlocked",
+            past_participle: "unlocked",
+            present_participle: "unlocking",
+        },
+        frames: &[ArgumentFrame::RoomDoor],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Lock,
+        forms: VerbForms {
+            base: "lock",
+            third_person_singular: "locks",
+            past: "locked",
+            past_participle: "locked",
+            present_participle: "locking",
+        },
+        frames: &[ArgumentFrame::RoomDoor],
+        voices: &[Voice::Active, Voice::Passive],
+    },
     VerbEntry {
         lemma: VerbLemma::Tempt,
         forms: VerbForms {
@@ -1160,7 +1281,7 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "turned",
             present_participle: "turning",
         },
-        frames: &[ArgumentFrame::StateChange],
+        frames: &[ArgumentFrame::StateChange, ArgumentFrame::FaceStatus],
         voices: &[Voice::Active, Voice::Passive],
     },
     VerbEntry {
@@ -1208,7 +1329,7 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "won",
             present_participle: "winning",
         },
-        frames: &[ArgumentFrame::Intransitive],
+        frames: &[ArgumentFrame::Intransitive, ArgumentFrame::GameOutcome],
         voices: &[Voice::Active],
     },
 ];
