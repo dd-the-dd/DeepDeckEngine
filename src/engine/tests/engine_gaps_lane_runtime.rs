@@ -327,11 +327,8 @@ fn a_created_blocker_trigger_names_the_blockers_controller() {
         vec![("player-0".to_string(), "loseLife".to_string())]
     );
     let trigger = engine.state.stack.pop().expect("the trigger");
-    run_program(
-        &mut engine,
-        &trigger.ability_rule.as_ref().expect("a rule")["effects"].clone(),
-        &trigger,
-    );
+    let lose_life = trigger.ability_rule.as_ref().expect("a rule")["effects"][0].clone();
+    run_effect(&mut engine, &lose_life, &trigger);
     assert_eq!(engine.state.players[1].life, 19);
     assert_eq!(engine.state.players[0].life, 20);
 }
