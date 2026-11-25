@@ -1308,6 +1308,12 @@ impl CardCollectionMemory {
         if linked_exile {
             return Ok(CardZoneName::Exile);
         }
+        // The whole observation was moved by this program (`search ...,
+        // exile that card, then shuffle. You may cast that card`): the cast
+        // takes the cards from the zone they were put into (CR 400.7).
+        if let Some(zone) = self.view_relocated {
+            return Ok(zone);
+        }
         // Library cards this program looked at or revealed in the
         // controller's own library, none of which an earlier action of the
         // scope moved elsewhere: the cast takes them from where they are,

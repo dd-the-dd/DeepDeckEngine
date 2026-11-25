@@ -601,6 +601,96 @@
           }
         ]
       }
+    },
+    {
+      "id": "redcap-gutter-dweller-exact-if-you-do-exile-top-then-play",
+      "request": {
+        "cardName": "Redcap Gutter-Dweller",
+        "typeLine": "Creature — Goblin Warrior",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Menace\nWhen this creature enters, create two 1/1 black Rat creature tokens with \"This token can't block.\"\nAt the beginning of your upkeep, you may sacrifice another creature. If you do, put a +1/+1 counter on this creature and exile the top card of your library. You may play that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "ardent-dustspeaker-exact-if-you-do-exile-two-then-play",
+      "request": {
+        "cardName": "Ardent Dustspeaker",
+        "typeLine": "Creature — Minotaur Shaman",
+        "manaCost": "{4}{R}",
+        "oracleText": "Whenever this creature attacks, you may put an instant or sorcery card from your graveyard on the bottom of your library. If you do, exile the top two cards of your library. You may play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "rotisserie-elemental-exact-if-you-do-exile-x-then-play",
+      "request": {
+        "cardName": "Rotisserie Elemental",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{R}",
+        "oracleText": "Menace\nWhenever this creature deals combat damage to a player, put a skewer counter on this creature. Then you may sacrifice it. If you do, exile the top X cards of your library, where X is the number of skewer counters on this creature. You may play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "harnesser-of-storms-exact-optional-exile-then-preposed-play",
+      "request": {
+        "cardName": "Harnesser of Storms",
+        "typeLine": "Creature — Otter Wizard",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever you cast a noncreature or Otter spell, you may exile the top card of your library. Until end of turn, you may play that card. This ability triggers only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "superior-foes-exact-if-you-do-play-the-exiled-card",
+      "request": {
+        "cardName": "Superior Foes of Spider-Man",
+        "typeLine": "Creature — Human Rogue Villain",
+        "manaCost": "{2}{R}",
+        "oracleText": "Trample\nWhenever you cast a spell with mana value 4 or greater, you may exile the top card of your library. If you do, you may play that card until you exile another card with this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "bring-to-light-exact-exiled-search-result-survives-shuffle",
+      "request": {
+        "cardName": "Bring to Light",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}{U}",
+        "oracleText": "Converge — Search your library for a creature, instant, or sorcery card with mana value less than or equal to the number of colors of mana spent to cast this spell, exile that card, then shuffle. You may cast that card without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
     }
   ]
 }
