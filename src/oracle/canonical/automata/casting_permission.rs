@@ -330,15 +330,7 @@ fn recognize_look_permission(
     let top = match try_recognize_card_library_top(cursor) {
         CollectionOperandAttempt::Recognized(fragment) => fragment.node,
         CollectionOperandAttempt::NotClaimed => {
-            // `face-down creatures you don't control`: the shared battlefield
-            // collection; only face-down permanents hide anything (CR 708.5).
-            cursor.enter("permission.look.face-down");
-            let objects = recognize_object_collection(cursor)?;
-            cursor.require(
-                objects.denotes_battlefield_permanents()
-                    && predicate_requires_face_down(&objects.predicate),
-                "the top card of a library or a collection of face-down permanents",
-            )?;
+            let objects = recognize_face_down_look_objects(cursor)?;
             cursor.enter("permission.look.timing");
             cursor.consume_phrase(&["any", "time"])?;
             return Ok(PlayerPermissionNode::LookAtFaceDownAnyTime { actor, objects });
@@ -350,9 +342,39 @@ fn recognize_look_permission(
         top.count == NumericExpression::from(1),
         "exactly the top card",
     )?;
+    // `look at the top card of your library and at face-down creatures you
+    // don't control any time`: two looked-at objects sharing one allowance,
+    // one static ability granting both (CR 113.2c).
+    if peek_is(cursor, 0, "and") && peek_is(cursor, 1, "at") {
+        cursor.enter("permission.look.coordinated-object");
+        cursor.consume_phrase(&["and", "at"])?;
+        let objects = recognize_face_down_look_objects(cursor)?;
+        cursor.enter("permission.look.timing");
+        cursor.consume_phrase(&["any", "time"])?;
+        return Ok(PlayerPermissionNode::Conjoined(vec![
+            PlayerPermissionNode::LookAtLibraryTopAnyTime { actor },
+            PlayerPermissionNode::LookAtFaceDownAnyTime { actor, objects },
+        ]));
+    }
     cursor.enter("permission.look.timing");
     cursor.consume_phrase(&["any", "time"])?;
     Ok(PlayerPermissionNode::LookAtLibraryTopAnyTime { actor })
+}
+
+/// `face-down creatures you don't control`: the shared battlefield
+/// collection of a look allowance; only face-down permanents hide anything
+/// (CR 708.5), so any other collection is refused.
+fn recognize_face_down_look_objects(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectQueryNode> {
+    cursor.enter("permission.look.face-down");
+    let objects = recognize_object_collection(cursor)?;
+    cursor.require(
+        objects.denotes_battlefield_permanents()
+            && predicate_requires_face_down(&objects.predicate),
+        "the top card of a library or a collection of face-down permanents",
+    )?;
+    Ok(objects)
 }
 
 /// The body is a permission, not an effect executed when the permanent resolves.

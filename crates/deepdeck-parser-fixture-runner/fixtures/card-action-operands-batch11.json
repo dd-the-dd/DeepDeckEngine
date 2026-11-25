@@ -1024,6 +1024,38 @@
         "cardStatus": "canonical",
         "abilityCount": 1
       }
+    },
+    {
+      "id": "exact-lens-of-clarity-coordinated-look-objects",
+      "request": {
+        "cardName": "Lens of Clarity",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "You may look at the top card of your library and at face-down creatures you don't control any time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "lookAtTopLibrary"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "lookAtFaceDownAnyTime"
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }
