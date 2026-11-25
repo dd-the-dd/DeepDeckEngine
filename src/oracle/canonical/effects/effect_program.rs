@@ -147,6 +147,7 @@ fn lower_unlimited_program_step<E>(
         otherwise,
         scope,
         result,
+        guard,
     } = step
     {
         // `If you do` reads the cards the performed instruction observed
@@ -185,6 +186,7 @@ fn lower_unlimited_program_step<E>(
             body,
             otherwise,
         )
+        .and_then(|lowered| install_reflexive_guard(cursor, guard.as_ref(), lowered))
         .map_err(program_failure);
     }
     let mut lower = |cursor: &mut OracleTokenCursor<'_>, sequence: &EffectSequenceNode| {
@@ -1031,6 +1033,61 @@ fn local_result_names(effect: &Value) -> std::collections::BTreeSet<String> {
     names
 }
 
+/// `When you do, if CONDITION, ...` (CR 603.4, 603.12): the intervening
+/// condition of the one reflexive ability the outcome creates. The runtime
+/// checks it when the reflexive ability would trigger and as it resolves.
+/// It reads no declaration of the reflexive body, so it is lowered with no
+/// object bindings, like a printed trigger's guard.
+fn install_reflexive_guard(
+    cursor: &mut OracleTokenCursor<'_>,
+    guard: Option<&SentenceConditionNode>,
+    mut lowered: LoweredEffectSequence,
+) -> MachineResult<LoweredEffectSequence> {
+    fn install(effect: &mut Value, condition: &Value, installed: &mut usize) {
+        match effect {
+            Value::Object(map)
+                if map.get("kind").and_then(Value::as_str) == Some("createReflexiveTrigger") =>
+            {
+                if let Some(ability) = map.get_mut("ability").and_then(Value::as_object_mut) {
+                    ability.insert("condition".to_string(), condition.clone());
+                    *installed += 1;
+                }
+            }
+            Value::Object(map) => map
+                .values_mut()
+                .for_each(|child| install(child, condition, installed)),
+            Value::Array(items) => items
+                .iter_mut()
+                .for_each(|child| install(child, condition, installed)),
+            _ => {}
+        }
+    }
+    let Some(guard) = guard else {
+        return Ok(lowered);
+    };
+    cursor.enter("lower.program.reflexive.guard");
+    let condition = lower_sentence_condition(
+        cursor,
+        guard,
+        &ConditionObjectBindings {
+            permanent_targets: &[],
+            card_targets: &[],
+            card_focus: None,
+            previous_action_result: None,
+        },
+    )?;
+    let mut installed = 0;
+    lowered
+        .effects
+        .iter_mut()
+        .for_each(|effect| install(effect, &condition, &mut installed));
+    cursor.require(
+        installed == 1,
+        "one reflexive ability that the intervening `if` conditions",
+    )?;
+    Ok(lowered)
+}
+
 /// CR 603.12: a reflexive ability created by a resolving ability chooses its
 /// own targets when it is put on the stack.
 fn reflexive_trigger(player: &Value, lowered: LoweredEffectSequence) -> Value {
@@ -1123,6 +1180,7 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
             outcome,
             body,
             otherwise,
+            guard,
             ..
         } => {
             cursor.enter("lower.program.optional-cost.complement");
@@ -1131,7 +1189,15 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
                 "a complementary outcome lowered with its own sentence",
             )?;
             let lowered = wrap_lowered_effect_program(cursor, body, lowered)?;
-            lower_optional_cost_outcome(cursor, permission.as_ref(), cost, *outcome, lowered, None)
+            let lowered = lower_optional_cost_outcome(
+                cursor,
+                permission.as_ref(),
+                cost,
+                *outcome,
+                lowered,
+                None,
+            )?;
+            install_reflexive_guard(cursor, guard.as_ref(), lowered)
         }
         EffectProgramNode::Optional { player, body } => {
             cursor.enter("lower.program.optional.actor");

@@ -570,6 +570,69 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-sigil-of-myrkul-reflexive-intervening-if",
+      "request": {
+        "cardName": "Sigil of Myrkul",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "At the beginning of combat on your turn, mill a card. When you do, if there are four or more creature cards in your graveyard, put a +1/+1 counter on target creature you control and it gains deathtouch until end of turn. (To mill a card, put the top card of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "performAction"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-optional-sacrifice-reflexive-intervening-if",
+      "request": {
+        "cardName": "Probe Altar",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may sacrifice a creature. When you do, if you control an artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-if-you-do-has-no-intervening-if",
+      "request": {
+        "cardName": "Probe Altar",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, you may sacrifice a creature. If you do, if you control an artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

@@ -38,6 +38,11 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         /// ability triggers on the objects the producer affected that the
         /// noun names, instead of on its performance (CR 603.12).
         result: Option<ReflexiveResultNode>,
+        /// `When you do, if CONDITION, BODY.`: the reflexive ability's
+        /// intervening `if` (CR 603.4, 603.12), checked when the reflexive
+        /// ability would trigger and again as it resolves. Only a reflexive
+        /// outcome has one.
+        guard: Option<SentenceConditionNode>,
     },
     /// Independent sentence groups in written order. An outcome continuation
     /// conditions its own sentence only (CR 608.2c); later sentences are
@@ -799,6 +804,7 @@ fn recognize_optional_cost_block(
     cursor.enter("cost.outcome.sentence-end");
     cursor.consume(".")?;
     let outcome = recognize_outcome_connector_after(cursor, permission_performer(player))?;
+    let guard = recognize_reflexive_guard(cursor, outcome, name_links, name_failure, context)?;
     let body_start = cursor.position();
     let body = recognize_outcome_body(
         cursor,
@@ -826,6 +832,7 @@ fn recognize_optional_cost_block(
         otherwise,
         scope: ProducerScope::Sentence,
         result: None,
+        guard,
     })
 }
 
@@ -954,6 +961,7 @@ fn recognize_optional_action_block(
     let producer = Some((action_start, action_end));
     let reading = read_outcome_connector(cursor, permission_performer(player), producer)?;
     let outcome = reading.outcome;
+    let guard = recognize_reflexive_guard(cursor, outcome, name_links, name_failure, context)?;
     let body_start = cursor.position();
     let body = recognize_outcome_body(
         cursor,
@@ -987,6 +995,7 @@ fn recognize_optional_action_block(
         otherwise,
         scope: ProducerScope::Sentence,
         result: reading.result,
+        guard,
     })
 }
 
@@ -1166,6 +1175,7 @@ fn recognize_instruction_outcome_block(
         mandatory_outcome(outcome, permits || reading.restated),
         "an `If you do,` or reflexive `When you do,` outcome after a mandatory instruction, or `If you don't,` after the sentence's own permission",
     )?;
+    let guard = recognize_reflexive_guard(cursor, outcome, name_links, name_failure, context)?;
     let body_start = cursor.position();
     let body = recognize_outcome_body(
         cursor,
@@ -1214,6 +1224,7 @@ fn recognize_instruction_outcome_block(
         otherwise,
         scope,
         result: reading.result,
+        guard,
     })
 }
 
@@ -1475,6 +1486,40 @@ fn read_outcome_connector(
         restated: false,
         result: None,
     })
+}
+
+/// `When you do, if CONDITION,`: the intervening `if` of a reflexive
+/// ability (CR 603.4: a triggered ability written `When EVENT, if
+/// CONDITION, EFFECT`; CR 603.12). It is read by the shared trigger-guard
+/// child with its allow-list: no declared target or action result of the
+/// reflexive body exists before it. Any other outcome's `if` opens an
+/// ordinary sentence conditional of its body and is not claimed here.
+fn recognize_reflexive_guard(
+    cursor: &mut OracleTokenCursor<'_>,
+    outcome: PerformanceOutcome,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<SentenceConditionNode>> {
+    if outcome != PerformanceOutcome::Reflexive
+        || !cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("if"))
+    {
+        return Ok(None);
+    }
+    let condition_context = SentenceConditionContext {
+        name_links,
+        name_failure,
+        effects: context,
+        card_target: None,
+        card_focus: false,
+        departed_targets: &[],
+    };
+    let guard = recognize_trigger_guard(cursor, &condition_context)?;
+    cursor.enter("program.reflexive.guard-separator");
+    cursor.consume(",")?;
+    Ok(guard)
 }
 
 /// The context of a reflexive ability's body. A `When you VERB NOUN this
