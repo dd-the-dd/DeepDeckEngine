@@ -851,7 +851,7 @@
       }
     },
     {
-      "id": "near-miss-they-without-an-event-player",
+      "id": "sibling-they-reads-the-target-player",
       "request": {
         "cardName": "Unbound Pronoun Probe",
         "typeLine": "Sorcery",
@@ -873,6 +873,29 @@
                 "equals": "targetPlayer"
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-they-without-a-player-antecedent",
+      "request": {
+        "cardName": "Unbound Pronoun Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "You lose life equal to the number of creatures they control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.connector-or-end",
+            "found": "they"
           }
         ]
       }

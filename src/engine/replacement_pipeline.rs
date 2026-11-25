@@ -197,6 +197,10 @@ pub(super) enum GraveyardReplacementOrigin {
     Static,
     /// An installed "this turn" replacement for one graveyard owner.
     Temporary,
+    /// The affected card's own keyword replacement of one event, whose
+    /// linked ability triggers when it applies (`exiled this way`): madness
+    /// for a discard (CR 702.35a). `keyword` is recorded on the move.
+    LinkedKeyword { keyword: &'static str },
 }
 
 /// Graveyard-destination replacement program (CR 614.1a "instead").
@@ -210,6 +214,19 @@ pub(super) struct GraveyardReplacement {
     /// `When you do, ...` (CR 603.12): the reflexive triggered ability the
     /// applied replacement creates, with the object whose ability it is.
     pub reflexive: Option<(CardInstance, Value)>,
+}
+
+impl GraveyardReplacement {
+    /// Whether applying this replacement does more than choose the zone: a
+    /// reflexive ability or a linked keyword trigger depends on which
+    /// replacement applied, so its owner's choice matters (CR 616.1).
+    pub(super) fn has_consequence(&self) -> bool {
+        self.reflexive.is_some()
+            || matches!(
+                self.origin,
+                GraveyardReplacementOrigin::LinkedKeyword { .. }
+            )
+    }
 }
 
 /// The zone a graveyard-destination replacement sends the object to
@@ -617,13 +634,25 @@ impl GameEngine {
             graveyard_owner_id,
             static_modifiers,
         );
-        // Proposals with one outcome (the same zone and no reflexive ability)
-        // produce the same event and differ only in attribution: the order
-        // chosen cannot change the event (CR 616.1), so the first in
-        // precedence applies (a card-specific one-shot modifier first).
+        self.select_graveyard_destination_proposal(card, &proposals, provider)
+    }
+
+    /// Orders and applies one of `proposals` (the event-specific ones the
+    /// caller added first, such as a discard's madness exile) for `card`.
+    pub(super) fn select_graveyard_destination_proposal(
+        &self,
+        card: &CardInstance,
+        proposals: &[ReplacementProposal<GraveyardReplacement>],
+        provider: Option<&mut dyn DecisionProvider>,
+    ) -> Result<Option<ReplacementProposal<GraveyardReplacement>>, EngineError> {
+        // Proposals with one outcome (the same zone and no reflexive or
+        // linked ability) produce the same event and differ only in
+        // attribution: the order chosen cannot change the event (CR 616.1),
+        // so the first in precedence applies (a card-specific one-shot
+        // modifier first).
         let equivalent = proposals
             .iter()
-            .all(|proposal| proposal.program.reflexive.is_none())
+            .all(|proposal| !proposal.program.has_consequence())
             && proposals
                 .windows(2)
                 .all(|pair| pair[0].program.zone == pair[1].program.zone);
@@ -647,7 +676,7 @@ impl GameEngine {
         let mut selected = None;
         let mut provider = RequiredReplacementChoiceProvider(provider);
         self.run_replacement_pipeline(
-            &proposals,
+            proposals,
             &mut to_graveyard,
             order,
             &mut provider,

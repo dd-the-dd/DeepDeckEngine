@@ -1151,29 +1151,49 @@ pub(super) fn resolution_alternative_cost_supported(effect: &Value) -> bool {
 impl GameEngine {
     /// The destination of a card discarded from a hand (CR 701.9a). A card
     /// with madness is exiled instead of being put into its owner's
-    /// graveyard (CR 702.35a); its owner applies that replacement, which
-    /// also yields the exile any other proposal would (CR 616.1). Otherwise
-    /// the ordinary graveyard-destination replacements apply.
+    /// graveyard (CR 702.35a). That replacement is proposed with the
+    /// ordinary graveyard-destination ones: only the madness exile triggers
+    /// its cast, so another applicable replacement (Rest in Peace, Leyline
+    /// of the Void) is a real choice its owner makes (CR 616.1), refused
+    /// without a chooser instead of being picked silently.
     pub(super) fn prepare_discard_destination(
         &self,
         instance_id: &str,
     ) -> Result<super::card_zone_transition::PreparedGraveyardDestination, EngineError> {
-        let plan = self.prepare_card_graveyard_destination(instance_id)?;
-        let has_madness = self
+        self.prepare_discard_destination_with(instance_id, None)
+    }
+
+    pub(super) fn prepare_discard_destination_with(
+        &self,
+        instance_id: &str,
+        provider: Option<&mut dyn super::DecisionProvider>,
+    ) -> Result<super::card_zone_transition::PreparedGraveyardDestination, EngineError> {
+        use super::replacement_pipeline::{
+            GraveyardReplacement, GraveyardReplacementOrigin, ReplacedGraveyardZone,
+            ReplacementProposal,
+        };
+        let card = self
             .card_outside_battlefield(instance_id)
-            .is_some_and(|card| madness_cost(&card.definition).is_some());
-        if !has_madness {
-            return Ok(plan);
-        }
-        Ok(
-            super::card_zone_transition::PreparedGraveyardDestination::Exile {
-                source_card_id: instance_id.to_string(),
-                one_shot_modifier: None,
-                detail: json!({
-                    "destination": "exile",
-                    "replacement": MADNESS_REPLACEMENT,
-                }),
+            .ok_or_else(|| EngineError::new("discarded card is not in a hidden zone"))?;
+        let owner_index = self.player_index(&card.owner)?;
+        let madness = madness_cost(&card.definition).map(|_| ReplacementProposal {
+            id: format!("{instance_id}:madness"),
+            source_id: instance_id.to_string(),
+            source_name: format!("{} (madness)", card.definition.name),
+            program: GraveyardReplacement {
+                origin: GraveyardReplacementOrigin::LinkedKeyword {
+                    keyword: MADNESS_REPLACEMENT,
+                },
+                controller: Some(card.owner.clone()),
+                zone: ReplacedGraveyardZone::Exile,
+                reflexive: None,
             },
+        });
+        self.prepare_graveyard_destination_among(
+            owner_index,
+            card,
+            madness.into_iter().collect(),
+            provider,
         )
     }
 
@@ -1189,6 +1209,22 @@ impl GameEngine {
         ),
         EngineError,
     > {
+        self.take_hand_card_for_discard_with(player_index, card_index, None)
+    }
+
+    /// `take_hand_card_for_discard` with the chooser of a CR 616.1 order.
+    pub(super) fn take_hand_card_for_discard_with(
+        &mut self,
+        player_index: usize,
+        card_index: usize,
+        provider: Option<&mut dyn super::DecisionProvider>,
+    ) -> Result<
+        (
+            super::card_zone_transition::OwnedMovementCard,
+            super::card_zone_transition::PreparedGraveyardDestination,
+        ),
+        EngineError,
+    > {
         let instance_id = self
             .state
             .players
@@ -1196,7 +1232,7 @@ impl GameEngine {
             .and_then(|player| player.hand.get(card_index))
             .map(|card| card.instance_id.clone())
             .ok_or_else(|| EngineError::new("missing discarded hand card"))?;
-        let plan = self.prepare_discard_destination(&instance_id)?;
+        let plan = self.prepare_discard_destination_with(&instance_id, provider)?;
         Ok((
             self.take_zone_card_for_movement(player_index, "hand", card_index)?,
             plan,

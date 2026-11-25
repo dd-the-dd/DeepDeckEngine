@@ -218,3 +218,96 @@ fn a_declined_madness_cast_and_a_card_without_madness_reach_the_graveyard() {
         "no madness cost was paid"
     );
 }
+
+/// Rest in Peace's replacement ability (real Oracle text; its enters
+/// trigger is a separate coverage target), on an opponent's battlefield.
+fn graveyard_exile_source(instance_id: &str, owner: &str) -> CardInstance {
+    let mut definition = test_definition(instance_id, "Enchantment");
+    definition.name = "Rest in Peace".to_string();
+    definition.rules = parsed_rules(
+        "Rest in Peace",
+        "Enchantment",
+        "{1}{W}",
+        "If a card or token would be put into a graveyard from anywhere, exile it instead.",
+    );
+    test_instance(instance_id, definition, owner)
+}
+
+/// Applies the replacement whose source is `preferred`; records who chose.
+struct ApplyReplacementOf {
+    preferred: &'static str,
+    asked: Vec<String>,
+}
+
+impl DecisionProvider for ApplyReplacementOf {
+    fn choose(
+        &mut self,
+        _state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        assert_eq!(request.kind, DecisionKind::ReplacementChoice);
+        self.asked.push(request.player_id.clone());
+        request
+            .options
+            .iter()
+            .position(|option| option.card_instance_id.as_deref() == Some(self.preferred))
+            .ok_or_else(|| EngineError::new("preferred replacement is not offered"))
+    }
+}
+
+/// Madness and another exile replacement both apply to a discard. Only the
+/// madness exile triggers the cast, so the card's owner chooses which one
+/// applies (CR 616.1, 702.35a): without a chooser the discard is refused;
+/// choosing the other replacement exiles the card without a madness trigger.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_owner_orders_madness_and_another_exile_replacement() {
+    for preferred in ["wurm", "peace"] {
+        let mut engine = test_engine(2);
+        engine.state.players[0].hand = vec![reckless_wurm("wurm", "player-0")];
+        engine.state.players[1]
+            .battlefield
+            .push(graveyard_exile_source("peace", "player-1"));
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+
+        let refused = engine
+            .discard_card_as_cost("player-0", "wurm")
+            .expect_err("no chooser: an explicit refusal, not a silent madness pick");
+        assert!(
+            refused
+                .to_string()
+                .contains("requires an explicit decision provider"),
+            "{refused:?}"
+        );
+        assert!(in_zone(&engine.state.players[0].hand, "wurm"));
+
+        let mut chooser = ApplyReplacementOf {
+            preferred,
+            asked: Vec::new(),
+        };
+        let (card, plan) = engine
+            .take_hand_card_for_discard_with(0, 0, Some(&mut chooser))
+            .expect("the owner orders the replacements");
+        engine
+            .put_owned_card_into_prepared_graveyard(0, card, plan)
+            .expect("the discarded card moves");
+        engine.record_event(
+            "cardDiscarded",
+            Some("player-0".to_string()),
+            Some("wurm".to_string()),
+            json!({"reason": "effect"}),
+        );
+        engine.enqueue_card_discarded_triggers("player-0");
+
+        assert_eq!(chooser.asked, vec!["player-0".to_string()], "its owner");
+        assert!(in_zone(&engine.state.players[0].exile, "wurm"));
+        assert!(!in_zone(&engine.state.players[0].graveyard, "wurm"));
+        assert_eq!(
+            madness_triggers(&engine, "wurm"),
+            usize::from(preferred == "wurm"),
+            "only the madness exile is `exiled this way`"
+        );
+    }
+}

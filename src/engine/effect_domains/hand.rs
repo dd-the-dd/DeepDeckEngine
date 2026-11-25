@@ -139,8 +139,11 @@ impl GameEngine {
                                 .any(|card| &card.instance_id == *id)
                         })
                         .map(|id| {
-                            self.prepare_discard_destination(id)
-                                .map(|plan| (id.clone(), plan))
+                            self.prepare_discard_destination_with(
+                                id,
+                                Some(&mut *provider as &mut dyn DecisionProvider),
+                            )
+                            .map(|plan| (id.clone(), plan))
                         })
                         .collect::<Result<BTreeMap<_, _>, EngineError>>()?;
                     for instance_id in selected {
@@ -236,8 +239,11 @@ impl GameEngine {
                     .hand
                     .iter()
                     .map(|card| {
-                        self.prepare_discard_destination(&card.instance_id)
-                            .map(|plan| (card.instance_id.clone(), plan))
+                        self.prepare_discard_destination_with(
+                            &card.instance_id,
+                            Some(&mut *provider as &mut dyn DecisionProvider),
+                        )
+                        .map(|plan| (card.instance_id.clone(), plan))
                     })
                     .collect::<Result<BTreeMap<_, _>, EngineError>>()?;
                 let mut discarded = Vec::new();

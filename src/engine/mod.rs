@@ -14196,8 +14196,11 @@ impl GameEngine {
                             && matches_card_filter(&candidate.definition, &cost["where"])
                     })
                     .ok_or_else(|| EngineError::new("keyword discard is no longer payable"))?;
-                let (discarded, graveyard_destination) =
-                    self.take_hand_card_for_discard(player_index, card_index)?;
+                let (discarded, graveyard_destination) = self.take_hand_card_for_discard_with(
+                    player_index,
+                    card_index,
+                    Some(&mut *provider as &mut dyn DecisionProvider),
+                )?;
                 self.put_owned_card_into_prepared_graveyard(
                     player_index,
                     discarded,
@@ -27232,8 +27235,11 @@ impl GameEngine {
                         .map(|rule| rule["ability"].clone())
                         .ok_or_else(|| EngineError::new("cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
-                    let (card, graveyard_destination) =
-                        self.take_hand_card_for_discard(player_index, card_index)?;
+                    let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                        player_index,
+                        card_index,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
+                    )?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -27333,8 +27339,11 @@ impl GameEngine {
                         .map(|rule| rule["ability"].clone())
                         .ok_or_else(|| EngineError::new("typed cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
-                    let (card, graveyard_destination) =
-                        self.take_hand_card_for_discard(player_index, card_index)?;
+                    let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                        player_index,
+                        card_index,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
+                    )?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -38345,8 +38354,11 @@ impl GameEngine {
                 .as_deref()
                 .ok_or_else(|| EngineError::new("discard action has no card"))?;
             let card_index = self.hand_position(active, instance_id)?;
-            let (card, graveyard_destination) =
-                self.take_hand_card_for_discard(active, card_index)?;
+            let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                active,
+                card_index,
+                Some(&mut *provider as &mut dyn DecisionProvider),
+            )?;
             let card_id = card.instance_id.clone();
             self.put_owned_card_into_prepared_graveyard(active, card, graveyard_destination)?;
             eprintln!(

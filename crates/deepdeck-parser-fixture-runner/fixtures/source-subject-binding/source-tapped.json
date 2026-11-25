@@ -555,7 +555,7 @@
       }
     },
     {
-      "id": "opponent-object-not-source",
+      "id": "event-object-anaphor-is-not-source",
       "request": {
         "cardName": "Source Transition Witness",
         "typeLine": "Artifact",
@@ -581,6 +581,29 @@
                 "equals": "triggeringPermanent"
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "event-object-without-event-player",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever a land becomes tapped, it deals 1 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "player-subject.bound.resolve",
+            "found": "that"
           }
         ]
       }

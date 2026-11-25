@@ -787,6 +787,29 @@
       }
     },
     {
+      "id": "synthetic-permission-body-only-twice-each-turn-refused",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "you may draw a card and proliferate. Do this only twice each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "Do"
+          }
+        ]
+      }
+    },
+    {
       "id": "synthetic-dying-source-preserves-hard-relative-target-support-limit",
       "request": {
         "cardName": "Synthetic source support boundary",

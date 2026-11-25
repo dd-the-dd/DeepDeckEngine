@@ -619,6 +619,23 @@ impl GameEngine {
         card: &CardInstance,
         provider: Option<&mut dyn super::DecisionProvider>,
     ) -> Result<PreparedGraveyardDestination, EngineError> {
+        self.prepare_graveyard_destination_among(player_index, card, Vec::new(), provider)
+    }
+
+    /// `prepare_graveyard_destination_with` where the moving event adds its
+    /// own replacements (`event_proposals`, such as a discard's madness
+    /// exile) ahead of the general ones; the owner orders them all.
+    pub(super) fn prepare_graveyard_destination_among(
+        &self,
+        player_index: usize,
+        card: &CardInstance,
+        event_proposals: Vec<
+            super::replacement_pipeline::ReplacementProposal<
+                super::replacement_pipeline::GraveyardReplacement,
+            >,
+        >,
+        provider: Option<&mut dyn super::DecisionProvider>,
+    ) -> Result<PreparedGraveyardDestination, EngineError> {
         use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacedGraveyardZone};
         use super::*;
         // The finality counter is one of the proposed graveyard-destination
@@ -626,14 +643,22 @@ impl GameEngine {
         // apply in precedence order; different outcomes are chosen by the
         // card's owner (CR 616.1).
         let graveyard_owner_id = self.state.players[player_index].id.clone();
-        let selected = self.select_graveyard_destination_replacement(
+        let mut proposals = event_proposals;
+        proposals.extend(self.propose_graveyard_destination_replacements(
             card,
             &graveyard_owner_id,
             &self.battlefield_static_modifiers(),
-            provider,
-        )?;
+        ));
+        let selected = self.select_graveyard_destination_proposal(card, &proposals, provider)?;
         Ok(match selected {
             Some(proposal) => match proposal.program.origin {
+                GraveyardReplacementOrigin::LinkedKeyword { keyword } => {
+                    PreparedGraveyardDestination::Exile {
+                        source_card_id: card.instance_id.clone(),
+                        one_shot_modifier: None,
+                        detail: json!({"destination": "exile", "replacement": keyword}),
+                    }
+                }
                 GraveyardReplacementOrigin::SpecificCard { modifier } => {
                     PreparedGraveyardDestination::Exile {
                         source_card_id: card.instance_id.clone(),
