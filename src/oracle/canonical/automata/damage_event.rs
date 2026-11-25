@@ -3,6 +3,7 @@
 //! ```text
 //! DealtComplement := ["combat" | "noncombat"] "damage" ["to" Recipient]
 //! Recipient       := Actor                       -- you, a player, an opponent
+//!                  | "one" "of" "your" "opponents" -- partitive of `an opponent`
 //!                  | ("a" | "an") PermanentQuery -- a creature, a planeswalker, ...
 //! Recipients      := Recipient ("or" (Recipient | ElidedRecipient))*
 //! ElidedRecipient := "player" | "opponent" | PermanentQuery   -- the shared article
@@ -116,6 +117,20 @@ fn recognize_damage_recipient(
     cursor.enter("event.dealt-damage.recipient");
     if let Some(actor) = try_recognize_event_actor_scope(cursor)? {
         return Ok(DamageRecipient::Player(actor));
+    }
+    // `one of your opponents` (CR 102.3): the partitive names one member
+    // of the ability controller's opponents, the relation of `an opponent`.
+    let partitive = ["one", "of", "your", "opponents"];
+    if !elided_article
+        && partitive.iter().enumerate().all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+    {
+        cursor.enter("event.dealt-damage.recipient-partitive");
+        cursor.consume_phrase(&partitive)?;
+        return Ok(DamageRecipient::Player(EventActorScope::Opponent));
     }
     if elided_article {
         for (word, actor) in [

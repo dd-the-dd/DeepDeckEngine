@@ -4,6 +4,7 @@
 //! or rematch an Oracle sentence and they emit typed semantic values rather
 //! than card-shaped JSON.
 
+mod ability_history;
 mod ability_loss;
 mod ability_word_envelope;
 mod action_result;
@@ -55,6 +56,7 @@ mod color_set;
 mod color_set_mana;
 mod color_set_query;
 mod combat_restriction;
+mod comparison_difference;
 mod compound_activated;
 mod compound_exile;
 mod condition;
@@ -193,6 +195,7 @@ mod quantified_event;
 mod quantified_player_action;
 mod quantity_event;
 mod quantity_replacement;
+mod quantity_slot;
 mod rebound;
 mod reference;
 mod regenerate;
@@ -233,6 +236,7 @@ mod spell_cast_event;
 mod spell_cost_increase;
 mod spell_set_grant;
 mod stack_copy;
+mod state_trigger;
 mod static_collection_keyword;
 mod static_condition;
 mod static_granted_activation;
@@ -246,6 +250,7 @@ mod target_domain;
 mod target_list;
 mod target_untap;
 mod targeting_event;
+mod targeting_prohibition;
 mod temporary_power_toughness;
 mod token;
 mod token_creation_action;
@@ -271,6 +276,7 @@ mod zone_change_until;
 mod zone_list;
 mod zone_prohibition;
 
+pub(super) use ability_history::*;
 pub(super) use ability_loss::*;
 pub(super) use ability_word_envelope::*;
 pub(super) use action_result::*;
@@ -325,6 +331,7 @@ pub(super) use color_set::*;
 pub(super) use color_set_mana::*;
 pub(super) use color_set_query::*;
 pub(super) use combat_restriction::*;
+pub(super) use comparison_difference::*;
 pub(super) use compound_activated::*;
 pub(super) use compound_exile::*;
 pub(super) use condition::*;
@@ -460,6 +467,7 @@ pub(super) use quantified_event::*;
 pub(super) use quantified_player_action::*;
 pub(super) use quantity_event::*;
 pub(super) use quantity_replacement::*;
+pub(super) use quantity_slot::*;
 pub(super) use rebound::*;
 pub(super) use reference::*;
 pub(super) use regenerate::*;
@@ -502,6 +510,7 @@ pub(super) use spell_cast_event::*;
 pub(super) use spell_cost_increase::*;
 pub(super) use spell_set_grant::*;
 pub(super) use stack_copy::*;
+pub(super) use state_trigger::*;
 pub(super) use static_collection_keyword::*;
 pub(super) use static_granted_activation::*;
 pub(super) use static_keyword_grant::*;
@@ -514,6 +523,7 @@ pub(super) use target_domain::*;
 pub(super) use target_list::*;
 pub(super) use target_untap::*;
 pub(super) use targeting_event::*;
+pub(super) use targeting_prohibition::*;
 pub(super) use temporary_power_toughness::*;
 pub(super) use token::*;
 pub(super) use token_creation_action::*;
@@ -1040,6 +1050,9 @@ pub(super) enum PlayerNumericFact {
     /// The counters of one kind the player has (CR 122.1: experience,
     /// poison, energy).
     Counters(crate::oracle::counter_name::CounterName),
+    /// The player's speed (CR 702.179, Start your engines!): a player value,
+    /// not a counter.
+    Speed,
 }
 
 /// A fact about one opponent of the ability controller that a count reads.
@@ -1674,6 +1687,20 @@ pub(super) struct CastingCostReductionNode {
     pub condition: Option<SentenceConditionNode>,
     /// Object query matched against the spell's chosen targets (`if it targets ...`).
     pub target_query: Option<ObjectQueryNode>,
+    /// The colored part of the delta (`{W}{B} less`, `{G} less for each`),
+    /// applied `times` times (CR 118.7b-c); `amount` keeps the generic part.
+    pub colored: Option<ColoredReductionNode>,
+}
+
+/// The colored symbols of a cost-reduction delta.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ColoredReductionNode {
+    /// Counts in `W U B R G C` order.
+    pub counts: [u8; 6],
+    pub times: NumericExpression,
+    /// False for `This effect reduces only the amount of colored mana you
+    /// pay`; otherwise the excess reduces generic mana (CR 118.7b-c).
+    pub excess_reduces_generic: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

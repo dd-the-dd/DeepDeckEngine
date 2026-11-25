@@ -26,10 +26,21 @@ pub(in crate::oracle::canonical) fn try_parse_spell_set_grant(
     match try_recognize_spell_set_grant(&mut cursor) {
         SpellSetGrantAttempt::NotClaimed => SpellSetGrantParseAttempt::NotClaimed,
         SpellSetGrantAttempt::Failed(failure) => SpellSetGrantParseAttempt::Failed(failure),
-        SpellSetGrantAttempt::Parsed(node) => match lower_spell_set_grant(&mut cursor, &node) {
-            Ok(draft) => SpellSetGrantParseAttempt::Parsed(draft),
-            Err(failure) => SpellSetGrantParseAttempt::Failed(failure),
-        },
+        SpellSetGrantAttempt::Parsed(node) => {
+            let lowered = match &node.predicate {
+                // CR 702.41a: affinity is a cost reduction of each matching
+                // spell, counted over the quality's permanents its caster
+                // controls: the shared spell-set casting reduction.
+                SpellSetPredicate::Has(SpellGrantedKeyword::Affinity(quality)) => {
+                    lower_granted_affinity(input, &mut cursor, &node, quality)
+                }
+                _ => lower_spell_set_grant(&mut cursor, &node),
+            };
+            match lowered {
+                Ok(draft) => SpellSetGrantParseAttempt::Parsed(draft),
+                Err(failure) => SpellSetGrantParseAttempt::Failed(failure),
+            }
+        }
     }
 }
 
@@ -37,6 +48,44 @@ pub(in crate::oracle::canonical) fn try_parse_spell_set_grant(
 /// shared predicate (`{"kind":"spells"}`, the engine's spell-grant subject).
 fn granted_spells(filter: &Value) -> Value {
     json!({ "kind": "spells", "controller": controller(), "where": filter })
+}
+
+fn lower_granted_affinity(
+    input: &AbilityInput<'_>,
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &SpellSetGrantNode,
+    quality: &ObjectPredicate,
+) -> MachineResult<CanonicalRuleDraft> {
+    cursor.enter("static.spell-grant.affinity");
+    cursor.require(
+        node.scope == SpellSetScope::Each,
+        "affinity granted to every matching spell (no ordinal or stack-control scope)",
+    )?;
+    let expansion = affinity_reduction(quality);
+    lower_casting_cost_reduction(
+        input,
+        cursor,
+        CastingCostReductionNode {
+            subject: CastingReductionSubject::SpellSet(node.spells.clone()),
+            amount: expansion.amount,
+            condition: None,
+            target_query: None,
+            colored: None,
+        },
+    )
+}
+
+/// The keywords whose damage results the engine reads from a spell it
+/// resolves (CR 702.2b, 702.15b, 702.80, 702.90): a grant to the spells a
+/// player controls on the stack.
+fn damage_keyword_for_spells(keyword: GrantedKeyword) -> bool {
+    matches!(
+        keyword,
+        GrantedKeyword::Lifelink
+            | GrantedKeyword::Deathtouch
+            | GrantedKeyword::Wither
+            | GrantedKeyword::Infect
+    )
 }
 
 pub(in crate::oracle::canonical) fn lower_spell_set_grant(
@@ -67,6 +116,25 @@ pub(in crate::oracle::canonical) fn lower_spell_set_grant(
         }
         SpellSetPredicate::Has(keyword) => keyword,
     };
+    if node.scope == SpellSetScope::Controlled {
+        // `SPELLS you control have KEYWORD`: the spells on the stack whose
+        // controller is the ability controller.
+        cursor.enter("static.spell-grant.controlled-keyword");
+        let SpellGrantedKeyword::Parameterless(granted) = keyword else {
+            return Err(cursor.fail("a parameterless keyword of the spells you control"));
+        };
+        cursor.require(
+            damage_keyword_for_spells(*granted),
+            "a damage keyword the engine reads from a resolving spell (lifelink, deathtouch, wither, infect)",
+        )?;
+        let mut modifier = json!({
+            "kind": "grantKeywordToSpells",
+            "player": controller(),
+            "keyword": granted.canonical_name(),
+        });
+        modifier["where"] = filter;
+        return Ok(static_spell_rule(cursor, modifier));
+    }
     cursor.enter("static.spell-grant.caster");
     // The engine grants to the spells its source's controller casts.
     cursor.require(
@@ -74,7 +142,21 @@ pub(in crate::oracle::canonical) fn lower_spell_set_grant(
         "spells cast by the ability controller (`you cast`)",
     )?;
     cursor.enter("static.spell-grant.keyword-modifier");
-    let modifier = match keyword {
+    let first_each_turn = node.scope == SpellSetScope::FirstEachTurn;
+    if first_each_turn {
+        // The engine tracks the cast ordinal for these grants only.
+        cursor.enter("static.spell-grant.ordinal");
+        cursor.require(
+            matches!(
+                keyword,
+                SpellGrantedKeyword::Parameterless(
+                    GrantedKeyword::Convoke | GrantedKeyword::Improvise | GrantedKeyword::Cascade
+                )
+            ),
+            "a keyword whose first-spell-each-turn grant the engine tracks (convoke, improvise, cascade)",
+        )?;
+    }
+    let mut modifier = match keyword {
         SpellGrantedKeyword::Parameterless(GrantedKeyword::Convoke) => {
             json!({ "kind": "grantConvoke", "spells": granted_spells(&filter) })
         }
@@ -107,12 +189,17 @@ pub(in crate::oracle::canonical) fn lower_spell_set_grant(
             "minimumManaValue": 0,
             "where": filter,
         }),
-        SpellGrantedKeyword::Parameterless(_) => {
+        SpellGrantedKeyword::Parameterless(_) | SpellGrantedKeyword::Affinity(_) => {
             return Err(cursor.fail(
                 "a keyword the engine grants to spells (convoke, improvise, conspire, replicate, split second, cascade)",
             ));
         }
     };
+    if first_each_turn {
+        // `the first SPELL you cast each turn` (CR 601.2): the grant reads
+        // the caster's spells cast earlier this turn.
+        modifier["firstEachTurn"] = json!(true);
+    }
     Ok(static_spell_rule(cursor, modifier))
 }
 

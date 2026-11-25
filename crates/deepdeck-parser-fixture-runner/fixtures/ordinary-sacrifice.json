@@ -822,7 +822,7 @@
       }
     },
     {
-      "id": "range-not-fixed",
+      "id": "up-to-range-is-a-chosen-quantity",
       "request": {
         "cardName": "Ordinary Resolution Witness",
         "typeLine": "Sorcery",
@@ -832,12 +832,48 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "sacrificePermanents"
+              },
+              {
+                "pointer": "/effects/0/minimum/value",
+                "equals": 0
+              },
+              {
+                "pointer": "/effects/0/maximum/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-up-to-range-of-another-controllers-permanents",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice up to two creatures an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.complete"
           }
         ]
       }

@@ -377,10 +377,20 @@ pub(in crate::oracle::canonical) fn recognize_activation_keyword_reminder(
     let restated = super::recognize_activation_restriction_sentence(cursor, Some(keyword))?;
     if keyword == super::ActivationKeyword::PowerUp {
         // CR 702.193a: the power-up cost reduction, restated.
+        // The source is named by one third-person singular pronoun pair
+        // (`its ... it`, `his ... he`, `her ... she`); the possessive and
+        // the subject must agree.
         cursor.enter("activation.keyword-reminder.power-up-reduction");
+        cursor.consume_phrase(&["reduce", "the", "cost", "by"])?;
+        let subject = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+            Some("its") => "it",
+            Some("his") => "he",
+            Some("her") => "she",
+            _ => return Err(cursor.fail("its, his or her")),
+        };
+        cursor.advance_to(cursor.position() + 1)?;
         cursor.consume_phrase(&[
-            "reduce", "the", "cost", "by", "its", "mana", "cost", "if", "it", "entered", "this",
-            "turn", ".",
+            "mana", "cost", "if", subject, "entered", "this", "turn", ".",
         ])?;
     }
     cursor.enter("activation.keyword-reminder.close");

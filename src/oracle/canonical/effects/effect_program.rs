@@ -31,13 +31,18 @@ pub(in crate::oracle::canonical) fn lower_effect_program_with_context(
         steps.push(lower_program_step(
             cursor,
             step,
-            &mut |cursor, sequence| match try_lower_local_effect_sequence_with_context(
-                cursor, sequence, context,
-            ) {
-                EffectSequenceLoweringAttempt::Lowered(lowered) => Ok(lowered),
-                EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure)
-                | EffectSequenceLoweringAttempt::FailedSupport(failure)
-                | EffectSequenceLoweringAttempt::FailedInvariant(failure) => Err(failure),
+            &mut |cursor, sequence, collections| {
+                match try_lower_local_effect_sequence_with_collections(
+                    cursor,
+                    sequence,
+                    context,
+                    collections,
+                ) {
+                    EffectSequenceLoweringAttempt::Lowered(lowered) => Ok(lowered),
+                    EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure)
+                    | EffectSequenceLoweringAttempt::FailedSupport(failure)
+                    | EffectSequenceLoweringAttempt::FailedInvariant(failure) => Err(failure),
+                }
             },
             |failure| failure,
         )?);
@@ -47,12 +52,16 @@ pub(in crate::oracle::canonical) fn lower_effect_program_with_context(
 
 /// Lowers one program step with the caller's sequence-lowering policy. Every
 /// written sentence is lowered once; an outcome action owns two sentences.
+/// Each sentence reads its own card-collection scope, except the body of an
+/// `If you do` outcome, which reads the cards its producing instruction
+/// observed (CR 608.2c): it runs only after that instruction was performed.
 pub(in crate::oracle::canonical) fn lower_program_step<E>(
     cursor: &mut OracleTokenCursor<'_>,
     step: &EffectProgramNode,
-    lower: &mut impl FnMut(
+    lower_with: &mut impl FnMut(
         &mut OracleTokenCursor<'_>,
         &EffectSequenceNode,
+        &mut CardCollectionMemory,
     ) -> Result<LoweredEffectSequence, E>,
     program_failure: impl Fn(MachineFailure) -> E,
 ) -> Result<LoweredEffectSequence, E> {
@@ -66,10 +75,30 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         result,
     } = step
     {
-        let action = lower(cursor, action.inner_sequence())?;
-        let body = lower(cursor, body.inner_sequence())?;
+        // `If you do` reads the cards the performed instruction observed
+        // (`you may exile target creature. If you do, return that card ...`);
+        // every other outcome reads its own scope.
+        let mut producer_scope = CardCollectionMemory::default();
+        producer_scope.set_continuation_reads_cards(
+            *outcome == PerformanceOutcome::Performed
+                && super::effect_sequence::reads_card_collection_reference(
+                    &body.inner_sequence().effects,
+                ),
+        );
+        let action = lower_with(cursor, action.inner_sequence(), &mut producer_scope)?;
+        producer_scope.set_continuation_reads_cards(false);
+        let mut body_scope = if *outcome == PerformanceOutcome::Performed {
+            producer_scope
+        } else {
+            CardCollectionMemory::default()
+        };
+        let body = lower_with(cursor, body.inner_sequence(), &mut body_scope)?;
         let otherwise = match otherwise {
-            Some(otherwise) => Some(lower(cursor, otherwise.inner_sequence())?),
+            Some(otherwise) => Some(lower_with(
+                cursor,
+                otherwise.inner_sequence(),
+                &mut CardCollectionMemory::default(),
+            )?),
             None => None,
         };
         return lower_action_outcome(
@@ -84,6 +113,9 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         )
         .map_err(program_failure);
     }
+    let mut lower = |cursor: &mut OracleTokenCursor<'_>, sequence: &EffectSequenceNode| {
+        lower_with(cursor, sequence, &mut CardCollectionMemory::default())
+    };
     if let EffectProgramNode::Outcome {
         permission,
         producer: OutcomeProducer::Cost(cost),
@@ -130,6 +162,9 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
             [performed, declined],
         )
         .map_err(program_failure);
+    }
+    if let EffectProgramNode::CreatedReplacement { replacement, .. } = step {
+        return lower_created_replacement_step(cursor, replacement).map_err(program_failure);
     }
     if let EffectProgramNode::Alternatives { player, options } = step {
         let mut lowered = Vec::with_capacity(options.len());
@@ -966,6 +1001,10 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
         EffectProgramNode::Offer { .. } => {
             cursor.enter("lower.program.offer");
             Err(cursor.fail("an offer lowered with its outcome sentences"))
+        }
+        EffectProgramNode::CreatedReplacement { .. } => {
+            cursor.enter("lower.program.created-replacement");
+            Err(cursor.fail("a created replacement lowered as its own program step"))
         }
         EffectProgramNode::Outcome {
             producer: OutcomeProducer::Action(_),

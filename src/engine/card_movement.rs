@@ -73,7 +73,7 @@ impl GameEngine {
         card: CardInstance,
         source: &super::card_zone_transition::CardMovementSource,
     ) -> Result<bool, EngineError> {
-        let plan = self.prepare_graveyard_destination(owner_index, &card);
+        let plan = self.prepare_graveyard_destination(owner_index, &card)?;
         self.put_owned_card_into_prepared_graveyard(
             owner_index,
             super::card_zone_transition::OwnedMovementCard {
@@ -90,9 +90,7 @@ impl GameEngine {
         mut moved: super::card_zone_transition::OwnedMovementCard,
         plan: super::card_zone_transition::PreparedGraveyardDestination,
     ) -> Result<bool, EngineError> {
-        use super::card_zone_transition::{
-            ObjectTransitionReason, ObjectZone, PreparedGraveyardDestination,
-        };
+        use super::card_zone_transition::{ObjectTransitionReason, ObjectZone};
         if self.player_index(&moved.card.owner)? != owner_index {
             return Err(EngineError::new(
                 "graveyard destination must belong to the card owner",
@@ -104,12 +102,7 @@ impl GameEngine {
             ));
         }
         self.validate_prepared_graveyard_destination(&plan)?;
-        let actual = match &plan {
-            PreparedGraveyardDestination::Graveyard { .. } => {
-                ObjectZone::Graveyard(moved.card.owner.clone())
-            }
-            PreparedGraveyardDestination::Exile { .. } => ObjectZone::Exile,
-        };
+        let actual = plan.actual_zone(&moved.card.owner);
         let reason = if matches!(actual, ObjectZone::Exile) {
             ObjectTransitionReason::Reexile
         } else {

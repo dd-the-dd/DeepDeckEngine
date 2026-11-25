@@ -62,7 +62,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("sacrificePermanents") => {
             player_reference_supported(&effect["player"])
                 && card_filter_supported(&effect["where"])
-                && numeric_expression_supported(&effect["count"])
+                && card_selection::selection_cardinality_supported(effect)
                 && effect.get("bind").is_none_or(Value::is_string)
                 && effect.get("bindPowerAs").is_none_or(Value::is_string)
                 && effect
@@ -141,10 +141,11 @@ impl GameEngine {
                             _ => None,
                         })
                         .collect();
-                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack(
+                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack_with(
                         instance_ids,
                         effect["cannotRegenerate"].as_bool().unwrap_or(false),
                         stack_object,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
                     )?);
                 } else if value_kind(&effect["permanent"]) == Some("eachPermanent") {
                     let prepared_filter = self.prepare_runtime_object_filter(
@@ -197,10 +198,11 @@ impl GameEngine {
                         })
                         .map(|permanent| permanent.instance_id.clone())
                         .collect::<Vec<_>>();
-                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack(
+                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack_with(
                         instance_ids,
                         effect["cannotRegenerate"].as_bool().unwrap_or(false),
                         stack_object,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
                     )?);
                 } else if value_kind(&effect["permanent"]) == Some("union") {
                     // Several declared target slots of one instruction are
@@ -217,10 +219,11 @@ impl GameEngine {
                         .into_iter()
                         .filter(|instance_id| self.permanent_position(instance_id).is_some())
                         .collect();
-                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack(
+                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack_with(
                         instance_ids,
                         effect["cannotRegenerate"].as_bool().unwrap_or(false),
                         stack_object,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
                     )?);
                 } else if object_expression_supported(&effect["permanent"]) {
                     let instance_ids = self
@@ -349,15 +352,15 @@ impl GameEngine {
                     .resolve_player(&effect["player"], stack_object, bindings)
                     .ok_or_else(|| EngineError::new("unresolved sacrifice player"))?;
                 self.player_index(&player_id)?;
-                let count = self
-                    .checked_runtime_numeric_expression(
-                        &effect["count"],
-                        stack_object,
-                        bindings,
-                        decisions,
-                        "sacrificePermanents.count",
-                    )?
-                    .max(0) as usize;
+                // A stated count, or a range the player picks from
+                // (`sacrifice any number of artifacts`, CR 608.2d).
+                let (minimum, maximum) = self.selection_cardinality(
+                    effect,
+                    stack_object,
+                    bindings,
+                    decisions,
+                    "sacrificePermanents",
+                )?;
                 let filter = self.prepare_permanent_runtime_object_filter(
                     &effect["where"],
                     None,
@@ -445,8 +448,10 @@ impl GameEngine {
                         )
                     });
                 }
-                let count = count.min(candidates.len());
-                if count == 0 {
+                let maximum =
+                    maximum.map_or(candidates.len(), |maximum| maximum.min(candidates.len()));
+                let minimum = minimum.min(maximum);
+                if maximum == 0 {
                     if let Some(id) = effect["bind"].as_str() {
                         bindings.insert(id.to_owned(), RuntimeBinding::Objects(Vec::new()));
                     }
@@ -455,7 +460,7 @@ impl GameEngine {
                     }
                     return Ok(());
                 }
-                let values = Self::resolution_selections(&candidates, count, 128);
+                let values = card_selection::bounded_selections(&candidates, minimum, maximum);
                 let mut local_decisions = BTreeMap::new();
                 self.make_resolution_decision(
                     "sacrificePermanents",
@@ -464,9 +469,13 @@ impl GameEngine {
                     DecisionChoice::CardSelection {
                         decision_id: "sacrificePermanents".to_string(),
                         candidate_card_instance_ids: candidates,
-                        minimum: count,
-                        maximum: count,
-                        prompt: format!("Choose {count} permanent(s) to sacrifice"),
+                        minimum,
+                        maximum,
+                        prompt: if minimum == maximum {
+                            format!("Choose {minimum} permanent(s) to sacrifice")
+                        } else {
+                            format!("Choose {minimum} to {maximum} permanent(s) to sacrifice")
+                        },
                     },
                     values,
                     &mut local_decisions,

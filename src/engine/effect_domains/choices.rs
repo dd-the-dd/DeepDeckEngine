@@ -61,6 +61,9 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && card_filter_supported(&effect["candidates"]["where"])
                 && numeric_expression_supported(&effect["minimum"])
                 && numeric_expression_supported(&effect["maximum"])
+                && effect
+                    .get("selection")
+                    .is_none_or(|selection| value_kind(selection) == Some("random"))
         }
         Some("chooseCardName") => {
             effect["id"].is_string()
@@ -101,6 +104,22 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["id"].is_string()
                 && player_reference_supported(&effect["player"])
                 && color_count_bounds(effect).is_some()
+        }
+        // `your choice of A, B, or C` (CR 608.2d): one of two or more named
+        // options, chosen while the effect resolves; consumers read the
+        // decision against their own copy of the same options.
+        Some("chooseOption") => {
+            known_fields(effect, &["kind", "id", "player", "options"])
+                && effect["id"].is_string()
+                && player_reference_supported(&effect["player"])
+                && effect["options"].as_array().is_some_and(|options| {
+                    options.len() >= 2
+                        && options.iter().all(Value::is_string)
+                        && options
+                            .iter()
+                            .enumerate()
+                            .all(|(index, option)| !options[..index].contains(option))
+                })
         }
         // `the basic land type of your choice` (CR 205.3i, 305.6).
         Some("chooseBasicLandType") => {
@@ -354,6 +373,37 @@ impl GameEngine {
                     json!({ "decisionId": decision_id, "colors": decisions.get(decision_id) }),
                 );
             }
+            Some("chooseOption") => {
+                let Some(decision_id) = effect["id"].as_str() else {
+                    return Ok(());
+                };
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let options = effect["options"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>();
+                let values = options.iter().map(|option| vec![option.clone()]).collect();
+                self.make_resolution_decision(
+                    decision_id,
+                    &player_id,
+                    stack_object,
+                    DecisionChoice::OptionSelection {
+                        decision_id: decision_id.to_string(),
+                        options,
+                        prompt: "Choose one option.".to_string(),
+                    },
+                    values,
+                    decisions,
+                    provider,
+                )?;
+            }
             Some("chooseBasicLandType") => {
                 let Some(decision_id) = effect["id"].as_str() else {
                     return Ok(());
@@ -578,6 +628,22 @@ impl GameEngine {
                     )?
                     .max(0)
                     .min(objects.len() as i32) as usize;
+                // `at random` (CR 608.2d): the game picks the objects, so no
+                // player decides; the pick is recorded like a choice.
+                if value_kind(&effect["selection"]) == Some("random") {
+                    let picked = card_selection::random_selection(self, objects, maximum);
+                    self.record_event(
+                        "permanentsChosenAtRandom",
+                        Some(choosing_player_id),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "decisionId": decision_id, "objects": picked }),
+                    );
+                    decisions.insert(
+                        decision_id.to_string(),
+                        Value::Array(picked.into_iter().map(Value::String).collect()),
+                    );
+                    return Ok(());
+                }
                 let mut values = Vec::new();
                 for count in minimum..=maximum {
                     values.extend(Self::resolution_selections(

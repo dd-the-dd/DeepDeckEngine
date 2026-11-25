@@ -31,6 +31,10 @@ pub(in crate::oracle::canonical) enum ReferencedPermanentAction {
     /// `shuffle REFERENCE into their library` (CR 701.24a): the permanent
     /// goes to its owner's library (CR 400.3), then that library is shuffled.
     ShuffleIntoOwnerLibrary,
+    /// `return REFERENCE to its owner's hand`: the permanent goes to its
+    /// owner's hand (CR 400.3). Read by the zone-change frame's bound
+    /// reference operand (`effects.rs`).
+    ReturnToOwnerHand,
 }
 
 /// Where a permanent put into its owner's library goes.
@@ -139,7 +143,8 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
         ReferencedPermanentAction::Exile
         | ReferencedPermanentAction::Sacrifice
         | ReferencedPermanentAction::PutOnOwnerLibrary(_)
-        | ReferencedPermanentAction::ShuffleIntoOwnerLibrary => (
+        | ReferencedPermanentAction::ShuffleIntoOwnerLibrary
+        | ReferencedPermanentAction::ReturnToOwnerHand => (
             "effect.referenced-permanent.action",
             "effect.referenced-permanent.object",
         ),
@@ -163,6 +168,9 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
             super::VerbLemma::Shuffle,
             super::VerbAgreement::Base,
         )?,
+        ReferencedPermanentAction::ReturnToOwnerHand => {
+            super::consume_lemma(cursor, super::VerbLemma::Return, super::VerbAgreement::Base)?
+        }
     }
     cursor.enter(object_state);
     let object = if super::definite_object_anaphor_starts(cursor) {
@@ -200,6 +208,12 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
             recognize_owner_library(cursor)?;
             action
         }
+        ReferencedPermanentAction::ReturnToOwnerHand => {
+            cursor.enter("effect.referenced-permanent.owner-hand");
+            cursor.consume("to")?;
+            recognize_library_holder(cursor, "hand")?;
+            action
+        }
         other => other,
     };
     let cannot_regenerate = match action {
@@ -209,7 +223,8 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
         ReferencedPermanentAction::Exile
         | ReferencedPermanentAction::Sacrifice
         | ReferencedPermanentAction::PutOnOwnerLibrary(_)
-        | ReferencedPermanentAction::ShuffleIntoOwnerLibrary => false,
+        | ReferencedPermanentAction::ShuffleIntoOwnerLibrary
+        | ReferencedPermanentAction::ReturnToOwnerHand => false,
     };
     Ok(ReferencedPermanentActionNode {
         object,

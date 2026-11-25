@@ -27,6 +27,13 @@ pub(in crate::oracle::canonical) fn recognize_object_predicate_atom(
     loop {
         state = match state {
             PredicateAtomState::Atom => {
+                if let Some(power_toughness) = power_toughness_prefix_at(cursor) {
+                    // `target 1/1 creature`: the literal P/T prefix of the
+                    // noun (CR 208.1), the shared numeric comparisons.
+                    cursor.enter("selector.predicate-atom.power-toughness");
+                    cursor.advance_to(cursor.position() + 1)?;
+                    return Ok(power_toughness);
+                }
                 cursor.enter("selector.predicate-atom.typed");
                 let first = cursor
                     .peek()
@@ -65,6 +72,9 @@ pub(super) fn object_predicate_atom_starts(
     cursor: &OracleTokenCursor<'_>,
     forms: AcceptedForms,
 ) -> bool {
+    if power_toughness_prefix_at(cursor).is_some() {
+        return true;
+    }
     let Some(first) = cursor.peek() else {
         return false;
     };
@@ -76,6 +86,61 @@ pub(super) fn object_predicate_atom_starts(
         // relative slot, not a characteristic of the noun.
         && !super::participial_relation_starts(cursor)
         && recognize_positive_atom(surface, cursor.peek_ahead(1), forms).is_some()
+}
+
+/// `N/M` as one token, both nonnegative integers (CR 208.1).
+fn power_toughness_literal(raw: &str) -> Option<(i64, i64)> {
+    let (power, toughness) = raw.split_once('/')?;
+    let digits = |part: &str| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit());
+    if !digits(power) || !digits(toughness) {
+        return None;
+    }
+    Some((power.parse().ok()?, toughness.parse().ok()?))
+}
+
+/// `1/1 creature`, `1/1 creatures you control`: a literal power and
+/// toughness before an object noun is the conjunction of the two shared
+/// numeric comparisons with the candidate's power and toughness (CR 208.1).
+/// The prefix is read only before a run of characteristic words that names
+/// an existing object: a run naming a token (`a 1/1 white Soldier creature
+/// token`) describes the token a creation or replacement frame makes, and
+/// stays with that frame. Pure lookahead.
+fn power_toughness_prefix_at(cursor: &OracleTokenCursor<'_>) -> Option<ObjectPredicate> {
+    let (power, toughness) = power_toughness_literal(cursor.peek()?)?;
+    let mut offset = 1;
+    let mut words = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        let (_, surface) = split_negated_surface(raw);
+        if surface.is_empty() {
+            break;
+        }
+        let Some((atom, width)) = recognize_positive_atom(
+            surface,
+            cursor.peek_ahead(offset + 1),
+            AcceptedForms::SingularOrPlural,
+        ) else {
+            break;
+        };
+        if atom == ObjectPredicate::IsToken {
+            return None;
+        }
+        words += 1;
+        offset += width;
+    }
+    if words == 0 {
+        return None;
+    }
+    let comparison = |left, value| ObjectPredicate::NumericComparison {
+        left,
+        operator: super::NumericComparisonOperator::Equal,
+        right: Box::new(super::NumericExpression::Atom(super::NumericAtom::Integer(
+            value,
+        ))),
+    };
+    Some(ObjectPredicate::Intersection(vec![
+        comparison(super::SelectorNumericProperty::Power, power),
+        comparison(super::SelectorNumericProperty::Toughness, toughness),
+    ]))
 }
 
 /// `equipped creature` / `enchanted permanent` with no determiner before it

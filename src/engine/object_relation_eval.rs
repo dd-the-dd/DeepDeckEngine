@@ -59,7 +59,26 @@ const CARD_TYPES: [&str; 9] = [
 pub(super) fn is_relation_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "attachedTo" | "blocking" | "blockedBy" | "convoked" | "sharesCharacteristic"
+        "attachedTo"
+            | "blocking"
+            | "blockedBy"
+            | "convoked"
+            | "sharesCharacteristic"
+            | ENTERED_UNDER_CONTROL
+    )
+}
+
+/// `that entered the battlefield under your control this turn` (CR
+/// 110.2a): a relation of the permanent to the player who controlled it as
+/// it entered. Its `player` is a role relative to the ability controller,
+/// resolved into `playerIds` at preparation; it has no object anchor.
+const ENTERED_UNDER_CONTROL: &str = "enteredUnderControlThisTurn";
+
+/// The player roles an entry-controller relation names.
+fn entry_player_role_supported(role: &Value) -> bool {
+    matches!(
+        role.as_str(),
+        Some("abilityController" | "opponentOfAbilityController")
     )
 }
 
@@ -84,6 +103,9 @@ fn anchor_supported(anchor: &Value) -> bool {
 /// One unprepared relation atom: a known relation and characteristic, and
 /// an anchor this module resolves.
 pub(super) fn relation_atom_supported(atom: &Value) -> bool {
+    if value_kind(atom) == Some(ENTERED_UNDER_CONTROL) {
+        return entry_player_role_supported(&atom["player"]);
+    }
     let kind = match value_kind(atom) {
         Some("attachedTo" | "blocking" | "blockedBy" | "convoked") => true,
         Some("sharesCharacteristic") => matches!(
@@ -326,7 +348,57 @@ fn values_shared(candidate: &CharacteristicValues, anchor: &CharacteristicValues
             .any(|value| anchor.values.contains(value))
 }
 
+/// Whether every member of a set has one value of the characteristic in
+/// common (CR 105.1, 205.2-205.3): an object with every creature type has
+/// each creature type a member names (CR 702.73a). A set whose members all
+/// have every creature type shares one; an empty set shares nothing.
+fn values_common(members: &[CharacteristicValues]) -> bool {
+    let specific = members
+        .iter()
+        .filter(|member| !member.all_creature_types)
+        .collect::<Vec<_>>();
+    match specific.split_first() {
+        None => !members.is_empty(),
+        Some((first, rest)) => first
+            .values
+            .iter()
+            .any(|value| rest.iter().all(|other| other.values.contains(value))),
+    }
+}
+
+/// The characteristics a set share can compare (the relation's own list).
+pub(super) fn shared_set_characteristic_supported(characteristic: Option<&str>) -> bool {
+    matches!(
+        characteristic,
+        Some(
+            "creatureType"
+                | "cardType"
+                | "permanentType"
+                | "landType"
+                | "color"
+                | "name"
+                | "manaValue"
+        )
+    )
+}
+
 impl GameEngine {
+    /// `two target creature cards that share a creature type`: the members
+    /// of a chosen set, each read where it is now (a permanent's effective
+    /// colors, a card's printed characteristics), have one value of the
+    /// characteristic in common. A member that no longer exists fails it.
+    pub(super) fn selection_shares_characteristic(
+        &self,
+        selection: &[String],
+        characteristic: &str,
+    ) -> bool {
+        selection
+            .iter()
+            .map(|id| self.object_values(id, characteristic))
+            .collect::<Option<Vec<_>>>()
+            .is_some_and(|members| values_common(&members))
+    }
+
     fn permanent_values(
         &self,
         permanent: &CardInstance,
@@ -462,6 +534,11 @@ impl GameEngine {
         if !relation_atom_supported(atom) {
             return Err(EngineError::new("unsupported object relation atom"));
         }
+        if value_kind(atom) == Some(ENTERED_UNDER_CONTROL) {
+            return self
+                .prepare_entry_controller_relation(atom, &source.controller)
+                .ok_or_else(|| EngineError::new("unsupported entry-controller player role"));
+        }
         let anchor = &atom["object"];
         let anchor_ids = self.relation_anchor_ids(anchor, source, bindings, decisions)?;
         let mut prepared = atom.clone();
@@ -565,6 +642,9 @@ impl GameEngine {
             return None;
         }
         let source = source?;
+        if value_kind(atom) == Some(ENTERED_UNDER_CONTROL) {
+            return self.prepare_entry_controller_relation(atom, &source.controller);
+        }
         let anchor = &atom["object"];
         let anchor_ids = match value_kind(anchor) {
             Some("self" | "abilitySource") => vec![source.instance_id.clone()],
@@ -688,6 +768,58 @@ impl GameEngine {
         }
     }
 
+    /// The entry-controller relation with its role resolved relative to
+    /// `controller` (the ability controller): `playerIds` lists the players
+    /// it names. A role this relation does not name is `None`.
+    fn prepare_entry_controller_relation(&self, atom: &Value, controller: &str) -> Option<Value> {
+        let players = self.state.players.iter();
+        let ids: Vec<String> = match atom["player"].as_str()? {
+            "abilityController" => vec![controller.to_string()],
+            "opponentOfAbilityController" => players
+                .filter(|player| player.id != controller)
+                .map(|player| player.id.clone())
+                .collect(),
+            _ => return None,
+        };
+        let mut prepared = atom.clone();
+        prepared["playerIds"] = json!(ids);
+        prepared["anchorIds"] = json!([]);
+        Some(prepared)
+    }
+
+    /// CR 110.2a, 400.7: this incarnation of the permanent entered the
+    /// battlefield this turn, and its controller as it entered (the player
+    /// its latest entry record of this turn names) is one of `player_ids`.
+    fn permanent_entered_under_control_this_turn(
+        &self,
+        permanent: &CardInstance,
+        player_ids: &[Value],
+    ) -> bool {
+        if !permanent
+            .flags
+            .get("enteredThisTurn")
+            .copied()
+            .unwrap_or(false)
+        {
+            return false;
+        }
+        self.state
+            .events
+            .iter()
+            .rev()
+            .take_while(|event| event.turn_number == self.state.turn_number)
+            .find(|event| {
+                event.kind == "permanentEnteredBattlefield"
+                    && event.card_instance_id.as_deref() == Some(permanent.instance_id.as_str())
+            })
+            .and_then(|event| event.player_id.as_deref())
+            .is_some_and(|entry_controller| {
+                player_ids
+                    .iter()
+                    .any(|player| player.as_str() == Some(entry_controller))
+            })
+    }
+
     /// Tests one candidate against a prepared relation atom. An unprepared
     /// atom (no `anchorIds`) never matches; its consumers refuse it first.
     pub(super) fn eval_object_relation(
@@ -695,6 +827,14 @@ impl GameEngine {
         relation: &Value,
         candidate: ObjectFilterView<'_>,
     ) -> bool {
+        if value_kind(relation) == Some(ENTERED_UNDER_CONTROL) {
+            return match (relation["playerIds"].as_array(), candidate) {
+                (Some(player_ids), ObjectFilterView::Permanent(permanent)) => {
+                    self.permanent_entered_under_control_this_turn(permanent, player_ids)
+                }
+                _ => false,
+            };
+        }
         let Some(anchor_ids) = relation["anchorIds"].as_array() else {
             return false;
         };

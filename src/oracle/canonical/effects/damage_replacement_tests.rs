@@ -224,13 +224,36 @@ fn near_misses_fail_inside_the_committed_frame() {
     ] {
         assert_eq!(failure_state(text, "Enchantment"), state, "{text}");
     }
-    // A nonpermanent face cannot own a battlefield-active replacement.
-    assert_eq!(
-        failure_state(
-            "If a source would deal damage to you, prevent 1 of that damage.",
-            "Instant"
-        ),
-        "replacement.damage-event.source-domain"
+    // A spell face never owns a battlefield-active replacement: its
+    // sentence creates one on resolution (CR 611.2a), which the effect
+    // program reads with its lifetime, so this frame does not claim it.
+    let text = "If a source would deal damage to you, prevent 1 of that damage.";
+    with_input(text, "Instant", |input| {
+        assert!(
+            matches!(
+                try_parse_damage_replacement(input),
+                DamageReplacementParseAttempt::NotClaimed
+            ),
+            "{text}"
+        );
+    });
+    let parsed = crate::oracle::parse_oracle_card(crate::oracle::OracleCardParseRequest {
+        card_name: "Spell Shield".to_string(),
+        type_line: "Instant".to_string(),
+        mana_cost: Some("{W}".to_string()),
+        oracle_text: Some(text.to_string()),
+        layout: None,
+        faces: Vec::new(),
+    });
+    assert_ne!(parsed.status, "canonical", "{text}");
+    assert!(
+        parsed.abilities[0]
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.state.as_deref()
+                == Some("replacement.created-damage.lifetime.postposed")),
+        "{text}: {:?}",
+        parsed.abilities[0].diagnostics
     );
 }
 

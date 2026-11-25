@@ -1618,6 +1618,168 @@ pub(super) fn designation_gained_event_supported(event: &Value) -> Option<bool> 
     })
 }
 
+/// `attackersAttackedPlayer` (CR 508.1, 603.2c): one declaration of
+/// attackers is one event for each player it attacks. The pattern counts the
+/// attackers that attack that player directly (not a planeswalker or
+/// battle, CR 506.2) and match the attackers' controller relation and
+/// predicate; the attacked player matches the written relation (`you`, `an
+/// opponent`, `a player`). `None` for other kinds.
+pub(super) fn attackers_attacked_player_event_supported(event: &Value) -> Option<bool> {
+    (value_kind(event) == Some("attackersAttackedPlayer")).then(|| {
+        let attackers = &event["attackers"];
+        has_only_fields(event, &["kind", "attackers", "attacked"])
+            && attackers.is_object()
+            && has_only_fields(attackers, &["controller", "where", "minimum"])
+            && attackers
+                .get("controller")
+                .is_none_or(player_action_events::event_player_reference_supported)
+            && attackers
+                .get("where")
+                .is_none_or(event_subject_filter_supported)
+            && attackers
+                .get("minimum")
+                .is_none_or(|minimum| integer_value(minimum).is_some_and(|minimum| minimum >= 1))
+            && player_action_events::event_player_reference_supported(&event["attacked"])
+    })
+}
+
+impl GameEngine {
+    /// The attackers of one declaration that attack `defending_player_id`
+    /// directly, grouped per attacked player in declaration order.
+    fn attackers_by_attacked_player(
+        &self,
+        attacker_ids: &[String],
+    ) -> Vec<(String, Vec<CardInstance>)> {
+        let mut groups: Vec<(String, Vec<CardInstance>)> = Vec::new();
+        for attacker_id in attacker_ids {
+            let Some(assignment) = self
+                .state
+                .combat
+                .attackers
+                .iter()
+                .find(|assignment| assignment.attacker_id == *attacker_id)
+            else {
+                continue;
+            };
+            let TargetRef::Player { player_id } = &assignment.defender else {
+                continue;
+            };
+            let Some(attacker) = self.combat_permanent(attacker_id).cloned() else {
+                continue;
+            };
+            match groups.iter_mut().find(|(player, _)| player == player_id) {
+                Some((_, attackers)) => attackers.push(attacker),
+                None => groups.push((player_id.clone(), vec![attacker])),
+            }
+        }
+        groups
+    }
+
+    /// The attackers among `attackers` that the pattern's controller
+    /// relation and predicate select, seen from `source`.
+    fn attackers_attacked_player_count(
+        &self,
+        event: &Value,
+        source: &CardInstance,
+        attackers: &[CardInstance],
+    ) -> usize {
+        let pattern = &event["attackers"];
+        attackers
+            .iter()
+            .filter(|attacker| {
+                pattern.get("controller").is_none_or(|controller| {
+                    self.event_player_reference_matches(controller, source, &attacker.controller)
+                }) && pattern
+                    .get("where")
+                    .is_none_or(|filter| self.permanent_matches_effective_filter(attacker, filter))
+            })
+            .count()
+    }
+
+    /// Whether `event` of `source` observes the attackers of one declaration
+    /// that attack `defending_player_id`.
+    fn attackers_attacked_player_matches(
+        &self,
+        event: &Value,
+        source: &CardInstance,
+        defending_player_id: &str,
+        attackers: &[CardInstance],
+    ) -> bool {
+        let minimum = event["attackers"]
+            .get("minimum")
+            .and_then(integer_value)
+            .unwrap_or(1)
+            .max(1);
+        let matching = self.attackers_attacked_player_count(event, source, attackers);
+        value_kind(event) == Some("attackersAttackedPlayer")
+            && self.event_player_reference_matches(&event["attacked"], source, defending_player_id)
+            && i32::try_from(matching).is_ok_and(|matching| matching >= minimum)
+    }
+
+    /// Publishes `attackersAttackedPlayer` once per attacked player of one
+    /// declaration (CR 603.2c), with that player as the triggering player
+    /// (`that player`).
+    pub(super) fn publish_attackers_attacked_player(&mut self, attacker_ids: &[String]) {
+        for (defending_player_id, attackers) in self.attackers_by_attacked_player(attacker_ids) {
+            let triggers = self
+                .state
+                .players
+                .iter()
+                .filter(|player| !player.has_lost)
+                .flat_map(|player| player.battlefield.iter())
+                .flat_map(|source| {
+                    self.effective_rules(source)
+                        .iter()
+                        .filter(|rule| {
+                            triggered_rule_supported(rule)
+                                && self.rule_active_for_source(source, rule)
+                                && triggered_event_variants(&rule["event"])
+                                    .iter()
+                                    .any(|event| {
+                                        self.attackers_attacked_player_matches(
+                                            event,
+                                            source,
+                                            &defending_player_id,
+                                            &attackers,
+                                        )
+                                    })
+                        })
+                        .cloned()
+                        .map(|rule| (source.clone(), rule))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+            for (source, rule) in triggers {
+                // The attackers the occurrence matched (`that many`).
+                let count = triggered_event_variants(&rule["event"])
+                    .into_iter()
+                    .find(|event| {
+                        self.attackers_attacked_player_matches(
+                            event,
+                            &source,
+                            &defending_player_id,
+                            &attackers,
+                        )
+                    })
+                    .map_or(0, |event| {
+                        self.attackers_attacked_player_count(event, &source, &attackers)
+                    });
+                let decisions = BTreeMap::from([
+                    (
+                        "triggeringPlayerId".to_string(),
+                        Value::String(defending_player_id.clone()),
+                    ),
+                    ("eventObjectCount".to_string(), Value::from(count as u64)),
+                ]);
+                self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions);
+                if self.check_quantity_failure().is_err() {
+                    return;
+                }
+            }
+        }
+    }
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")

@@ -7,7 +7,7 @@ use super::source_sacrifice::atomic_action::{
     selection_method::recognize_acting_player_choice_marker,
 };
 use super::{
-    NumericExpression, ObjectQueryNode, SacrificeEffectNode, SacrificeOperandOwner,
+    NumericExpression, ObjectQueryNode, SacrificeEffectNode, SacrificeOperandOwner, SelectionCount,
     recognize_selected_sacrifice_operand,
 };
 
@@ -37,8 +37,12 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_sacrifice_action_
     })?;
     cursor.enter("player-sacrifice.chooser");
     let explicit_choice = recognize_acting_player_choice_marker(cursor)?;
-    let SacrificeEffectNode::Selected { object, count } = action.operand else {
-        return Err(cursor.fail("a selected sacrifice operand"));
+    let SacrificeEffectNode::Selected {
+        object,
+        count: SelectionCount::Exactly(count),
+    } = action.operand
+    else {
+        return Err(cursor.fail("a selected sacrifice operand with a stated count"));
     };
     cursor.enter("player-sacrifice.complete");
     Ok(PlayerSacrificeActionNode {

@@ -6,6 +6,10 @@ use crate::oracle::model::{
 
 const X_VALUE: &str = "xValue";
 
+/// Decision id of the number a cost's payer chooses while paying
+/// (`quantity_slot.rs`, CR 601.2h via 602.2b).
+const COST_CHOSEN_AMOUNT: &str = "costChosenAmount";
+
 /// Prefix of the `bind` ids that carry a postposed `where X is EXPR` value
 /// (CR 107.3). The sentence that defines X is lowered without knowing its
 /// face; this validator rejects a face that also supplies X by another
@@ -247,13 +251,27 @@ pub(crate) fn validate_native_contextual_bindings(
             });
             continue;
         }
+        // The number a cost's payer chose (`remove any number of storage
+        // counters`, CR 601.2h) is declared by that cost's own activation;
+        // no other rule borrows it.
+        if references_decision(rule, COST_CHOSEN_AMOUNT)
+            && !declares_number(rule, COST_CHOSEN_AMOUNT)
+        {
+            reject_binding(
+                ability,
+                "binding.cost-chosen-amount.source",
+                "a cost of this rule whose number the payer chooses while paying",
+                "The canonical rule reads the number a cost's payer chose, but no cost of this rule declares it.",
+            );
+            continue;
+        }
         if !references_decision(rule, X_VALUE) || declares_number(rule, X_VALUE) {
             continue;
         }
 
         let face_mana_cost = mana_cost_for_source(request, ability.source.face_id.as_deref());
-        if rule["kind"].as_str() == Some("spellAbility")
-            && face_mana_cost.is_some_and(|mana_cost| mana_cost.contains("{X}"))
+        if face_mana_cost.is_some_and(|mana_cost| mana_cost.contains("{X}"))
+            && reads_own_cast_x(rule)
         {
             continue;
         }
@@ -289,6 +307,37 @@ pub(crate) fn validate_native_contextual_bindings(
             trace: Vec::new(),
             owner: None,
         });
+    }
+}
+
+/// The X chosen while casting a face whose mana cost has {X} (CR 107.3,
+/// 601.2b) is read by that spell's own resolution and, once it became a
+/// permanent, by that permanent's own entry replacement and its own
+/// enters-the-battlefield trigger (CR 107.3m; the runtime records the value
+/// on entry and reads 0 for an object that was not cast). Every other rule
+/// of the face (an activated ability, an attack trigger, another object's
+/// entry) has no producer of that X. A keyword expansion carries its
+/// compiled parts; each part reading X must be such a reader.
+fn reads_own_cast_x(rule: &Value) -> bool {
+    match rule["kind"].as_str() {
+        Some("spellAbility") => true,
+        Some("replacementEffect") => {
+            rule["event"]["kind"].as_str() == Some("wouldEnterBattlefield")
+                && rule["event"]["object"]["kind"].as_str() == Some("self")
+        }
+        Some("triggeredAbility") => {
+            rule["event"]["kind"].as_str() == Some("enterBattlefield")
+                && rule["event"]["object"]["kind"].as_str() == Some("self")
+        }
+        Some("keywordExpansion") => rule["rules"].as_array().is_some_and(|parts| {
+            parts
+                .iter()
+                .filter(|part| references_decision(part, X_VALUE))
+                .all(|part| {
+                    part["kind"].as_str() != Some("keywordExpansion") && reads_own_cast_x(part)
+                })
+        }),
+        _ => false,
     }
 }
 

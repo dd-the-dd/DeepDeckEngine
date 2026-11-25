@@ -1,0 +1,404 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-query-relations-batch9",
+  "cases": [
+    {
+      "id": "exact-pendelhaven-power-toughness-prefix",
+      "request": {
+        "cardName": "Pendelhaven",
+        "typeLine": "Legendary Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {G}.\n{T}: Target 1/1 creature gets +1/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-aegis-of-the-meek-power-toughness-prefix",
+      "request": {
+        "cardName": "Aegis of the Meek",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{1}, {T}: Target 1/1 creature gets +1/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-power-toughness-prefix-composes-with-controller",
+      "request": {
+        "cardName": "Meek Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Destroy target 2/2 creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-token-description-keeps-power-toughness",
+      "request": {
+        "cardName": "Token Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Create a 1/1 white Soldier creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-ugins-construct-one-or-more-colors",
+      "request": {
+        "cardName": "Ugin's Construct",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}",
+        "oracleText": "When this creature enters, sacrifice a permanent that's one or more colors.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-shorecrasher-mimic-both-colors",
+      "request": {
+        "cardName": "Shorecrasher Mimic",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{1}{G/U}",
+        "oracleText": "Whenever you cast a spell that's both green and blue, this creature has base power and toughness 5/3 until end of turn and gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-nightsky-mimic-both-colors",
+      "request": {
+        "cardName": "Nightsky Mimic",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{1}{W/B}",
+        "oracleText": "Whenever you cast a spell that's both white and black, this creature has base power and toughness 4/4 until end of turn and gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-both-without-a-second-complement",
+      "request": {
+        "cardName": "Both Probe",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever you cast a spell that's both green, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relative-clause.both.conjunction"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-raise-the-draugr-set-shares-a-creature-type",
+      "request": {
+        "cardName": "Raise the Draugr",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Choose one —\n• Return target creature card from your graveyard to your hand.\n• Return two target creature cards that share a creature type from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-shifting-loyalties-set-shares-a-card-type",
+      "request": {
+        "cardName": "Shifting Loyalties",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{U}",
+        "oracleText": "Exchange control of two target permanents that share a card type. (Artifact, creature, enchantment, land, and planeswalker are card types.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-single-target-share-is-not-a-set",
+      "request": {
+        "cardName": "Share Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target creature card that shares a creature type from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relative-clause.share-set.plural-head"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-abyssal-harvester-put-there-this-turn",
+      "request": {
+        "cardName": "Abyssal Harvester",
+        "typeLine": "Creature — Demon Warlock",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "{T}: Exile target creature card from a graveyard that was put there this turn. Create a token that's a copy of it, except it's a Nightmare in addition to its other types. Then exile all other Nightmare tokens you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "copy.object.pronoun"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tato-farmer-milled-this-turn",
+      "request": {
+        "cardName": "Tato Farmer",
+        "typeLine": "Creature — Zombie Mutant Peasant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Landfall — Whenever a land you control enters, you may get two rad counters.\n{T}: Put target land card in a graveyard that was milled this turn onto the battlefield tapped under your control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-milled-this-turn-exile-target-card",
+      "request": {
+        "cardName": "Mill Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Exile target card from a graveyard that was milled this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-shaile-entered-under-your-control",
+      "request": {
+        "cardName": "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
+        "typeLine": "Legendary Creature — Bird Cleric // Legendary Creature — Human Warlock",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "face-0",
+            "name": "Shaile, Dean of Radiance",
+            "typeLine": "Legendary Creature — Bird Cleric",
+            "manaCost": "{1}{W}",
+            "oracleText": "Flying, vigilance\n{T}: Put a +1/+1 counter on each creature that entered the battlefield under your control this turn.",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "face-1",
+            "name": "Embrose, Dean of Shadow",
+            "typeLine": "Legendary Creature — Human Warlock",
+            "manaCost": "{2}{B}{B}",
+            "oracleText": "{T}: Put a +1/+1 counter on another target creature, then Embrose deals 2 damage to that creature.\nWhenever a creature you control with a +1/+1 counter on it dies, draw a card.",
+            "power": "4",
+            "toughness": "4"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-hobgoblin-bandit-lord-count-entered-under-your-control",
+      "request": {
+        "cardName": "Hobgoblin Bandit Lord",
+        "typeLine": "Creature — Goblin Rogue",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Other Goblins you control get +1/+1.\n{R}, {T}: This creature deals damage equal to the number of Goblins that entered the battlefield under your control this turn to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-entered-under-an-opponents-control-destroy",
+      "request": {
+        "cardName": "Entry Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy each creature that entered the battlefield under an opponent's control this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-entry-controller-after-attacked",
+      "request": {
+        "cardName": "Entry Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy each creature that attacked under your control this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relative-clause.entry-controller"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bedrock-tortoise-toughness-greater-than-its-power",
+      "request": {
+        "cardName": "Bedrock Tortoise",
+        "typeLine": "Creature — Turtle",
+        "manaCost": "{3}{G}",
+        "oracleText": "During your turn, creatures you control have hexproof.\nEach creature you control with toughness greater than its power assigns combat damage equal to its toughness rather than its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-ancient-lumberknot-toughness-greater-than-its-power",
+      "request": {
+        "cardName": "Ancient Lumberknot",
+        "typeLine": "Creature — Treefolk",
+        "manaCost": "{2}{B}{G}",
+        "oracleText": "Each creature you control with toughness greater than its power assigns combat damage equal to its toughness rather than its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-its-unknown-property-is-refused",
+      "request": {
+        "cardName": "Possessive Probe",
+        "typeLine": "Creature — Treefolk",
+        "manaCost": "{2}{G}",
+        "oracleText": "Each creature you control with power greater than its loyalty gets +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.candidate-possessive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rosie-cotton-target-other-than-source",
+      "request": {
+        "cardName": "Rosie Cotton of South Lane",
+        "typeLine": "Legendary Creature — Halfling Peasant",
+        "manaCost": "{2}{W}",
+        "oracleText": "When Rosie Cotton enters, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nWhenever you create a token, put a +1/+1 counter on target creature you control other than Rosie Cotton.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-target-other-than-this-creature-destroy",
+      "request": {
+        "cardName": "Exclusion Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{B}",
+        "oracleText": "{T}: Destroy target creature other than this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    }
+  ]
+}

@@ -52,11 +52,18 @@ fn shared_object_query_handles_domain_type_color_and_composed_siblings() {
     ));
 }
 
+/// The cost-modification frame reads every caster relation of the spell
+/// set (Helm of Awakening, Arcane Melee): opponents' spells are one more
+/// typed relation, not a separate family.
 #[test]
-fn opponent_scope_is_not_claimed_until_runtime_executes_generic_player_refs() {
-    let failure = parse("Red spells your opponents cast cost {1} less to cast.")
-        .expect_err("executor is currently controller-scoped");
-    assert_eq!(failure.state, "static.spell-cost-reduction.caster-scope");
+fn opponent_scope_is_a_typed_caster_relation() {
+    let node = parse("Red spells your opponents cast cost {1} less to cast.")
+        .expect("the opponent caster relation parses");
+    assert_eq!(
+        spells(&node).caster,
+        Some(SpellCasterScope::OpponentOfAbilityController)
+    );
+    assert_eq!(node.amount, NumericExpression::from(1_i64));
 }
 
 #[test]
@@ -73,18 +80,35 @@ fn cast_relation_is_typed_and_does_not_change_the_default_control_relation() {
     assert_eq!(failure.state, "spell-cast-set.domain");
 }
 
+/// Colored deltas (`{R}`, `{1}{R}`) are typed colored reductions (CR
+/// 118.7b-c); an undefined `{X}`, a zero and an overflowing amount still
+/// fail at their own states.
 #[test]
-fn colored_variable_zero_multi_symbol_and_overflow_reductions_are_rejected() {
+fn colored_reductions_are_typed_and_undefined_zero_or_overflow_amounts_fail() {
+    for (text, generic, red) in [
+        ("Red spells you cast cost {R} less to cast.", 0_i64, 1_u8),
+        ("Red spells you cast cost {1}{R} less to cast.", 1, 1),
+    ] {
+        let node = parse(text).expect(text);
+        assert_eq!(node.amount, NumericExpression::from(generic), "{text}");
+        let colored = node.colored.as_ref().expect(text);
+        assert_eq!(colored.counts, [0, 0, 0, red, 0, 0], "{text}");
+        assert!(colored.excess_reduces_generic, "{text}");
+    }
+    let undefined = parse("Red spells you cast cost {X} less to cast.")
+        .expect_err("an {X} reduction needs its where-X definition");
+    assert_eq!(undefined.state, "casting-reduction.where-x");
     for text in [
-        "Red spells you cast cost {R} less to cast.",
-        "Red spells you cast cost {X} less to cast.",
         "Red spells you cast cost {0} less to cast.",
-        "Red spells you cast cost {1}{R} less to cast.",
         "Red spells you cast cost {2147483648} less to cast.",
     ] {
-        let failure = parse(text).expect_err("only one positive generic symbol is supported");
-        assert_eq!(failure.state, "static.spell-cost-reduction.cost");
-        assert!(failure.expected.contains("positive generic"));
+        let failure = parse(text).expect_err(text);
+        assert_eq!(failure.state, "static.spell-cost-reduction.cost", "{text}");
+        assert!(
+            failure.expected.contains("generic and whole colored"),
+            "{text}: {}",
+            failure.expected
+        );
     }
 }
 

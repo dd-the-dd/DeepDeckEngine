@@ -122,10 +122,6 @@ fn unrepresentable_received_damage_events_fail_at_their_own_state() {
             "trigger.object-event.verb-support",
         ),
         (
-            "Whenever a creature is dealt damage, draw a card.",
-            "trigger.object-event.verb-support",
-        ),
-        (
             "Whenever you are dealt damage, draw a card.",
             "trigger.program.player-event-support",
         ),

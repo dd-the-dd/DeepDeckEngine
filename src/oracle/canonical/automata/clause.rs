@@ -557,6 +557,7 @@ pub(in crate::oracle::canonical) fn recognize_clause(
         SubjectRead::Read(subject, agreement) => (Some(subject), agreement, None),
         SubjectRead::Tentative(failure) => (None, VerbAgreement::Base, Some(failure)),
     };
+    skip_additive_adverb(cursor, frame);
     // A past history reads the simple past or the present perfect
     // (`you have gained`, `you've lost`).
     let mut perfect = contracted_perfect;
@@ -601,6 +602,8 @@ pub(in crate::oracle::canonical) fn recognize_clause(
         if !written || cursor.advance_to(cursor.position() + 1).is_err() {
             return not_claimed(cursor);
         }
+        // `PLAYER may also VERB`: the adverb after the modal.
+        skip_additive_adverb(cursor, frame);
     }
     // The passive auxiliary: bare `be` after a modal, else `is` / `are`.
     let auxiliary = if frame.voice == Voice::Passive {
@@ -692,6 +695,32 @@ pub(in crate::oracle::canonical) fn recognize_clause(
             voice: frame.voice,
         }),
         Err(failure) => ClauseRecognition::Failed(failure),
+    }
+}
+
+/// `SUBJECT also VERBs` (`Kami's Flare also deals 2 damage to ...`, `each
+/// opponent also discards a card`): the additive adverb restates that the
+/// clause is one more instruction of the same resolution; it changes neither
+/// the subject, the lemma nor its arguments, so the clause reads the verb
+/// after it. It is skipped only before an active present verb of this frame,
+/// and never before `become`, whose type change `also` would make additive
+/// (`is also a Cleric`, CR 205.1b) instead of a replacement.
+fn skip_additive_adverb(cursor: &mut OracleTokenCursor<'_>, frame: &ClauseFrame<'_>) {
+    if frame.voice != Voice::Active
+        || frame.tense != ClauseTense::Present
+        || !cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("also"))
+    {
+        return;
+    }
+    let verb_follows = cursor
+        .peek_ahead(1)
+        .and_then(|raw| lookup_verb(raw, frame.lemmas))
+        .is_some_and(|(entry, _)| entry.lemma != VerbLemma::Become);
+    if verb_follows {
+        cursor.enter("clause.additive-adverb");
+        let _ = cursor.advance_to(cursor.position() + 1);
     }
 }
 

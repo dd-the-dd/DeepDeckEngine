@@ -1,0 +1,716 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch9/player-events-matchers",
+  "cases": [
+    {
+      "id": "exact-serendib-djinn-state-trigger",
+      "request": {
+        "cardName": "Serendib Djinn",
+        "typeLine": "Creature — Djinn",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flying\nAt the beginning of your upkeep, sacrifice a land. If you sacrifice an Island this way, this creature deals 3 damage to you.\nWhen you control no lands, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "countBoundObjectsLastKnown"
+              },
+              {
+                "pointer": "/effects/1/condition/left/where/value",
+                "equals": "Island"
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stateConditionMet"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sea-serpent-state-trigger",
+      "request": {
+        "cardName": "Sea Serpent",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{5}{U}",
+        "oracleText": "This creature can't attack unless defending player controls an Island.\nWhen you control no Islands, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stateConditionMet"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gorilla-pack-state-trigger",
+      "request": {
+        "cardName": "Gorilla Pack",
+        "typeLine": "Creature — Ape",
+        "manaCost": "{2}{G}",
+        "oracleText": "This creature can't attack unless defending player controls a Forest.\nWhen you control no Forests, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stateConditionMet"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-tethered-griffin-state-trigger",
+      "request": {
+        "cardName": "Tethered Griffin",
+        "typeLine": "Creature — Griffin",
+        "manaCost": "{W}",
+        "oracleText": "Flying\nWhen you control no enchantments, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stateConditionMet"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-probe-graveyard-state-trigger",
+      "request": {
+        "cardName": "Tethered Griffin",
+        "typeLine": "Creature — Griffin",
+        "manaCost": "{W}",
+        "oracleText": "Flying\nWhen there are no cards in your graveyard, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stateConditionMet"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-probe-state-trigger-trailing-qualifier",
+      "request": {
+        "cardName": "Sea Serpent",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{5}{U}",
+        "oracleText": "This creature can't attack unless defending player controls an Island.\nWhen you control no Islands this turn, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-probe-state-trigger-event-modifier",
+      "request": {
+        "cardName": "Sea Serpent",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{5}{U}",
+        "oracleText": "This creature can't attack unless defending player controls an Island.\nWhen you control no Islands for the first time each turn, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "state": "event.state-trigger.modifier"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-chittering-doom-die-result",
+      "request": {
+        "cardName": "Chittering Doom",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}",
+        "oracleText": "Whenever you roll a 4 or higher on a die, create a 1/1 green Squirrel creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "dieRolled"
+              },
+              {
+                "pointer": "/event/minimum",
+                "equals": 4
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-brazen-dwarf-dice-batch",
+      "request": {
+        "cardName": "Brazen Dwarf",
+        "typeLine": "Creature — Dwarf Shaman",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever you roll one or more dice, this creature deals 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "dieRolled"
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "oneOrMore"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-steel-squirrel-result-binding",
+      "request": {
+        "cardName": "Steel Squirrel",
+        "typeLine": "Artifact Creature — Squirrel",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you roll a 5 or higher on a die, this creature gets +X/+X until end of turn, where X is the result.\n{6}: Roll a six-sided die.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "numeric.random-result.reader"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-probe-roll-unsupported-comparator",
+      "request": {
+        "cardName": "Chittering Doom",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}",
+        "oracleText": "Whenever you roll a 6 or more on a die, create a 1/1 green Squirrel creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "event.player.roll.comparator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ichor-aberration-proliferate-event",
+      "request": {
+        "cardName": "Ichor Aberration",
+        "typeLine": "Creature — Phyrexian Horror",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "Flying, Defender\nAs long as Ichor Aberration's power is 7 or greater, it can attack as though it didn't have defender.\nWhenever you proliferate, if Ichor Aberration is in your graveyard or on the battlefield, Ichor Aberration perpetually gets +1/+1. You may cast it from your graveyard this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "event.player.proliferate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ezuri-proliferate-event",
+      "request": {
+        "cardName": "Ezuri, Stalker of Spheres",
+        "typeLine": "Legendary Creature — Phyrexian Elf Warrior",
+        "manaCost": "{2}{G}{U}",
+        "oracleText": "When Ezuri enters, you may pay {3}. If you do, proliferate twice.\nWhenever you proliferate, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "proliferated"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-trueheart-twins-exert-event",
+      "request": {
+        "cardName": "Trueheart Twins",
+        "typeLine": "Creature — Jackal Warrior",
+        "manaCost": "{4}{R}",
+        "oracleText": "You may exert this creature as it attacks. (It won't untap during your next untap step.)\nWhenever you exert a creature, creatures you control get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentExerted"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-setzer-coin-flip-won",
+      "request": {
+        "cardName": "Setzer, Wandering Gambler",
+        "typeLine": "Legendary Creature — Human Rogue Pilot",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "When Setzer enters, create The Blackjack, a legendary 3/3 colorless Vehicle artifact token with flying and crew 2.\nWhenever a Vehicle you control deals combat damage to a player, flip a coin.\nWhenever you win a coin flip, create two tapped Treasure tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "coinFlipped"
+              },
+              {
+                "pointer": "/event/outcome",
+                "equals": "won"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-marchesa-crime",
+      "request": {
+        "cardName": "Marchesa, Dealer of Death",
+        "typeLine": "Legendary Creature — Human Rogue",
+        "manaCost": "{U}{B}{R}",
+        "oracleText": "Whenever you commit a crime, you may pay {1}. If you do, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "crimeCommitted"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-probe-opponent-crime-proliferate",
+      "request": {
+        "cardName": "Marchesa, Dealer of Death",
+        "typeLine": "Legendary Creature — Human Rogue",
+        "manaCost": "{U}{B}{R}",
+        "oracleText": "Whenever an opponent commits a crime, proliferate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "crimeCommitted"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-attended-healer-first-life-gain",
+      "request": {
+        "cardName": "Attended Healer",
+        "typeLine": "Creature — Kor Cleric",
+        "manaCost": "{3}{W}",
+        "oracleText": "Whenever you gain life for the first time each turn, create a 1/1 white Cat creature token.\n{2}{W}: Another target Cleric gains lifelink until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "lifeGained"
+              },
+              {
+                "pointer": "/event/firstTimeEachTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-vengeful-warchief-first-life-loss",
+      "request": {
+        "cardName": "Vengeful Warchief",
+        "typeLine": "Creature — Orc Warrior",
+        "manaCost": "{4}{B}",
+        "oracleText": "Whenever you lose life for the first time each turn, put a +1/+1 counter on this creature. (Damage causes loss of life.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "lifeLost"
+              },
+              {
+                "pointer": "/event/firstTimeEachTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-reveille-squad-attacked-player",
+      "request": {
+        "cardName": "Reveille Squad",
+        "typeLine": "Creature — Human Rebel",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Whenever one or more creatures attack you, if this creature is untapped, you may untap all creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attackersAttackedPlayer"
+              },
+              {
+                "pointer": "/event/attacked",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wild-growth-attached-mana",
+      "request": {
+        "cardName": "Wild Growth",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{G}",
+        "oracleText": "Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentManaAbilityActivated"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-fertile-ground-attached-mana",
+      "request": {
+        "cardName": "Fertile Ground",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{G}",
+        "oracleText": "Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentManaAbilityActivated"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-ray-of-command-control-loss",
+      "request": {
+        "cardName": "Ray of Command",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Untap target creature an opponent controls and gain control of it until end of turn. That creature gains haste until end of turn. When you lose control of the creature, tap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-coffin-queen-untap-or-control-loss",
+      "request": {
+        "cardName": "Coffin Queen",
+        "typeLine": "Creature — Zombie Wizard",
+        "manaCost": "{2}{B}",
+        "oracleText": "You may choose not to untap this creature during your untap step.\n{2}{B}, {T}: Put target creature card from a graveyard onto the battlefield under your control. When this creature becomes untapped or you lose control of this creature, exile that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-skyshroud-ambush-fight-winner",
+      "request": {
+        "cardName": "Skyshroud Ambush",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Target creature you control fights target creature you don't control. When the creature you control wins the fight, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

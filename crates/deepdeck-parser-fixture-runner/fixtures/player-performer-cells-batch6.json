@@ -78,7 +78,7 @@
       }
     },
     {
-      "id": "wild-growth-attached-mana-trigger-stays-an-engine-gap",
+      "id": "wild-growth-attached-mana-trigger-folds-into-the-land-mana-ability",
       "request": {
         "cardName": "Wild Growth",
         "typeLine": "Enchantment — Aura",
@@ -88,10 +88,55 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentManaAbilityActivated"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attached-mana-trigger-for-the-owner-stays-an-engine-gap",
+      "request": {
+        "cardName": "Growth Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{G}",
+        "oracleText": "Enchant land\nWhenever enchanted land is tapped for mana, its owner adds an additional {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
             "state": "engine.gap.event-matcher"
           }
         ]

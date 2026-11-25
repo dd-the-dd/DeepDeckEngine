@@ -101,6 +101,54 @@ impl GameEngine {
     }
 }
 
+/// `{"kind": "chosenOption", "decisionId", "options"}`: the keyword one
+/// resolution `chooseOption` decision selects among the same options
+/// (CR 608.2d). Every option must be a keyword the grant supports.
+fn chosen_keyword_operand_supported(keyword: &Value) -> bool {
+    keyword["decisionId"].is_string()
+        && keyword["options"].as_array().is_some_and(|options| {
+            options.len() >= 2
+                && options.iter().all(|option| {
+                    option
+                        .as_str()
+                        .is_some_and(|name| keyword_kind_supported(&json!({ "kind": name })))
+                })
+        })
+}
+
+/// The chosen keyword of a `chosenOption` operand, or `None` for a stated
+/// keyword. A missing decision or a value outside the options is an error,
+/// never a silently skipped grant.
+fn chosen_keyword(
+    keyword: &Value,
+    decisions: &BTreeMap<String, Value>,
+) -> Result<Option<String>, EngineError> {
+    if value_kind(keyword) != Some("chosenOption") {
+        return Ok(None);
+    }
+    let chosen = keyword["decisionId"]
+        .as_str()
+        .and_then(|id| decisions.get(id))
+        .and_then(|value| {
+            value
+                .as_str()
+                .or_else(|| match value.as_array()?.as_slice() {
+                    [single] => single.as_str(),
+                    _ => None,
+                })
+        })
+        .ok_or_else(|| EngineError::new("grantKeyword reads a missing keyword choice"))?;
+    if !keyword["options"]
+        .as_array()
+        .is_some_and(|options| options.iter().any(|option| option.as_str() == Some(chosen)))
+    {
+        return Err(EngineError::new(
+            "grantKeyword reads a keyword choice outside its options",
+        ));
+    }
+    Ok(Some(chosen.to_string()))
+}
+
 pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
     Some(supports_known_effect(effect))
 }
@@ -224,6 +272,8 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("grantKeyword") => {
             let supported_keyword = if effect["keyword"].as_str() == Some("annihilator") {
                 integer_value(&effect["quantity"]).is_some_and(|quantity| quantity > 0)
+            } else if value_kind(&effect["keyword"]) == Some("chosenOption") {
+                chosen_keyword_operand_supported(&effect["keyword"])
             } else {
                 effect["keyword"]
                     .as_str()
@@ -679,7 +729,11 @@ impl GameEngine {
                         }
                     }
                 };
-                let keyword = effect["keyword"].as_str().unwrap_or_default();
+                let keyword = match chosen_keyword(&effect["keyword"], decisions)? {
+                    Some(chosen) => chosen,
+                    None => effect["keyword"].as_str().unwrap_or_default().to_string(),
+                };
+                let keyword = keyword.as_str();
                 let temporary = value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
                 let expires_before_turn =
                     self.permanent_action_expiry_turn(&effect["duration"], stack_object, bindings)?;
@@ -821,3 +875,48 @@ impl GameEngine {
 ))]
 #[path = "keyword_modification_tests.rs"]
 mod tests;
+
+impl GameEngine {
+    /// `the first SPELL you cast each turn has KEYWORD`: a spell grant
+    /// marked `firstEachTurn` applies to a spell `player_id` casts only while
+    /// no spell matching `filter` was cast by that player earlier this turn
+    /// (the cast being evaluated is recorded after its keywords are read).
+    /// An unmarked grant always applies.
+    pub(in crate::engine) fn spell_grant_ordinal_open(
+        &self,
+        modifier: &Value,
+        player_id: &str,
+        filter: &Value,
+    ) -> bool {
+        !modifier["firstEachTurn"].as_bool().unwrap_or(false)
+            || !self.state.events.iter().any(|event| {
+                event.turn_number == self.state.turn_number
+                    && event.kind == "spellCast"
+                    && event.player_id.as_deref() == Some(player_id)
+                    && spell_cast_event_matches_filter(event, filter)
+            })
+    }
+
+    /// A keyword a static `grantKeywordToSpells` gives a spell controlled by
+    /// `controller_id` on the stack (CR 702.2b, 702.15b: lifelink and
+    /// deathtouch of a resolving spell's damage).
+    pub(in crate::engine) fn spell_has_granted_keyword(
+        &self,
+        spell: &CardDefinition,
+        controller_id: &str,
+        keyword: &str,
+    ) -> bool {
+        self.battlefield_static_modifiers()
+            .iter()
+            .any(|(source, modifier)| {
+                value_kind(modifier) == Some("grantKeywordToSpells")
+                    && modifier["keyword"].as_str() == Some(keyword)
+                    && self.event_player_reference_matches(
+                        &modifier["player"],
+                        source,
+                        controller_id,
+                    )
+                    && Self::static_card_filter_matches(source, spell, &modifier["where"])
+            })
+    }
+}

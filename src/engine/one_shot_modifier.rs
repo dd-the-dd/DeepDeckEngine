@@ -24,7 +24,15 @@ fn apply_operation_supported(operation: &Value) -> bool {
         // CR 601.3e: the matched spell may be cast as though it had flash;
         // the permission is read before the cast that consumes it.
         || value_kind(operation) == Some(CAST_AS_THOUGH_FLASH)
+        // CR 601.2f: a generic reduction of the matched spell's total cost,
+        // fixed when the modifier is installed and read while that cost is
+        // determined, before the cast consumes it.
+        || (value_kind(operation) == Some(REDUCE_CASTING_COST)
+            && numeric_expression_supported(&operation["amount"]))
 }
+
+/// The pending operation that reduces the matched spell's generic cost.
+const REDUCE_CASTING_COST: &str = "reduceCastingCost";
 
 /// The pending operation that lets the matched spell be cast at instant
 /// speed (CR 702.8a).
@@ -68,17 +76,18 @@ pub(super) fn install_one_shot_modifier_supported(effect: &Value) -> bool {
 }
 
 impl GameEngine {
-    /// Resolve captures, then install the pending modifier.
+    /// Resolve captures, then install the pending modifier. A reduction
+    /// amount that does not evaluate is an explicit engine error, never 0.
     pub(super) fn install_one_shot_modifier(
         &mut self,
         effect: &Value,
         stack_object: &StackObject,
         bindings: &BTreeMap<String, RuntimeBinding>,
-    ) {
+    ) -> Result<(), EngineError> {
         let mut captured = BTreeMap::new();
         for (name, reference) in effect["capture"].as_object().into_iter().flatten() {
             let Some(player_id) = self.resolve_player(reference, stack_object, bindings) else {
-                return;
+                return Ok(());
             };
             captured.insert(name.clone(), player_id);
         }
@@ -91,12 +100,28 @@ impl GameEngine {
             _ => self.resolve_player(match_player, stack_object, bindings),
         };
         let Some(player_id) = player_id else {
-            return;
+            return Ok(());
         };
-        let operations = match &effect["apply"] {
+        let mut operations = match &effect["apply"] {
             Value::Array(operations) => operations.clone(),
             operation => vec![operation.clone()],
         };
+        // The reduction amount is a snapshot of the resolving effect (CR
+        // 608.2h): a later change of its count does not change the rule.
+        for operation in &mut operations {
+            if value_kind(operation) == Some(REDUCE_CASTING_COST) {
+                let amount = self
+                    .checked_runtime_numeric_expression(
+                        &operation["amount"],
+                        stack_object,
+                        bindings,
+                        &stack_object.decisions,
+                        "reduceCastingCost.amount",
+                    )?
+                    .max(0);
+                operation["amount"] = json!({ "kind": "integer", "value": amount });
+            }
+        }
         let modifier = json!({
             "kind": PENDING_KIND,
             "event": value_kind(&effect["match"]).unwrap_or_default(),
@@ -113,31 +138,65 @@ impl GameEngine {
             Some(stack_object.card.instance_id.clone()),
             modifier,
         );
+        Ok(())
     }
 
-    /// Consume the first pending modifier matching this spell cast (CR 601.2i
-    /// "becomes cast"), even if its operations change nothing, and return its
-    /// operations for the stack object being created.
+    /// Consume every pending modifier matching this spell cast (CR 601.2i
+    /// "becomes cast"): each one names "the next spell", which is this one,
+    /// even if its operations change nothing. Returns their operations for
+    /// the stack object being created.
     pub(super) fn consume_one_shot_spell_cast_modifier(
         &mut self,
         player_id: &str,
         spell: &CardDefinition,
     ) -> Vec<Value> {
         let turn = u64::from(self.state.turn_number);
-        let Some(index) = self.state.rule_modifiers.iter().position(|modifier| {
-            value_kind(modifier) == Some(PENDING_KIND)
-                && modifier["event"].as_str() == Some("spellCast")
-                && modifier["playerId"].as_str() == Some(player_id)
-                && modifier["expiresAfterTurn"]
-                    .as_u64()
-                    .is_none_or(|expires| expires >= turn)
-                && (modifier["where"].is_null() || matches_card_filter(spell, &modifier["where"]))
-        }) else {
-            return Vec::new();
-        };
-        let modifier = self.state.rule_modifiers.remove(index);
-        modifier["apply"].as_array().cloned().unwrap_or_default()
+        let mut operations = Vec::new();
+        self.state.rule_modifiers.retain(|modifier| {
+            let matched = pending_spell_cast_modifier_matches(modifier, player_id, spell, turn);
+            if matched {
+                operations.extend(modifier["apply"].as_array().cloned().unwrap_or_default());
+            }
+            !matched
+        });
+        operations
     }
+
+    /// CR 601.2f: the generic reduction the pending next-spell modifiers of
+    /// `player_id` give `spell` while its total cost is determined.
+    pub(super) fn one_shot_casting_cost_reduction(
+        &self,
+        player_id: &str,
+        spell: &CardDefinition,
+    ) -> i32 {
+        let turn = u64::from(self.state.turn_number);
+        self.state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| {
+                pending_spell_cast_modifier_matches(modifier, player_id, spell, turn)
+            })
+            .flat_map(|modifier| modifier["apply"].as_array().into_iter().flatten())
+            .filter(|operation| value_kind(operation) == Some(REDUCE_CASTING_COST))
+            .filter_map(|operation| integer_value(&operation["amount"]))
+            .fold(0_i32, |total, amount| total.saturating_add(amount.max(0)))
+    }
+}
+
+/// Whether a pending modifier is matched by `player_id` casting `spell`.
+fn pending_spell_cast_modifier_matches(
+    modifier: &Value,
+    player_id: &str,
+    spell: &CardDefinition,
+    turn: u64,
+) -> bool {
+    value_kind(modifier) == Some(PENDING_KIND)
+        && modifier["event"].as_str() == Some("spellCast")
+        && modifier["playerId"].as_str() == Some(player_id)
+        && modifier["expiresAfterTurn"]
+            .as_u64()
+            .is_none_or(|expires| expires >= turn)
+        && (modifier["where"].is_null() || matches_card_filter(spell, &modifier["where"]))
 }
 
 impl GameEngine {

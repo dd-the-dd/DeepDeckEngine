@@ -24,7 +24,7 @@ use super::{
     CollectionSelectionMethod, CostListGrammar, CostSequenceNode, CounterHolderNode, NumericAtom,
     ObjectPredicate, ObjectQueryNode, PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode,
     PaymentOriginZone, PaymentSourceNoun, RemoveCountersPaymentNode, ResourcePaymentNode,
-    TapObjectsCostNode, literal_quantity, payment_action_starts, recognize_cost_sequence,
+    TapObjectsCostNode, payment_action_starts, recognize_cost_sequence,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -254,7 +254,9 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
                 return Err(cursor.fail("a permanent operand"));
             };
             cursor.enter("cost.resolution.tap.quantity");
-            let count = literal_quantity(chosen.count)
+            let count = chosen
+                .count
+                .literal()
                 .ok_or_else(|| cursor.fail("a literal number of tapped permanents"))?;
             Ok(ResolutionCostNode::TapObjects(TapObjectsCostNode {
                 count,
@@ -309,7 +311,8 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
                 "counters removed from the source permanent (`from this PERMANENT`)",
             )?;
             cursor.enter("cost.resolution.remove-counters.quantity");
-            let count = literal_quantity(count)
+            let count = count
+                .literal()
                 .ok_or_else(|| cursor.fail("a literal number of removed counters"))?;
             cursor.enter("cost.resolution.remove-counters.unnamed-quantity");
             cursor.require(

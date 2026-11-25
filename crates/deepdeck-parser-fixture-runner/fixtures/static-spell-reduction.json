@@ -127,7 +127,7 @@
       }
     },
     {
-      "id": "opponent-scope-is-explicitly-unsupported",
+      "id": "opponent-scope-is-a-typed-caster-relation",
       "request": {
         "cardName": "Opponent Reducer",
         "typeLine": "Enchantment",
@@ -137,25 +137,44 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "unsupported",
-          "recognizer": "native",
-          "abilityType": "staticAbility"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "static.spell-cost-reduction.caster-scope"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              },
+              {
+                "pointer": "/modifiers/0/player/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/modifiers/0/player/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/amount/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
       }
     },
     {
-      "id": "colored-reduction-is-rejected",
+      "id": "colored-reduction-is-typed",
       "request": {
         "cardName": "Colored Reducer",
         "typeLine": "Enchantment",
@@ -165,22 +184,33 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "unsupported",
-          "recognizer": "native",
-          "abilityType": "staticAbility"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "static.spell-cost-reduction.cost",
-          "expectedContains": "positive generic"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/amount/value",
+                "equals": 0
+              },
+              {
+                "pointer": "/modifiers/0/coloredMana/symbols",
+                "equals": [
+                  "R"
+                ]
+              },
+              {
+                "pointer": "/modifiers/0/coloredMana/excessReducesGeneric",
+                "equals": true
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -197,19 +227,23 @@
         "outcome": "failure",
         "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "unsupported",
-          "recognizer": "native",
-          "abilityType": "staticAbility"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "static.spell-cost-reduction.cost",
-          "expectedContains": "positive generic"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-spell-reduction",
+            "state": "casting-reduction.where-x",
+            "expectedContains": "where X is"
+          }
+        ]
       }
     },
     {
@@ -226,18 +260,27 @@
         "outcome": "failure",
         "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "static.spell-cost-reduction.cost",
-          "expectedContains": "positive generic"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-spell-reduction",
+            "state": "static.spell-cost-reduction.cost",
+            "expectedContains": "generic and whole colored"
+          }
+        ]
       }
     },
     {
-      "id": "multi-symbol-reduction-is-rejected",
+      "id": "generic-and-colored-reduction-is-typed",
       "request": {
         "cardName": "Mixed Mana Reducer",
         "typeLine": "Enchantment",
@@ -247,17 +290,29 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "static.spell-cost-reduction.cost",
-          "expectedContains": "positive generic"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/amount/value",
+                "equals": 1
+              },
+              {
+                "pointer": "/modifiers/0/coloredMana/symbols",
+                "equals": [
+                  "R"
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -274,14 +329,23 @@
         "outcome": "failure",
         "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "static.spell-cost-reduction.cost",
-          "expectedContains": "positive generic"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-spell-reduction",
+            "state": "static.spell-cost-reduction.cost",
+            "expectedContains": "generic and whole colored"
+          }
+        ]
       }
     },
     {
@@ -332,15 +396,23 @@
         "outcome": "failure",
         "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "static-spell-reduction",
-          "state": "casting-reduction.condition.subject",
-          "expected": "this spell as the subject of a conditional reduction",
-          "found": "if"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-spell-reduction",
+            "state": "condition.sentence.object.antecedent",
+            "found": "is"
+          }
+        ]
       }
     },
     {

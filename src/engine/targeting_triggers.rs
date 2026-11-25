@@ -366,6 +366,7 @@ impl GameEngine {
                         "targets": committed_targets,
                     }),
                 );
+                self.publish_committed_crime(&stack_id, &committed_targets);
                 self.enqueue_targeting_triggers(&stack_id, &committed_targets)?;
             }
         }
@@ -420,17 +421,22 @@ impl GameEngine {
                     return false;
                 };
                 let permanent = &self.state.players[player_index].battlefield[card_index];
-                selector.get("controller").is_none_or(|controller| {
-                    controller_reference_matches(
-                        controller,
-                        &permanent.controller,
+                // `another PERMANENT`: the observing source is excluded.
+                let excluded = selector["excludeSource"].as_bool() == Some(true)
+                    && permanent.instance_id == source.instance_id;
+                !excluded
+                    && selector.get("controller").is_none_or(|controller| {
+                        controller_reference_matches(
+                            controller,
+                            &permanent.controller,
+                            &source.controller,
+                        )
+                    })
+                    && self.permanent_matches_target_filter(
+                        permanent,
+                        &selector["where"],
                         &source.controller,
                     )
-                }) && self.permanent_matches_target_filter(
-                    permanent,
-                    &selector["where"],
-                    &source.controller,
-                )
             }
             Some("spells") => {
                 let TargetRef::StackObject { stack_id } = target else {

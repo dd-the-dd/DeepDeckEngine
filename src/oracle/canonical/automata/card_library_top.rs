@@ -39,6 +39,32 @@ fn recognize_library_owner_population(
     Ok(Some(players))
 }
 
+/// `the top N cards` with no written library: the library the same sentence
+/// named last before it (`Shuffle your library, then exile the top four
+/// cards.`). Only the controller's own library is an antecedent here; any
+/// other or no earlier library in the sentence fails explicitly.
+fn recognize_elided_library_owner(
+    cursor: &OracleTokenCursor<'_>,
+) -> MachineResult<CardLibraryOwnerNode> {
+    let earlier = cursor.token_slice(0, cursor.position());
+    let sentence = &earlier[earlier
+        .iter()
+        .rposition(|token| token.raw == ".")
+        .map_or(0, |end| end + 1)..];
+    let named = sentence
+        .windows(2)
+        .rev()
+        .find(|pair| pair[1].raw.eq_ignore_ascii_case("library"))
+        .map(|pair| pair[0].raw.eq_ignore_ascii_case("your"));
+    cursor.require(
+        named == Some(true),
+        "`your library` named earlier in the sentence for an elided library",
+    )?;
+    Ok(CardLibraryOwnerNode::Player(
+        LocalPlayerReference::Controller,
+    ))
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CardLibraryTopNode {
     pub count: NumericExpression,
@@ -138,6 +164,16 @@ pub(in crate::oracle::canonical) fn try_recognize_card_library_position(
             count
         };
         trial.enter("collection.library-top.owner");
+        if the_top
+            && !trial
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
+        {
+            // `Shuffle your library, then exile the top card.`: the library
+            // is elided after the one the same sentence named.
+            return recognize_elided_library_owner(&trial)
+                .map(|owner| CardLibraryTopNode { count, owner });
+        }
         trial.consume("of")?;
         let owner = if target_owner && starts_possessive_target_player(&trial) {
             // The possessive target head is the shared target-list form:

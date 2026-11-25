@@ -28,7 +28,12 @@ pub(in crate::oracle::canonical) fn recognize_that_many_event_value(
         // Without an event quantity the antecedent is the result of an
         // earlier action of the same program (CR 608.2c); the program
         // lowering binds it or fails explicitly.
-        None => super::action_result_anaphor(cursor, quantity.eq_ignore_ascii_case("much")),
+        // The first action of an activation restates its payer-chosen
+        // cost number (`Remove any number of counters: ... that many`).
+        None => match super::cost_chosen_amount_anaphor(cursor) {
+            Some(amount) => Ok(amount),
+            None => super::action_result_anaphor(cursor, quantity.eq_ignore_ascii_case("much")),
+        },
     }
 }
 
@@ -434,6 +439,81 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// opponents who control an artifact`, `for each player who lost life
     /// this turn`, CR 102.1-102.3), read by the shared player-set grammar.
     Players(super::PlayerPopulationQueryNode),
+    /// How many times the ability being resolved has resolved, or has been
+    /// activated, during this turn (`this is the third time this ability has
+    /// resolved this turn`, `this ability has been activated four or more
+    /// times this turn`). The count includes the current resolution or
+    /// activation; only an effect-program position reads it.
+    AbilityHistory(AbilityHistoryMeasure),
+    /// The sum of one numeric characteristic over a collection (`the total
+    /// power of creatures you control`, `the total mana value of permanents
+    /// destroyed this way`, CR 107.1): zero over an empty collection.
+    PropertyTotal(PropertyTotalNode),
+    /// The members of a player population whose measure compares with the
+    /// ability controller's (`the number of opponents who control more
+    /// lands than you`, `for each opponent who controls fewer creatures
+    /// than you`, CR 102.1-102.3).
+    PlayersComparedWithController {
+        players: super::PlayerSetReferenceNode,
+        measure: super::PlayerStateMeasure,
+        operator: super::NumericComparisonOperator,
+    },
+    /// The number of players whose measure is the extremum of every
+    /// player's (`a player has more life than each other player` holds
+    /// when it is one).
+    PlayersAtExtremum {
+        measure: super::PlayerStateMeasure,
+        extremum: super::PlayerExtremum,
+    },
+    /// One measure of the ability's controller (`the difference` reads the
+    /// cards in your hand of the comparison it restates).
+    ControllerMeasure(super::PlayerStateMeasure),
+    /// `your highest commander tax among your commanders` (CR 903.8): the
+    /// greatest tax among the controller's commanders, zero without one.
+    HighestCommanderTax,
+    /// The number the payer chose while paying a cost of this activation
+    /// (`for each storage counter removed this way`, CR 601.2h via 602.2b):
+    /// the activation's `costChosenAmount` declaration (`quantity_slot.rs`).
+    CostChosenAmount,
+}
+
+/// The per-turn record of the resolving ability itself (CR 113.3, 602.1,
+/// 603.1): its resolutions or its activations this turn.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AbilityHistoryMeasure {
+    ResolutionsThisTurn,
+    ActivationsThisTurn,
+}
+
+impl AbilityHistoryMeasure {
+    /// The runtime numeric kind that counts this record.
+    pub(in crate::oracle::canonical) const fn ir_kind(self) -> &'static str {
+        match self {
+            Self::ResolutionsThisTurn => "abilityResolutionsThisTurn",
+            Self::ActivationsThisTurn => "abilityActivationsThisTurn",
+        }
+    }
+}
+
+/// `the total PROPERTY of COLLECTION`: one characteristic summed over a
+/// collection the shared readers name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PropertyTotalNode {
+    pub property: super::SelectorNumericProperty,
+    pub collection: PropertyTotalCollection,
+}
+
+/// The collections a total reads.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum PropertyTotalCollection {
+    /// The objects an earlier action of the program affected (`permanents
+    /// destroyed this way`, CR 608.2c), read as last known information once
+    /// they left the battlefield (CR 608.2h). `reader` is the action whose
+    /// argument reads the total; the program lowering binds the producer.
+    ActionResult {
+        reader: usize,
+        reference: super::ActionResultReferenceNode,
+    },
 }
 
 /// Where a counter query reads counters.
@@ -491,6 +571,13 @@ impl NumericQuantity {
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
             | Self::Players(_)
+            | Self::AbilityHistory(_)
+            | Self::PropertyTotal(_)
+            | Self::PlayersComparedWithController { .. }
+            | Self::PlayersAtExtremum { .. }
+            | Self::ControllerMeasure(_)
+            | Self::HighestCommanderTax
+            | Self::CostChosenAmount
             | Self::Counters {
                 holder: CounterHolder::Source,
                 ..
@@ -511,6 +598,13 @@ impl NumericQuantity {
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
             | Self::Players(_)
+            | Self::AbilityHistory(_)
+            | Self::PropertyTotal(_)
+            | Self::PlayersComparedWithController { .. }
+            | Self::PlayersAtExtremum { .. }
+            | Self::ControllerMeasure(_)
+            | Self::HighestCommanderTax
+            | Self::CostChosenAmount
             | Self::Counters { .. } => false,
         }
     }
@@ -532,7 +626,14 @@ impl NumericQuantity {
             | Self::DistinctCardValues { .. }
             | Self::ManaSymbolsAmongCards { .. }
             | Self::ActingPlayerCards { .. }
-            | Self::Players(_) => false,
+            | Self::Players(_)
+            | Self::AbilityHistory(_)
+            | Self::PropertyTotal(_)
+            | Self::PlayersComparedWithController { .. }
+            | Self::PlayersAtExtremum { .. }
+            | Self::ControllerMeasure(_)
+            | Self::HighestCommanderTax
+            | Self::CostChosenAmount => false,
         }
     }
 }
@@ -699,6 +800,39 @@ pub(in crate::oracle::canonical) fn recognize_whichever_is_greater_close(
     cursor.consume_phrase(&[",", "whichever", "is", "greater"])?;
     Ok(NumericExpression::Quantity(Box::new(
         NumericQuantity::Greatest(vec![left, right]),
+    )))
+}
+
+const HIGHEST_COMMANDER_TAX: &[&str] = &[
+    "your",
+    "highest",
+    "commander",
+    "tax",
+    "among",
+    "your",
+    "commanders",
+];
+
+/// Lexical lookahead for `your highest commander tax among your commanders`.
+pub(in crate::oracle::canonical) fn highest_commander_tax_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    HIGHEST_COMMANDER_TAX
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| word_is(cursor, offset, word))
+}
+
+/// `your highest commander tax among your commanders` (CR 903.8): the
+/// commander record of the controller's commanders, read as their greatest
+/// tax.
+pub(in crate::oracle::canonical) fn recognize_highest_commander_tax(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.commander-tax.highest");
+    cursor.consume_phrase(HIGHEST_COMMANDER_TAX)?;
+    Ok(NumericExpression::Quantity(Box::new(
+        NumericQuantity::HighestCommanderTax,
     )))
 }
 

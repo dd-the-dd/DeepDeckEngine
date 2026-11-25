@@ -126,6 +126,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "chooseColor"
             | "chooseColors"
             | "chooseBasicLandType"
+            | "chooseOption"
             | "choosePermanents"
             | "chooseCards"
             | "chooseOrder",
@@ -286,6 +287,9 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "installRegenerationShield"
             | "installRegenerationShields"
             | "installDeathExileReplacement"
+            | "installGraveyardDestinationReplacement"
+            | "installQuantityReplacement"
+            | "installDamageReplacement"
             | "installLeaveBattlefieldExileReplacement"
             | "installRuleModifier"
             | "installCreatureDeathLifeGainUntilEndOfTurn"
@@ -732,7 +736,7 @@ pub(super) fn movement_is_owned_by_child_frames(effect: &Value) -> bool {
 /// The decision key holding the last known information (CR 608.2h) of the
 /// permanents one producing action bound under `binding` and removed from
 /// the battlefield, keyed by object id (as `#identities` keys a capture).
-fn bound_object_lki_key(binding: &str) -> String {
+pub(in crate::engine) fn bound_object_lki_key(binding: &str) -> String {
     format!("{binding}#lki")
 }
 

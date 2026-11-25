@@ -134,6 +134,14 @@ impl GameEngine {
         &self,
         instance_id: &str,
     ) -> Result<PreparedGraveyardDestination, EngineError> {
+        self.prepare_card_graveyard_destination_with(instance_id, None)
+    }
+
+    pub(super) fn prepare_card_graveyard_destination_with(
+        &self,
+        instance_id: &str,
+        provider: Option<&mut dyn super::DecisionProvider>,
+    ) -> Result<PreparedGraveyardDestination, EngineError> {
         let source = self
             .prepare_card_movement_source(instance_id, None)?
             .ok_or_else(|| EngineError::new("graveyard movement source is missing"))?;
@@ -145,7 +153,7 @@ impl GameEngine {
         }
         .ok_or_else(|| EngineError::new("prepared graveyard source disappeared"))?;
         let owner = self.player_index(&card.owner)?;
-        Ok(self.prepare_graveyard_destination(owner, card))
+        self.prepare_graveyard_destination_with(owner, card, provider)
     }
 
     pub(super) fn take_zone_card_for_graveyard(
@@ -153,6 +161,16 @@ impl GameEngine {
         player_index: usize,
         zone: &str,
         card_index: usize,
+    ) -> Result<(OwnedMovementCard, PreparedGraveyardDestination), EngineError> {
+        self.take_zone_card_for_graveyard_with(player_index, zone, card_index, None)
+    }
+
+    pub(super) fn take_zone_card_for_graveyard_with(
+        &mut self,
+        player_index: usize,
+        zone: &str,
+        card_index: usize,
+        provider: Option<&mut dyn super::DecisionProvider>,
     ) -> Result<(OwnedMovementCard, PreparedGraveyardDestination), EngineError> {
         let player = self
             .state
@@ -176,7 +194,7 @@ impl GameEngine {
             .ok_or_else(|| EngineError::new("missing graveyard movement source slot"))?
             .instance_id
             .clone();
-        let plan = self.prepare_card_graveyard_destination(&id)?;
+        let plan = self.prepare_card_graveyard_destination_with(&id, provider)?;
         Ok((
             self.take_zone_card_for_movement(player_index, zone, card_index)?,
             plan,
@@ -546,14 +564,40 @@ pub(super) enum PreparedGraveyardDestination {
         one_shot_modifier: Option<serde_json::Value>,
         detail: serde_json::Value,
     },
+    /// A static or effect-created replacement whose destination is any
+    /// zone (`replacement_pipeline.rs`), with its reflexive ability.
+    Replaced {
+        source_card_id: String,
+        zone: super::replacement_pipeline::ReplacedGraveyardZone,
+        detail: serde_json::Value,
+        reflexive: Option<(CardInstance, serde_json::Value)>,
+    },
 }
 
 impl PreparedGraveyardDestination {
     pub(super) fn source_card_id(&self) -> &str {
         match self {
-            Self::Graveyard { source_card_id } | Self::Exile { source_card_id, .. } => {
-                source_card_id
-            }
+            Self::Graveyard { source_card_id }
+            | Self::Exile { source_card_id, .. }
+            | Self::Replaced { source_card_id, .. } => source_card_id,
+        }
+    }
+
+    /// The zone the card actually enters under this plan.
+    pub(super) fn actual_zone(&self, owner: &str) -> ObjectZone {
+        match self {
+            Self::Graveyard { .. } => ObjectZone::Graveyard(owner.to_string()),
+            Self::Exile { .. } => ObjectZone::Exile,
+            Self::Replaced { zone, .. } => zone.object_zone(owner),
+        }
+    }
+
+    /// The departure destination name of this plan.
+    pub(super) fn destination(&self) -> &'static str {
+        match self {
+            Self::Graveyard { .. } => "graveyard",
+            Self::Exile { .. } => "exile",
+            Self::Replaced { zone, .. } => zone.destination(),
         }
     }
 }
@@ -563,23 +607,32 @@ impl GameEngine {
         &self,
         player_index: usize,
         card: &CardInstance,
-    ) -> PreparedGraveyardDestination {
-        use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
+    ) -> Result<PreparedGraveyardDestination, EngineError> {
+        self.prepare_graveyard_destination_with(player_index, card, None)
+    }
+
+    /// `prepare_graveyard_destination` with the chooser of a CR 616.1 order
+    /// between graveyard-destination replacements with different outcomes.
+    pub(super) fn prepare_graveyard_destination_with(
+        &self,
+        player_index: usize,
+        card: &CardInstance,
+        provider: Option<&mut dyn super::DecisionProvider>,
+    ) -> Result<PreparedGraveyardDestination, EngineError> {
+        use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacedGraveyardZone};
         use super::*;
         // The finality counter is one of the proposed graveyard-destination
-        // replacements (replacement_pipeline.rs).
+        // replacements (replacement_pipeline.rs). Proposals with one outcome
+        // apply in precedence order; different outcomes are chosen by the
+        // card's owner (CR 616.1).
         let graveyard_owner_id = self.state.players[player_index].id.clone();
-        // Every proposal sends the card to exile; they differ only in
-        // attribution, so the first proposal in precedence order applies.
-        let selected = self
-            .select_graveyard_destination_replacement(
-                card,
-                &graveyard_owner_id,
-                &self.battlefield_static_modifiers(),
-                &ReplacementOrder::FirstProposed,
-            )
-            .unwrap_or_default();
-        match selected {
+        let selected = self.select_graveyard_destination_replacement(
+            card,
+            &graveyard_owner_id,
+            &self.battlefield_static_modifiers(),
+            provider,
+        )?;
+        Ok(match selected {
             Some(proposal) => match proposal.program.origin {
                 GraveyardReplacementOrigin::SpecificCard { modifier } => {
                     PreparedGraveyardDestination::Exile {
@@ -588,7 +641,10 @@ impl GameEngine {
                         one_shot_modifier: Some(modifier),
                     }
                 }
-                GraveyardReplacementOrigin::Static | GraveyardReplacementOrigin::Temporary => {
+                GraveyardReplacementOrigin::Static | GraveyardReplacementOrigin::Temporary
+                    if proposal.program.zone == ReplacedGraveyardZone::Exile
+                        && proposal.program.reflexive.is_none() =>
+                {
                     PreparedGraveyardDestination::Exile {
                         source_card_id: card.instance_id.clone(),
                         one_shot_modifier: None,
@@ -599,11 +655,23 @@ impl GameEngine {
                         }),
                     }
                 }
+                GraveyardReplacementOrigin::Static | GraveyardReplacementOrigin::Temporary => {
+                    PreparedGraveyardDestination::Replaced {
+                        source_card_id: card.instance_id.clone(),
+                        zone: proposal.program.zone,
+                        detail: super::replacement_pipeline::graveyard_replacement_detail(
+                            &proposal.source_id,
+                            proposal.program.controller.as_deref(),
+                            proposal.program.zone,
+                        ),
+                        reflexive: proposal.program.reflexive,
+                    }
+                }
             },
             None => PreparedGraveyardDestination::Graveyard {
                 source_card_id: card.instance_id.clone(),
             },
-        }
+        })
     }
 
     pub(super) fn validate_prepared_graveyard_destination(
@@ -670,6 +738,24 @@ impl GameEngine {
                     Some(card_id),
                     detail,
                 );
+                Ok(false)
+            }
+            PreparedGraveyardDestination::Replaced {
+                zone,
+                detail,
+                reflexive,
+                ..
+            } => {
+                let card_id = card.instance_id.clone();
+                let owner = self.state.players[player_index].id.clone();
+                self.place_replaced_graveyard_card(player_index, card, zone);
+                self.record_event(
+                    "graveyardDestinationReplaced",
+                    Some(owner),
+                    Some(card_id),
+                    detail,
+                );
+                self.publish_graveyard_replacement_reflexive(reflexive);
                 Ok(false)
             }
         }

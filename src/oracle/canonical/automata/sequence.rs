@@ -843,6 +843,7 @@ fn recognize_effect_sequence_attempt_scoped(
                     },
                 )));
                 super::publish_installed_program_antecedents(cursor, &memory.effects);
+                super::publish_installed_unless_payer(cursor, &memory.unless);
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
@@ -1139,7 +1140,9 @@ fn recognize_effect_sequence_attempt_scoped(
                                         &memory.effects,
                                     )
                             });
-                        if permanent_antecedent {
+                        if permanent_antecedent
+                            || super::attached_object_operand_follows_verb(attempt)
+                        {
                             match super::recognize_referenced_permanent_zone_action(
                                 attempt,
                                 name_links,
@@ -3670,7 +3673,37 @@ fn recognize_put_frame(
         )
         .map(LocalEffectNode::ReferencedPermanentAction);
     }
-    recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards)
+    // `put N cards from ZONE ...`: the counted move reads a card count first.
+    if put_card_count_follows(cursor) {
+        return recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards);
+    }
+    // Every other head is the object-to-zone frame: the shared card operand
+    // (a reference, a selection, a zone's cards, a restated antecedent),
+    // then a destination whose lexical shape (`into`, `onto`, `on top of`,
+    // `on the bottom of`, `ORDINAL from the top`) is read by the shared
+    // destination child. The card-action child is read again here so its
+    // own state names the failure, never a numeric atom it never claimed.
+    cursor.enter("effect.put.object-to-zone");
+    match super::recognize_card_action(
+        cursor,
+        false,
+        super::CardActionReadContext::of(inputs.context, inputs.name_links, inputs.name_failure),
+    ) {
+        Ok(Some(action)) => Ok(LocalEffectNode::CardAction(action)),
+        Ok(None) => Err(cursor.fail("an object operand and its destination after `put`")),
+        Err(failure) => Err(failure),
+    }
+}
+
+/// `put a|N|X card(s)`: the head of the counted move (`put two cards from
+/// your hand on top of your library`). Pure lookahead after the verb.
+fn put_card_count_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek_ahead(1).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("a")
+            || raw.eq_ignore_ascii_case("x")
+            || raw.parse::<i64>().is_ok()
+            || super::super::parse_number_word(raw).is_some()
+    })
 }
 
 /// `destroy OBJECTS`: a universal collection, a bound set, a bound
@@ -3696,7 +3729,8 @@ fn recognize_destroy_frame(
             recognize_destroy_referenced_set_effect(cursor, inputs.object_set_antecedent)
                 .map(LocalEffectNode::DestroyReferencedSet)
         }
-        // `destroy that creature`: a bound reference, never a declaration.
+        // `destroy that creature` / `destroy enchanted creature`: a bound
+        // reference, never a declaration.
         super::OperandDeterminer::That => super::recognize_destroy_reference_effect(
             cursor,
             inputs.name_links,
@@ -3704,6 +3738,15 @@ fn recognize_destroy_frame(
             inputs.context,
         )
         .map(LocalEffectNode::ReferencedPermanentAction),
+        super::OperandDeterminer::Other if super::attached_object_operand_follows_verb(cursor) => {
+            super::recognize_destroy_reference_effect(
+                cursor,
+                inputs.name_links,
+                inputs.name_failure,
+                inputs.context,
+            )
+            .map(LocalEffectNode::ReferencedPermanentAction)
+        }
         super::OperandDeterminer::Absent => recognize_zone_change_effect_with_policy(
             cursor,
             ZoneChangeTargetSupport::TargetCollection,

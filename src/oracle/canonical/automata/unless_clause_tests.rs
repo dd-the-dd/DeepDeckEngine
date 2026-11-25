@@ -1,6 +1,6 @@
 use super::*;
 use crate::oracle::canonical::automata::{
-    BooleanConditionNode, ConditionAtom, EffectRecognitionContext, EffectSequenceNode,
+    BooleanConditionNode, CastChoice, ConditionAtom, EffectRecognitionContext, EffectSequenceNode,
     ResourcePaymentNode, recognize_effect_sequence_with_context,
 };
 use crate::oracle::syntax::recognize_entities;
@@ -112,6 +112,26 @@ fn a_you_control_condition_is_the_shared_boolean_atom() {
     assert!(matches!(atom, ConditionAtom::Compare(_)));
 }
 
+/// `unless it escaped` (Escape creatures, CR 702.138): the pronoun of a
+/// cast record names the ability's source when nothing else is its
+/// antecedent, so the condition is the shared cast-choice atom.
+#[test]
+fn an_escape_cast_record_is_an_unless_condition() {
+    let UnlessClauseNode::Condition(BooleanConditionNode::Atom(atom)) =
+        frame("sacrifice this creature unless it escaped.").clause
+    else {
+        panic!("a condition clause");
+    };
+    assert!(
+        matches!(
+            &atom,
+            ConditionAtom::CastChoice(choice)
+                if choice.choice == CastChoice::Escaped && !choice.negated
+        ),
+        "{atom:?}"
+    );
+}
+
 #[test]
 fn any_state_condition_of_the_one_language_composes_after_unless() {
     // Unprinted combinations: turn ownership and a this-turn history are
@@ -186,9 +206,10 @@ fn unsupported_payers_scopes_and_costs_fail_at_their_own_state() {
             "sequence.unless.payer.binding",
         ),
         // A state condition is read by the one condition language; a bare
-        // `it` there has no antecedent the unless frame proves.
+        // `it` there has no antecedent the unless frame proves. (`it
+        // escaped` is a cast record of the source, read below.)
         (
-            "sacrifice this creature unless it escaped.",
+            "sacrifice this creature unless it's attacking.",
             "condition.sentence.object.antecedent",
         ),
         // `you control` names the ability controller, not this payer.

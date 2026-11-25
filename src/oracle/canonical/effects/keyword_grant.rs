@@ -156,6 +156,14 @@ pub(in crate::oracle::canonical) fn lower_keyword_grant_to_object(
         })
         .collect::<Vec<_>>();
     for ability in abilities {
+        if ability.rule["kind"] == KEYWORD_CHOICE_RULE {
+            effects.extend(lower_keyword_choice_grant(
+                &ability.rule,
+                object,
+                &duration,
+            )?);
+            continue;
+        }
         if !quoted_ability_grantable(&ability.rule, object, &duration) {
             return None;
         }
@@ -165,4 +173,40 @@ pub(in crate::oracle::canonical) fn lower_keyword_grant_to_object(
         }));
     }
     Some(effects)
+}
+
+/// `gains your choice of K, K, or K` (CR 608.2d): the controller chooses
+/// one option as the grant resolves, then the object gains the chosen
+/// keyword. The choice is the generic `chooseOption` decision; the grant is
+/// the ordinary `grantKeyword` whose keyword reads that decision among the
+/// same options. The decision is named after the granted object so two
+/// grants of one program never share it.
+fn lower_keyword_choice_grant(
+    rule: &Value,
+    object: &Value,
+    duration: &Value,
+) -> Option<Vec<Value>> {
+    let options = rule["options"].as_array()?;
+    if options.len() < 2 || !options.iter().all(Value::is_string) {
+        return None;
+    }
+    let owner = object["id"]
+        .as_str()
+        .or_else(|| object["binding"].as_str())
+        .or_else(|| object["kind"].as_str())?;
+    let id = format!("{owner}:keywordChoice");
+    Some(vec![
+        json!({
+            "kind": "chooseOption",
+            "id": id,
+            "player": controller(),
+            "options": options,
+        }),
+        json!({
+            "kind": "grantKeyword",
+            "object": object,
+            "keyword": { "kind": "chosenOption", "decisionId": id, "options": options },
+            "duration": duration,
+        }),
+    ])
 }

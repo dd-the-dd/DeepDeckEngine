@@ -537,7 +537,7 @@
       }
     },
     {
-      "id": "known-gap-exact-carry-away-unattach-enchanted-equipment",
+      "id": "exact-carry-away-unattach-enchanted-equipment",
       "request": {
         "cardName": "Carry Away",
         "typeLine": "Enchantment — Aura",
@@ -547,12 +547,37 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "reference.attached-object.nominal"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/value",
+                "equals": {
+                  "kind": "attachedPermanent",
+                  "attachment": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "unattachPermanent"
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "controlAttachedPermanent"
+              }
+            ]
           }
         ]
       }

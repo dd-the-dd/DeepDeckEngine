@@ -22,25 +22,6 @@ pub(in crate::oracle::canonical) fn claims_promoted_labeled_activated_zone_chang
         })
 }
 
-pub(in crate::oracle::canonical) fn lower_activation_cost_reduction(
-    reduction: &ActivationCostReductionNode,
-) -> Value {
-    let count = json!({
-        "kind": "countPermanents",
-        "player": controller(),
-        "where": lower_permanent_object_predicate(&reduction.selector),
-    });
-    if reduction.generic_reduction_per_permanent == 1 {
-        count
-    } else {
-        json!({
-            "kind": "multiply",
-            "left": count,
-            "right": integer(reduction.generic_reduction_per_permanent),
-        })
-    }
-}
-
 pub(in crate::oracle::canonical) fn parse_promoted_labeled_activated_zone_change(
     input: &AbilityInput<'_>,
 ) -> MachineResult<CanonicalRuleDraft> {
@@ -119,9 +100,9 @@ pub(in crate::oracle::canonical) fn parse_promoted_labeled_activated_zone_change
             "kind": "castingDeclaration",
             "decisions": [decision],
         },
-        "manaCostReduction": lower_activation_cost_reduction(&ability.reduction),
         "effects": effects,
     });
+    install_activation_cost_reduction(&mut cursor, &mut rule, &ability.reduction)?;
     if activates_from_hand {
         rule["activationZone"] = Value::String("hand".to_string());
     }
@@ -138,7 +119,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_labeled_activated_zone_change
             "Recognize a short-labeled activated envelope from one token stream",
             "Compose mana and source-discard costs independently",
             "Reuse the shared zone-change and linked optional-search sequence",
-            "Retain per-permanent activation reduction as metadata outside effects",
+            "Retain the activation cost reduction as metadata outside effects",
             &trace,
         ],
     ))

@@ -76,6 +76,10 @@ impl ConditionScope {
         if atom.reads_action_result() {
             return self == Self::Program;
         }
+        // The resolving ability's own record exists only while it resolves.
+        if atom.reads_ability_history() {
+            return self == Self::Program;
+        }
         // A spell's turn ordinal is read on the spell a cast event observed;
         // only a parent that binds that event can resolve it.
         if matches!(atom, ConditionAtom::SpellCastOrdinal(_)) {
@@ -232,6 +236,20 @@ impl ConditionAtom {
         matches!(
             self,
             Self::ActionOutcome(ActionOutcomeNode::PreviousActionImpossible)
+        )
+    }
+
+    /// Whether the atom reads the resolving ability's own record (its
+    /// resolutions or activations this turn).
+    pub(in crate::oracle::canonical) fn reads_ability_history(&self) -> bool {
+        matches!(
+            self,
+            Self::Compare(ConditionComparison { left, right, .. })
+                if [left, right].into_iter().any(|number| matches!(
+                    number,
+                    ConditionNumber::Expression(expression)
+                        if super::reads_ability_history(expression)
+                ))
         )
     }
 
@@ -608,6 +626,9 @@ pub(in crate::oracle::canonical) enum CastChoice {
     /// A printed alternative mana cost was paid (`the {1}{B} cost was
     /// paid`): the exact symbols the shared mana-cost reader preserves.
     AlternativeManaCost(String),
+    /// CR 702.138c: the spell was cast with its escape permission, and the
+    /// permanent it became escaped.
+    Escaped,
 }
 
 /// `CastChoice(choice)` of the ability's own source; `negated` reads

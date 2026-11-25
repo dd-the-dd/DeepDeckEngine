@@ -1147,6 +1147,26 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if super::shared_characteristic_set_clause_starts(cursor) {
+                    // `two target creature cards that share a creature type`
+                    // (CR 205.3, 601.2c): a share among the members of the
+                    // chosen set, with no anchor. It constrains the set, so
+                    // only a plural head states it; a consumer that does not
+                    // choose a set refuses the constraint (its validator, or
+                    // `split_set_constraints`), never reading it per object.
+                    cursor.enter("selector.relative-clause.share-set.plural-head");
+                    cursor.require(
+                        frame.branch_has_plural_surface.last() == Some(&true),
+                        "a plural set whose members share the characteristic",
+                    )?;
+                    let characteristic = super::recognize_shared_characteristic_set_clause(cursor)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::Qualifier(
+                            super::ObjectQualifier::SharedValue(characteristic),
+                        ),
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if super::relative_clause_starts_in(cursor, context.stack_targets) {
                     // `that was dealt damage this turn`, `that has a counter
                     // on it`, `that aren't enchanted`: the relative slot.
@@ -1161,6 +1181,31 @@ fn recognize_object_query_frame(
                 }) {
                     let relative_word = cursor.peek().expect("checked relative word").to_string();
                     cursor.consume(&relative_word)?;
+                    if let Some(width) = color_count_complement_at(cursor) {
+                        // `a permanent that's one or more colors` (CR
+                        // 105.2): the object is not colorless, the negation
+                        // of the shared color-quantity atom.
+                        cursor.enter("selector.relative-clause.color-count");
+                        cursor.advance_to(cursor.position() + width)?;
+                        frame.postnominal_qualifiers.push(PostnominalQualifier {
+                            predicate: SelectorPredicate::Not(Box::new(
+                                SelectorPredicate::ColorQuantity(super::ColorQuantity::Colorless),
+                            )),
+                            scope: PostnominalQualifierScope::WholeQuery,
+                        });
+                        state = ObjectQueryState::ReadPostnominalQualifier;
+                        continue;
+                    }
+                    // `that's both green and blue`: `both` announces the
+                    // conjunction of exactly two complements (CR 105.2: an
+                    // object with each of the colors).
+                    let both = cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("both"));
+                    if both {
+                        cursor.enter("selector.relative-clause.both");
+                        cursor.consume("both")?;
+                    }
                     // `that's a Wolf or a Werewolf`: the copula's complement
                     // takes its article, as after `that is`; each further
                     // member repeats it inside the logical list.
@@ -1180,6 +1225,13 @@ fn recognize_object_query_frame(
                         relative.controller.is_none(),
                         "a relative characteristic without another controller qualifier",
                     )?;
+                    if both {
+                        cursor.enter("selector.relative-clause.both.conjunction");
+                        cursor.require(
+                            matches!(&relative.predicate, SelectorPredicate::Intersection(members) if members.len() == 2),
+                            "two complements joined by `and` after `both`",
+                        )?;
+                    }
                     frame.postnominal_qualifiers.push(PostnominalQualifier {
                         predicate: relative.predicate,
                         scope: PostnominalQualifierScope::WholeQuery,
@@ -1882,6 +1934,24 @@ pub(in crate::oracle::canonical) fn lift_shared_trailing_domain(
 pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<TargetSelector> {
+    recognize_target_slot_selector_with(cursor, false).map(|(selector, _)| selector)
+}
+
+/// The target slot selector for a parent that represents the slot's source
+/// exclusion (`target creature other than this creature`, CR 109.5, 115.1):
+/// the postnominal exclusion of the object query is returned beside the
+/// selector instead of failing at `other`, so the slot excludes the source
+/// as `another target creature` does.
+pub(in crate::oracle::canonical) fn recognize_target_slot_selector_excluding_source(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(TargetSelector, bool)> {
+    recognize_target_slot_selector_with(cursor, true)
+}
+
+fn recognize_target_slot_selector_with(
+    cursor: &mut OracleTokenCursor<'_>,
+    source_exclusion: bool,
+) -> MachineResult<(TargetSelector, bool)> {
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("any"))
@@ -1889,7 +1959,7 @@ pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
         cursor.enter("selector.predicate.start");
         cursor.consume_phrase(&["any", "target"])?;
         cursor.enter("selector.predicate.complete");
-        return Ok(TargetSelector::Any);
+        return Ok((TargetSelector::Any, false));
     }
     if let Some(player) = cursor.peek().and_then(player_predicate) {
         cursor.enter("selector.predicate.start");
@@ -1914,30 +1984,34 @@ pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
                 }
             };
             cursor.enter("selector.predicate.complete");
-            return Ok(TargetSelector::Union(vec![
-                TargetSelector::Player(player),
-                second,
-            ]));
+            return Ok((
+                TargetSelector::Union(vec![TargetSelector::Player(player), second]),
+                false,
+            ));
         }
         cursor.enter("selector.predicate.complete");
-        return Ok(TargetSelector::Player(player));
+        return Ok((TargetSelector::Player(player), false));
     }
     if stack_item_selector_starts(cursor) {
         cursor.enter("selector.predicate.start");
         let stack_item = recognize_stack_item_selector(cursor)?;
         cursor.enter("selector.predicate.complete");
-        return Ok(TargetSelector::StackItem(stack_item));
+        return Ok((TargetSelector::StackItem(stack_item), false));
     }
 
-    let query = recognize_object_noun_query(cursor, ObjectQueryContext::DECLARED_TARGET)?
-        .into_object_query(cursor)?;
-    Ok(match query.controller {
-        Some(controller) => TargetSelector::ControlledObject {
-            predicate: query.predicate,
-            controller,
+    let mut recognized = recognize_object_noun_query(cursor, ObjectQueryContext::DECLARED_TARGET)?;
+    let excluded = source_exclusion && recognized.take_source_exclusion();
+    let query = recognized.into_object_query(cursor)?;
+    Ok((
+        match query.controller {
+            Some(controller) => TargetSelector::ControlledObject {
+                predicate: query.predicate,
+                controller,
+            },
+            None => TargetSelector::Object(query.predicate),
         },
-        None => TargetSelector::Object(query.predicate),
-    })
+        excluded,
+    ))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2465,6 +2539,21 @@ fn copular_characteristic_starts(cursor: &OracleTokenCursor<'_>) -> Option<bool>
     object_selector_phrase_starts(&lookahead).then_some(negated)
 }
 
+/// `one or more colors` after a copula, with its width: the object has at
+/// least one color (CR 105.2). Pure lookahead.
+fn color_count_complement_at(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let phrase = ["one", "or", "more", "colors"];
+    phrase
+        .iter()
+        .enumerate()
+        .all(|(index, expected)| {
+            cursor
+                .peek_ahead(index)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+        })
+        .then_some(phrase.len())
+}
+
 fn spell_caster_scope(scope: QuerySubjectScope) -> SpellCasterScope {
     match scope {
         QuerySubjectScope::AbilityController => SpellCasterScope::AbilityController,
@@ -2777,10 +2866,39 @@ fn recognize_numeric_comparison_from(
                     operator = prefix_operator;
                     strict = true;
                 }
-                // `toughness greater than its power`: inside a candidate
-                // filter the possessive names the candidate under test, an
-                // operand no consumer evaluates per candidate yet. It is
-                // never read as the environment's object.
+                // Inside a candidate filter the possessive names the
+                // candidate under test, never the environment's object.
+                if cursor.peek().is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("its") || raw.eq_ignore_ascii_case("their")
+                }) && numeric_property_starts_at(cursor, 1)
+                {
+                    // `with toughness greater than its power` (CR 208.1):
+                    // the possessive names the candidate under test, so the
+                    // comparison reads two properties of that one object.
+                    cursor.enter("selector.numeric-comparison.candidate-property");
+                    let possessive = cursor.peek().expect("checked possessive").to_string();
+                    cursor.consume(&possessive)?;
+                    let right = recognize_selector_numeric_property(cursor)?;
+                    cursor.require(
+                        properties.len() == 1 && !properties.contains(&right),
+                        "one candidate property compared with another of its properties",
+                    )?;
+                    cursor.enter("selector.numeric-comparison.property-context");
+                    cursor.require(
+                        admission.admits_property(properties[0])
+                            && admission.admits_property(right),
+                        "candidate properties this consumer evaluates",
+                    )?;
+                    return Ok(SelectorPredicate::Qualifier(
+                        super::ObjectQualifier::CandidatePropertyComparison {
+                            left: properties[0],
+                            operator,
+                            right,
+                        },
+                    ));
+                }
+                // Any other possessive operand (`its loyalty`) names a
+                // candidate property the comparison does not read.
                 if cursor.peek().is_some_and(|raw| {
                     raw.eq_ignore_ascii_case("its") || raw.eq_ignore_ascii_case("their")
                 }) {

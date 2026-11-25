@@ -138,6 +138,11 @@ fn recognize_counted_collection(
     if mana_spent_colors_starts(cursor, color_noun) {
         return recognize_mana_spent_colors(cursor, color_noun);
     }
+    // `storage counter removed this way`, `cards exiled this way` before any
+    // earlier action: the number this activation's cost chose (CR 601.2h).
+    if cost_chosen_amount_reference_starts(cursor) {
+        return recognize_cost_chosen_amount_reference(cursor);
+    }
     // `cards revealed this way`: the objects an earlier action affected.
     if !distinct_measure_among_starts(cursor) && action_result_reference_starts(cursor) {
         return recognize_action_result_count(cursor);
@@ -167,6 +172,11 @@ fn recognize_counted_collection(
     }
     if opponent_count_starts(cursor) {
         return recognize_opponent_count(cursor);
+    }
+    // `opponents who control more lands than you`: the members whose
+    // measure compares with the controller's (a dynamic threshold).
+    if comparative_player_count_starts(cursor) {
+        return recognize_comparative_player_count(cursor);
     }
     // `opponent who lost life this turn`, `opponents who control an
     // artifact`, `player with three or more poison counters`: the members of
@@ -723,6 +733,55 @@ fn recognize_player_population_count(
     )))
 }
 
+/// Lexical lookahead: `PLAYER-NOUN who VERB more|fewer|less ...`.
+fn comparative_player_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().and_then(counted_player_noun).is_some()
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("who"))
+        && comparative_proposition_starts(cursor, 2)
+}
+
+/// `opponent(s)|player(s) who control(s) more|fewer QUERY than you`, `who
+/// has|have more|less life than you` (CR 102.1-102.3): the members of the
+/// population whose measure compares with the ability controller's. The
+/// verb agrees with the noun; the compared player is `you`.
+fn recognize_comparative_player_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.player-count.comparative.population");
+    let raw = cursor
+        .peek()
+        .expect("the player noun was checked")
+        .to_string();
+    let (players, plural) = counted_player_noun(&raw).expect("the player noun was checked");
+    cursor.consume(&raw)?;
+    cursor.consume("who")?;
+    cursor.enter("numeric.player-count.comparative.agreement");
+    let verb = cursor.peek().unwrap_or_default().to_ascii_lowercase();
+    cursor.require(
+        if plural {
+            matches!(verb.as_str(), "control" | "have")
+        } else {
+            matches!(verb.as_str(), "controls" | "has")
+        },
+        "a relative verb that agrees with the counted player noun",
+    )?;
+    let proposition = recognize_comparative_proposition(cursor)?;
+    cursor.enter("numeric.player-count.comparative.other");
+    cursor.require(
+        proposition.other == ComparedPlayers::Controller,
+        "`than you`: each member compared with the ability's controller",
+    )?;
+    Ok(NumericExpression::Quantity(Box::new(
+        NumericQuantity::PlayersComparedWithController {
+            players,
+            measure: proposition.measure,
+            operator: proposition.operator,
+        },
+    )))
+}
+
 /// Lexical lookahead: the counted collection is followed by `in` before the
 /// end of its noun phrase. The scoped query proves the actual zone grammar;
 /// a collection without that relation keeps the battlefield reading.
@@ -846,6 +905,136 @@ pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
         property,
         predicate: query.predicate,
         aggregate: PropertyAggregate::Greatest,
+    })
+}
+
+/// Lexical lookahead for `the total power|toughness|mana value of`.
+pub(in crate::oracle::canonical) fn property_total_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(0, "the")
+        && word(1, "total")
+        && ((word(2, "power") || word(2, "toughness")) && word(3, "of")
+            || word(2, "mana") && word(3, "value") && word(4, "of"))
+}
+
+/// `the VERBed NOUNS` restating the objects an earlier action VERBed (`the
+/// exiled cards`, `the destroyed permanents`). Lexical lookahead only.
+fn participle_collection_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && cursor
+            .peek_ahead(1)
+            .and_then(ActionResultVerb::from_word)
+            .is_some()
+}
+
+/// `the VERBed NOUNS`: the same restated result as `NOUNS VERBed this way`
+/// (CR 608.2c). The noun is one plural nominal token of the shared object
+/// collection; it names no controller.
+fn recognize_participle_collection(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ActionResultReferenceNode> {
+    cursor.enter("numeric.property-total.participle");
+    cursor.consume("the")?;
+    let verb = cursor
+        .peek()
+        .and_then(ActionResultVerb::from_word)
+        .ok_or_else(|| cursor.fail("the past participle of an object-producing verb"))?;
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&raw)?;
+    cursor.enter("numeric.property-total.participle-noun");
+    let end = cursor.position() + 1;
+    let query = cursor.bounded(end, recognize_object_collection)?;
+    cursor.require(
+        !query.exclude_source && query.controller.is_none() && query.predicate.has_nominal_head(),
+        "a nominal object phrase without a controller relation",
+    )?;
+    Ok(ActionResultReferenceNode {
+        predicate: query.predicate,
+        verb,
+    })
+}
+
+/// `the total PROPERTY of COLLECTION` (CR 107.1): one numeric
+/// characteristic summed over a collection, zero when it is empty.
+///
+/// ```text
+/// Total := "the" "total" Property "of" Collection
+/// Collection := OBJECTS VERBed "this" "way" | "the" VERBed OBJECTS
+///             | battlefield collection controlled by you
+/// ```
+///
+/// A restated action result is read only where the parent admits program
+/// action results (`allow_action_results`); its producer is bound by the
+/// program lowering and read as last known information once the objects
+/// left the battlefield (CR 608.2h). A battlefield collection is the sum
+/// sibling of `the greatest PROPERTY among`.
+pub(in crate::oracle::canonical) fn recognize_property_total(
+    cursor: &mut OracleTokenCursor<'_>,
+    allow_action_results: bool,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.property-total.quantifier");
+    cursor.consume_phrase(&["the", "total"])?;
+    cursor.enter("numeric.property-total.property");
+    let property = recognize_selector_numeric_property(cursor)?;
+    cursor.consume("of")?;
+    cursor.enter("numeric.property-total.collection");
+    let restated = action_result_reference_starts(cursor);
+    if restated || participle_collection_starts(cursor) {
+        cursor.enter("numeric.property-total.action-result");
+        cursor.require(
+            allow_action_results,
+            "a total over an earlier action's result where the parent reads program results",
+        )?;
+        let reference = if restated {
+            recognize_action_result_reference(cursor)?
+        } else {
+            recognize_participle_collection(cursor)?
+        };
+        cursor.enter("numeric.property-total.reader");
+        let reader = cursor
+            .binding_environment()
+            .and_then(|environment| environment.effect_index)
+            .filter(|index| *index > 0);
+        let reader = cursor.require_value(
+            reader,
+            "an earlier action of this program whose affected objects the total reads",
+        )?;
+        return Ok(NumericExpression::Quantity(Box::new(
+            NumericQuantity::PropertyTotal(PropertyTotalNode {
+                property,
+                collection: PropertyTotalCollection::ActionResult { reader, reference },
+            }),
+        )));
+    }
+    let query = recognize_object_collection(cursor)?;
+    cursor.enter("numeric.property-total.battlefield");
+    cursor.require(
+        !query.exclude_source,
+        "a totaled collection without a source exclusion",
+    )?;
+    cursor.require(
+        query.denotes_battlefield_permanents(),
+        "a totaled collection anchored in the battlefield-permanent domain",
+    )?;
+    cursor.require(
+        !predicate_needs_declaration(&query.predicate),
+        "a totaled collection predicate independent of targets and declared variables",
+    )?;
+    cursor.enter("numeric.property-total.controller");
+    cursor.require(
+        query.controller == Some(ObjectControllerScope::AbilityController),
+        "a totaled collection controlled by you",
+    )?;
+    Ok(NumericExpression::GreatestPropertyAmong {
+        property,
+        predicate: query.predicate,
+        aggregate: PropertyAggregate::Sum,
     })
 }
 

@@ -106,6 +106,9 @@ pub(in crate::oracle::canonical) struct ObjectChoiceNode {
     /// creature`) must follow from, built from the same query.
     pub selector: TargetSelector,
     pub remainder: Option<ChoiceRemainderAction>,
+    /// `at random`: the game picks the objects among the candidates
+    /// instead of the chooser (CR 608.2d); the count and query are the same.
+    pub random: bool,
 }
 
 impl ObjectChoiceNode {
@@ -496,11 +499,17 @@ fn recognize_object_domain(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
         query.denotes_battlefield_permanents(),
         "permanents on the battlefield; a card choice names its zone (`in your graveyard`, `exiled with this artifact`)",
     )?;
+    // `at random` (CR 608.2d): the game picks among the same candidates.
+    // Only an exact count is picked at random; a range has no random size.
     cursor.enter("choose.domain.object.selection");
-    cursor.require(
-        !(word_at(cursor, 0, "at") && word_at(cursor, 1, "random")),
-        "a choice made by the chooser; a random selection of permanents is not read",
-    )?;
+    let random = word_at(cursor, 0, "at") && word_at(cursor, 1, "random");
+    if random {
+        cursor.require(
+            quantity.minimum == quantity.maximum,
+            "an exact number of permanents picked at random",
+        )?;
+        cursor.consume_phrase(&["at", "random"])?;
+    }
     let selector = match query.controller {
         Some(controller) => TargetSelector::ControlledObject {
             predicate: query.predicate.clone(),
@@ -527,6 +536,7 @@ fn recognize_object_domain(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
         query,
         selector,
         remainder,
+        random,
     })
 }
 

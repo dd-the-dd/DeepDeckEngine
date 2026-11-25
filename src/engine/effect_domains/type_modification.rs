@@ -571,3 +571,159 @@ impl GameEngine {
         Ok(())
     }
 }
+
+/// The static layer-4 modifiers of a battlefield source (CR 205.1, 613.1d):
+///
+/// - `setCardTypes {objects, cardTypes}` (CR 205.1a): the objects' card types
+///   are exactly these while the ability applies;
+/// - `modifySubtypeSet {objects, subtypeClass: "creature", mode, subtypes}`
+///   (CR 205.1b, 205.3m): `replace` makes the listed creature types the
+///   objects' only creature types, `all` gives every creature type.
+///
+/// A creature subtype applies only to a creature (CR 205.3d), and after a
+/// card-type set a registered subtype whose class no longer corresponds to a
+/// card type is gone. Additive `addSubtype` modifiers still add their own.
+const PERMANENT_CARD_TYPES: [&str; 6] = [
+    "Artifact",
+    "Battle",
+    "Creature",
+    "Enchantment",
+    "Land",
+    "Planeswalker",
+];
+
+impl GameEngine {
+    /// Validation of the static layer-4 modifiers this domain evaluates.
+    pub(in crate::engine) fn static_type_modifier_supported(modifier: &Value) -> bool {
+        let condition = modifier.get("condition").is_none_or(condition_supported);
+        match value_kind(modifier) {
+            Some("setCardTypes") => {
+                static_object_selector_supported(&modifier["objects"])
+                    && condition
+                    && modifier["cardTypes"].as_array().is_some_and(|types| {
+                        !types.is_empty()
+                            && types.iter().all(|card_type| {
+                                card_type
+                                    .as_str()
+                                    .is_some_and(|value| PERMANENT_CARD_TYPES.contains(&value))
+                            })
+                    })
+            }
+            Some("modifySubtypeSet") => {
+                static_object_selector_supported(&modifier["objects"])
+                    && condition
+                    && modifier["subtypeClass"].as_str() == Some("creature")
+                    && match modifier["mode"].as_str() {
+                        Some("replace") => modifier["subtypes"].as_array().is_some_and(|values| {
+                            !values.is_empty()
+                                && values.iter().all(|value| {
+                                    value
+                                        .as_str()
+                                        .is_some_and(object_predicate::is_creature_subtype)
+                                })
+                        }),
+                        Some("all") => modifier.get("subtypes").is_none(),
+                        _ => false,
+                    }
+            }
+            _ => false,
+        }
+    }
+
+    /// The active static layer-4 modifiers of one kind that apply to the
+    /// permanent, in battlefield order.
+    fn static_type_modifiers_for(&self, permanent: &CardInstance, kind: &str) -> Vec<Value> {
+        self.battlefield_static_modifiers()
+            .into_iter()
+            .filter(|(source, modifier)| {
+                value_kind(modifier) == Some(kind)
+                    && Self::static_selector_matches(source, &modifier["objects"], permanent)
+                    && modifier.get("condition").is_none_or(|condition| {
+                        self.condition_value_with_source(
+                            condition,
+                            &source.controller,
+                            &BTreeMap::new(),
+                            Some(source),
+                        )
+                    })
+            })
+            .map(|(_, modifier)| modifier)
+            .collect()
+    }
+
+    /// CR 205.1a: the card types a static `setCardTypes` gives the
+    /// permanent, replacing its printed or recorded card types. The latest
+    /// applicable modifier in battlefield order wins.
+    pub(in crate::engine) fn static_card_type_set(
+        &self,
+        permanent: &CardInstance,
+    ) -> Option<Vec<String>> {
+        self.static_type_modifiers_for(permanent, "setCardTypes")
+            .last()
+            .map(|modifier| {
+                modifier["cardTypes"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect()
+            })
+    }
+
+    /// Whether the static layer-4 modifiers decide the permanent's membership
+    /// in `subtype`: `Some(true)` when a creature-type set gives it,
+    /// `Some(false)` when a creature-type replacement or a card-type set
+    /// removes it and no additive modifier gives it back, `None` when they
+    /// say nothing (the printed and recorded reading decides).
+    pub(in crate::engine) fn static_subtype_membership(
+        &self,
+        permanent: &CardInstance,
+        subtype: &str,
+    ) -> Option<bool> {
+        let class = super::super::subtypes::registered_subtype_class(subtype)?;
+        let set_types = self.static_card_type_set(permanent);
+        let corresponds = |card_type: &str| {
+            set_types
+                .as_ref()
+                .is_none_or(|types| types.iter().any(|value| value == card_type))
+        };
+        let removed_by_card_types = match class {
+            "creature" => !corresponds("Creature"),
+            "land" => !corresponds("Land"),
+            _ => false,
+        };
+        let mut decided = removed_by_card_types.then_some(false);
+        if class == "creature" && !removed_by_card_types && self.permanent_is_creature(permanent) {
+            for modifier in self.static_type_modifiers_for(permanent, "modifySubtypeSet") {
+                if modifier["subtypeClass"].as_str() != Some("creature") {
+                    continue;
+                }
+                decided = Some(match modifier["mode"].as_str() {
+                    Some("all") => true,
+                    _ => modifier["subtypes"].as_array().is_some_and(|values| {
+                        values.iter().any(|value| {
+                            value
+                                .as_str()
+                                .is_some_and(|value| value.eq_ignore_ascii_case(subtype))
+                        })
+                    }),
+                });
+            }
+        }
+        if decided == Some(false)
+            && self
+                .static_type_modifiers_for(permanent, "addSubtype")
+                .iter()
+                .any(|modifier| {
+                    modifier["subtype"]
+                        .as_str()
+                        .is_some_and(|value| value.eq_ignore_ascii_case(subtype))
+                })
+        {
+            // A later additive change gives the subtype back (CR 205.1b).
+            return None;
+        }
+        decided
+    }
+}

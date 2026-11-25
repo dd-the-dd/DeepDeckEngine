@@ -347,6 +347,32 @@ fn compose_card_rules_with_sources(
             compose_other_target_relation_for_source(rule, source_heads.as_deref());
             super::effects::lift_target_set_constraints(rule);
         }
+        if ability
+            .rule
+            .as_ref()
+            .is_some_and(super::effects::holds_unlifted_set_constraint)
+        {
+            let length = ability.source.text.len();
+            ability.status = "unsupported".to_string();
+            ability.rule = None;
+            ability.diagnostics.push(ParserDiagnostic {
+                code: "oracle_card_composition_failure".to_string(),
+                message: "A set constraint (`that share ...`, `with different ...`, `with total ...`) applies only to a declared target set or a resolution choice; a collection filter has no chosen set to check (CR 601.2c, 608.2c).".to_string(),
+                severity: "unsupported".to_string(),
+                automaton: Some("card-set-constraint-composition".to_string()),
+                state: Some("composition.set-constraint.chosen-set".to_string()),
+                token_index: None,
+                span_start: Some(0),
+                span_end: Some(length),
+                expected: Some(
+                    "a set constraint on a declared target set or a resolution choice"
+                        .to_string(),
+                ),
+                found: None,
+                trace: Vec::new(),
+                owner: None,
+            });
+        }
     }
     link_exiles_to_linked_readers(abilities);
     super::effects::validate_bestow_attachment_subjects(abilities);

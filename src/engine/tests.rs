@@ -41,6 +41,10 @@ mod rebound_runtime;
 mod object_to_zone_frame_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/zone_move_collections_runtime.rs"]
+mod zone_move_collections_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/effect_coordination_runtime.rs"]
 mod effect_coordination_runtime;
 
@@ -139,6 +143,10 @@ mod arcane_denial_runtime;
 #[path = "tests/effect_created_rules_runtime.rs"]
 mod effect_created_rules_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/replacement_vocabulary_runtime.rs"]
+mod replacement_vocabulary_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/counter_protection_runtime.rs"]
 mod counter_protection_runtime;
@@ -166,6 +174,10 @@ mod state_condition_atoms_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/static_characteristics_runtime.rs"]
 mod static_characteristics_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/static_continuous_family_runtime.rs"]
+mod static_continuous_family_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/animation_layers_runtime.rs"]
@@ -340,6 +352,10 @@ mod damage_event_model_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/zone_change_event_model_runtime.rs"]
 mod zone_change_event_model_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/event_slot_tails_runtime.rs"]
+mod event_slot_tails_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/cast_event_model_runtime.rs"]
@@ -16441,10 +16457,6 @@ fn reflecting_pool_derives_unique_types_without_recursive_bootstrap() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Fertile Ground; see docs/coverage-targets.md"
-)]
 #[test]
 fn enchanted_land_mana_triggers_are_folded_into_the_mana_action() {
     let mut engine = test_engine(2);
@@ -27219,10 +27231,6 @@ fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: The Lord of the Eagles; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -33228,6 +33236,9 @@ mod verb_lexicon_rows_runtime;
 #[path = "tests/random_outcome_runtime.rs"]
 mod random_outcome_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/choice_quantity_runtime.rs"]
+mod choice_quantity_runtime;
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

@@ -50,6 +50,12 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         ordinal: i64,
         period: DrawPeriod,
     },
+    /// `a player|an opponent draws their Nth card each turn` (CR 121.2):
+    /// the same per-turn draw ordinal, counted for a third-person drawer.
+    PlayerOrdinalCardDrawn {
+        player: PlayerPredicate,
+        ordinal: i64,
+    },
     /// `the last KIND counter is removed from SOURCE` (CR 122.8, 702.63a):
     /// the removal that leaves the source with no counter of that kind.
     LastCounterRemoved {
@@ -75,6 +81,9 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         card: Option<super::PlayerEventCardObject>,
         /// The permanent of `tap PERMANENT for mana`.
         permanent: Option<super::PlayerEventCardObject>,
+        /// `for the first time each turn`: only the first occurrence of
+        /// this event in a turn (the shared modifier tail).
+        first_time_each_turn: bool,
     },
     /// `equipped|enchanted creature VERB`: the event subject is the object the
     /// ability source is attached to (CR 301.5a, 303.4a), not the source.
@@ -402,10 +411,7 @@ fn recognize_attached_object_predicate(
         cursor.enter("event.attached-object.became-target");
         cursor.consume("becomes")?;
         super::consume_targeting_relation(cursor)?;
-        let stack = super::recognize_targeting_stack_selector(
-            cursor,
-            super::TargetingControllerPolicy::Optional,
-        )?;
+        let stack = super::recognize_targeting_stack_selector(cursor)?;
         return Ok(LocalTriggerEventNode::AttachedObjectTargeted { role, stack });
     }
     // `is dealt [combat|noncombat] damage`: the shared passive damage
@@ -638,7 +644,43 @@ enum OrdinalDrawState {
     Complete,
 }
 
-/// Recognizes `you draw your Nth card in a turn|each turn` as one reusable
+/// The drawing player of an ordinal draw: `you` (second person, `draw
+/// your`), or `a player` / `an opponent` (third person, `draws their`).
+/// Reads the article and role through the shared player-role vocabulary.
+fn recognize_ordinal_drawer(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<PlayerPredicate>> {
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+    {
+        cursor.consume("you")?;
+        return Ok(None);
+    }
+    let article = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .filter(|raw| raw == "a" || raw == "an")
+        .ok_or_else(|| cursor.fail("`you`, `a player` or `an opponent`"))?;
+    cursor.consume(&article)?;
+    let token = cursor
+        .peek_token()
+        .ok_or_else(|| cursor.fail("a supported player role"))?;
+    let role =
+        lookup_player_role(&token.raw).ok_or_else(|| cursor.fail("a supported player role"))?;
+    cursor.require(
+        matches!(
+            (article.as_str(), role),
+            ("a", PlayerRole::Any) | ("an", PlayerRole::Opponent)
+        ),
+        "the normalized article for the player role",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    Ok(Some(player_predicate(role)))
+}
+
+/// Recognizes `you draw your Nth card in a turn|each turn`, or the third
+/// person `a player|an opponent draws their Nth card ...`, as one reusable
 /// event atom (CR 121.2: the ordinal counts the draws in the current turn).
 /// Trigger words and the trailing comma remain parent-owned.
 pub(in crate::oracle::canonical) fn recognize_ordinal_card_drawn_event(
@@ -646,21 +688,23 @@ pub(in crate::oracle::canonical) fn recognize_ordinal_card_drawn_event(
 ) -> MachineResult<LocalTriggerEventNode> {
     let mut state = OrdinalDrawState::Player;
     let mut ordinal = None;
+    // `None`: the second-person `you`.
+    let mut drawer = None;
     loop {
         state = match state {
             OrdinalDrawState::Player => {
                 cursor.enter("event.ordinal-card-drawn.player");
-                cursor.consume("you")?;
+                drawer = recognize_ordinal_drawer(cursor)?;
                 OrdinalDrawState::Action
             }
             OrdinalDrawState::Action => {
                 cursor.enter("event.ordinal-card-drawn.action");
-                cursor.consume("draw")?;
+                cursor.consume(if drawer.is_some() { "draws" } else { "draw" })?;
                 OrdinalDrawState::Possessive
             }
             OrdinalDrawState::Possessive => {
                 cursor.enter("event.ordinal-card-drawn.possessive");
-                cursor.consume("your")?;
+                cursor.consume(if drawer.is_some() { "their" } else { "your" })?;
                 OrdinalDrawState::Ordinal
             }
             OrdinalDrawState::Ordinal => {
@@ -699,6 +743,12 @@ pub(in crate::oracle::canonical) fn recognize_ordinal_card_drawn_event(
             }
             OrdinalDrawState::Complete => {
                 cursor.enter("event.ordinal-card-drawn.complete");
+                if let Some(player) = drawer {
+                    return Ok(LocalTriggerEventNode::PlayerOrdinalCardDrawn {
+                        player,
+                        ordinal: cursor.require_value(ordinal, "a draw ordinal")?,
+                    });
+                }
                 return Ok(LocalTriggerEventNode::OrdinalCardDrawn {
                     player: LocalPlayerReference::Controller,
                     ordinal: cursor.require_value(ordinal, "a draw ordinal")?,

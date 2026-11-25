@@ -902,7 +902,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "lower.optional-draw.count"
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
           }
         ]
       }

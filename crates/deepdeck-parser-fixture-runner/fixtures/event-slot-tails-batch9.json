@@ -1,0 +1,977 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "event-slot-tails-batch9",
+  "cases": [
+    {
+      "id": "exact-repercussion-any-controller-damaged-creature",
+      "request": {
+        "cardName": "Repercussion",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Whenever a creature is dealt damage, this enchantment deals that much damage to that creature's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/event/recipient/kind",
+                "equals": "permanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-death-pits-of-rath-damaged-creature-is-the-event-object",
+      "request": {
+        "cardName": "Death Pits of Rath",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Whenever a creature is dealt damage, destroy it. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/lemma",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/event/recipient/kind",
+                "equals": "permanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-carnage-gladiator-any-controller-blocker",
+      "request": {
+        "cardName": "Carnage Gladiator",
+        "typeLine": "Creature — Skeleton Warrior",
+        "manaCost": "{2}{B}{R}",
+        "oracleText": "Whenever a creature blocks, that creature's controller loses 1 life.\n{1}{B}{R}: Regenerate this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "block"
+              },
+              {
+                "pointer": "/event/subject/role",
+                "equals": "blocker"
+              },
+              {
+                "pointer": "/event/subject/object/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-spined-sliver-any-controller-blocked-attacker",
+      "request": {
+        "cardName": "Spined Sliver",
+        "typeLine": "Creature — Sliver",
+        "manaCost": "{R}{G}",
+        "oracleText": "Whenever a Sliver becomes blocked, that Sliver gets +1/+1 until end of turn for each creature blocking it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-imperial-cosmographer-leaves-without-dying",
+      "request": {
+        "cardName": "Imperial Cosmographer",
+        "typeLine": "Creature — Kree Scientist",
+        "manaCost": "{2}{U}",
+        "oracleText": "Vigilance\nWhenever another creature you control leaves the battlefield without dying, put two +1/+1 counters on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/lemma",
+                "equals": "move"
+              },
+              {
+                "pointer": "/event/from",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/event/withoutDying",
+                "equals": true
+              },
+              {
+                "pointer": "/event/subject/object/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dour-port-mage-one-or-more-leave-without-dying",
+      "request": {
+        "cardName": "Dour Port-Mage",
+        "typeLine": "Creature — Frog Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever one or more other creatures you control leave the battlefield without dying, draw a card.\n{1}{U}, {T}: Return another target creature you control to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/withoutDying",
+                "equals": true
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "oneOrMore"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-disa-the-restless-excluded-graveyard-origin",
+      "request": {
+        "cardName": "Disa the Restless",
+        "typeLine": "Legendary Creature — Human Scout",
+        "manaCost": "{2}{B}{R}{G}",
+        "oracleText": "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere other than the battlefield, put it onto the battlefield.\nWhenever one or more creatures you control deal combat damage to a player, create a Tarmogoyf token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "token.named.catalog-identity"
+          }
+        ],
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/fromNot",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/event/to",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-windshaper-planetar-step-window-is-an-engine-gap",
+      "request": {
+        "cardName": "Windshaper Planetar",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{4}{W}",
+        "oracleText": "Flash\nFlying\nWhen this creature enters during the declare attackers step, for each attacking creature, you may reselect which player or permanent that creature is attacking. (It can't attack its controller or their permanents.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-curse-of-shallow-graves-enchanted-player-recipient",
+      "request": {
+        "cardName": "Curse of Shallow Graves",
+        "typeLine": "Enchantment — Aura Curse",
+        "manaCost": "{2}{B}",
+        "oracleText": "Enchant player\nWhenever a player attacks enchanted player with one or more creatures, that attacking player may create a tapped 2/2 black Zombie creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-horobi-any-controller-targeted-creature",
+      "request": {
+        "cardName": "Horobi, Death's Wail",
+        "typeLine": "Legendary Creature — Spirit",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Flying\nWhenever a creature becomes the target of a spell or ability, destroy that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "becameTarget"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/event/targetingStackObject/kind",
+                "equals": "stackItems"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-faerie-mastermind-third-person-draw-ordinal",
+      "request": {
+        "cardName": "Faerie Mastermind",
+        "typeLine": "Creature — Faerie Rogue",
+        "manaCost": "{1}{U}",
+        "oracleText": "Flash\nFlying\nWhenever an opponent draws their second card each turn, you draw a card.\n{3}{U}: Each player draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "cardDrawn"
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              },
+              {
+                "pointer": "/event/drawOrdinal",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wavebreak-hippocamp-distributive-turn-owner",
+      "request": {
+        "cardName": "Wavebreak Hippocamp",
+        "typeLine": "Enchantment Creature — Horse Fish",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you cast your first spell during each opponent's turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/spellCastOrdinal",
+                "equals": 1
+              },
+              {
+                "pointer": "/event/duringOpponentTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-brigone-spell-targets-the-named-source",
+      "request": {
+        "cardName": "Brigone, Soldier of Meletis",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "Vigilance\nHeroic — Whenever you cast a spell that targets Brigone, put a +1/+1 counter on Brigone.\n{T}, Remove a +1/+1 counter from Brigone: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/targets/anyOf/0/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-daemogoth-woe-eater-sacrificed-source",
+      "request": {
+        "cardName": "Daemogoth Woe-Eater",
+        "typeLine": "Creature — Demon",
+        "manaCost": "{1}{B}{B/G}{G}",
+        "oracleText": "At the beginning of your upkeep, sacrifice a creature.\nWhen you sacrifice this creature, each opponent discards a card, you draw a card, and you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentSacrificed"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-forge-boss-sacrifice-batch-is-an-engine-gap",
+      "request": {
+        "cardName": "Forge Boss",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{2}{B}{R}",
+        "oracleText": "Whenever you sacrifice one or more other creatures, this creature deals 2 damage to each opponent. This ability triggers only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-duelists-heritage-any-controller-attack-batch-is-an-engine-gap",
+      "request": {
+        "cardName": "Duelist's Heritage",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever one or more creatures attack, you may have target attacking creature gain double strike until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponents-creature-dealt-damage-during-your-turn",
+      "request": {
+        "cardName": "Composition Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a creature an opponent controls is dealt damage during your turn, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/recipient/controller/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/eventCondition/kind",
+                "equals": "duringControllerTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponents-creature-blocks",
+      "request": {
+        "cardName": "Block Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a creature an opponent controls blocks, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/lemma",
+                "equals": "block"
+              },
+              {
+                "pointer": "/event/subject/object/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-noncombat-damage-to-any-artifact-creature",
+      "request": {
+        "cardName": "Noncombat Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever an artifact creature is dealt noncombat damage, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/lemma",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/event/noncombatOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-this-artifact-or-another-artifact",
+      "request": {
+        "cardName": "Sacrifice Probe",
+        "typeLine": "Artifact",
+        "manaCost": "",
+        "oracleText": "Whenever you sacrifice this artifact or another artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/event/events/1/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-the-named-source",
+      "request": {
+        "cardName": "Probe Totem",
+        "typeLine": "Artifact",
+        "manaCost": "",
+        "oracleText": "When you sacrifice Probe Totem, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentSacrificed"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-player-draws-their-third-card",
+      "request": {
+        "cardName": "Draw Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a player draws their third card each turn, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/anyPlayer",
+                "equals": true
+              },
+              {
+                "pointer": "/event/drawOrdinal",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-your-second-spell-during-each-of-your-turns",
+      "request": {
+        "cardName": "Cast Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever you cast your second spell during each of your turns, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/spellCastOrdinal",
+                "equals": 2
+              },
+              {
+                "pointer": "/event/duringControllerTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-combat-damage-to-one-of-your-opponents",
+      "request": {
+        "cardName": "Partitive Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a creature deals combat damage to one of your opponents, you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "damageDealtBySource"
+              },
+              {
+                "pointer": "/event/recipient/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-another-permanent-targeted-by-an-opponent",
+      "request": {
+        "cardName": "Target Probe",
+        "typeLine": "Creature — Bird",
+        "manaCost": "",
+        "oracleText": "Whenever another permanent you control becomes the target of a spell or ability an opponent controls, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/object/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/event/targetingStackObject/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-casts-from-their-hand",
+      "request": {
+        "cardName": "Origin Cast Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever an opponent casts a spell from their hand, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/fromZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-the-named-source-from-your-hand",
+      "request": {
+        "cardName": "Probe Caller",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "",
+        "oracleText": "When you cast Probe Caller from your hand, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/sourceIsSelf",
+                "equals": true
+              },
+              {
+                "pointer": "/event/fromZone",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-graveyard-arrival-other-than-your-library",
+      "request": {
+        "cardName": "Arrival Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a creature card is put into your graveyard from anywhere other than your library, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/fromNot",
+                "equals": "library"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attacks-enchanted-player-with-an-unread-quantifier",
+      "request": {
+        "cardName": "Curse Probe",
+        "typeLine": "Enchantment — Aura Curse",
+        "manaCost": "",
+        "oracleText": "Enchant player\nWhenever a player attacks enchanted player with three creatures, you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-without-dying-after-a-graveyard-departure",
+      "request": {
+        "cardName": "Dying Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a creature card leaves your graveyard without dying, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.qualifier.without-dying"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-without-dying-after-a-death",
+      "request": {
+        "cardName": "Death Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a creature you control dies without dying, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.qualifier.without-dying"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-other-than-without-from-anywhere",
+      "request": {
+        "cardName": "Exclusion Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever a creature card is put into your graveyard from your hand other than the battlefield, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ordinal-with-a-single-turn-owner-keeps-its-period",
+      "request": {
+        "cardName": "Period Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Whenever you cast your first spell during an opponent's turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.spell-cast.ordinal-period"
+          }
+        ]
+      }
+    }
+  ]
+}

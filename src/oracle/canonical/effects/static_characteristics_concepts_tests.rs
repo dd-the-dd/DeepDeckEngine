@@ -201,11 +201,30 @@ fn copula_type_changes_compose_subject_number_types_and_retention() {
         }])
     );
 
-    // Near misses: a replacing land subtype on non-lands, copula agreement,
-    // and a replacing card-type change without a battlefield primitive.
+    // A written card type replaces the old ones (CR 205.1a): the static
+    // `setCardTypes` primitive over the same shared collection.
+    let replaced = rule(
+        "Probe",
+        "Enchantment",
+        "Creatures you control are artifacts.",
+    );
+    let modifiers = static_modifiers(&replaced);
+    assert_eq!(modifiers[0]["kind"], "setCardTypes", "{replaced:#}");
+    assert_eq!(
+        modifiers[0]["cardTypes"],
+        json!(["Artifact"]),
+        "{replaced:#}"
+    );
+    assert_eq!(
+        modifiers[0]["objects"]["where"],
+        json!({ "kind": "cardTypeContains", "value": "Creature" }),
+        "{replaced:#}"
+    );
+
+    // Near misses: a replacing land subtype on non-lands and copula
+    // agreement.
     rejected("Enchantment", "Nontoken creatures are Mountains.");
     rejected("Enchantment", "Lands you control is a Forest.");
-    rejected("Enchantment", "Creatures you control are artifacts.");
 }
 
 #[test]

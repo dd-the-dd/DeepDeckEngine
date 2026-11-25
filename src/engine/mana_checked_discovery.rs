@@ -122,12 +122,17 @@ impl GameEngine {
                             // ordinary trigger that waits for the stack.
                             && adds_mana(&rule["effects"])
                             && self.rule_active_for_source(attachment, rule)
+                            // CR 605.4a: a triggered mana ability resolves at
+                            // once, as part of the mana ability that triggered
+                            // it; the shared planner folds its typed output
+                            // into this permanent's production.
+                            && !attached_mana_program_typed(rule)
                     })
             })
         {
             return Err(fail(
                 "mana.discovery.attached-program",
-                "typed trigger timing/recipient context required",
+                "an attached mana trigger whose every action adds mana to the enchanted permanent's controller",
             ));
         }
         if self.permanent_loses_all_abilities(source) {
@@ -211,6 +216,16 @@ impl GameEngine {
                            actual_source: Option<&CardInstance>| {
             let actual_source = actual_source
                 .ok_or_else(|| fail("mana.discovery.source-context", "missing value source"))?;
+            // An amount the activation declares (`Remove any number of
+            // storage counters ...: Add {C} for each storage counter removed
+            // this way`) is unknown until that declaration is made and its
+            // costs are paid. Its production is never a string, so it is a
+            // post-cost program: the declared action is refined from its own
+            // decisions after the costs (`refine_postcost_mana_actions`).
+            // Discovery declares no output for it rather than a guess.
+            if include_nontrivial_costs && rule_contains_kind(value, "decisionResult") {
+                return Ok(vec![Vec::new()]);
+            }
             match context
                 .executable_outputs(value, controller, actual_source)
                 .map_err(|failure| failure.into_engine_error())?
@@ -350,6 +365,47 @@ impl GameEngine {
             Instant::now(),
         )
     }
+}
+
+/// The controller of the permanent the trigger's source is attached to
+/// (`its controller`, CR 605.1b): the player the mana ability's own output
+/// is credited to.
+fn attached_permanent_controller(player: &Value) -> bool {
+    match value_kind(player) {
+        Some("controllerOfAttachedPermanent") => value_kind(&player["attachment"]) == Some("self"),
+        Some("controllerOf") => {
+            let object = &player["object"];
+            match value_kind(object) {
+                Some("triggeringPermanent") => true,
+                Some("attachedPermanent") => value_kind(&object["attachment"]) == Some("self"),
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// A triggered mana ability of an attachment (CR 605.1b) that the planner
+/// folds into the enchanted permanent's mana ability: an unconditional
+/// program whose every action adds mana to that permanent's controller,
+/// with no declaration (no target, CR 605.1b) and no other attribute.
+fn attached_mana_program_typed(rule: &Value) -> bool {
+    rule.get("condition").is_none()
+        && rule.get("eventCondition").is_none()
+        && rule.get("declaration").is_none()
+        && rule.get("triggerLimit").is_none()
+        && rule["effects"].as_array().is_some_and(|effects| {
+            !effects.is_empty()
+                && effects.iter().all(|effect| {
+                    value_kind(effect) == Some("addMana")
+                        && attached_permanent_controller(&effect["player"])
+                        && effect.as_object().is_some_and(|fields| {
+                            fields
+                                .keys()
+                                .all(|key| matches!(key.as_str(), "kind" | "player" | "mana"))
+                        })
+                })
+        })
 }
 
 /// Whether a lowered program adds mana anywhere in its nested effects.

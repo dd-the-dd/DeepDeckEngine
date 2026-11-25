@@ -182,9 +182,13 @@ fn trailing_sentence_fails_full_consumption_after_reduction_metadata() {
 
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
+    // The labeled zone-change family claims only a complete reading; the
+    // shared activated-ability parser then owns the unconsumed sentence.
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("activation.labeled.complete")
+        Some("activation.effect-sequence.complete"),
+        "{:#?}",
+        ability.diagnostics
     );
     assert_eq!(ability.diagnostics[0].found.as_deref(), Some("Draw"));
 }

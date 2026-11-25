@@ -1,0 +1,477 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "antecedent-environment-batch9",
+  "cases": [
+    {
+      "id": "exact-nightmare-shepherd-copy-of-departed-event-object",
+      "request": {
+        "cardName": "Nightmare Shepherd",
+        "typeLine": "Enchantment Creature \u2014 Demon",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Flying\nWhenever another nontoken creature you control dies, you may exile it. If you do, create a token that's a copy of that creature, except it's 1/1 and it's a Nightmare in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-genestealer-patriarch-copy-of-departed-event-object",
+      "request": {
+        "cardName": "Genestealer Patriarch",
+        "typeLine": "Creature \u2014 Tyranid",
+        "manaCost": "{4}{U}",
+        "oracleText": "Genestealer's Kiss \u2014 Whenever this creature attacks, put an infection counter on target creature defending player controls.\nChildren of the Cult \u2014 Whenever a creature with an infection counter on it dies, you create a token that's a copy of that creature, except it's a Tyranid in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-tapped-copy-of-departed-creature",
+      "request": {
+        "cardName": "Copy Probe",
+        "typeLine": "Creature \u2014 Spirit",
+        "manaCost": "{2}",
+        "oracleText": "Whenever another creature you control dies, create a tapped token that's a copy of that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/object/kind",
+                "equals": "triggeringPermanent"
+              },
+              {
+                "pointer": "/effects/0/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-of-card-without-card-producer",
+      "request": {
+        "cardName": "Copy Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Draw a card. Create a token that's a copy of that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "copy.object.card-antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-prototype-portal-linked-exiled-card-copy",
+      "request": {
+        "cardName": "Prototype Portal",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "Imprint \u2014 When this artifact enters, you may exile an artifact card from your hand.\n{X}, {T}: Create a token that's a copy of the exiled card. X is the mana value of that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "copy.object.participle"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-frightful-delusion-unless-payer-is-that-player",
+      "request": {
+        "cardName": "Frightful Delusion",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Counter target spell unless its controller pays {1}. That player discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-that-player-without-player-producer",
+      "request": {
+        "cardName": "Player Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. That player discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-great-oak-guardian-them-names-the-collection",
+      "request": {
+        "cardName": "Great Oak Guardian",
+        "typeLine": "Creature \u2014 Treefolk",
+        "manaCost": "{5}{G}",
+        "oracleText": "Flash (You may cast this spell any time you could cast an instant.)\nReach\nWhen this creature enters, creatures target player controls get +2/+2 until end of turn. Untap them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-rallying-roar-them-names-the-collection",
+      "request": {
+        "cardName": "Rallying Roar",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures you control get +1/+1 until end of turn. Untap them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-leos-guidance-them-names-the-declared-set",
+      "request": {
+        "cardName": "Leo's Guidance",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Put a +1/+1 counter on each of up to three target creatures. Untap them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-them-names-a-declared-target-set",
+      "request": {
+        "cardName": "Set Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Up to two target creatures each get +1/+1 until end of turn. Untap them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-them-without-object-set",
+      "request": {
+        "cardName": "Set Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. Untap them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-uninvited-geist-transform-it-names-the-source",
+      "request": {
+        "cardName": "Uninvited Geist // Unimpeded Trespasser",
+        "typeLine": "Creature \u2014 Spirit // Creature \u2014 Spirit",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "4dea7c9f-ce66-447b-9f1b-d9bca5806153:face-0",
+            "name": "Uninvited Geist",
+            "typeLine": "Creature \u2014 Spirit",
+            "manaCost": "{2}{U}",
+            "oracleText": "Skulk (This creature can't be blocked by creatures with greater power.)\nWhen this creature deals combat damage to a player, transform it.",
+            "power": "2",
+            "toughness": "2",
+            "loyalty": null
+          },
+          {
+            "id": "4dea7c9f-ce66-447b-9f1b-d9bca5806153:face-1",
+            "name": "Unimpeded Trespasser",
+            "typeLine": "Creature \u2014 Spirit",
+            "manaCost": "",
+            "oracleText": "This creature can't be blocked.",
+            "power": "3",
+            "toughness": "3",
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-cecil-untap-and-transform-it",
+      "request": {
+        "cardName": "Cecil, Dark Knight // Cecil, Redeemed Paladin",
+        "typeLine": "Legendary Creature \u2014 Human Knight // Legendary Creature \u2014 Human Knight",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "026e7167-d665-43d0-a51e-8df2d68cdb5e:face-0",
+            "name": "Cecil, Dark Knight",
+            "typeLine": "Legendary Creature \u2014 Human Knight",
+            "manaCost": "{B}",
+            "oracleText": "Deathtouch\nDarkness \u2014 Whenever Cecil deals damage, you lose that much life. Then if your life total is less than or equal to half your starting life total, untap Cecil and transform it.",
+            "power": "2",
+            "toughness": "3",
+            "loyalty": null
+          },
+          {
+            "id": "026e7167-d665-43d0-a51e-8df2d68cdb5e:face-1",
+            "name": "Cecil, Redeemed Paladin",
+            "typeLine": "Legendary Creature \u2014 Human Knight",
+            "manaCost": "",
+            "oracleText": "Lifelink\nProtect \u2014 Whenever Cecil attacks, other attacking creatures gain indestructible until end of turn.",
+            "power": "4",
+            "toughness": "4",
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-grasping-shadows-transform-it-after-source-counter",
+      "request": {
+        "cardName": "Grasping Shadows // Shadows' Lair",
+        "typeLine": "Enchantment // Land \u2014 Cave",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "81b8b9c9-725d-476d-a3cf-55e3dc3e433d:face-0",
+            "name": "Grasping Shadows",
+            "typeLine": "Enchantment",
+            "manaCost": "{3}{B}",
+            "oracleText": "Whenever a creature you control attacks alone, it gains deathtouch and lifelink until end of turn. Put a dread counter on this enchantment. Then if there are three or more dread counters on it, transform it.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          },
+          {
+            "id": "81b8b9c9-725d-476d-a3cf-55e3dc3e433d:face-1",
+            "name": "Shadows' Lair",
+            "typeLine": "Land \u2014 Cave",
+            "manaCost": "",
+            "oracleText": "(Transforms from Grasping Shadows.)\n{T}: Add {B}.\n{B}, {T}, Remove a dread counter from this land: You draw a card and you lose 1 life.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-dreadful-apathy-exile-enchanted-creature",
+      "request": {
+        "cardName": "Dreadful Apathy",
+        "typeLine": "Enchantment \u2014 Aura",
+        "manaCost": "{2}{W}",
+        "oracleText": "Enchant creature\nEnchanted creature can't attack or block.\n{2}{W}: Exile enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-cooped-up-exile-enchanted-creature",
+      "request": {
+        "cardName": "Cooped Up",
+        "typeLine": "Enchantment \u2014 Aura",
+        "manaCost": "{1}{W}",
+        "oracleText": "Enchant creature\nEnchanted creature can't attack or block.\n{2}{W}: Exile enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-yoke-of-the-damned-destroy-enchanted-creature",
+      "request": {
+        "cardName": "Yoke of the Damned",
+        "typeLine": "Enchantment \u2014 Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Enchant creature\nWhen a creature dies, destroy enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-upkeep-exile-enchanted-creature",
+      "request": {
+        "cardName": "Aura Probe",
+        "typeLine": "Enchantment \u2014 Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nAt the beginning of your upkeep, exile enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-equipment-has-no-enchanted-creature",
+      "request": {
+        "cardName": "Equipment Probe",
+        "typeLine": "Artifact \u2014 Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equip {2}\n{2}: Exile enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-misthios-fury-also-deals",
+      "request": {
+        "cardName": "Misthios's Fury",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Misthios's Fury deals 3 damage to target creature. If you control an Equipment, Misthios's Fury also deals 2 damage to that creature's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-rending-flame-also-deals",
+      "request": {
+        "cardName": "Rending Flame",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "Rending Flame deals 5 damage to target creature or planeswalker. If that permanent is a Spirit, Rending Flame also deals 2 damage to that permanent's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "known-gap-exact-heated-argument-also-deals-after-outcome",
+      "request": {
+        "cardName": "Heated Argument",
+        "typeLine": "Instant",
+        "manaCost": "{4}{R}",
+        "oracleText": "Heated Argument deals 6 damage to target creature. You may exile a card from your graveyard. If you do, Heated Argument also deals 2 damage to that creature's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-subject.object-relation.antecedent"
+          }
+        ]
+      }
+    }
+  ]
+}

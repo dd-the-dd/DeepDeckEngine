@@ -216,6 +216,17 @@ fn lower_object_predicate(
     }
 }
 
+/// One numeric property of the candidate under test, as a comparison
+/// operand.
+fn candidate_property(property: SelectorNumericProperty) -> Value {
+    let kind = match property {
+        SelectorNumericProperty::ManaValue => "manaValueOf",
+        SelectorNumericProperty::Power => "powerOf",
+        SelectorNumericProperty::Toughness => "toughnessOf",
+    };
+    json!({ "kind": kind, "object": { "kind": "candidate" } })
+}
+
 fn numeric_property_ir_name(property: SelectorNumericProperty) -> &'static str {
     match property {
         SelectorNumericProperty::ManaValue => "manaValue",
@@ -263,6 +274,23 @@ fn lower_object_qualifier(qualifier: &ObjectQualifier, domain: ObjectPredicateDo
             "property": numeric_property_ir_name(*property),
             "value": lower_numeric_expression(maximum).unwrap_or(Value::Null),
         }),
+        // A relation of the permanent to the player who controlled it as it
+        // entered (CR 110.2a); the engine resolves the role at preparation.
+        ObjectQualifier::EnteredUnderControlThisTurn(player) => json!({
+            "kind": "enteredUnderControlThisTurn",
+            "player": player.ir_name(),
+        }),
+        // `toughness greater than its power`: both operands read the
+        // candidate under test (CR 208.1).
+        ObjectQualifier::CandidatePropertyComparison {
+            left,
+            operator,
+            right,
+        } => compare(
+            operator.ir_operator(),
+            candidate_property(*left),
+            candidate_property(*right),
+        ),
         ObjectQualifier::Extremum {
             property,
             extreme,
@@ -322,7 +350,7 @@ pub(in crate::oracle::canonical) fn lower_controlled_permanent_count(
 fn is_set_constraint_atom(atom: &Value) -> bool {
     matches!(
         atom["kind"].as_str(),
-        Some("distinctValues" | "totalAtMost" | "distinctPermanentControllers")
+        Some("distinctValues" | "totalAtMost" | "distinctPermanentControllers" | "sharedValue")
     )
 }
 
@@ -347,6 +375,30 @@ pub(in crate::oracle::canonical) fn lift_target_set_constraints(value: &mut Valu
         }
         Value::Array(items) => items.iter_mut().for_each(lift_target_set_constraints),
         _ => {}
+    }
+}
+
+/// Whether a candidate filter (`where`) still holds a set constraint after
+/// the declared target slots and resolution choices lifted theirs: such a
+/// filter names no chosen set (`Destroy all creatures that share a color`),
+/// so no selection can be checked against it (CR 601.2c, 608.2c).
+pub(in crate::oracle::canonical) fn holds_unlifted_set_constraint(value: &Value) -> bool {
+    fn contains_set_constraint(value: &Value) -> bool {
+        match value {
+            Value::Object(map) => {
+                is_set_constraint_atom(value) || map.values().any(contains_set_constraint)
+            }
+            Value::Array(items) => items.iter().any(contains_set_constraint),
+            _ => false,
+        }
+    }
+    match value {
+        Value::Object(map) => map.iter().any(|(key, child)| {
+            (key == "where" && contains_set_constraint(child))
+                || holds_unlifted_set_constraint(child)
+        }),
+        Value::Array(items) => items.iter().any(holds_unlifted_set_constraint),
+        _ => false,
     }
 }
 

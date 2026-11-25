@@ -242,6 +242,7 @@ impl GameEngine {
             Some(attacker_id.to_string()),
             json!({ "reason": "attack" }),
         );
+        self.publish_permanent_exerted(&action.player_id, attacker_id);
         if let Some(ability) = permission.get("reflexive") {
             self.state.rule_modifiers.push(json!({
                 "kind": PENDING_EXERT_REFLEXIVE,

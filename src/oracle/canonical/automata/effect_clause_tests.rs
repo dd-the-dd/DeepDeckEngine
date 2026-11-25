@@ -55,7 +55,9 @@ fn put_chooses_the_zone_frame_or_the_counters_frame_from_its_operand() {
 fn put_zone_frame_near_misses_fail_explicitly() {
     for text in [
         "Put two target creatures on top of their owners' libraries.",
-        "Put target creature on top of your library.",
+        // `on top of your library` is the owner's library (CR 400.3) and
+        // now reads as such; a separately declared library holder is not.
+        "Put target creature on top of target player's library.",
         "Put target creature into its owner's library.",
     ] {
         let parsed = parse_oracle_card(OracleCardParseRequest {

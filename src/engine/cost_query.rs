@@ -275,6 +275,28 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
         casting_source: Option<&CardInstance>,
     ) -> Result<i32, EngineError> {
+        self.checked_global_casting_cost_reductions(
+            player_id,
+            card,
+            source_zone,
+            decisions,
+            casting_source,
+        )
+        .map(|(generic, _)| generic)
+    }
+
+    /// The generic total and the colored reductions (CR 118.7b-c) the
+    /// battlefield, eminence, temporary and next-spell rules give a spell
+    /// of `player_id` while its total cost is determined (CR 601.2f).
+    pub(super) fn checked_global_casting_cost_reductions(
+        &self,
+        player_id: &str,
+        card: &CardDefinition,
+        source_zone: &str,
+        decisions: &BTreeMap<String, Value>,
+        casting_source: Option<&CardInstance>,
+    ) -> Result<(i32, Vec<casting_cost::ColoredCastingReduction>), EngineError> {
+        let mut colored = Vec::new();
         let base = CastingQueryContext::spell(card, player_id, decisions, casting_source);
         let mut modifiers = self.battlefield_static_modifiers();
         modifiers.extend(self.eminence_static_modifiers());
@@ -371,6 +393,14 @@ impl GameEngine {
             total = total
                 .checked_add(amount)
                 .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?;
+            if let Some(reduction) = modifier.get("coloredMana") {
+                let times = self.checked_cost_query_numeric(
+                    &reduction["times"],
+                    &context,
+                    "colored casting reduction multiplier",
+                )?;
+                colored.extend(casting_cost::colored_casting_reductions(reduction, times)?);
+            }
         }
         for modifier in &self.state.rule_modifiers {
             if value_kind(modifier) != Some("temporaryCastingCostReduction")
@@ -399,7 +429,10 @@ impl GameEngine {
                     .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?;
             }
         }
-        Ok(total.max(0))
+        total = total
+            .checked_add(self.one_shot_casting_cost_reduction(player_id, card))
+            .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?;
+        Ok((total.max(0), colored))
     }
 
     #[cfg(test)]

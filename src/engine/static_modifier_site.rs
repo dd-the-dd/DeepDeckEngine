@@ -34,6 +34,8 @@ fn characteristic_producer(modifier: &Value) -> bool {
         value_kind(modifier),
         Some(
             "addCardType"
+                | "setCardTypes"
+                | "modifySubtypeSet"
                 | "removeCardTypeWhile"
                 | "addSubtype"
                 | "setSubtypes"

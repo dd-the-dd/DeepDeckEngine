@@ -168,6 +168,12 @@ struct EventPattern {
     predicate: Option<Value>,
     #[serde(default)]
     counter: Option<String>,
+    /// `another creature you control`: a recipient other than the source.
+    #[serde(default)]
+    exclude_source: bool,
+    /// `on this creature`: the source itself as the recipient.
+    #[serde(default)]
+    object: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -218,6 +224,16 @@ fn parse_program(modifier: &Value) -> Option<Program> {
     {
         return None;
     }
+    if program
+        .event
+        .object
+        .as_ref()
+        .is_some_and(|object| value_kind(object) != Some("self"))
+        || ((program.event.object.is_some() || program.event.exclude_source)
+            && !matches!(program.event.kind, EventKind::CounterPlacement))
+    {
+        return None;
+    }
     match program.event.kind {
         EventKind::CounterPlacement => {
             if program.event.recipient_kind.as_deref() != Some("permanent")
@@ -242,6 +258,14 @@ fn parse_program(modifier: &Value) -> Option<Program> {
 pub(super) fn quantity_modifier_supported(modifier: &Value) -> Option<bool> {
     (value_kind(modifier) == Some("replaceEventQuantity"))
         .then(|| parse_program(modifier).is_some())
+}
+
+/// `Until end of turn, if one or more tokens would be created under your
+/// control, ...`: an effect-created quantity replacement (CR 611.2a) whose
+/// program is the static one's, through this turn.
+pub(super) fn created_quantity_replacement_supported(effect: &Value) -> bool {
+    parse_program(&effect["program"]).is_some()
+        && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
 }
 
 struct ApplicableProgram {
@@ -373,6 +397,61 @@ impl GameEngine {
         self.battlefield_static_modifiers()
             .iter()
             .any(|(_, m)| value_kind(m) == Some("replaceEventQuantity"))
+            || self
+                .state
+                .rule_modifiers
+                .iter()
+                .any(|modifier| self.created_quantity_replacement_active(modifier))
+    }
+
+    fn created_quantity_replacement_active(&self, modifier: &Value) -> bool {
+        value_kind(modifier) == Some("createdQuantityReplacement")
+            && modifier["expiresAfterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
+    }
+
+    /// Installs an effect-created quantity replacement for the controller
+    /// of the resolving object, through this turn (CR 611.2a).
+    pub(super) fn install_created_quantity_replacement(
+        &mut self,
+        effect: &Value,
+        stack_object: &super::StackObject,
+    ) {
+        self.state.rule_modifiers.push(serde_json::json!({
+            "kind": "createdQuantityReplacement",
+            "program": effect["program"].clone(),
+            "sourceCardInstanceId": stack_object.card.instance_id.clone(),
+            "controllerId": stack_object.controller.clone(),
+            "expiresAfterTurn": self.state.turn_number,
+        }));
+    }
+
+    /// The effect-created quantity replacements in force. Their player
+    /// relations read the creating effect's controller, whatever became of
+    /// its source since (CR 611.2c); the source's last known card carries
+    /// that perspective.
+    fn created_quantity_proposals(&self) -> Vec<ReplacementProposal<ApplicableProgram>> {
+        self.state
+            .rule_modifiers
+            .iter()
+            .enumerate()
+            .filter(|(_, modifier)| self.created_quantity_replacement_active(modifier))
+            .filter_map(|(ordinal, modifier)| {
+                let program = parse_program(&modifier["program"])?;
+                let source_id = modifier["sourceCardInstanceId"].as_str()?;
+                let mut source = self
+                    .permanent_position(source_id)
+                    .map(|(player, index)| &self.state.players[player].battlefield[index])
+                    .or_else(|| self.card_outside_battlefield(source_id))?
+                    .clone();
+                source.controller = modifier["controllerId"].as_str()?.to_string();
+                Some(ReplacementProposal {
+                    id: format!("{source_id}:createdQuantity:{ordinal}"),
+                    source_id: source_id.to_string(),
+                    source_name: source.definition.name.clone(),
+                    program: ApplicableProgram { source, program },
+                })
+            })
+            .collect()
     }
 
     /// Preserve the stack source and prepared objects if the provider refuses
@@ -434,10 +513,13 @@ impl GameEngine {
         }
         match (pattern.kind, event.recipient) {
             (EventKind::CounterPlacement, QuantityRecipient::Permanent { permanent, counter }) => {
-                pattern
-                    .counter
-                    .as_ref()
-                    .is_none_or(|wanted| wanted == counter)
+                let is_source = permanent.instance_id == candidate.source.instance_id;
+                !(pattern.exclude_source && is_source)
+                    && (pattern.object.is_none() || is_source)
+                    && pattern
+                        .counter
+                        .as_ref()
+                        .is_none_or(|wanted| wanted == counter)
                     && pattern.predicate.as_ref().is_none_or(|filter| {
                         self.permanent_matches_effective_filter(permanent, filter)
                     })
@@ -495,6 +577,7 @@ impl GameEngine {
                     program: ApplicableProgram { source, program },
                 })
             })
+            .chain(self.created_quantity_proposals())
             .collect::<Vec<_>>();
         let mut resolution = QuantityResolution {
             amount: event.amount,

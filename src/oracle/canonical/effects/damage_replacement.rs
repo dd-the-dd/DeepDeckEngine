@@ -32,6 +32,11 @@ fn attachment_word(type_line: &str) -> Option<&'static str> {
 pub(in crate::oracle::canonical) fn try_parse_damage_replacement(
     input: &AbilityInput<'_>,
 ) -> DamageReplacementParseAttempt {
+    // A spell's sentence creates a replacement when it resolves (CR 611.2a):
+    // the effect program reads it, never this battlefield-active frame.
+    if spell_face(input.face_type_line) {
+        return DamageReplacementParseAttempt::NotClaimed;
+    }
     let mut cursor = OracleTokenCursor::new("damage-replacement", input.tokens);
     let context = DamageReplacementContext {
         name_links: input.name_links,
@@ -223,7 +228,7 @@ fn lower_event_amount(
         .ok_or_else(|| cursor.fail("an amount over the replaced event's quantity"))
 }
 
-fn lower_damage_replacement(
+pub(in crate::oracle::canonical) fn lower_damage_replacement(
     cursor: &mut OracleTokenCursor<'_>,
     node: &DamageReplacementNode,
 ) -> MachineResult<Value> {

@@ -39,6 +39,9 @@ pub(super) fn numeric_quantity_supported(expression: &Value) -> Option<bool> {
     if let Some(supported) = state_condition_atoms::player_quantity_supported(expression) {
         return Some(supported);
     }
+    if let Some(supported) = resolution_records::resolution_record_supported(expression) {
+        return Some(supported);
+    }
     let supported = match value_kind(expression) {
         Some("commanderCastsFromCommandZone" | "countOpponentsAttackedThisTurn") => {
             player_reference_supported(&expression["player"])
@@ -150,6 +153,9 @@ impl GameEngine {
     ) -> Option<Option<i32>> {
         numeric_quantity_supported(expression)?;
         if let Some(value) = self.player_quantity(expression, player_id) {
+            return Some(value);
+        }
+        if let Some(value) = self.controller_relative_record(expression, player_id) {
             return Some(value);
         }
         let value = match value_kind(expression) {

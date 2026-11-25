@@ -635,7 +635,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
           }
         ]
       }
@@ -713,7 +714,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
           }
         ]
       }

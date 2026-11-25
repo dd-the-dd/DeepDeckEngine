@@ -103,7 +103,10 @@ fn simple_operand(operand: &CardOperandNode) -> bool {
         | CardOperandNode::LibraryTop(_)
         | CardOperandNode::CardCopies { .. }
         | CardOperandNode::HiddenChoice(_)
-        | CardOperandNode::CommandZone { .. } => false,
+        | CardOperandNode::CommandZone { .. }
+        // The restated query is proved against the antecedent's filter by
+        // the native collection lowerer.
+        | CardOperandNode::RestatedAntecedent { .. } => false,
     }
 }
 
@@ -262,7 +265,8 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
         EffectProgramNode::Steps(_)
         | EffectProgramNode::Outcome { .. }
         | EffectProgramNode::Alternatives { .. }
-        | EffectProgramNode::Offer { .. } => false,
+        | EffectProgramNode::Offer { .. }
+        | EffectProgramNode::CreatedReplacement { .. } => false,
     }
 }
 
@@ -358,7 +362,8 @@ impl CollectionScope {
             | CardOperandNode::LibraryTop(_)
             | CardOperandNode::CardCopies { .. }
             | CardOperandNode::HiddenChoice(_)
-            | CardOperandNode::CommandZone { .. } => {
+            | CardOperandNode::CommandZone { .. }
+            | CardOperandNode::RestatedAntecedent { .. } => {
                 unreachable!("outside the checked scope slice")
             }
         }

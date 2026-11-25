@@ -271,21 +271,7 @@ fn recognize_parameter(
         ParameterKind::ResourceCost => {
             KeywordParameterNode::Cost(ResourcePaymentNode::Mana(recognize_mana_cost(cursor)?))
         }
-        ParameterKind::Quality => {
-            cursor.consume("for")?;
-            cursor.enter("keyword.parameterized.quality");
-            let collection = recognize_object_collection(cursor)?;
-            cursor.require(
-                collection.controller.is_none() && !collection.exclude_source,
-                "a quality without its own controller relation or source exclusion",
-            )?;
-            cursor.require(
-                collection.predicate.supports_domain(ObjectKind::Permanent)
-                    && collection.predicate.has_nominal_head(),
-                "a quality naming permanents",
-            )?;
-            KeywordParameterNode::Quality(collection.predicate)
-        }
+        ParameterKind::Quality => KeywordParameterNode::Quality(recognize_keyword_quality(cursor)?),
     };
     let span = (start + usize::from(dash_cost), cursor.position());
     if dash_cost {
@@ -417,6 +403,27 @@ fn rendering_tokens(rendering: &str, printed_cost: &[RecognizedEntity]) -> Vec<S
         .collect()
 }
 
+/// `for QUALITY` (CR 702.41a): the permanents a quality keyword counts,
+/// without a controller of their own. Shared by a printed keyword and a
+/// keyword granted to spells (`Spells you cast have affinity for Goats`).
+pub(in crate::oracle::canonical) fn recognize_keyword_quality(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.consume("for")?;
+    cursor.enter("keyword.parameterized.quality");
+    let collection = recognize_object_collection(cursor)?;
+    cursor.require(
+        collection.controller.is_none() && !collection.exclude_source,
+        "a quality without its own controller relation or source exclusion",
+    )?;
+    cursor.require(
+        collection.predicate.supports_domain(ObjectKind::Permanent)
+            && collection.predicate.has_nominal_head(),
+        "a quality naming permanents",
+    )?;
+    Ok(collection.predicate)
+}
+
 /// The keyword expansion of `Affinity for [quality]` (CR 702.41a): this spell
 /// costs {1} less to cast for each [quality] you control.
 pub(in crate::oracle::canonical) fn affinity_reduction(
@@ -432,6 +439,7 @@ pub(in crate::oracle::canonical) fn affinity_reduction(
         })),
         condition: None,
         target_query: None,
+        colored: None,
     }
 }
 

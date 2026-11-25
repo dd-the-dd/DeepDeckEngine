@@ -225,6 +225,17 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
             subject,
             ..
         }) if subject.multiplicity == EventMultiplicity::PerObject
+    ) || matches!(
+        event,
+        // `one or more creatures you control attack a player`: one event per
+        // attacked player, which the record binds (CR 508.1, 603.2c).
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            verb: ObjectEventVerb::Attack,
+            subject,
+            attacked,
+            ..
+        }) if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. })
+            && matches!(attacked.as_slice(), [super::AttackedRecipientNode::Player(_)])
     ) || event_damage_complement(event)
         .is_some_and(|complement| matches!(complement.recipient, Some(DamageRecipient::Player(_))))
         // The drawing player (CR 121.1) and the caster of a cast spell (CR
@@ -232,7 +243,10 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
         // no caster and the source spell's caster is its controller.
         || matches!(
             event,
-            GenericTriggerEventNode::Local(LocalTriggerEventNode::CardDrawn { .. })
+            GenericTriggerEventNode::Local(
+                LocalTriggerEventNode::CardDrawn { .. }
+                    | LocalTriggerEventNode::PlayerOrdinalCardDrawn { .. }
+            )
         )
         || matches!(
             event,
@@ -426,7 +440,9 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 ObjectEventVerb::Die | ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
                     subject_slot(true)
                 }
+                // A blocker is the block record's object (CR 509.1a).
                 ObjectEventVerb::Attack
+                | ObjectEventVerb::Block
                 | ObjectEventVerb::BecomeBlocked
                 | ObjectEventVerb::BeDealtDamage(_)
                 | ObjectEventVerb::DealCombatDamageToPlayer
@@ -465,7 +481,8 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                     .objects
                     .iter()
                     .all(|object| object.controller == controller)
-                    .then_some(controller),
+                    .then_some(controller)
+                    .flatten(),
             })
         }
         // An occurrence with its event-time condition binds what its event
@@ -663,6 +680,7 @@ pub(in crate::oracle::canonical) fn event_frame(
         combat_defending_player: false,
         inherited_moved_selector: None,
         replacing_instead_at: None,
+        cost_chosen_amount: None,
         // A cast record binds its spell; a copy has no cast record.
         event_spell: matches!(
             event,

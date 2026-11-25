@@ -640,7 +640,9 @@ fn recognize_token_copy(
     trial.enter("token.copy.object");
     let objects =
         trial.require_value(objects, "the effect context of a copied object (CR 707.2)")?;
-    let object = recognize_contextual_permanent_operand(
+    // A copy reads only copiable values (CR 707.2): the shared copied-object
+    // reference also names a card or a departed event object.
+    let object = super::permanent_subject::recognize_copied_object_operand(
         trial,
         objects.name_links,
         objects.name_failure,

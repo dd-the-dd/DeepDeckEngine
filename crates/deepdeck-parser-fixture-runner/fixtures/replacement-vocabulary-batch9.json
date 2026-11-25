@@ -1,0 +1,748 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch9/replacement-vocabulary",
+  "cases": [
+    {
+      "id": "exact-liesa-opponent-creature-dies-exiled",
+      "request": {
+        "cardName": "Liesa, Forgotten Archangel",
+        "typeLine": "Legendary Creature — Angel",
+        "manaCost": "{2}{W}{W}{B}",
+        "oracleText": "Flying, lifelink\nWhenever another nontoken creature you control dies, return that card to its owner's hand at the beginning of the next end step.\nIf a creature an opponent controls would die, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "replaceGraveyardDestination"
+              },
+              {
+                "pointer": "/modifiers/0/from/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/modifiers/0/to/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/modifiers/0/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gravebane-zombie-source-to-library-top",
+      "request": {
+        "cardName": "Gravebane Zombie",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{3}{B}",
+        "oracleText": "If this creature would die, put it on top of its owner's library instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/modifiers/0/from/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/modifiers/0/to/kind",
+                "equals": "ownerLibrary"
+              },
+              {
+                "pointer": "/modifiers/0/to/position",
+                "equals": "top"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-head-of-the-hunt-reflexive-token",
+      "request": {
+        "cardName": "Head of the Hunt",
+        "typeLine": "Creature — Wolf",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Flash\nIf a creature an opponent controls would die, exile it instead. When you do, create a 2/2 green Wolf creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/to/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/modifiers/0/onReplaced/event/kind",
+                "equals": "reflexiveTriggerCreated"
+              },
+              {
+                "pointer": "/modifiers/0/onReplaced/effects/0/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-progenitus-shuffle-from-anywhere",
+      "request": {
+        "cardName": "Progenitus",
+        "typeLine": "Legendary Creature — Hydra Avatar",
+        "manaCost": "{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}",
+        "oracleText": "Protection from everything\nIf Progenitus would be put into a graveyard from anywhere, reveal Progenitus and shuffle it into its owner's library instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/modifiers/0/from/kind",
+                "equals": "anyZone"
+              },
+              {
+                "pointer": "/modifiers/0/to/position",
+                "equals": "shuffle"
+              },
+              {
+                "pointer": "/modifiers/0/to/revealed",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kumanos-pupils-damage-history",
+      "request": {
+        "cardName": "Kumano's Pupils",
+        "typeLine": "Creature — Human Shaman",
+        "manaCost": "{4}{R}",
+        "oracleText": "If a creature dealt damage by this creature this turn would die, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/damagedBySourceThisTurn",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/from/kind",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-anger-of-the-gods-damaged-this-way",
+      "request": {
+        "cardName": "Anger of the Gods",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Anger of the Gods deals 3 damage to each creature. If a creature dealt damage this way would die this turn, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installGraveyardDestinationReplacement"
+              },
+              {
+                "pointer": "/effects/1/objects/kind",
+                "equals": "damagedThisResolution"
+              },
+              {
+                "pointer": "/effects/1/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/1/replacement/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flaying-tendrils-created-for-each-creature",
+      "request": {
+        "cardName": "Flaying Tendrils",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Devoid (This card has no color.)\nAll creatures get -2/-2 until end of turn. If a creature would die this turn, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installGraveyardDestinationReplacement"
+              },
+              {
+                "pointer": "/effects/1/replacement/from/kind",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kaya-geist-hunter-created-token-doubler",
+      "request": {
+        "cardName": "Kaya, Geist Hunter",
+        "typeLine": "Legendary Planeswalker — Kaya",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "+1: Creatures you control gain deathtouch until end of turn. Put a +1/+1 counter on up to one target creature token you control.\n−2: Until end of turn, if one or more tokens would be created under your control, twice that many of those tokens are created instead.\n−6: Exile all cards from all graveyards, then create a 1/1 white Spirit creature token with flying for each card exiled this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installQuantityReplacement"
+              },
+              {
+                "pointer": "/effects/0/program/kind",
+                "equals": "replaceEventQuantity"
+              },
+              {
+                "pointer": "/effects/0/program/event/kind",
+                "equals": "tokenCreation"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-primal-vigor-every-player",
+      "request": {
+        "cardName": "Primal Vigor",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{G}",
+        "oracleText": "If one or more tokens would be created, twice that many of those tokens are created instead.\nIf one or more +1/+1 counters would be put on a creature, twice that many +1/+1 counters are put on that creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/event/player/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/event/player/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-the-earth-crystal-nominal-anaphor",
+      "request": {
+        "cardName": "The Earth Crystal",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Green spells you cast cost {1} less to cast.\nIf one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on that creature instead.\n{4}{G}{G}, {T}: Distribute two +1/+1 counters among one or two target creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/event/kind",
+                "equals": "counterPlacement"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-vizier-of-remedies-postposed-offset",
+      "request": {
+        "cardName": "Vizier of Remedies",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{1}{W}",
+        "oracleText": "If one or more -1/-1 counters would be put on a creature you control, that many -1/-1 counters minus one are put on it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/quantity/kind",
+                "equals": "subtract"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mowu-source-recipient",
+      "request": {
+        "cardName": "Mowu, Loyal Companion",
+        "typeLine": "Legendary Creature — Dog",
+        "manaCost": "{3}{G}",
+        "oracleText": "Vigilance, trample\nIf one or more +1/+1 counters would be put on Mowu, that many plus one +1/+1 counters are put on it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/event/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-goblin-goliath-created-damage-doubler",
+      "request": {
+        "cardName": "Goblin Goliath",
+        "typeLine": "Creature — Goblin Mutant",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "When this creature enters, create a number of 1/1 red Goblin creature tokens equal to the number of opponents you have.\n{3}{R}, {T}: If a source you control would deal damage to an opponent this turn, it deals double that damage to that player instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDamageReplacement"
+              },
+              {
+                "pointer": "/effects/0/program/kind",
+                "equals": "replaceDamage"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-blind-fury-created-combat-damage-doubler",
+      "request": {
+        "cardName": "Blind Fury",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "All creatures lose trample until end of turn. If a creature would deal combat damage to a creature this turn, it deals double that damage to that creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "installDamageReplacement"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-horizon-stone-unspent-mana-colorless",
+      "request": {
+        "cardName": "Horizon Stone",
+        "typeLine": "Artifact",
+        "manaCost": "{5}",
+        "oracleText": "If you would lose unspent mana, that mana becomes colorless instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "convertUnspentMana"
+              },
+              {
+                "pointer": "/modifiers/0/to",
+                "equals": "C"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kruphix-unspent-mana-colorless",
+      "request": {
+        "cardName": "Kruphix, God of Horizons",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{3}{G}{U}",
+        "oracleText": "Indestructible\nAs long as your devotion to green and blue is less than seven, Kruphix isn't a creature.\nYou have no maximum hand size.\nIf you would lose unspent mana, that mana becomes colorless instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 3,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "convertUnspentMana"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-until-end-of-turn-return-to-hand",
+      "request": {
+        "cardName": "Sibling Rescue",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Until end of turn, if a creature you control would die, return it to its owner's hand instead. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installGraveyardDestinationReplacement"
+              },
+              {
+                "pointer": "/effects/0/replacement/controller",
+                "equals": {"kind": "controllerOf", "object": {"kind": "self"}}
+              },
+              {
+                "pointer": "/effects/0/replacement/to/kind",
+                "equals": "ownerHand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-another-artifact-bottom-of-library",
+      "request": {
+        "cardName": "Sibling Warden",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "If another artifact you control would be put into a graveyard from the battlefield, put it on the bottom of its owner's library instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/to/position",
+                "equals": "bottom"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-kalitas-additional-instruction",
+      "request": {
+        "cardName": "Kalitas, Traitor of Ghet",
+        "typeLine": "Legendary Creature — Vampire Warrior",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Lifelink\nIf a nontoken creature an opponent controls would die, instead exile that card and create a 2/2 black Zombie creature token.\n{2}{B}, Sacrifice another Vampire or Zombie: Put two +1/+1 counters on Kalitas.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "replacement.departure.additional-action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unspent-mana-becomes-red",
+      "request": {
+        "cardName": "Sibling Furnace",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "If you would lose unspent mana, that mana becomes red instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/to",
+                "equals": "R"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-created-prevention-this-turn",
+      "request": {
+        "cardName": "Sibling Shelter",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "If a source an opponent controls would deal damage to you this turn, prevent that damage. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDamageReplacement"
+              },
+              {
+                "pointer": "/effects/0/program/replacement/kind",
+                "equals": "prevent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-would-without-instead",
+      "request": {
+        "cardName": "Probe Without Instead",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "If a creature you control would die, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "replacement.departure.action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-would-explore-unsupported-event",
+      "request": {
+        "cardName": "Probe Explorer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "If a creature you control would explore, draw a card instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.replacement.event"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-instead-without-would-not-claimed",
+      "request": {
+        "cardName": "Restated Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Draw a card. If you control a Dragon, Restated Probe deals 4 damage instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.damage.destination"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -265,6 +265,161 @@ pub(in crate::oracle::canonical) fn recognize_sacrificed_cost_object_property(
     super::recognize_cost_paid_object_property(cursor)
 }
 
+/// The registered nominal of one plain (non-possessive) noun token at
+/// `offset`: a card type or an object domain (`card`, `creature`, `spell`).
+fn plain_nominal_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<super::TargetNominal> {
+    let token = cursor
+        .token_slice(cursor.position() + offset, cursor.position() + offset + 1)
+        .first()
+        .filter(|token| token.token_type != "possessiveTypeWord")?;
+    match lookup_object_selector_lexeme(&token.raw) {
+        Some(CharacteristicLexeme::CardType(value)) => Some(super::TargetNominal::CardType(value)),
+        Some(CharacteristicLexeme::ObjectDomain(value)) => {
+            Some(super::TargetNominal::Domain(value))
+        }
+        _ => None,
+    }
+}
+
+fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+}
+
+/// The width of `power`, `toughness` or `mana value` at `offset`.
+fn property_width_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    if word_at(cursor, offset, "mana") && word_at(cursor, offset + 1, "value") {
+        Some(2)
+    } else if word_at(cursor, offset, "power") || word_at(cursor, offset, "toughness") {
+        Some(1)
+    } else {
+        None
+    }
+}
+
+/// Lexical lookahead for the postposed genitive `the PROPERTY of that
+/// NOUN` and `the PROPERTY of the VERBed NOUN`. A sacrificed or tapped
+/// object keeps its cost-paid reader (`cost_paid_object.rs`).
+pub(in crate::oracle::canonical) fn of_genitive_property_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let Some(width) = word_at(cursor, 0, "the")
+        .then(|| property_width_at(cursor, 1))
+        .flatten()
+    else {
+        return false;
+    };
+    let at = 1 + width;
+    if !word_at(cursor, at, "of") {
+        return false;
+    }
+    if word_at(cursor, at + 1, "that") {
+        return plain_nominal_at(cursor, at + 2).is_some();
+    }
+    word_at(cursor, at + 1, "the")
+        && cursor
+            .peek_ahead(at + 2)
+            .and_then(super::ActionResultVerb::from_word)
+            .is_some_and(|verb| {
+                !matches!(
+                    verb,
+                    super::ActionResultVerb::Sacrificed | super::ActionResultVerb::Tapped
+                )
+            })
+        && plain_nominal_at(cursor, at + 3).is_some()
+}
+
+/// `the PROPERTY of that NOUN`, `the PROPERTY of the VERBed NOUN`: the
+/// postposed genitive of the same singular object `that NOUN's PROPERTY`
+/// and `the VERBed NOUN's PROPERTY` read (CR 208, 202.3), resolved by the
+/// binding environment's nominal and result readers. The object is read
+/// live while it is the same object, else as last known information (CR
+/// 400.7, 608.2h). A nominal without an antecedent fails; it never mints a
+/// reference.
+pub(in crate::oracle::canonical) fn recognize_of_genitive_property(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &super::BindingEnvironment,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.of-genitive.property");
+    cursor.consume("the")?;
+    let property = super::recognize_selector_numeric_property(cursor)?;
+    cursor.consume("of")?;
+    cursor.enter("numeric.of-genitive.reference");
+    if word_at(cursor, 0, "that") {
+        cursor.consume("that")?;
+        let nominal = plain_nominal_at(cursor, 0)
+            .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+        cursor.enter("numeric.of-genitive.antecedent");
+        let resolved = super::resolve_condition_antecedent(environment, &[nominal]);
+        // `the mana value of that spell`: the spell the cast record binds,
+        // unless a declared spell target of the program has that nominal.
+        let event_spell = environment.frame.event_spell
+            && nominal == super::TargetNominal::Domain(super::ObjectKind::Spell)
+            && property == super::SelectorNumericProperty::ManaValue;
+        let reference = match resolved {
+            Ok(reference @ super::PermanentEffectReference::Target(_)) => reference,
+            _ if event_spell => {
+                return Ok(NumericExpression::EventValue(
+                    super::EventNumericBinding::CastSpellManaValue,
+                ));
+            }
+            Ok(reference) => reference,
+            Err(_) => {
+                return Err(cursor.fail("a preceding target or an event object with this nominal"));
+            }
+        };
+        // An event's observed object is read only where the runtime records it.
+        if let super::PermanentEffectReference::Observed(observed) = reference {
+            cursor.require(
+                matches!(
+                    observed,
+                    super::TypedObservedEventObject::EventPermanent
+                        | super::TypedObservedEventObject::EnteringPermanent
+                        | super::TypedObservedEventObject::MovedOntoBattlefield
+                        | super::TypedObservedEventObject::CombatCounterpart
+                ),
+                "a preceding target or an event object with this nominal",
+            )?;
+        }
+        return super::bound_object_numeric_property(reference, property, nominal.as_predicate())
+            .map_err(|expected| cursor.fail(expected));
+    }
+    cursor.consume("the")?;
+    let verb = cursor
+        .peek()
+        .and_then(super::ActionResultVerb::from_word)
+        .ok_or_else(|| cursor.fail("the past participle of an object-producing verb"))?;
+    let participle = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&participle)?;
+    let nominal = plain_nominal_at(cursor, 0)
+        .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&raw)?;
+    cursor.enter("numeric.of-genitive.result");
+    let result = environment
+        .result_object
+        .as_ref()
+        .filter(|result| {
+            result.verb == Some(verb)
+                && result.number == super::GrammaticalNumber::Singular
+                && super::selector_names_nominals(&result.selector, &[nominal])
+        })
+        .ok_or_else(|| {
+            cursor.fail(
+                "an earlier action of this program that selected or moved exactly one object of this nominal with this verb",
+            )
+        })?;
+    super::bound_object_numeric_property(
+        result.permanent_reference(),
+        property,
+        nominal.as_predicate(),
+    )
+    .map_err(|expected| cursor.fail(expected))
+}
+
 /// A possessive registered card type or object domain (`creature's`,
 /// `permanent's`): the object word of `this NOUN's PROPERTY`.
 pub(in crate::oracle::canonical) fn registered_possessive_object(raw: &str) -> bool {
@@ -464,10 +619,4 @@ fn source_noun_on_battlefield(noun: &str) -> bool {
         None => crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(noun)
             .is_some_and(|subtype| subtype == noun),
     }
-}
-
-fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
-    cursor
-        .peek_ahead(offset)
-        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
 }

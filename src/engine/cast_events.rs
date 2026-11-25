@@ -352,6 +352,8 @@ impl GameEngine {
 const GIFT_FLAG: &str = "castChoice:gift";
 /// The record flag of a paid teamwork cost (CR 702.194).
 const TEAMWORK_FLAG: &str = "castChoice:teamwork";
+/// The record flag of a spell cast with its escape permission (CR 702.138c).
+const ESCAPE_FLAG: &str = "castChoice:escape";
 
 /// `castChoiceMade { spell: self, choice, mode?, manaCost? }`: `gift`,
 /// `teamwork`, or `alternativeCost` with exactly one of a casting `mode`
@@ -359,7 +361,7 @@ const TEAMWORK_FLAG: &str = "castChoice:teamwork";
 pub(super) fn cast_choice_supported(condition: &Value) -> bool {
     value_kind(&condition["spell"]) == Some("self")
         && match condition["choice"].as_str() {
-            Some("gift" | "teamwork") => {
+            Some("gift" | "teamwork" | "escape") => {
                 condition.get("mode").is_none() && condition.get("manaCost").is_none()
             }
             Some("alternativeCost") => {
@@ -387,6 +389,7 @@ pub(super) fn cast_choice_flag(condition: &Value) -> Option<String> {
     match condition["choice"].as_str()? {
         "gift" => Some(GIFT_FLAG.to_string()),
         "teamwork" => Some(TEAMWORK_FLAG.to_string()),
+        "escape" => Some(ESCAPE_FLAG.to_string()),
         "alternativeCost" => match condition["mode"].as_str() {
             Some(mode) => Some(format!("castWithAlternativeCost:{mode}")),
             None => condition["manaCost"]
@@ -414,6 +417,9 @@ impl GameEngine {
         }
         if decisions.get("teamworkPaid").and_then(Value::as_bool) == Some(true) {
             flags.push(TEAMWORK_FLAG.to_string());
+        }
+        if decisions.get("useEscape").and_then(Value::as_bool) == Some(true) {
+            flags.push(ESCAPE_FLAG.to_string());
         }
         if decisions.get("useAlternativeCost").and_then(Value::as_bool) == Some(true) {
             if let Some(mode) = decisions.get("alternativeCostMode").and_then(Value::as_str) {

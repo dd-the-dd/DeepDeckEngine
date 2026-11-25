@@ -200,9 +200,31 @@ pub(in crate::oracle::canonical) fn try_lower_local_effect_sequence_with_context
     }
 }
 
+/// The same lowering over a caller-owned card-collection scope: an outcome
+/// body reads the cards its producing instruction observed (CR 608.2c).
+pub(in crate::oracle::canonical) fn try_lower_local_effect_sequence_with_collections(
+    cursor: &mut OracleTokenCursor<'_>,
+    sequence: &EffectSequenceNode,
+    context: EffectSequenceLoweringContext,
+    collections: &mut CardCollectionMemory,
+) -> EffectSequenceLoweringAttempt {
+    match lower_local_effect_sequence_with_collections(cursor, sequence, context, collections) {
+        Ok(lowered) => EffectSequenceLoweringAttempt::Lowered(lowered),
+        Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure)) => {
+            EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure)
+        }
+        Err(EffectSequenceLoweringFailure::FailedSupport(failure)) => {
+            EffectSequenceLoweringAttempt::FailedSupport(failure)
+        }
+        Err(EffectSequenceLoweringFailure::FailedInvariant(failure)) => {
+            EffectSequenceLoweringAttempt::FailedInvariant(failure)
+        }
+    }
+}
+
 /// Whether the next action that reads or replaces the card-collection scope
 /// reads it through a lexical reference (`that card`, `it`, `them`).
-fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
+pub(super) fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
     following.iter().find_map(|effect| match effect {
         LocalEffectNode::CardAction(
             CardActionNode::Move { cards, .. }
@@ -237,6 +259,10 @@ fn lower_local_effect_sequence_with_collections(
     context: EffectSequenceLoweringContext,
     collections: &mut CardCollectionMemory,
 ) -> Result<LoweredEffectSequence, EffectSequenceLoweringFailure> {
+    // Bindings an earlier instruction of the same resolution produced before
+    // this sequence (an `If you do` producer): a delayed action may capture
+    // them like a result of this sequence's own earlier actions.
+    let inherited_bindings = collections.allocated_binding_ids();
     // An action another player performs is lowered as the ordinary action;
     // its performer is then put on every primitive it produced.
     let performed;
@@ -863,7 +889,9 @@ fn lower_local_effect_sequence_with_collections(
                 } = action
                     && destination.zone == CardZoneName::Exile
                     && query.quantity.is_none()
-                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && (reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                        || collections
+                            .continuation_reads_cards_after(effect_index, sequence.effects.len()))
                     && let Some(movement) = lowered
                         .iter_mut()
                         .rev()
@@ -907,8 +935,10 @@ fn lower_local_effect_sequence_with_collections(
                     && movement.face_change == SourceFaceChange::Preserve =>
             {
                 cursor.enter("lower.move-source.exile");
-                let bind = reads_card_collection_reference(&sequence.effects[effect_index + 1..])
-                    .then(|| collections.observe_exiled_object());
+                let bind = (reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    || collections
+                        .continuation_reads_cards_after(effect_index, sequence.effects.len()))
+                .then(|| collections.observe_exiled_object());
                 effects.push(lower_source_move_effect(
                     movement,
                     self_ref(),
@@ -2115,6 +2145,14 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(operation);
                         continue;
                     }
+                    // CR 400.3: the permanent goes to its owner's hand.
+                    ReferencedPermanentAction::ReturnToOwnerHand => {
+                        effects.push(json!({
+                            "kind": "returnToOwnersHand",
+                            "permanent": reference,
+                        }));
+                        continue;
+                    }
                     // CR 701.24a: put into the owner's library, then that
                     // library is shuffled (its owner by last known
                     // information once the permanent has left).
@@ -2427,7 +2465,9 @@ fn lower_local_effect_sequence_with_collections(
                 // A later card action reading `that card`/`it` names the object
                 // this exile produced; record that result only when it is read.
                 if zone_change.action == ZoneChangeAction::Exile
-                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && (reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                        || collections
+                            .continuation_reads_cards_after(effect_index, sequence.effects.len()))
                 {
                     // A declared collection (`exile any number of target
                     // ..., then return those cards`) is observed the same
@@ -2479,7 +2519,9 @@ fn lower_local_effect_sequence_with_collections(
                 // A later card action reading `it`/`that card` names the card
                 // this exile produced (CR 400.7); bound only when read.
                 if zone_change.action == CardZoneChangeAction::Exile
-                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && (reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                        || collections
+                            .continuation_reads_cards_after(effect_index, sequence.effects.len()))
                 {
                     operation["bind"] = json!(match zone_change.cardinality.maximum {
                         NumericAtom::Integer(1) => collections.observe_exiled_object(),
@@ -2658,16 +2700,28 @@ fn lower_local_effect_sequence_with_collections(
                             )
                         })?;
                 cursor.enter("lower.token-copy.object");
-                let objects = lower_ordinary_permanent_subject(
-                    cursor,
-                    operand,
-                    effect_index,
-                    false,
-                    &permanent_target_base_ids,
-                    &mut used_target_base_ids,
-                    &mut decisions,
-                    &mut target_bindings,
-                )?;
+                let objects = match operand {
+                    // A copy reads copiable values in any zone (CR 707.2): a
+                    // bound copied object may be a card target an earlier card
+                    // action of this program declared.
+                    PermanentOperandNode::BoundReference(reference) => {
+                        vec![lower_bound_permanent_reference(
+                            cursor,
+                            *reference,
+                            &[target_bindings.as_slice(), card_target_bindings.as_slice()].concat(),
+                        )?]
+                    }
+                    _ => lower_ordinary_permanent_subject(
+                        cursor,
+                        operand,
+                        effect_index,
+                        false,
+                        &permanent_target_base_ids,
+                        &mut used_target_base_ids,
+                        &mut decisions,
+                        &mut target_bindings,
+                    )?,
+                };
                 let [object] = <[Value; 1]>::try_from(objects)
                     .map_err(|_| cursor.fail("one copied object"))?;
                 let mut creation = lower_token_creation_with_object(
@@ -2733,7 +2787,9 @@ fn lower_local_effect_sequence_with_collections(
                     && selected.action == SelectedPermanentAction::Exile
                     && selected.operand.bounds.is_none()
                     && selected.until.is_none()
-                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && (reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                        || collections
+                            .continuation_reads_cards_after(effect_index, sequence.effects.len()))
                     && let [exile] = lowered.as_mut_slice()
                     && exile["kind"] == "exilePermanent"
                 {
@@ -2791,6 +2847,7 @@ fn lower_local_effect_sequence_with_collections(
         cursor,
         &sequence.delayed,
         &target_bindings,
+        &inherited_bindings,
         &mut action_starts,
         &mut effects,
     )?;

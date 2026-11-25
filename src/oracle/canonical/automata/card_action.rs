@@ -36,6 +36,13 @@ pub(in crate::oracle::canonical) enum CardOperandNode {
         reference: CardCollectionReferenceNode,
         object: PermanentEffectReference,
     },
+    /// `those QUERY cards`: the plural card-collection antecedent restated
+    /// with a card query. The lowerer requires the query to be exactly the
+    /// filter that produced the antecedent (`reveal cards until you reveal
+    /// two land cards. Put those land cards onto the battlefield`).
+    RestatedAntecedent {
+        predicate: ObjectPredicate,
+    },
 }
 
 /// The frame facts a card action reads from its enclosing program: whether
@@ -303,6 +310,15 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
         CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
         CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {}
     }
+    if let Some(zone) = try_recognize_definite_zone_cards(cursor)? {
+        return Ok(CardOperandNode::ZoneCollection(zone));
+    }
+    if let Some(predicate) = try_recognize_restated_antecedent(cursor)? {
+        return Ok(CardOperandNode::RestatedAntecedent { predicate });
+    }
+    if let Some(selection) = try_recognize_definite_this_way_cards(cursor)? {
+        return Ok(CardOperandNode::Selection(selection));
+    }
     match try_recognize_card_collection_reference(cursor) {
         CardCollectionReferenceAttempt::Recognized(fragment) => {
             // `the exiled cards not cast this way`: every member of the
@@ -349,6 +365,130 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
             Err(cursor.fail("a collection reference or quantified card query"))
         }
     }
+}
+
+/// `the cards in|from OWNER ZONE` (`put the cards in your hand on the bottom
+/// of your library`, `shuffle the cards from your hand into your library`):
+/// the definite plural of a named zone's cards is that zone's whole content,
+/// the same collection as `all cards in|from OWNER ZONE`. The shared zone
+/// collection reads it over a view of the same tokens whose article is the
+/// universal determiner (equal length, indices and spans). `None` consumes
+/// nothing: the phrase is not this shape, or the zone reader made no claim.
+fn try_recognize_definite_zone_cards(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<CardZoneCollectionNode>> {
+    if !(peek_word(cursor, 0, "the")
+        && peek_word(cursor, 1, "cards")
+        && (peek_word(cursor, 2, "in") || peek_word(cursor, 2, "from")))
+    {
+        return Ok(None);
+    }
+    let start = cursor.position();
+    let mut view = cursor.token_slice(0, usize::MAX).to_vec();
+    view[start].raw = "all".to_string();
+    let mut trial = cursor.with_tokens(&view);
+    match try_recognize_card_zone_collection(&mut trial) {
+        CollectionOperandAttempt::Recognized(fragment) => {
+            cursor.enter("card-action.operand.definite-zone-cards");
+            cursor.require(
+                fragment.node.quantity.is_none(),
+                "every card of the named zone",
+            )?;
+            cursor.advance_to(fragment.end_position)?;
+            Ok(Some(fragment.node))
+        }
+        CollectionOperandAttempt::FailedCommitted(failure) => Err(failure),
+        CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {
+            Ok(None)
+        }
+    }
+}
+
+/// `the [QUERY] cards revealed|exiled this way` (`Put the nonland cards
+/// revealed this way into your hand`): the definite plural restating the
+/// producing collection, the same selection as `all [QUERY] cards VERBed this
+/// way`, read by the shared selection operand over a view whose article is
+/// the universal determiner. Only a selection that restates its producer
+/// (`VERBed this way`) is claimed; `the cards`, `the rest` and `the revealed
+/// cards` stay with the collection reference. `None` consumes nothing.
+fn try_recognize_definite_this_way_cards(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<CardSelectionOperandNode>> {
+    if !peek_word(cursor, 0, "the") {
+        return Ok(None);
+    }
+    // `cards revealed|exiled this way` inside the current sentence.
+    let sentence = cursor.token_slice(cursor.position(), usize::MAX);
+    let sentence = &sentence[..sentence
+        .iter()
+        .position(|token| token.raw == ".")
+        .unwrap_or(sentence.len())];
+    let restates = sentence.windows(4).any(|words| {
+        words[0].raw.eq_ignore_ascii_case("cards")
+            && (words[1].raw.eq_ignore_ascii_case("revealed")
+                || words[1].raw.eq_ignore_ascii_case("exiled"))
+            && words[2].raw.eq_ignore_ascii_case("this")
+            && words[3].raw.eq_ignore_ascii_case("way")
+    });
+    if !restates {
+        return Ok(None);
+    }
+    let start = cursor.position();
+    let mut view = cursor.token_slice(0, usize::MAX).to_vec();
+    view[start].raw = "all".to_string();
+    let mut trial = cursor.with_tokens(&view);
+    match try_recognize_card_selection_operand(&mut trial) {
+        CardSelectionOperandAttempt::Recognized(fragment)
+            if matches!(
+                fragment.node.quantity,
+                CardSelectionQuantityNode::All { .. }
+            ) && fragment.node.via.is_some() =>
+        {
+            cursor.enter("card-action.operand.definite-this-way-cards");
+            cursor.advance_to(fragment.end_position)?;
+            Ok(Some(fragment.node))
+        }
+        CardSelectionOperandAttempt::Recognized(_)
+        | CardSelectionOperandAttempt::NotClaimed
+        | CardSelectionOperandAttempt::RejectedCandidate(_)
+        | CardSelectionOperandAttempt::FailedCommitted(_) => Ok(None),
+    }
+}
+
+/// `those QUERY cards` (`those land cards` after `reveal cards ... until
+/// you reveal two land cards`): the plural antecedent restated with the card
+/// query that produced it. The lowerer proves the query is exactly that
+/// antecedent's filter; the restatement never filters or widens it. `None`
+/// consumes nothing (`those cards`, `those exiled cards` and permanent nouns
+/// stay with the other readers).
+fn try_recognize_restated_antecedent(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<ObjectPredicate>> {
+    if !peek_word(cursor, 0, "those")
+        || peek_word(cursor, 1, "cards")
+        || peek_word(cursor, 1, "exiled")
+    {
+        return Ok(None);
+    }
+    let mut trial = cursor.clone();
+    trial.enter("card-action.operand.restated-antecedent");
+    trial.consume("those")?;
+    let Ok(query) = recognize_object_noun_query(&mut trial, ObjectQueryContext::ORDINARY) else {
+        return Ok(None);
+    };
+    let ends_with_card_noun = trial
+        .position()
+        .checked_sub(1)
+        .and_then(|last| trial.token_slice(last, last + 1).first())
+        .is_some_and(|token| token.raw.eq_ignore_ascii_case("cards"));
+    if !ends_with_card_noun
+        || !query.relations().is_empty()
+        || !query.predicate().is_in_domain(ObjectKind::Card)
+    {
+        return Ok(None);
+    }
+    *cursor = trial;
+    Ok(Some(query.predicate().clone()))
 }
 
 /// The typed object a card-collection pronoun names through the one binding
@@ -2409,6 +2549,227 @@ pub(in crate::oracle::canonical) fn recognize_optional_sequence(
     )?;
     cursor.advance_to(end)?;
     Ok(body)
+}
+
+/// Whether one of `effects` produces an observed card collection: a look, a
+/// reveal (of a library's top cards, of a hand, until a match), a choice of
+/// cards, a library top moved, or a mill. Later card references of the same
+/// program read that collection (CR 608.2c).
+pub(in crate::oracle::canonical) fn effects_observe_cards(effects: &[LocalEffectNode]) -> bool {
+    effects.iter().any(|effect| match effect {
+        LocalEffectNode::CardAction(action) => matches!(
+            action,
+            CardActionNode::Look { .. }
+                | CardActionNode::LookAt(_)
+                | CardActionNode::Reveal(_)
+                | CardActionNode::RevealUntil { .. }
+                | CardActionNode::ChooseFromZone(_)
+                | CardActionNode::ChooseTargetCards(_)
+                | CardActionNode::Move {
+                    cards: CardOperandNode::LibraryTop(_),
+                    ..
+                }
+        ),
+        LocalEffectNode::MillCards(_) => true,
+        LocalEffectNode::PlayerAction(action) => {
+            matches!(action.action, SingularPlayerAction::Mill(_))
+        }
+        LocalEffectNode::OptionalSequence(body) => effects_observe_cards(&body.effects),
+        _ => false,
+    })
+}
+
+/// A card reference that only an observation of this program answers: no
+/// linked exile (CR 607.2a) and no typed object, which stay readable from an
+/// independent program step.
+fn observed_reference(reference: CardCollectionReferenceNode) -> bool {
+    matches!(
+        reference,
+        CardCollectionReferenceNode::Antecedent
+            | CardCollectionReferenceNode::Remainder
+            | CardCollectionReferenceNode::Other
+            | CardCollectionReferenceNode::Selected
+            | CardCollectionReferenceNode::Zone
+            | CardCollectionReferenceNode::Revealed
+    )
+}
+
+fn operand_reads_observed_cards(operand: &CardOperandNode) -> bool {
+    match operand {
+        CardOperandNode::Reference(reference) => observed_reference(*reference),
+        CardOperandNode::Selection(selection) => observed_reference(selection.from),
+        CardOperandNode::RestatedAntecedent { .. } => true,
+        CardOperandNode::ObjectAntecedent { .. }
+        | CardOperandNode::ZoneCollection(_)
+        | CardOperandNode::Targets(_)
+        | CardOperandNode::LibraryTop(_)
+        | CardOperandNode::CardCopies { .. }
+        | CardOperandNode::HiddenChoice(_)
+        | CardOperandNode::CommandZone { .. } => false,
+    }
+}
+
+/// Whether every action of `effects` acts only on cards an earlier
+/// observation of the program bound: moving, revealing, choosing among or
+/// permitting the play of them, possibly under the reader's own `you may`.
+/// Such actions do nothing when no observation happened.
+pub(in crate::oracle::canonical) fn effects_read_only_observed_cards(
+    effects: &[LocalEffectNode],
+) -> bool {
+    !effects.is_empty()
+        && effects.iter().all(|effect| match effect {
+            LocalEffectNode::CardAction(action) => match action {
+                CardActionNode::Move { cards, .. }
+                | CardActionNode::Reveal(cards)
+                | CardActionNode::Permit(CardPermissionNode { cards, .. }) => {
+                    operand_reads_observed_cards(cards)
+                }
+                CardActionNode::Choose(selection) => observed_reference(selection.from),
+                CardActionNode::Look { .. }
+                | CardActionNode::LookAt(_)
+                | CardActionNode::RevealUntil { .. }
+                | CardActionNode::Copy { .. }
+                | CardActionNode::ChooseFromZone(_)
+                | CardActionNode::ChooseTargetCards(_)
+                | CardActionNode::GrantKeyword(_)
+                | CardActionNode::Shuffle { .. } => false,
+            },
+            LocalEffectNode::OptionalSequence(body) => {
+                effects_read_only_observed_cards(&body.effects)
+            }
+            _ => false,
+        })
+}
+
+/// The ends (exclusive, absolute) of the top-level sentences after `from`,
+/// up to `end`, each extended over a directly following reminder.
+fn following_sentence_ends(cursor: &OracleTokenCursor<'_>, from: usize, end: usize) -> Vec<usize> {
+    let tokens = cursor.token_slice(from, end);
+    let mut ends = Vec::new();
+    let mut depth = 0usize;
+    let mut reminder_start = None;
+    for (offset, token) in tokens.iter().enumerate() {
+        match token.raw.as_str() {
+            "(" => {
+                if depth == 0 {
+                    reminder_start = Some(from + offset);
+                }
+                depth += 1;
+            }
+            ")" => {
+                depth = depth.saturating_sub(1);
+                // A reminder opening right after a sentence belongs to it.
+                if depth == 0 && reminder_start.is_some() && ends.last() == reminder_start.as_ref()
+                {
+                    *ends.last_mut().expect("checked last end") = from + offset + 1;
+                }
+            }
+            "." if depth == 0 => ends.push(from + offset + 1),
+            _ => {}
+        }
+    }
+    ends
+}
+
+/// Whether one action of `effects` names the observation by a form only an
+/// observation answers: the rest, the other card, the revealed cards, the
+/// cards VERBed this way, a choice from among them, or a restated query.
+/// A bare `it|them|that card|those cards` may also name a triggering
+/// event's card, which an independent program step already reads.
+fn effects_name_observation_explicitly(effects: &[LocalEffectNode]) -> bool {
+    let explicit = |operand: &CardOperandNode| match operand {
+        CardOperandNode::Reference(reference) => !matches!(
+            reference,
+            CardCollectionReferenceNode::Selected | CardCollectionReferenceNode::Antecedent
+        ),
+        CardOperandNode::Selection(_) | CardOperandNode::RestatedAntecedent { .. } => true,
+        _ => false,
+    };
+    effects.iter().any(|effect| match effect {
+        LocalEffectNode::CardAction(
+            CardActionNode::Move { cards, .. }
+            | CardActionNode::Reveal(cards)
+            | CardActionNode::Permit(CardPermissionNode { cards, .. }),
+        ) => explicit(cards),
+        LocalEffectNode::CardAction(CardActionNode::Choose(_)) => true,
+        LocalEffectNode::OptionalSequence(body) => {
+            effects_name_observation_explicitly(&body.effects)
+        }
+        _ => false,
+    })
+}
+
+/// `PRODUCER. Put that card into your hand and the rest into your graveyard.`
+/// after an `If you do,` outcome or a `you may` permission: the sentences
+/// that only act on the cards the governed sentence observed belong to the
+/// same governed sequence (CR 608.2c). They read that observation as one
+/// binding scope; when the producer is not performed nothing was observed
+/// and they would do nothing, so the governed reading is exact. The longest
+/// run of such sentences is read; a sentence with any other action (or one
+/// the shared sequence does not read) ends the run and stays an independent
+/// program step. Where the frame names a triggering event's card, a sentence
+/// joins only when it also names the observation explicitly (`the rest`,
+/// `from among them`): a bare pronoun there may name the event's card. `None`
+/// consumes nothing: the governed sentence observes no cards, or no
+/// following sentence only reads them.
+pub(in crate::oracle::canonical) fn try_recognize_observed_card_continuation(
+    cursor: &mut OracleTokenCursor<'_>,
+    body_end: usize,
+    ability_end: usize,
+    mut read: impl FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<EffectSequenceNode>,
+) -> Option<EffectSequenceNode> {
+    if ability_end <= body_end {
+        return None;
+    }
+    let event_card = cursor
+        .binding_environment()
+        .is_some_and(|environment| environment.frame.event_card.is_some());
+    let mut alone = cursor.clone();
+    let own = alone.bounded(body_end, &mut read).ok()?;
+    if !effects_observe_cards(&own.effects) {
+        return None;
+    }
+    let mut best: Option<(OracleTokenCursor<'_>, EffectSequenceNode)> = None;
+    let mut start = body_end;
+    let mut read_effects = own.effects.len();
+    for end in following_sentence_ends(cursor, body_end, ability_end) {
+        // An outcome connector (`If you don't,`, `Otherwise,`, `When you
+        // do,`) opens the complementary or reflexive block, never a reader.
+        let sentence = cursor.token_slice(start, end);
+        let word = |offset: usize, expected: &str| {
+            sentence
+                .get(offset)
+                .is_some_and(|token| token.raw.eq_ignore_ascii_case(expected))
+        };
+        if word(0, "otherwise")
+            || ((word(0, "if") || word(0, "when"))
+                && word(1, "you")
+                && ["do", "don't", "don\u{2019}t", "didn't", "didn\u{2019}t"]
+                    .iter()
+                    .any(|form| word(2, form)))
+        {
+            break;
+        }
+        start = end;
+        let mut trial = cursor.clone();
+        trial.enter("program.observed-card-continuation");
+        let Ok(extended) = trial.bounded(end, &mut read) else {
+            break;
+        };
+        let continues = extended.effects.len() > read_effects
+            && extended.effects[..own.effects.len()] == own.effects[..]
+            && effects_read_only_observed_cards(&extended.effects[read_effects..])
+            && (!event_card
+                || effects_name_observation_explicitly(&extended.effects[read_effects..]));
+        if !continues {
+            break;
+        }
+        read_effects = extended.effects.len();
+        best = Some((trial, extended));
+    }
+    let (trial, extended) = best?;
+    *cursor = trial;
+    Some(extended)
 }
 
 #[cfg(test)]

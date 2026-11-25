@@ -47,6 +47,15 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && card_filter_supported(&effect["where"])
                 && integer_value(&effect["amount"]).is_some_and(|amount| amount > 0)
         }
+        Some("installGraveyardDestinationReplacement") => {
+            super::super::replacement_pipeline::temporary_graveyard_destination_supported(effect)
+        }
+        Some("installQuantityReplacement") => {
+            super::super::quantity_replacement::created_quantity_replacement_supported(effect)
+        }
+        Some("installDamageReplacement") => {
+            super::super::damage_replacement::created_damage_replacement_supported(effect)
+        }
         Some("installDeathExileReplacement") => {
             target_reference_supported(&effect["object"])
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
@@ -212,6 +221,15 @@ impl GameEngine {
         decisions: &mut BTreeMap<String, Value>,
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
+            Some("installGraveyardDestinationReplacement") => {
+                self.install_created_graveyard_destination_replacement(effect, stack_object);
+            }
+            Some("installQuantityReplacement") => {
+                self.install_created_quantity_replacement(effect, stack_object);
+            }
+            Some("installDamageReplacement") => {
+                self.install_created_damage_replacement(effect, stack_object);
+            }
             Some("installUntapRestriction") => {
                 let permanent = if matches!(
                     value_kind(&effect["permanent"]),
@@ -576,7 +594,7 @@ impl GameEngine {
                 }
             }
             Some("installOneShotModifier") => {
-                self.install_one_shot_modifier(effect, stack_object, bindings);
+                self.install_one_shot_modifier(effect, stack_object, bindings)?;
             }
             _ => {
                 return Err(EngineError::new(format!(

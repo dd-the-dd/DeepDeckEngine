@@ -20,6 +20,11 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// Those library cards are in the controller's own library, from which
     /// a resolution-time cast of this program may cast them (CR 608.2g).
     view_library_of_controller: bool,
+    /// The zone a move of this program put the whole observed collection
+    /// into (CR 400.7: the objects it became). A location fact, not an
+    /// antecedent: a shuffle of a library keeps an observation moved out of
+    /// it (`search ..., exile it, then shuffle`).
+    view_relocated: Option<CardZoneName>,
     /// The cards the most recent reveal of this scope revealed (`the
     /// revealed cards`).
     last_revealed: Option<(Value, Option<i64>)>,
@@ -52,6 +57,39 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// The declared target slots of the enclosing program, by binding: a
     /// card pronoun whose antecedent is a declared target reads its slot.
     object_bindings: Vec<(TargetBinding, String)>,
+    /// The outcome body that follows this sequence in the same scope (`If
+    /// you do, return that card ...`) reads a card collection reference, so
+    /// the sequence's last action observes what it moved as if a later
+    /// action of the sequence read it (CR 608.2c).
+    continuation_reads_cards: bool,
+}
+
+impl CardCollectionMemory {
+    /// The runtime bindings this scope already allocated: results of the
+    /// instructions lowered before the current sequence in the same
+    /// resolution (an `If you do` body reads its producer's).
+    pub(in crate::oracle::canonical) fn allocated_binding_ids(
+        &self,
+    ) -> std::collections::BTreeSet<String> {
+        self.allocated_ids.clone()
+    }
+
+    /// Marks that the outcome body sharing this scope reads a card
+    /// collection reference after the sequence lowered next.
+    pub(in crate::oracle::canonical) fn set_continuation_reads_cards(&mut self, reads: bool) {
+        self.continuation_reads_cards = reads;
+    }
+
+    /// Whether a card collection reference follows the action at `index`
+    /// of a sequence of `length` actions: within the sequence, or in the
+    /// outcome body that continues it.
+    pub(in crate::oracle::canonical) fn continuation_reads_cards_after(
+        &self,
+        index: usize,
+        length: usize,
+    ) -> bool {
+        self.continuation_reads_cards && index + 1 == length
+    }
 }
 
 /// The card collection this program put onto the battlefield; `it` after
@@ -238,6 +276,7 @@ impl CardCollectionMemory {
         self.view_zone_noun = snapshot.view_zone_noun;
         self.view_from_library_top = snapshot.view_from_library_top;
         self.view_library_of_controller = snapshot.view_library_of_controller;
+        self.view_relocated = snapshot.view_relocated;
         self.last_revealed = snapshot.last_revealed.clone();
         self.last_exiled = snapshot.last_exiled.clone();
         self.last_cast = snapshot.last_cast.clone();
@@ -277,6 +316,12 @@ impl CardCollectionMemory {
     pub(in crate::oracle::canonical) fn keep_common_location_facts(&mut self, others: &[&Self]) {
         self.view_library_of_controller &=
             others.iter().all(|other| other.view_library_of_controller);
+        if others
+            .iter()
+            .any(|other| other.view_relocated != self.view_relocated)
+        {
+            self.view_relocated = None;
+        }
     }
 
     pub(in crate::oracle::canonical) fn clear_antecedent(&mut self) {
@@ -290,6 +335,7 @@ impl CardCollectionMemory {
         self.view_zone_noun = false;
         self.view_from_library_top = false;
         self.view_library_of_controller = false;
+        self.view_relocated = None;
         self.last_revealed = None;
         self.last_exiled = None;
         self.last_cast = None;
@@ -432,6 +478,19 @@ impl CardCollectionMemory {
                 self.view.is_some() && self.view_verb == Some(via),
                 "a collection produced by the verb restated with `this way`",
             )?;
+            // `all [QUERY] cards revealed|exiled this way` restates the whole
+            // collection the producing action observed (CR 608.2c), never
+            // the narrower focus a later selection or a reveal-until match
+            // left (`reveal cards until you reveal two creature cards. Put
+            // all creature cards revealed this way ... and the rest ...`).
+            if matches!(selection.quantity, CardSelectionQuantityNode::All { .. })
+                && selection.from == CardCollectionReferenceNode::Antecedent
+            {
+                let view = self.view.clone().ok_or_else(|| {
+                    cursor.fail("an observed card collection in the current lexical scope")
+                })?;
+                return Ok((view, self.view_maximum));
+            }
         }
         self.reference(cursor, selection.from)
     }
@@ -507,9 +566,24 @@ impl CardCollectionMemory {
             cursor.fail("an observed card collection in the current lexical scope")
         })?;
         match reference {
-            CardCollectionReferenceNode::Antecedent => self.plural_focus.clone().ok_or_else(|| {
-                cursor.fail("a plural card-collection antecedent in the current scope")
-            }),
+            CardCollectionReferenceNode::Antecedent => {
+                let focus = self.plural_focus.clone().ok_or_else(|| {
+                    cursor.fail("a plural card-collection antecedent in the current scope")
+                })?;
+                // `them` / `those cards` agree in number with what they
+                // restate: the one card a library-top observation read
+                // (`the top card`) is never their antecedent, so another
+                // collection the text means (`exile it. ... exile the top
+                // card ... one of those cards`) is not silently narrowed to
+                // it. Per-chooser or per-slot singular collections (`each
+                // opponent chooses a card`, two single-card targets) are
+                // plural sets and stay readable.
+                cursor.require(
+                    !(self.view_from_library_top && focus.1 == Some(1)),
+                    "a plural card-collection antecedent; the observed library-top collection is one card",
+                )?;
+                Ok(focus)
+            }
             CardCollectionReferenceNode::Selected => self
                 .singular_focus
                 .clone()
@@ -726,6 +800,21 @@ impl CardCollectionMemory {
             let value = self.object_antecedent_cards(cursor, *reference, *object)?;
             self.mention(value.clone());
             return Ok(value);
+        }
+        if let CardOperandNode::RestatedAntecedent { predicate } = operand {
+            // `those land cards`: the plural antecedent itself, whose
+            // producing filter is exactly the restated query. Any other
+            // antecedent (an unfiltered look, another query) fails here
+            // rather than being filtered or widened silently.
+            let (value, maximum) =
+                self.reference(cursor, CardCollectionReferenceNode::Antecedent)?;
+            cursor.require(
+                value_kind_name(&value) == Some("filterObjects")
+                    && value.get("where") == Some(&lower_card_object_predicate(predicate)),
+                "a restated card query naming exactly the filter of the plural antecedent",
+            )?;
+            self.mention((value.clone(), maximum));
+            return Ok((value, maximum));
         }
         if let CardOperandNode::Targets(target) = operand {
             validate_object_predicate_numeric_expressions(&target.predicate, declarations)
@@ -1263,6 +1352,12 @@ impl CardCollectionMemory {
         if linked_exile {
             return Ok(CardZoneName::Exile);
         }
+        // The whole observation was moved by this program (`search ...,
+        // exile that card, then shuffle. You may cast that card`): the cast
+        // takes the cards from the zone they were put into (CR 400.7).
+        if let Some(zone) = self.view_relocated {
+            return Ok(zone);
+        }
         // Library cards this program looked at or revealed in the
         // controller's own library, none of which an earlier action of the
         // scope moved elsewhere: the cast takes them from where they are,
@@ -1750,6 +1845,9 @@ impl CardCollectionMemory {
                 self.view_from_library_top = true;
                 self.view_library_of_controller = true;
                 self.view_verb = Some(CardCollectionVerb::Revealed);
+                // `the revealed cards` / `all revealed cards` name every
+                // card this reveal revealed, matching or not (CR 701.20a).
+                self.last_revealed = Some((bound(&id), None));
                 self.selected.push(matching.clone());
                 self.complement_exclusions.push(matching.clone());
                 self.mention((matching, maximum));
@@ -1864,8 +1962,18 @@ impl CardCollectionMemory {
                     *owner == LocalPlayerReference::Controller,
                     "the controller's library",
                 )?;
-                // Shuffled cards are new unordered identities for later text.
-                self.clear_antecedent();
+                // Shuffled library cards are new unordered identities for
+                // later text (CR 701.20a). An observation this program moved
+                // wholly out of the library is not shuffled and stays the
+                // antecedent (`search ..., exile it, then shuffle. You may
+                // play that card`).
+                let moved_out = self
+                    .view_relocated
+                    .or(self.view_zone)
+                    .is_some_and(|zone| zone != CardZoneName::Library);
+                if !moved_out {
+                    self.clear_antecedent();
+                }
                 effects.push(json!({"kind":"shuffleZone",
                     "zone":{"kind":"library", "player":controller()}}));
             }
@@ -2073,12 +2181,17 @@ impl CardCollectionMemory {
                     &mut effects,
                     target_decisions,
                 )?;
+                // The whole observed collection moves: its cards are then in
+                // the destination zone, as the objects they became (CR 400.7).
+                let moves_whole_view = self.view.as_ref() == Some(&cards);
                 // Cards of the observed library collection moved out of the
                 // library: a later cast can no longer prove where they are.
                 if destination.zone != CardZoneName::Library
                     && matches!(
                         operand,
-                        CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                        CardOperandNode::Reference(_)
+                            | CardOperandNode::RestatedAntecedent { .. }
+                            | CardOperandNode::Selection(_)
                     )
                 {
                     self.view_library_of_controller = false;
@@ -2092,7 +2205,9 @@ impl CardCollectionMemory {
                         self.view_from_library_top
                             && matches!(
                                 operand,
-                                CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                                CardOperandNode::Reference(_)
+                                    | CardOperandNode::RestatedAntecedent { .. }
+                                    | CardOperandNode::Selection(_)
                             ),
                         "cards this program observed in a library, moved back to that library",
                     )?;
@@ -2207,7 +2322,8 @@ impl CardCollectionMemory {
                         // The cards a resolution choice chose (a search's
                         // found cards): identities fixed by the choice.
                         CardOperandNode::Reference(_) if is_choice_result(&cards) => true,
-                        CardOperandNode::Reference(_) => {
+                        CardOperandNode::Reference(_)
+                        | CardOperandNode::RestatedAntecedent { .. } => {
                             (self.view_verb == Some(CardCollectionVerb::Exiled)
                                 && self.view_zone == Some(CardZoneName::Exile))
                                 // The library cards this program looked at or
@@ -2298,6 +2414,9 @@ impl CardCollectionMemory {
                             "attachment":bound(MOVED_ONTO_BATTLEFIELD_BINDING),
                             "to":recipient}));
                     }
+                    if moves_whole_view {
+                        self.view_relocated = Some(destination.zone);
+                    }
                     return Ok(effects);
                 }
                 cursor.require(
@@ -2374,6 +2493,9 @@ impl CardCollectionMemory {
                     self.clear_antecedent();
                 } else {
                     effects.push(movement);
+                    if moves_whole_view {
+                        self.view_relocated = Some(destination.zone);
+                    }
                 }
             }
         }
@@ -2489,6 +2611,7 @@ fn moved_cards_owned_by_controller(operand: &CardOperandNode) -> bool {
         }
         CardOperandNode::Reference(_)
         | CardOperandNode::ObjectAntecedent { .. }
+        | CardOperandNode::RestatedAntecedent { .. }
         | CardOperandNode::Selection(_)
         | CardOperandNode::LibraryTop(_)
         | CardOperandNode::CardCopies { .. }

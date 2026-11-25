@@ -167,6 +167,7 @@ mod mana_discovery_session;
 mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
+mod static_object_prohibitions;
 mod static_player_permissions;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
@@ -214,10 +215,12 @@ mod player_action_events;
 mod player_damage_batch;
 mod player_damage_observation;
 mod player_damage_replacement_order;
+mod player_event_matchers;
 mod player_iteration;
 mod player_quantifier;
 mod player_query;
 mod player_static_modifiers;
+mod previous_turn_events;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
@@ -229,6 +232,7 @@ mod resolution_checkpoint;
 mod resolution_costs;
 mod resolution_permissions;
 mod resolution_preflight;
+mod resolution_records;
 mod riot;
 mod rule_execution;
 mod runtime_collections;
@@ -2413,6 +2417,8 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "dealtDamageThisTurn"
             | "enteredGraveyardThisTurn"
             | object_event_history::PUT_THERE_FROM_BATTLEFIELD
+            | object_event_history::PUT_THERE_THIS_TURN
+            | object_event_history::MILLED_THIS_TURN
             | "dealtDamageToControllerThisTurn"
             | "wasDealtDamageThisTurn"
             | "attackedThisTurn"
@@ -4688,7 +4694,7 @@ fn target_selection_constraint_supported(constraint: &Value) -> bool {
             constraint,
             target_selection_constraint_supported,
         ),
-        Some("distinctValues" | "totalAtMost") => {
+        Some("distinctValues" | "totalAtMost" | "sharedValue") => {
             object_predicate_eval::set_constraint_supported(constraint)
         }
         _ => false,
@@ -4909,6 +4915,9 @@ fn activation_cost_modifier_supported(modifier: &Value) -> bool {
 fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
+    }
+    if let Some(supported) = player_event_matchers::player_outcome_event_supported(event) {
+        return supported;
     }
     if let Some(supported) = player_action_events::player_milestone_event_supported(event) {
         return supported;
@@ -5752,6 +5761,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
             player_query::population_supported(&modifier["player"])
                 && card_filter_supported(&modifier["where"])
                 && numeric_expression_supported(&modifier["amount"])
+                && modifier
+                    .get("coloredMana")
+                    .is_none_or(casting_cost::colored_reduction_supported)
                 && modifier.get("firstEachTurn").is_none_or(Value::is_boolean)
                 && modifier
                     .get("duringOtherPlayersTurns")
@@ -5963,10 +5975,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && integer_value(&modifier["factor"]).is_some_and(|factor| factor > 1)
         }
         Some("replaceGraveyardDestination") => {
-            player_reference_supported(&modifier["graveyardOwners"])
-                && modifier.get("where").is_none_or(card_filter_supported)
-                && value_kind(&modifier["from"]) == Some("anyZone")
-                && value_kind(&modifier["to"]) == Some("exile")
+            replacement_pipeline::graveyard_destination_modifier_supported(modifier)
         }
         Some("untapDuringOtherPlayersUntap") => value_kind(&modifier["object"]) == Some("self"),
         Some("nonbasicLandsEnterTapped") => true,
@@ -5977,6 +5986,13 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && numeric_expression_supported(&modifier["count"])
         }
         Some("nonbasicLandsBecomeMountains") => condition_supported(&modifier["condition"]),
+        Some("setCardTypes" | "modifySubtypeSet") => {
+            GameEngine::static_type_modifier_supported(modifier)
+        }
+        Some("cantBeTargeted" | "cantBecomeUntapped") => {
+            static_object_prohibitions::static_object_prohibition_supported(modifier)
+                .unwrap_or(false)
+        }
         _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }
@@ -5994,12 +6010,16 @@ fn casting_static_rule_supported(rule: &Value) -> bool {
         && rule["modifiers"].as_array().is_some_and(|modifiers| {
             !modifiers.is_empty()
                 && modifiers.iter().all(|modifier| {
-                    value_kind(modifier) == Some("reduceOwnGenericCastingCost")
-                        && numeric_expression_supported(&modifier["amount"])
-                        && modifier
-                            .get("targetWhere")
-                            .is_none_or(card_filter_supported)
-                        && modifier.get("condition").is_none_or(condition_supported)
+                    casting_cost::own_casting_increase_supported(modifier)
+                        || (value_kind(modifier) == Some("reduceOwnGenericCastingCost")
+                            && numeric_expression_supported(&modifier["amount"])
+                            && modifier
+                                .get("coloredMana")
+                                .is_none_or(casting_cost::colored_reduction_supported)
+                            && modifier
+                                .get("targetWhere")
+                                .is_none_or(card_filter_supported)
+                            && modifier.get("condition").is_none_or(condition_supported))
                 })
         })
 }
@@ -8013,7 +8033,9 @@ impl GameEngine {
 
     #[cfg(test)]
     fn put_card_into_graveyard(&mut self, player_index: usize, card: CardInstance) -> bool {
-        let destination = self.prepare_graveyard_destination(player_index, &card);
+        let destination = self
+            .prepare_graveyard_destination(player_index, &card)
+            .expect("test-only raw placement requires an unambiguous replacement");
         self.commit_graveyard_destination(player_index, card, destination)
             .expect("test-only raw placement requires an unambiguous replacement")
     }
@@ -8023,6 +8045,18 @@ impl GameEngine {
         player_id: &str,
         count: usize,
         source_controller: Option<&str>,
+    ) -> Result<Vec<String>, EngineError> {
+        self.mill_cards_with(player_id, count, source_controller, None)
+    }
+
+    /// `mill_cards` with the chooser of each milled card's CR 616.1 order
+    /// between graveyard-destination replacements with different outcomes.
+    fn mill_cards_with(
+        &mut self,
+        player_id: &str,
+        count: usize,
+        source_controller: Option<&str>,
+        mut provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<Vec<String>, EngineError> {
         let player_index = self.player_index(player_id)?;
         let count = count.saturating_mul(self.mill_factor(player_id).max(1) as usize);
@@ -8036,8 +8070,14 @@ impl GameEngine {
             else {
                 break;
             };
-            let (card, graveyard_destination) =
-                self.take_zone_card_for_graveyard(player_index, "library", card_index)?;
+            let (card, graveyard_destination) = self.take_zone_card_for_graveyard_with(
+                player_index,
+                "library",
+                card_index,
+                provider
+                    .as_mut()
+                    .map(|provider| &mut **provider as &mut dyn DecisionProvider),
+            )?;
             let card_id = card.instance_id.clone();
             if self.put_owned_card_into_prepared_graveyard(
                 player_index,
@@ -8125,7 +8165,7 @@ impl GameEngine {
                     self.target_selection_satisfies_constraint(selection, one, assignment)
                 })
             }),
-            Some("distinctValues" | "totalAtMost") => {
+            Some("distinctValues" | "totalAtMost" | "sharedValue") => {
                 self.target_selection_satisfies_set_constraint(selection, constraint)
             }
             Some("sameZoneOwner") => {
@@ -8629,6 +8669,11 @@ impl GameEngine {
                         permanent,
                         &stack_object.controller,
                         &stack_object.card.definition,
+                    ) && !self.static_targeting_prohibited(
+                        permanent,
+                        &stack_object.controller,
+                        &stack_object.card.definition,
+                        stack_object_is_spell(stack_object),
                     )
                 }),
             TargetRef::Player { player_id } => {
@@ -10769,14 +10814,17 @@ impl GameEngine {
                 });
         // CR 205.1a: the latest card-type set recorded on this object replaces
         // its printed card types; later additive effects still add theirs.
-        let base_has_type = effect_domains::marker_card_types(&permanent.definition).map_or_else(
-            || has_card_type(&permanent.definition, card_type),
-            |types| {
-                types
-                    .iter()
-                    .any(|value| value.eq_ignore_ascii_case(card_type))
-            },
-        );
+        let base_has_type = self
+            .static_card_type_set(permanent)
+            .or_else(|| effect_domains::marker_card_types(&permanent.definition))
+            .map_or_else(
+                || has_card_type(&permanent.definition, card_type),
+                |types| {
+                    types
+                        .iter()
+                        .any(|value| value.eq_ignore_ascii_case(card_type))
+                },
+            );
         if !base_has_type && !temporarily_added && !continuously_added {
             return false;
         }
@@ -10876,6 +10924,9 @@ impl GameEngine {
                     .is_some_and(|symbol| !self.permanent_color_symbols(permanent).contains(symbol))
             }),
             Some("subtypeContains") => filter["value"].as_str().is_some_and(|subtype| {
+                if let Some(member) = self.static_subtype_membership(permanent, subtype) {
+                    return member;
+                }
                 let set_subtypes =
                     self.battlefield_static_modifiers()
                         .iter()
@@ -11247,9 +11298,9 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> bool {
         match value_kind(filter) {
-            Some(object_event_history::PUT_THERE_FROM_BATTLEFIELD) => {
-                self.card_put_there_from_battlefield_this_turn(&card.instance_id)
-            }
+            Some(kind) if object_event_history::is_card_history_kind(kind) => self
+                .card_history_matches(&card.instance_id, kind)
+                .unwrap_or(false),
             Some("enteredGraveyardThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
                     && ((event.kind == "cardsEnteredGraveyard"
@@ -12856,6 +12907,11 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == Some("controllerOf")
                     && matches_stack_filter(card, &modifier["spells"]["where"])
+                    && self.spell_grant_ordinal_open(
+                        modifier,
+                        controller_id,
+                        &modifier["spells"]["where"],
+                    )
             })
     }
 
@@ -12874,6 +12930,11 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == Some("controllerOf")
                     && matches_stack_filter(card, &modifier["spells"]["where"])
+                    && self.spell_grant_ordinal_open(
+                        modifier,
+                        controller_id,
+                        &modifier["spells"]["where"],
+                    )
             })
     }
 
@@ -16795,6 +16856,12 @@ impl GameEngine {
                             let permanent =
                                 &self.state.players[player_index].battlefield[card_index];
                             !self.permanent_is_protected_from_card(permanent, card)
+                                && !self.static_targeting_prohibited(
+                                    permanent,
+                                    controller_id,
+                                    card,
+                                    true,
+                                )
                                 && !(permanent.controller != controller_id
                                     && self.permanent_has_hexproof_from_own_colors_against(
                                         permanent, card,
@@ -18022,10 +18089,14 @@ impl GameEngine {
                 } else {
                     0
                 };
-                let commander_increases = (commander_tax > 0)
+                let mut commander_increases = (commander_tax > 0)
                     .then(|| format!("{{{commander_tax}}}"))
                     .into_iter()
                     .collect::<Vec<_>>();
+                commander_increases.extend(casting_cost::own_target_count_increases(
+                    &card.definition,
+                    &declaration.targets,
+                ));
                 let mut mana_costs = self.checked_casting_mana_costs_with_adjustments(
                     &card.definition,
                     &player.id,
@@ -19272,6 +19343,11 @@ impl GameEngine {
                                 candidate,
                                 &player.id,
                                 &permanent.definition,
+                            ) && !self.static_targeting_prohibited(
+                                candidate,
+                                &player.id,
+                                &permanent.definition,
+                                false,
                             )
                         })
                         .filter(|candidate| {
@@ -21519,6 +21595,9 @@ impl GameEngine {
         if self.event_condition_suppresses(&rule, source, &decisions) {
             return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
         }
+        if self.first_occurrence_suppresses(&rule, source) {
+            return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
+        }
         let trigger_limit_id = rule["triggerLimit"]["id"].as_str();
         let trigger_limit_kind = value_kind(&rule["triggerLimit"]);
         if trigger_limit_id.is_some_and(|limit_id| {
@@ -22456,11 +22535,11 @@ impl GameEngine {
             }
             let mut trigger_decisions = decisions.clone();
             entry_observation.add_object_decision(&mut trigger_decisions);
-            if trigger_source.instance_id == source.instance_id
-                && let Some(x_value) =
-                    self.source_cast_x_value(&trigger_source.instance_id, &BTreeMap::new())
-            {
-                trigger_decisions.insert("xValue".to_string(), Value::from(x_value));
+            // CR 107.3m: the permanent's own enters trigger reads the X of the
+            // spell it was; an object that was not cast has X of 0.
+            if trigger_source.instance_id == source.instance_id {
+                let x_value = self.source_cast_x_value(&source.instance_id, &BTreeMap::new());
+                trigger_decisions.insert("xValue".to_string(), Value::from(x_value.unwrap_or(0)));
             }
             self.put_triggered_ability_on_stack_with_decisions(
                 &trigger_source,
@@ -23188,14 +23267,8 @@ impl GameEngine {
                                 Some("manaAbilityActivated") => {
                                     trigger_source.instance_id == mana_source.instance_id
                                 }
-                                Some("controlledPermanentManaAbilityActivated") => {
-                                    (event["anyPlayer"].as_bool() == Some(true)
-                                        || trigger_source.controller == mana_source.controller)
-                                        && matches_card_filter(
-                                            &mana_source.definition,
-                                            &event["where"],
-                                        )
-                                }
+                                Some("controlledPermanentManaAbilityActivated") => self
+                                    .tapped_for_mana_observed(event, &trigger_source, mana_source),
                                 Some("abilityActivated") => {
                                     trigger_source.controller == mana_source.controller
                                         && matches_card_filter(
@@ -24462,6 +24535,7 @@ impl GameEngine {
                 return;
             }
         }
+        self.publish_attackers_attacked_player(attacker_ids);
         self.publish_created_attack_triggers(&attack_records);
     }
 
@@ -25955,6 +26029,11 @@ impl GameEngine {
                             && integer_value(&modifier["minimumManaValue"])
                                 .is_some_and(|minimum| spell_mana_value >= minimum)
                             && matches_stack_filter(&spell_definition, &modifier["where"])
+                            && self.spell_grant_ordinal_open(
+                                modifier,
+                                &action.player_id,
+                                &modifier["where"],
+                            )
                     })
                     .count();
                 let cascade_count = keyword_count(&spell_definition, "cascade")
@@ -26421,6 +26500,7 @@ impl GameEngine {
                     decisions
                 });
                 self.enqueue_mana_expended_triggers(&action.player_id, &action.decisions);
+                self.publish_committed_crime(&stack_id, &stack_targets);
                 self.enqueue_targeting_triggers(&stack_id, &stack_targets)?;
                 self.check_state_based_actions_with_provider(Some(provider))?;
             }
@@ -26896,12 +26976,14 @@ impl GameEngine {
                                 "objectKind": "activatedAbility",
                                 "sourceZone": zone_name,
                                 "stackId": stack_id,
+                                "abilityDigest": resolution_records::ability_digest(&rule),
                             }),
                         );
                         engine.enqueue_nonmana_ability_activated_triggers(
                             &action.player_id,
                             &stack_id,
                         );
+                        engine.publish_committed_crime(&stack_id, &stack_targets);
                         engine.enqueue_targeting_triggers(&stack_id, &stack_targets)?;
                         return Ok(());
                     });
@@ -27789,6 +27871,7 @@ impl GameEngine {
                         "cardName": source.definition.name,
                         "objectKind": "activatedAbility",
                         "stackId": stack_id,
+                        "abilityDigest": resolution_records::ability_digest(&rule),
                         "loyalty": rule["costs"].as_array().is_some_and(|costs| {
                             costs.iter().any(|cost| value_kind(cost) == Some("payLoyalty"))
                         }),
@@ -27806,6 +27889,7 @@ impl GameEngine {
                         Some(source.instance_id.clone()),
                     );
                 }
+                self.publish_committed_crime(&stack_id, &stack_targets);
                 self.enqueue_targeting_triggers(&stack_id, &stack_targets)?;
                 self.check_state_based_actions_with_provider(Some(provider))?;
             }
@@ -30105,6 +30189,7 @@ impl GameEngine {
             json!({
                 "objectKind": stack_object.ability_kind.as_deref().unwrap_or("spell"),
                 "stackId": stack_id,
+                "abilityDigest": resolution_records::stack_ability_digest(&stack_object),
             }),
         );
         let has_targets = !stack_object.targets.is_empty();
@@ -31219,6 +31304,11 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        if let Some(value) =
+            self.resolution_record_numeric(expression, stack_object, bindings, decisions)
+        {
+            return value;
         }
         if let Some(value) = self.runtime_numeric_quantity(expression, stack_object, bindings) {
             return value;
@@ -33228,9 +33318,7 @@ impl GameEngine {
                     })
             }
             Some("sacrificePermanents") => {
-                let Some(count) = integer_value(&action["count"])
-                    .and_then(|count| usize::try_from(count.max(0)).ok())
-                else {
+                let Some(count) = card_selection::literal_selection_minimum(action) else {
                     return false;
                 };
                 let Some(player_id) =
@@ -33934,7 +34022,8 @@ impl GameEngine {
                     };
                     let host = &self.state.players[player_index].battlefield[card_index];
                     host.flags.get("phasedOut").copied().unwrap_or(false)
-                        || (!self.permanent_is_protected_from_card(host, &aura.definition)
+                        || ((!self.permanent_is_protected_from_card(host, &aura.definition)
+                            || self.protection_spares_aura(host, aura))
                             && self
                                 .selection_candidates_with_decisions(
                                     &aura.controller,

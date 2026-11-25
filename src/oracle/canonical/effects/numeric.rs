@@ -65,6 +65,23 @@ pub(in crate::oracle::canonical) fn lower_action_result_objects(
         && reference.predicate.is_in_domain(ObjectKind::Permanent)
     {
         lower_permanent_object_predicate(&reference.predicate)
+    } else if removes_permanents(reference.verb)
+        && reference.predicate.is_in_domain(ObjectKind::Permanent)
+    {
+        // `if an artifact was destroyed this way` (CR 608.2c, 608.2h): the
+        // permanents are tested as they last existed on the battlefield,
+        // by the type line and state their departure recorded.
+        let filter = lower_permanent_object_predicate(&reference.predicate);
+        if filter.is_null() {
+            return Err("a restated noun the producing action guarantees or keeps readable");
+        }
+        let mut pending = json!({
+            "kind": ACTION_RESULT_OBJECTS,
+            "verb": reference.verb.ir_name(),
+            "where": filter,
+        });
+        pending[LAST_KNOWN_FIELD] = json!(true);
+        return Ok(pending);
     } else {
         return Err("a restated noun the producing action guarantees or keeps readable");
     };
@@ -73,6 +90,19 @@ pub(in crate::oracle::canonical) fn lower_action_result_objects(
         "verb": reference.verb.ir_name(),
         "where": filter,
     }))
+}
+
+/// The field of a pending restated result whose noun is tested on the
+/// permanents' last known information (they left the battlefield).
+const LAST_KNOWN_FIELD: &str = "lastKnown";
+
+/// The restated verbs whose action removes the permanents it affects from
+/// the battlefield and records their departure (CR 701.8, 701.21a).
+fn removes_permanents(verb: ActionResultVerb) -> bool {
+    matches!(
+        verb,
+        ActionResultVerb::Destroyed | ActionResultVerb::Sacrificed
+    )
 }
 
 /// The objects one producing runtime action affected, as a stable object
@@ -196,6 +226,39 @@ fn bind_pending_action_result_objects(
             };
             let bound = action_result_objects(&mut effects[*position], previous)?;
             let filter = map.get("where").cloned().unwrap_or(Value::Null);
+            // `the total PROPERTY of OBJECTS VERBed this way`: the sum over
+            // the bound objects, each read as last known information once
+            // it left the battlefield (CR 608.2h).
+            if let Some(property) = map.get(ACTION_RESULT_TOTAL_FIELD).cloned() {
+                let binding = match (bound["kind"].as_str(), bound["binding"].as_str()) {
+                    (Some("boundObjects"), Some(binding)) => binding.to_owned(),
+                    _ => return Err("a producing action that binds the objects it affected"),
+                };
+                let mut total = json!({
+                    "kind": "sumBoundObjectProperty",
+                    "binding": binding,
+                    "property": property,
+                });
+                if !filter.is_null() {
+                    total["where"] = filter;
+                }
+                *value = total;
+                return Ok(());
+            }
+            // A restated noun of departed permanents: counted on their last
+            // known information.
+            if map.get(LAST_KNOWN_FIELD).and_then(Value::as_bool) == Some(true) {
+                let binding = match (bound["kind"].as_str(), bound["binding"].as_str()) {
+                    (Some("boundObjects"), Some(binding)) => binding.to_owned(),
+                    _ => return Err("a producing action that binds the objects it affected"),
+                };
+                *value = json!({
+                    "kind": "countBoundObjectsLastKnown",
+                    "binding": binding,
+                    "where": filter,
+                });
+                return Ok(());
+            }
             *value = json!({
                 "kind": "countObjects",
                 "objects": if filter.is_null() {
@@ -554,6 +617,7 @@ fn lower_numeric_expression_in_context(
                 PlayerNumericFact::LifeGainedThisTurn => "lifeGainedThisTurn",
                 PlayerNumericFact::LifeTotal => "lifeTotal",
                 PlayerNumericFact::StartingLifeTotal => "startingLifeTotal",
+                PlayerNumericFact::Speed => "playerSpeed",
                 PlayerNumericFact::Counters(_) => unreachable!("lowered above"),
             },
             "player": controller(),
@@ -587,7 +651,16 @@ fn lower_numeric_expression_in_context(
                 "player": controller(),
                 "where": lower_permanent_object_predicate(predicate),
             })),
-            SelectorNumericProperty::Toughness | SelectorNumericProperty::ManaValue => None,
+            // The other properties: the shared permanent total of one
+            // player's permanents (CR 107.1), zero when there are none.
+            SelectorNumericProperty::Toughness | SelectorNumericProperty::ManaValue => {
+                Some(json!({
+                    "kind": "sumPermanentProperty",
+                    "player": controller(),
+                    "where": lower_permanent_object_predicate(predicate),
+                    "property": selector_property_ir_name(*property),
+                }))
+            }
         },
         NumericExpression::GreatestPropertyAmong {
             property,
@@ -714,6 +787,69 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
             "players": lower_player_population_query(query, None).ok()?,
         })),
         NumericQuantity::Greatest(_) => None,
+        // CR 102.1-102.3: the members whose measure compares with the
+        // controller's; each member is the measure's `quantifiedPlayer`.
+        NumericQuantity::PlayersComparedWithController {
+            players,
+            measure,
+            operator,
+        } => Some(json!({
+            "kind": "countPlayersComparedWithController",
+            "player": controller(),
+            "players": lower_player_set_reference(*players),
+            "operator": operator.ir_operator(),
+            "value": lower_player_measure(measure, json!({ "kind": "quantifiedPlayer" })),
+        })),
+        // CR 903.8: the greatest tax among the controller's commanders.
+        NumericQuantity::HighestCommanderTax => Some(json!({
+            "kind": "highestCommanderTax",
+            "player": controller(),
+        })),
+        // One measure of the ability's controller.
+        NumericQuantity::ControllerMeasure(measure) => {
+            Some(lower_player_measure(measure, controller()))
+        }
+        // The players whose measure is the extremum of every player's.
+        NumericQuantity::PlayersAtExtremum { measure, extremum } => Some(json!({
+            "kind": "countPlayersAtExtremum",
+            "extremum": match extremum {
+                PlayerExtremum::Greatest => "greatest",
+                PlayerExtremum::Least => "least",
+            },
+            "value": lower_player_measure(measure, json!({ "kind": "quantifiedPlayer" })),
+        })),
+        // The resolving ability's own record, counted by the runtime from
+        // the resolutions and activations it records this turn.
+        NumericQuantity::AbilityHistory(measure) => Some(json!({ "kind": measure.ir_kind() })),
+        // `the total PROPERTY of OBJECTS VERBed this way`: the pending
+        // restated result, bound by the program lowering to its producer
+        // (`bind_pending_action_result_objects`), then summed.
+        NumericQuantity::PropertyTotal(PropertyTotalNode {
+            property,
+            collection: PropertyTotalCollection::ActionResult { reader, reference },
+        }) => {
+            let mut pending = lower_action_result_objects(reference).ok()?;
+            pending["reader"] = json!(reader);
+            pending[ACTION_RESULT_TOTAL_FIELD] = json!(selector_property_ir_name(*property));
+            Some(pending)
+        }
+        // The number the activation declared for its payer-chosen cost
+        // (CR 601.2h via 602.2b); the card-level binding proves the rule
+        // declares it (`contextual_binding.rs`).
+        NumericQuantity::CostChosenAmount => Some(decision_result(COST_CHOSEN_AMOUNT)),
+    }
+}
+
+/// The field of a pending restated result that asks for the sum of one
+/// property of the bound objects instead of their number.
+const ACTION_RESULT_TOTAL_FIELD: &str = "total";
+
+/// The runtime name of a summed numeric property.
+fn selector_property_ir_name(property: SelectorNumericProperty) -> &'static str {
+    match property {
+        SelectorNumericProperty::Power => "power",
+        SelectorNumericProperty::Toughness => "toughness",
+        SelectorNumericProperty::ManaValue => "manaValue",
     }
 }
 

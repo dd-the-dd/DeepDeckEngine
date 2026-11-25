@@ -406,11 +406,92 @@ fn apply_activation_cost_reduction(
             cursor.fail("an activated ability (not a mana ability) owning the cost reduction"),
         );
     }
-    draft.rule["manaCostReduction"] = lower_activation_cost_reduction(&reduction);
+    if let Err(failure) = install_activation_cost_reduction(cursor, &mut draft.rule, &reduction) {
+        return EffectProgramParseAttempt::FailedSupport(failure);
+    }
     draft
         .operations
-        .push("Attach the per-permanent activation cost reduction".to_string());
+        .push("Attach the activation cost reduction".to_string());
     EffectProgramParseAttempt::Parsed(draft)
+}
+
+/// Installs the activation cost reduction on its activated rule (CR 601.2f
+/// via 602.2b). An unconditional amount is the rule's `manaCostReduction`;
+/// a conditional one is a `reduceManaCost` activation cost modifier whose
+/// `condition` is read for the activating player, or whose
+/// `targetCondition` is matched against the ability's one target slot
+/// (chosen before the cost is determined, CR 601.2c).
+pub(in crate::oracle::canonical) fn install_activation_cost_reduction(
+    cursor: &mut OracleTokenCursor<'_>,
+    rule: &mut Value,
+    reduction: &ActivationCostReductionNode,
+) -> MachineResult<()> {
+    cursor.enter("activation.reduction.amount");
+    let amount = match &reduction.amount {
+        ActivationReductionAmount::PerControlledPermanent { generic, selector } => {
+            let count = json!({
+                "kind": "countPermanents",
+                "player": controller(),
+                "where": lower_permanent_object_predicate(selector),
+            });
+            if *generic == 1 {
+                count
+            } else {
+                json!({ "kind": "multiply", "left": count, "right": integer(*generic) })
+            }
+        }
+        ActivationReductionAmount::Expression(expression) => cursor.require_value(
+            lower_numeric_expression(expression),
+            "a reduction amount the shared numeric lowering represents",
+        )?,
+    };
+    let Some(condition) = &reduction.condition else {
+        rule["manaCostReduction"] = amount;
+        return Ok(());
+    };
+    let mut modifier = json!({ "kind": "reduceManaCost", "amount": amount });
+    match condition {
+        CostAdjustmentCondition::Sentence(condition) => {
+            cursor.enter("activation.reduction.condition");
+            modifier["condition"] = lower_sentence_condition(
+                cursor,
+                condition,
+                &ConditionObjectBindings {
+                    permanent_targets: &[],
+                    card_targets: &[],
+                    card_focus: None,
+                    previous_action_result: None,
+                },
+            )?;
+        }
+        CostAdjustmentCondition::Targets(query) => {
+            cursor.enter("activation.reduction.target-condition");
+            let slots = rule["declaration"]["decisions"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|decision| decision["kind"] == "chooseTargets")
+                .filter_map(|decision| decision["id"].as_str())
+                .collect::<Vec<_>>();
+            let [slot] = slots.as_slice() else {
+                return Err(cursor.fail("exactly one target slot of the ability for `it targets`"));
+            };
+            let filter = lower_permanent_object_predicate(&query.predicate);
+            cursor.require(
+                !filter.is_null(),
+                "a lowerable permanent predicate for the targeted object",
+            )?;
+            modifier["targetCondition"] = json!({ "decisionId": slot, "where": filter });
+        }
+    }
+    let mut modifiers = rule
+        .get("activationCostModifiers")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    modifiers.push(modifier);
+    rule["activationCostModifiers"] = json!(modifiers);
+    Ok(())
 }
 
 /// The costless imperative body shared by spell abilities and other parents
@@ -660,6 +741,9 @@ fn activation_body_context(
         context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
     }
     context.source_numeric_reads = permanent_face;
+    // A number the payer chose while paying (`remove any number of storage
+    // counters`) is what `for each counter removed this way` restates.
+    context.frame.cost_chosen_amount = costs.cost_chosen_amount_slot();
     // A permanent face's activation names its source; a cost that may move
     // the source keeps the reference (CR 113.7a) as `RetainedOrDeparted`.
     context.activation_source_availability = if permanent_face {
@@ -750,20 +834,23 @@ fn lower_native_ability_body(
         let lowered = lower_program_step(
             cursor,
             step,
-            &mut |cursor, sequence| match try_lower_local_effect_sequence_with_context(
-                cursor,
-                sequence,
-                EffectSequenceLoweringContext::ValidateXAfterCardComposition,
-            ) {
-                EffectSequenceLoweringAttempt::Lowered(lowered) => Ok(lowered),
-                EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure) => {
-                    Err(EffectProgramParseAttempt::Unpromoted(failure))
-                }
-                EffectSequenceLoweringAttempt::FailedSupport(failure) => {
-                    Err(EffectProgramParseAttempt::FailedSupport(failure))
-                }
-                EffectSequenceLoweringAttempt::FailedInvariant(failure) => {
-                    Err(EffectProgramParseAttempt::Failed(failure))
+            &mut |cursor, sequence, collections| {
+                match try_lower_local_effect_sequence_with_collections(
+                    cursor,
+                    sequence,
+                    EffectSequenceLoweringContext::ValidateXAfterCardComposition,
+                    collections,
+                ) {
+                    EffectSequenceLoweringAttempt::Lowered(lowered) => Ok(lowered),
+                    EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure) => {
+                        Err(EffectProgramParseAttempt::Unpromoted(failure))
+                    }
+                    EffectSequenceLoweringAttempt::FailedSupport(failure) => {
+                        Err(EffectProgramParseAttempt::FailedSupport(failure))
+                    }
+                    EffectSequenceLoweringAttempt::FailedInvariant(failure) => {
+                        Err(EffectProgramParseAttempt::Failed(failure))
+                    }
                 }
             },
             EffectProgramParseAttempt::FailedSupport,

@@ -309,6 +309,16 @@ fn recognize_counter_count(
         return recognize_that_many_event_value(cursor, None);
     }
 
+    // `twice X`, `twice that many`: the shared arithmetic multiplier owns
+    // the count; its operand keeps its own producer (CR 107.3).
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("twice") || raw.eq_ignore_ascii_case("thrice"))
+    {
+        cursor.enter("effect.put-counters.multiplied-count");
+        return super::recognize_numeric_expression(cursor, None);
+    }
+
     let atom = if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))

@@ -372,8 +372,9 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "code": "oracle_machine_failure",
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_card_composition_failure",
+            "state": "composition.set-constraint.chosen-set"
           }
         ]
       }

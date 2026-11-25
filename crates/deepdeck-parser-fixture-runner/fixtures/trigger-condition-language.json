@@ -661,7 +661,7 @@
       }
     },
     {
-      "id": "near-miss-commit-a-crime-has-no-matcher",
+      "id": "commit-a-crime-is-a-player-event",
       "request": {
         "cardName": "Trigger Language Probe",
         "typeLine": "Creature — Shapeshifter",
@@ -671,19 +671,48 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "crimeCommitted",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
           }
-        ],
+        ]
+      }
+    },
+    {
+      "id": "near-miss-counted-crimes-are-not-one-crime-event",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you commit two crimes, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "engine.gap.event-matcher"
+            "state": "event.player.commit.object"
           }
         ]
       }

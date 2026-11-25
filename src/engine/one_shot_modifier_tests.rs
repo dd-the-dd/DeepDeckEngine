@@ -91,7 +91,8 @@ fn first_matching_cast_consumes_the_modifier_once() {
         &next_spell_cant_be_countered(),
         &stack_object(&source),
         &BTreeMap::new(),
-    );
+    )
+    .expect("the one-shot modifier is installed");
     let spell = definition("spell", "Instant");
     // Another player's cast does not match the captured player.
     assert!(

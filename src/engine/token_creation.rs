@@ -399,12 +399,18 @@ impl GameEngine {
             .map(|(player, index)| &self.state.players[player].battlefield[index])
             .or_else(|| self.card_outside_battlefield(id))
             .or_else(|| (stack_object.card.instance_id == id).then_some(&stack_object.card))?;
+        Some(Self::token_copy_definition(card))
+    }
+
+    /// The definition a token copy of `card` is created with: the card's
+    /// copiable values (CR 707.2) as a token (CR 111.8).
+    fn token_copy_definition(card: &CardInstance) -> CardDefinition {
         let mut definition = Self::copiable_values(card);
         definition.id = format!("token-copy:{}", definition.id);
         definition.is_token = true;
         definition.is_game_piece = true;
         definition.is_sideboard = false;
-        Some(definition)
+        definition
     }
 
     /// The copiable values of `card` (CR 707.2-707.3). A copy effect or a
@@ -615,12 +621,19 @@ impl GameEngine {
         requested_quantity: i32,
     ) -> Result<Vec<String>, EngineError> {
         let token = &effect["token"];
-        let Some(copied_id) =
-            self.token_copy_source_id(&token["object"], stack_object, bindings, decisions)?
-        else {
-            return Ok(Vec::new());
-        };
-        let Some(mut definition) = self.copiable_definition(&copied_id, stack_object) else {
+        let copied =
+            match self.token_copy_source_id(&token["object"], stack_object, bindings, decisions)? {
+                Some(copied_id) => self
+                    .copiable_definition(&copied_id, stack_object)
+                    .map(|definition| (copied_id, definition)),
+                // The event's object that left the battlefield is copied
+                // with its copiable values as it last existed (CR 608.2h,
+                // 707.2), from its authenticated departure capture.
+                None => self
+                    .departed_event_object_capture(&token["object"], stack_object)
+                    .map(|card| (card.instance_id.clone(), Self::token_copy_definition(card))),
+            };
+        let Some((copied_id, mut definition)) = copied else {
             return Ok(Vec::new());
         };
         for exception in token["except"].as_array().into_iter().flatten() {

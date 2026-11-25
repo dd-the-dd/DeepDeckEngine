@@ -17,7 +17,67 @@ fn lower_activation_numeric_cost_decisions(costs: &ActivationCostSequenceNode) -
     if costs.declares_x() {
         decisions.push(x_value());
     }
+    // The number the payer chooses for a ranged cost (`remove any number of
+    // storage counters`, CR 601.2h via 602.2b): only the payable members
+    // bound an open range (CR 118.3).
+    if let Some(bounds) = costs.cost_chosen_amount() {
+        decisions.push(lower_cost_chosen_amount_decision(costs, bounds));
+    }
     decisions
+}
+
+/// The activation's declared payer-chosen number (`quantity_slot.rs`). A
+/// literal `up to N` bounds it; otherwise the members the cost can act on
+/// do: the source's counters of the removed kind (bound to the source when
+/// the activation is declared) or the matching candidates.
+fn lower_cost_chosen_amount_decision(
+    costs: &ActivationCostSequenceNode,
+    bounds: ChosenAmountBounds,
+) -> Value {
+    let mut decision = json!({
+        "id": COST_CHOSEN_AMOUNT,
+        "kind": "chooseNumber",
+        "minimum": bounds.minimum,
+    });
+    let payable = costs.costs.iter().find_map(|cost| match cost {
+        LocalActivationCostNode::RemoveSourceCounters(removal) if removal.count.chosen().is_some() => {
+            removal.counter.as_ref().map(|counter| {
+                json!({ "kind": "countCounters", "object": self_ref(), "counter": counter.as_str() })
+            })
+        }
+        LocalActivationCostNode::ChosenX(cost)
+            if matches!(cost.amount, ChosenObjectsAmount::PayerChosen(_)) =>
+        {
+            Some(match &cost.filter {
+                PaymentObjectFilter::Permanents(object) => json!({
+                    "kind": "countPermanents",
+                    "player": controller(),
+                    "where": lower_permanent_object_predicate(&object.predicate),
+                }),
+                PaymentObjectFilter::Cards(filter) => json!({
+                    "kind": "countCards",
+                    "zone": payment_zone(cost.zone.unwrap_or(PaymentOriginZone::Hand)),
+                    "where": lower_card_object_predicate(filter),
+                }),
+            })
+        }
+        _ => None,
+    });
+    match (bounds.maximum, payable) {
+        (Some(maximum), _) => decision["maximum"] = integer(maximum),
+        (None, Some(payable)) => decision["maximum"] = payable,
+        (None, None) => {}
+    }
+    decision
+}
+
+/// A counted cost quantity: a literal, the announced X (`xValue`) or the
+/// payer-chosen number (`costChosenAmount`).
+fn lower_cost_quantity(count: CostQuantity) -> Value {
+    match count {
+        CostQuantity::Exactly(atom) => lower_numeric_atom(atom),
+        CostQuantity::Chosen(_) => decision_result(COST_CHOSEN_AMOUNT),
+    }
 }
 
 fn activation_cost_object_id(cost: &SelectedSacrificeCostNode) -> String {
@@ -203,11 +263,12 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                 }),
                 json!({ "kind": "exactly", "value": integer(cost.count) }),
             )),
-            // Exactly the announced X objects (CR 107.3a).
+            // Exactly the announced X objects (CR 107.3a), or exactly the
+            // number the payer chose while paying (CR 601.2h).
             LocalActivationCostNode::ChosenX(cost) => Some(object_choice(
                 &activation_cost_chosen_x_id(cost),
                 chosen_x_candidates(cost, taps_source),
-                json!({ "kind": "exactly", "value": { "kind": "decisionResult", "decisionId": "xValue" } }),
+                json!({ "kind": "exactly", "value": decision_result(cost.amount.decision_id()) }),
             )),
             LocalActivationCostNode::Blight(cost) => Some(object_choice(
                 &activation_cost_blight_id(cost),
@@ -474,8 +535,9 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
                 || json!({ "kind": "decisionResult", "decisionId": activation_cost_counter_id(cost) }),
                 |counter| json!(counter.as_str()),
             ),
-            // A literal or this activation's chosen X (`xValue`).
-            "count": lower_numeric_atom(cost.count),
+            // A literal, this activation's announced X (`xValue`) or the
+            // number the payer chose (`costChosenAmount`).
+            "count": lower_cost_quantity(cost.count),
         }),
         LocalActivationCostNode::RemoveControlledCounters(cost) => {
             let mut value = json!({
