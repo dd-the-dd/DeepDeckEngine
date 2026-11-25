@@ -1,0 +1,334 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch10/reference-reader-operands",
+  "cases": [
+    {
+      "id": "exact-eyeblight-massacre-negated-subtype-collection",
+      "request": {
+        "cardName": "Eyeblight Massacre",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Non-Elf creatures get -2/-2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "eachPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-the-thanos-copter-vehicle-collection",
+      "request": {
+        "cardName": "The Thanos-Copter",
+        "typeLine": "Legendary Artifact — Vehicle",
+        "manaCost": "{6}",
+        "oracleText": "Flying, haste\nWhen The Thanos-Copter enters, Vehicles you control become artifact creatures until end of turn.\nWhenever a Vehicle you control deals combat damage to a player, draw a card.\nCrew 2",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-battle-frenzy-negated-color-collection",
+      "request": {
+        "cardName": "Battle Frenzy",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "Green creatures you control get +1/+1 until end of turn.\nNongreen creatures you control get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-start-your-engines-vehicle-collection",
+      "request": {
+        "cardName": "Start Your Engines",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Vehicles you control become artifact creatures until end of turn. Creatures you control get +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-return-of-the-wildspeaker-non-human-mode",
+      "request": {
+        "cardName": "Return of the Wildspeaker",
+        "typeLine": "Instant",
+        "manaCost": "{4}{G}",
+        "oracleText": "Choose one —\n• Draw cards equal to the greatest power among non-Human creatures you control.\n• Non-Human creatures you control get +3/+3 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-kaylas-command-chosen-counter-recipient",
+      "request": {
+        "cardName": "Kayla's Command",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Choose two —\n• Create a 2/2 colorless Construct artifact creature token.\n• Put a +1/+1 counter on a creature you control. It gains double strike until end of turn.\n• Search your library for a basic Plains card, reveal it, put it into your hand, then shuffle.\n• You gain 2 life and scry 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-settle-the-score-chosen-planeswalker",
+      "request": {
+        "cardName": "Settle the Score",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Exile target creature. Put two loyalty counters on a planeswalker you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sword-of-truth-and-justice-chosen-recipient",
+      "request": {
+        "cardName": "Sword of Truth and Justice",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{3}",
+        "oracleText": "Equipped creature gets +2/+2 and has protection from white and from blue.\nWhenever equipped creature deals combat damage to a player, put a +1/+1 counter on a creature you control, then proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-quest-for-the-holy-relic-chosen-attach-destination",
+      "request": {
+        "cardName": "Quest for the Holy Relic",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Whenever you cast a creature spell, you may put a quest counter on this enchantment.\nRemove five quest counters from this enchantment and sacrifice it: Search your library for an Equipment card, put it onto the battlefield, attach it to a creature you control, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-stonehewer-giant-chosen-attach-destination",
+      "request": {
+        "cardName": "Stonehewer Giant",
+        "typeLine": "Creature — Giant Warrior",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Vigilance\n{1}{W}, {T}: Search your library for an Equipment card, put it onto the battlefield, attach it to a creature you control, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-non-human-group-shrink",
+      "request": {
+        "cardName": "Non-Human Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Non-Human creatures get -1/-1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "eachPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-minus-counter-on-chosen-creature",
+      "request": {
+        "cardName": "Chosen Recipient Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Put a -1/-1 counter on a creature you control. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/effects/2/counter",
+                "equals": "-1/-1"
+              },
+              {
+                "pointer": "/effects/2/permanent/kind",
+                "equals": "singleBoundObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-snow-supertype-collection",
+      "request": {
+        "cardName": "Snow Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Snow creatures you control get +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unrelated-card-name-stays-unresolved",
+      "request": {
+        "cardName": "Kozilek Probe Card",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Kozilek gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "state": "reference.source.unresolved-name"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-articled-head-list-is-no-single-choice",
+      "request": {
+        "cardName": "Articled List Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Put a +1/+1 counter on an artifact, a creature, or a land you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponent-controlled-choice-has-no-candidate-writer",
+      "request": {
+        "cardName": "Opponent Recipient Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Put a -1/-1 counter on a creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "state": "lower.chosen-operand"
+          }
+        ]
+      }
+    }
+  ]
+}

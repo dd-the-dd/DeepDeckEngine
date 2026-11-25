@@ -52,6 +52,8 @@ pub(in crate::oracle::canonical) fn permanent_operand_is_plural(
         // `those creatures` / `they` naming a declared target set.
         PermanentOperandNode::BoundReference(PermanentEffectReference::TargetSet(_)) => true,
         PermanentOperandNode::BoundReference(_) | PermanentOperandNode::Reference(_) => false,
+        // A choice of several permanents on resolution (CR 608.2d).
+        PermanentOperandNode::Chosen(choice) => !choice.singular(),
     }
 }
 

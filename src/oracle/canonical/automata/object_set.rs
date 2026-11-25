@@ -411,10 +411,24 @@ pub(in crate::oracle::canonical) fn subtype_collection_head_starts(
             .is_some_and(|raw| raw.eq_ignore_ascii_case("other")),
     );
     let head = cursor.position() + head_offset;
+    // An UNKNOWN head the shared atom reads (`Non-Elf`, `Snow`, `Nongreen`,
+    // `Vehicles`) is the same kind of characteristic head: the name
+    // resolver no longer claims it, so the object query owns it here.
+    let characteristic_head = || {
+        let mut head_cursor = cursor.clone();
+        head_cursor.advance_to(head).is_ok()
+            && super::object_predicate_atom_starts(
+                &head_cursor,
+                crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOrPlural,
+            )
+    };
     let subtype_head = cursor
         .token_slice(head, head + 1)
         .first()
-        .is_some_and(|token| token.token_type == "subtypeWord");
+        .is_some_and(|token| {
+            token.token_type == "subtypeWord"
+                || (token.token_type == "unknown" && characteristic_head())
+        });
     if !subtype_head
         || name_links.iter().any(|link| {
             (link.token_start..link.token_end.max(link.token_start + 1)).contains(&head)

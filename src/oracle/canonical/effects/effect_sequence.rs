@@ -542,6 +542,33 @@ fn lower_local_effect_sequence_with_collections(
         ) {
             collections.clear_antecedent();
         }
+        // An operand chosen while the action resolves (CR 608.2d): its
+        // choice runs right before the action, which reads the bound result.
+        let chosen = super::chosen_operand::lower_action_chosen_operand(
+            effect,
+            effect_index,
+            match context {
+                EffectSequenceLoweringContext::NoExternalX => TargetlessDeclarationSupport::None,
+                EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                    TargetlessDeclarationSupport::XValue
+                }
+            },
+        );
+        if !matches!(chosen, Ok(None)) {
+            cursor.enter("lower.chosen-operand");
+        }
+        if let Some(chosen) = chosen.map_err(|expected| {
+            EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+        })? {
+            effects.extend(chosen.choice);
+            let key = resolution_choice_binding(effect_index);
+            target_bindings.push((key, chosen.binding.clone()));
+            target_bindings.push((
+                super::permanent_subject::target_set_binding_key(key),
+                chosen.binding.clone(),
+            ));
+            chosen_object_bindings.push(chosen.binding);
+        }
         match effect {
             LocalEffectNode::PlayerAction(action) => {
                 cursor.enter("lower.player-action.subject");
@@ -4690,7 +4717,9 @@ fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSeque
     match operand {
         PermanentOperandNode::Targets(_)
         | PermanentOperandNode::Collection { .. }
-        | PermanentOperandNode::Reference(_) => true,
+        | PermanentOperandNode::Reference(_)
+        // Chosen among battlefield permanents as the action resolves.
+        | PermanentOperandNode::Chosen(_) => true,
         PermanentOperandNode::BoundReference(reference) => match reference {
             PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_) => true,
             PermanentEffectReference::Target(binding)

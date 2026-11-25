@@ -496,6 +496,11 @@ pub(in crate::oracle::canonical) fn subject_after_operand(
         PermanentOperandNode::BoundReference(reference) => Some(*reference),
         PermanentOperandNode::Reference(source) => Some(PermanentEffectReference::Source(*source)),
         PermanentOperandNode::Collection { .. } => None,
+        // The one permanent the action chose on resolution (CR 608.2d) is
+        // published as the action's result (`chosen_operand.rs`).
+        PermanentOperandNode::Chosen(choice) => choice
+            .singular()
+            .then(|| super::chosen_operand_reference(choice, effect_index)),
     }
 }
 
@@ -1048,6 +1053,8 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         PermanentOperandNode::Targets(targets) => {
             targets.slots.get(slot_index).map(|slot| &slot.selector)
         }
+        // `that creature` after an object chosen on resolution.
+        PermanentOperandNode::Chosen(choice) if slot_index == 0 => Some(&choice.selector),
         _ => None,
     }
 }

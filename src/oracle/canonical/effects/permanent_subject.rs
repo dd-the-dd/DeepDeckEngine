@@ -181,6 +181,14 @@ pub(in crate::oracle::canonical) fn lower_ordinary_permanent_subject(
             PermanentOperandNode::BoundReference(reference) => {
                 lower_bound_permanent_reference(cursor, *reference, bindings)?
             }
+            // The program lowering emitted the choice before this action and
+            // bound its result under the action's own key
+            // (`chosen_operand::lower_action_chosen_operand`).
+            PermanentOperandNode::Chosen(choice) => lower_bound_permanent_reference(
+                cursor,
+                chosen_operand_reference(choice, effect_index),
+                bindings,
+            )?,
             _ => lower_nontargeted_permanent_operand(operand)
                 .map_err(|error| cursor.fail(error.expectation()))?,
         }]);
