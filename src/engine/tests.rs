@@ -361,9 +361,6 @@ mod keyword_template_crew_runtime;
 #[path = "tests/keyword_template_rows_runtime.rs"]
 mod keyword_template_rows_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[path = "tests/temporary_continuous_rules_runtime.rs"]
-mod temporary_continuous_rules_runtime;
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_runtime.rs"]
 mod keyword_template_runtime;
 #[path = "tests/numeric_expression_runtime.rs"]
@@ -376,6 +373,9 @@ mod plural_effect_subject_runtime;
 mod runtime_smoke;
 #[path = "tests/target_collection_runtime.rs"]
 mod target_collection_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/temporary_continuous_rules_runtime.rs"]
+mod temporary_continuous_rules_runtime;
 
 #[path = "tests/alternative_additional_cost_runtime.rs"]
 mod alternative_additional_cost_runtime;

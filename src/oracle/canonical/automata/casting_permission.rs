@@ -530,7 +530,8 @@ fn permission_predicates<'a>(node: &'a PlayerPermissionNode, out: &mut Vec<&'a O
         | PlayerPermissionNode::CastSelf(_)
         | PlayerPermissionNode::ExertAsAttacks { .. }
         | PlayerPermissionNode::AssignCombatDamageAsThoughUnblocked
-        | PlayerPermissionNode::MayChooseNotToUntap => {}
+        | PlayerPermissionNode::MayChooseNotToUntap
+        | PlayerPermissionNode::ActivateAsThoughHaste { .. } => {}
     }
 }
 

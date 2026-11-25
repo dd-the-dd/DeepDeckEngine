@@ -333,9 +333,8 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
         .collect::<BTreeSet<_>>();
     // CR 401.2: a static `play with the top card of PLAYERS' libraries
     // revealed` makes each affected player's top card public.
-    let revealed_library_tops = view
-        .state
-        .players
+    let players = &view.state.players;
+    let revealed_library_tops = players
         .iter()
         .filter(|source_player| !source_player.has_lost)
         .flat_map(|source_player| {
@@ -347,10 +346,9 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
                 .filter(|rule| rule["kind"].as_str() == Some("staticAbility"))
                 .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
                 .filter(|modifier| modifier["kind"].as_str() == Some("revealLibraryTop"))
-                .flat_map(|modifier| {
+                .flat_map(move |modifier| {
                     let population = modifier["player"]["kind"].as_str();
-                    view.state
-                        .players
+                    players
                         .iter()
                         .filter(|player| !player.has_lost)
                         .filter(move |player| match population {

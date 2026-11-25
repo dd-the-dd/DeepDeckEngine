@@ -427,6 +427,7 @@ fn read_property(expression: &NumericExpression) -> Option<SelectorNumericProper
         NumericExpression::ObjectProperty { property, .. } => Some(match property {
             NumericObjectProperty::Power => SelectorNumericProperty::Power,
             NumericObjectProperty::Toughness => SelectorNumericProperty::Toughness,
+            NumericObjectProperty::ManaValue => SelectorNumericProperty::ManaValue,
         }),
         NumericExpression::PowerOf(_) => Some(SelectorNumericProperty::Power),
         NumericExpression::ManaValueOf(_)

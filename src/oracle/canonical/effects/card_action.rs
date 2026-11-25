@@ -158,7 +158,10 @@ impl CardCollectionMemory {
             | CardActionNode::Move { cards: operand, .. }
             | CardActionNode::Copy { cards: operand, .. }
             | CardActionNode::Permit(CardPermissionNode { cards: operand, .. }) => restore(operand),
+            CardActionNode::GrantKeyword(grant) => restore(&mut grant.cards),
             CardActionNode::Look { .. }
+            | CardActionNode::ChooseFromZone(_)
+            | CardActionNode::ChooseTargetCards(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
             | CardActionNode::Shuffle { .. } => false,
