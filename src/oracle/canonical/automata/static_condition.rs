@@ -255,12 +255,24 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
         );
     }
     cursor.enter("condition.static.controller-history.designation");
+    // CR 702.131c: `you have the city's blessing`.
+    if word_is(cursor, 0, "the") && contraction_is(cursor, 1, "city", "s") {
+        cursor.consume("the")?;
+        consume_current(cursor)?;
+        cursor.consume("blessing")?;
+        return Ok(ConditionAtom::PlayerDesignation(PlayerDesignationNode {
+            designation: PlayerDesignation::CityBlessing,
+            held: true,
+            subject: ConditionPlayerSubject::Controller,
+        }));
+    }
     cursor.consume("an")?;
     cursor.consume("enduring")?;
     cursor.consume("story")?;
     Ok(ConditionAtom::PlayerDesignation(PlayerDesignationNode {
         designation: PlayerDesignation::EnduringStory,
         held: true,
+        subject: ConditionPlayerSubject::Controller,
     }))
 }
 
@@ -276,6 +288,7 @@ fn recognize_completed_dungeon_atom(
         ConditionAtom::PlayerDesignation(PlayerDesignationNode {
             designation: PlayerDesignation::CompletedDungeon { dungeon },
             held: completed,
+            subject: ConditionPlayerSubject::Controller,
         })
     };
     if word_is(cursor, 0, "a") && word_is(cursor, 1, "dungeon") {

@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 use serde_json::Value;
 
 use super::{
-    CardInstance, GameEngine, StackObject, TargetRef, integer_value, mana_value,
+    CardInstance, GameEngine, GameStep, StackObject, TargetRef, integer_value, mana_value,
     matches_stack_filter, permanent_filter_supported, stack_filter_supported, value_kind,
 };
 
@@ -303,6 +303,16 @@ impl GameEngine {
         })
     }
 
+    /// CR 509.1h: an attacking creature becomes unblocked only once the
+    /// declare-blockers step has declared blockers; before then (in the
+    /// declare-attackers step) no attacker is blocked or unblocked.
+    pub(super) fn blockers_have_been_declared(&self) -> bool {
+        matches!(
+            self.state.step,
+            GameStep::DeclareBlockers | GameStep::CombatDamage
+        )
+    }
+
     /// Whether this permanent is an attacking creature in the current combat.
     fn permanent_is_declared_attacker(&self, permanent: &CardInstance) -> bool {
         self.state
@@ -345,7 +355,7 @@ impl GameEngine {
 
     /// The block status atoms, read for any consumer of a permanent filter:
     /// `isBlocked` and `isUnblockedAttacker` (CR 509.1h), an attacking
-    /// creature that is not blocked. A blocked attacker whose blockers left
+    /// creature that is not blocked once blockers have been declared. A blocked attacker whose blockers left
     /// combat stays blocked, so it never becomes unblocked. `None` for any
     /// other atom.
     pub(super) fn combat_block_status_matches(
@@ -356,7 +366,8 @@ impl GameEngine {
         match kind {
             "isBlocked" => Some(self.permanent_is_blocked(permanent)),
             "isUnblockedAttacker" => Some(
-                self.permanent_is_declared_attacker(permanent)
+                self.blockers_have_been_declared()
+                    && self.permanent_is_declared_attacker(permanent)
                     && !self.permanent_is_blocked(permanent),
             ),
             _ => None,

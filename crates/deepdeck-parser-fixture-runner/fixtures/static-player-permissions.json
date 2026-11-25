@@ -1,0 +1,1066 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/static-player-permissions",
+  "cases": [
+    {
+      "id": "exact-oathsworn-vampire",
+      "request": {
+        "cardName": "Oathsworn Vampire",
+        "typeLine": "Creature — Vampire Knight",
+        "manaCost": "{1}{B}",
+        "oracleText": "This creature enters tapped.\nYou may cast this card from your graveyard if you gained life this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/modifiers/0/asThoughFlash",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gravecrawler",
+      "request": {
+        "cardName": "Gravecrawler",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't block.\nYou may cast this card from your graveyard as long as you control a Zombie.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-eternal-scourge-exile",
+      "request": {
+        "cardName": "Eternal Scourge",
+        "typeLine": "Creature — Eldrazi Horror",
+        "manaCost": "{3}",
+        "oracleText": "You may cast this card from exile.\nWhen this creature becomes the target of a spell or ability an opponent controls, exile this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-their-number-is-legion-spell-face",
+      "request": {
+        "cardName": "Their Number Is Legion",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{B}{B}{B}{B}",
+        "oracleText": "You may cast this card from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-danitha-once-each-turn",
+      "request": {
+        "cardName": "Danitha, New Benalia's Light",
+        "typeLine": "Legendary Creature — Human Knight",
+        "manaCost": "{1}{G}{W}",
+        "oracleText": "Vigilance, trample, lifelink\nOnce during each of your turns, you may cast an Aura or Equipment spell from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/onceEachTurn",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/duringControllerTurnOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-karador-once-each-turn",
+      "request": {
+        "cardName": "Karador, Ghost Chieftain",
+        "typeLine": "Legendary Creature — Centaur Spirit",
+        "manaCost": "{5}{W}{B}{G}",
+        "oracleText": "This spell costs {1} less to cast for each creature card in your graveyard.\nOnce during each of your turns, you may cast a creature spell from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/onceEachTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zaffai-window-waived-cost",
+      "request": {
+        "cardName": "Zaffai and the Tempests",
+        "typeLine": "Legendary Creature — Human Bard Sorcerer",
+        "manaCost": "{5}{U}{R}",
+        "oracleText": "Once during each of your turns, you may cast an instant or sorcery spell from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/withoutPayingManaCost",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/onceEachTurn",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/duringControllerTurnOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ghitu-fire-timing-cost",
+      "request": {
+        "cardName": "Ghitu Fire",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}",
+        "oracleText": "You may cast this spell as though it had flash if you pay {2} more to cast it. (You may cast it any time you could cast an instant.)\nGhitu Fire deals X damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castAsThoughFlash"
+              },
+              {
+                "pointer": "/modifiers/0/additionalManaCost",
+                "equals": "{2}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mystical-tether-timing-cost",
+      "request": {
+        "cardName": "Mystical Tether",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "You may cast this spell as though it had flash if you pay {2} more to cast it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castAsThoughFlash"
+              },
+              {
+                "pointer": "/modifiers/0/additionalManaCost",
+                "equals": "{2}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-illusion-spinners-condition",
+      "request": {
+        "cardName": "Illusion Spinners",
+        "typeLine": "Creature — Faerie Wizard",
+        "manaCost": "{4}{U}",
+        "oracleText": "You may cast this spell as though it had flash if you control a Faerie.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castAsThoughFlash"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-borne-upon-a-wind",
+      "request": {
+        "cardName": "Borne Upon a Wind",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "You may cast spells this turn as though they had flash.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-emergence-zone-activated",
+      "request": {
+        "cardName": "Emergence Zone",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{1}, {T}, Sacrifice this land: You may cast spells this turn as though they had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-winding-canyons-filtered",
+      "request": {
+        "cardName": "Winding Canyons",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{2}, {T}: You may cast creature spells this turn as though they had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-quick-sliver-any-player",
+      "request": {
+        "cardName": "Quick Sliver",
+        "typeLine": "Creature — Sliver",
+        "manaCost": "{1}{G}",
+        "oracleText": "Flash\nAny player may cast Sliver spells as though they had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              },
+              {
+                "pointer": "/modifiers/0/players/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/asThoughFlash",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-hypersonic-dragon-reminder",
+      "request": {
+        "cardName": "Hypersonic Dragon",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{3}{U}{R}",
+        "oracleText": "Flying, haste\nYou may cast sorcery spells as though they had flash. (You may cast them any time you could cast an instant.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-raff-capashen-glossary",
+      "request": {
+        "cardName": "Raff Capashen, Ship's Mage",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Flash\nFlying\nYou may cast historic spells as though they had flash. (Artifacts, legendaries, and Sagas are historic.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-outlaw-flash-permission-batch-reminder",
+      "request": {
+        "cardName": "Outlaw Flash Probe",
+        "typeLine": "Creature — Human Rogue",
+        "manaCost": "{2}{B}",
+        "oracleText": "You may cast outlaw spells as though they had flash. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-historic-glossary-after-a-creature-permission",
+      "request": {
+        "cardName": "Foreign Glossary Probe",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{2}{U}",
+        "oracleText": "Flying\nYou may cast creature spells as though they had flash. (Artifacts, legendaries, and Sagas are historic.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.permission.action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-zone-origin-flash",
+      "request": {
+        "cardName": "Probe Necromancer",
+        "typeLine": "Creature — Zombie Wizard",
+        "manaCost": "{3}{B}",
+        "oracleText": "You may cast creature spells from your graveyard as though they had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/asThoughFlash",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fist-of-suns",
+      "request": {
+        "cardName": "Fist of Suns",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              },
+              {
+                "pointer": "/modifiers/0/withoutPayingManaCost",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/alternativeManaCost",
+                "equals": "{W}{U}{B}{R}{G}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-rooftop-storm",
+      "request": {
+        "cardName": "Rooftop Storm",
+        "typeLine": "Enchantment",
+        "manaCost": "{5}{U}",
+        "oracleText": "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/alternativeManaCost",
+                "equals": "{0}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thorn-elemental",
+      "request": {
+        "cardName": "Thorn Elemental",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{5}{G}{G}",
+        "oracleText": "You may have this creature assign its combat damage as though it weren't blocked.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "assignCombatDamageAsThoughUnblocked"
+              },
+              {
+                "pointer": "/modifiers/0/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-glorybringer",
+      "request": {
+        "cardName": "Glorybringer",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Flying, haste\nYou may exert this creature as it attacks. When you do, it deals 4 damage to target non-Dragon creature an opponent controls. (An exerted creature won't untap during your next untap step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "exertAsAttacks"
+              },
+              {
+                "pointer": "/modifiers/0/reflexive/event/kind",
+                "equals": "reflexiveTriggerCreated"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-hooded-brawler",
+      "request": {
+        "cardName": "Hooded Brawler",
+        "typeLine": "Creature — Snake Warrior",
+        "manaCost": "{2}{G}",
+        "oracleText": "You may exert this creature as it attacks. When you do, it gets +2/+2 until end of turn. (An exerted creature won't untap during your next untap step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "exertAsAttacks"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-watchful-naga",
+      "request": {
+        "cardName": "Watchful Naga",
+        "typeLine": "Creature — Snake Wizard",
+        "manaCost": "{2}{G}",
+        "oracleText": "You may exert this creature as it attacks. When you do, draw a card. (An exerted creature won't untap during your next untap step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/reflexive/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exert-without-reflexive",
+      "request": {
+        "cardName": "Probe Brute",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{3}{R}",
+        "oracleText": "You may exert this creature as it attacks. (It won't untap during your next untap step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "exertAsAttacks"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-may-not-untap",
+      "request": {
+        "cardName": "Probe Shackles",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "You may choose not to untap this artifact during your untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "optionalUntap"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-radha-conjoined-allowances",
+      "request": {
+        "cardName": "Radha, Heart of Keld",
+        "typeLine": "Legendary Creature — Elf Warrior",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "You may look at the top card of your library any time, and you may play lands from the top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "lookAtTopLibrary"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "playCardsFromTopLibrary"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-silver-scrutiny-x-condition",
+      "request": {
+        "cardName": "Silver Scrutiny",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}{U}",
+        "oracleText": "You may cast this spell as though it had flash if X is 3 or less.\nDraw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-self-cast-two-origins",
+      "request": {
+        "cardName": "Squee, the Immortal",
+        "typeLine": "Legendary Creature — Goblin",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "You may cast this card from your graveyard or from exile.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "permission.self-cast.origin-list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-self-cast-additional-cost",
+      "request": {
+        "cardName": "Alien Symbiosis",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "You may cast this card from your graveyard by discarding a card in addition to paying its other costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "permission.self-cast.cost"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exert-as-it-blocks",
+      "request": {
+        "cardName": "Probe Brute",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{3}{R}",
+        "oracleText": "You may exert this creature as it blocks.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "permission.exert.timing"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-variable-alternative-cost",
+      "request": {
+        "cardName": "Kentaro, the Smiling Cat",
+        "typeLine": "Legendary Creature — Cat Samurai",
+        "manaCost": "{1}{W}",
+        "oracleText": "You may pay {X} rather than pay the mana cost for Samurai spells you cast, where X is that spell's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "cost.mana.complete"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-mirage-flash-second-sentence",
+      "request": {
+        "cardName": "Soar",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "You may cast this spell as though it had flash. If you cast it any time a sorcery couldn't have been cast, the controller of the permanent it becomes sacrifices it at the beginning of the next cleanup step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "permission.complete-envelope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-window-without-allowance",
+      "request": {
+        "cardName": "Probe Knight",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{2}{W}",
+        "oracleText": "Once during each of your turns, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "permission.window.allowance"
+          }
+        ]
+      }
+    }
+  ]
+}

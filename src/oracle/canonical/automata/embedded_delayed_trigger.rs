@@ -613,6 +613,13 @@ pub(in crate::oracle::canonical) fn enter_created_rule_body(
 ) {
     if let Some(frame) = rule.body_frame() {
         let mut environment = cursor.binding_environment().cloned().unwrap_or_default();
+        // A created spell-cast trigger's `it` is the spell its own event
+        // cast (CR 603.7d-e), not an object the creating ability named
+        // (`Remove three charge counters from this artifact: When you next
+        // cast an instant spell this turn, copy it.`).
+        if frame.event_spell {
+            environment.object = None;
+        }
         environment.frame = frame;
         cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
     }

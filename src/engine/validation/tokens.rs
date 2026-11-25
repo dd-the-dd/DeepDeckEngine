@@ -16,7 +16,7 @@ fn copied_object_supported(object: &Value) -> bool {
 
 /// One copiable-value exception (CR 707.9b): the characteristic-change
 /// operations without object or duration, and the removal of a supertype.
-fn copy_exception_supported(exception: &Value) -> bool {
+pub(in super::super) fn copy_exception_supported(exception: &Value) -> bool {
     let colors = |value: &Value| {
         value.as_array().is_some_and(|colors| {
             colors

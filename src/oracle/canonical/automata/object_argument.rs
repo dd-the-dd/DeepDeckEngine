@@ -295,7 +295,15 @@ pub(in crate::oracle::canonical) fn recognize_object_noun_phrase(
                 "one source exclusion for one noun phrase",
             )?;
             cursor.enter("noun-phrase.query");
-            let mut query = recognize_object_noun_query(cursor, expected.context)?;
+            // A `target` determiner declares the candidates of a target slot
+            // (CR 115.1): its query reads as a declared target's.
+            let context =
+                if determiner.is_targeted() && expected.context == ObjectQueryContext::ORDINARY {
+                    ObjectQueryContext::DECLARED_TARGET
+                } else {
+                    expected.context
+                };
+            let mut query = recognize_object_noun_query(cursor, context)?;
             // `a creature other than this creature`: the postnominal form of
             // the same source exclusion, stated once.
             let postnominal = query.take_source_exclusion();

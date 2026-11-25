@@ -18,6 +18,50 @@ pub(in crate::oracle::canonical) enum CardOperandNode {
     },
     /// A choice among cards of a hidden zone or from outside the game.
     HiddenChoice(HiddenCardChoiceNode),
+    /// `your commander from the command zone` (CR 408.1, 903.3): the
+    /// controller's cards in their own command zone matching the predicate.
+    /// The command zone holds only the cards its holder owns there, so the
+    /// predicate keeps the commander designation and its ownership.
+    CommandZone {
+        predicate: ObjectPredicate,
+    },
+}
+
+/// The frame facts a card action reads from its enclosing program: whether
+/// the ability source can answer numeric reads (a resolution-owned query may
+/// then compare with its counters or characteristics, CR 608.2h), and the
+/// name links a source-control window resolves a printed name with.
+#[derive(Clone, Copy)]
+pub(in crate::oracle::canonical) struct CardActionReadContext<'a> {
+    pub source_available: bool,
+    pub preposed_duration: Option<&'a EffectDurationNode>,
+    pub name_links: &'a [crate::oracle::syntax::ResolvedNameLink],
+    pub name_failure: Option<&'a crate::oracle::syntax::NameResolutionFailure>,
+}
+
+impl<'a> CardActionReadContext<'a> {
+    /// The facts of one effect program position.
+    pub(in crate::oracle::canonical) fn of(
+        context: &'a EffectRecognitionContext,
+        name_links: &'a [crate::oracle::syntax::ResolvedNameLink],
+        name_failure: Option<&'a crate::oracle::syntax::NameResolutionFailure>,
+    ) -> Self {
+        Self {
+            source_available: context.source.is_some()
+                || context.activation_source_availability
+                    == ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent,
+            preposed_duration: context.preposed_duration.as_ref(),
+            name_links,
+            name_failure,
+        }
+    }
+
+    fn without_preposed_duration(self) -> Self {
+        Self {
+            preposed_duration: None,
+            ..self
+        }
+    }
 }
 
 /// Where the cards of a hidden choice are.
@@ -56,6 +100,23 @@ pub(in crate::oracle::canonical) enum CardCastCostNode {
     WithoutManaCost,
     /// `by paying COST rather than paying its mana cost` (CR 118.9).
     Alternative(ManaCostNode),
+    /// `by paying life equal to its mana value | by paying an amount of
+    /// {E} equal to its mana value | by discarding a card rather than paying
+    /// its mana cost` (CR 118.9): an alternative cost that is not mana.
+    AlternativeNonMana(NonManaCastCostNode),
+}
+
+/// A non-mana alternative base cost of a cast frame (CR 118.9). The amount
+/// equal to the spell's mana value is the mana value of what is actually
+/// cast (CR 202.3), evaluated when the cost is determined (CR 601.2f).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum NonManaCastCostNode {
+    /// `paying life equal to its|the spell's|that spell's mana value`.
+    LifeEqualToManaValue,
+    /// `paying an amount of {E} equal to its mana value` (CR 107.14, 122.1).
+    PlayerCountersEqualToManaValue(crate::oracle::counter_name::CounterName),
+    /// `discarding N card(s)` (CR 701.9).
+    Discard(NumericExpression),
 }
 
 /// Whose graveyard a cast spell's exile replacement watches.
@@ -97,6 +158,11 @@ pub(in crate::oracle::canonical) enum CardPermissionWindowNode {
     /// `until you exile another card with this NOUN`: the next card the source
     /// exiles replaces the permission (CR 607.2a linked exile).
     UntilSourceExilesAnother,
+    /// `until [the beginning of] your next upkeep`: it ends as the
+    /// controller's next upkeep begins (CR 503.1). No player receives
+    /// priority in the untap step before it (CR 502.4), so the window and
+    /// `until your next turn` admit the same plays.
+    UntilYourNextUpkeep,
 }
 
 /// One cast/play frame (CR 601.2, 608.2g) with independent slots:
@@ -256,13 +322,14 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
 pub(in crate::oracle::canonical) fn recognize_card_action(
     cursor: &mut OracleTokenCursor<'_>,
     move_ellipsis: bool,
-    supplied_duration: Option<&EffectDurationNode>,
+    frame: CardActionReadContext<'_>,
 ) -> MachineResult<Option<CardActionNode>> {
+    let supplied_duration = frame.preposed_duration;
     let Some(head) = cursor.peek() else {
         return Ok(None);
     };
     if permission_head_starts(cursor) || imperative_cast_starts(cursor) {
-        return recognize_card_permission(cursor, supplied_duration, None)
+        return recognize_card_permission(cursor, frame, None)
             .map(|node| Some(CardActionNode::Permit(node)));
     }
     if card_copy_starts(cursor) {
@@ -281,7 +348,8 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
             supplied_duration.is_none(),
             "one preposed window for one permission",
         )?;
-        let node = recognize_card_permission(&mut trial, None, Some(window))?;
+        let node =
+            recognize_card_permission(&mut trial, frame.without_preposed_duration(), Some(window))?;
         *cursor = trial;
         return Ok(Some(CardActionNode::Permit(node)));
     }
@@ -397,19 +465,16 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
 fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActionNode> {
     cursor.enter("card-action.look.source");
     cursor.consume_phrase(&["look", "at"])?;
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
-    {
-        cursor.enter("card-action.look.library");
-        let top = match try_recognize_card_library_position(cursor, true) {
-            CollectionOperandAttempt::Recognized(fragment) => fragment.node,
-            CollectionOperandAttempt::NotClaimed => {
-                return Err(cursor.fail("the top cards of a library"));
-            }
-            CollectionOperandAttempt::RejectedCandidate(failure)
-            | CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
-        };
+    // `the top N cards of LIBRARY` or its counted form `N|that many cards
+    // from the top of LIBRARY`: one shared library-position operand.
+    cursor.enter("card-action.look.library");
+    let top = match try_recognize_card_library_position(cursor, true) {
+        CollectionOperandAttempt::Recognized(fragment) => Some(fragment.node),
+        CollectionOperandAttempt::NotClaimed => None,
+        CollectionOperandAttempt::RejectedCandidate(failure)
+        | CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+    };
+    if let Some(top) = top {
         return Ok(match top.owner {
             CardLibraryOwnerNode::Player(LocalPlayerReference::Controller) => {
                 CardActionNode::Look {
@@ -465,7 +530,7 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
 /// resolver reads the possessive as its player head over a view of the same
 /// tokens whose possessive role word is the plain noun (equal length,
 /// indices and spans). `None` consumes nothing.
-fn try_recognize_bound_possessive_player(
+pub(in crate::oracle::canonical) fn try_recognize_bound_possessive_player(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<Option<BoundPlayerReference>> {
     let possessive = cursor.peek_ahead(1).is_some_and(|raw| {
@@ -704,9 +769,13 @@ fn try_recognize_hidden_card_choice(
             )?;
             let predicate = phrase.query.predicate().clone();
             let (zone, owner) = match recognize_permitted_card_origin(&mut trial)? {
-                PermittedCardOrigin::Zone { zone, owner } => (zone, owner),
-                PermittedCardOrigin::Collection(_) => {
-                    return Err(trial.fail("a hand or graveyard to choose from at random"));
+                PermittedCardOrigin::Zone {
+                    zone,
+                    owner,
+                    additional,
+                } if additional.is_empty() => (zone, owner),
+                _ => {
+                    return Err(trial.fail("one hand or graveyard to choose from at random"));
                 }
             };
             trial.require(
@@ -758,6 +827,8 @@ fn try_preposed_permission_window<'a>(
     let mut trial = cursor.clone();
     let window = if peek_word(&trial, 0, "for") {
         recognize_exiled_window(&mut trial).ok()?
+    } else if next_upkeep_window_starts(&trial) {
+        recognize_next_upkeep_window(&mut trial).ok()?
     } else if peek_word(&trial, 1, "your") {
         recognize_next_end_step_window(&mut trial).ok()?
     } else {
@@ -818,6 +889,32 @@ fn recognize_next_end_step_window(
     Ok(CardPermissionWindowNode::UntilYourNextEndStep)
 }
 
+/// `until [the beginning of] your next upkeep`. Pure lookahead.
+fn next_upkeep_window_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let offset = if peek_word(cursor, 1, "the") && peek_word(cursor, 2, "beginning") {
+        4
+    } else {
+        1
+    };
+    peek_word(cursor, 0, "until")
+        && peek_word(cursor, offset, "your")
+        && peek_word(cursor, offset + 1, "next")
+        && peek_word(cursor, offset + 2, "upkeep")
+}
+
+/// `until [the beginning of] your next upkeep` (CR 503.1).
+fn recognize_next_upkeep_window(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CardPermissionWindowNode> {
+    cursor.enter("card-action.permit.window.next-upkeep");
+    cursor.consume("until")?;
+    if peek_word(cursor, 0, "the") {
+        cursor.consume_phrase(&["the", "beginning", "of"])?;
+    }
+    cursor.consume_phrase(&["your", "next", "upkeep"])?;
+    Ok(CardPermissionWindowNode::UntilYourNextUpkeep)
+}
+
 /// `until you exile another card with this NOUN`: the source noun is a
 /// registered object or subtype word, as in `cards exiled with this NOUN`.
 fn recognize_source_exile_window(
@@ -850,18 +947,25 @@ fn permission_window_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 /// source-control duration, or a window of this family.
 fn recognize_trailing_permission_window(
     cursor: &mut OracleTokenCursor<'_>,
+    frame: CardActionReadContext<'_>,
 ) -> MachineResult<(Option<EffectDurationNode>, Option<CardPermissionWindowNode>)> {
     if peek_word(cursor, 0, "for") {
         if peek_word(cursor, 4, "you") && peek_word(cursor, 5, "control") {
-            // `for as long as you control this creature` (CR 611.2b). A
-            // printed name needs the sequence's name links, which this child
-            // does not receive: it stays an explicit failure.
+            // `for as long as you control this creature|NAME` (CR 611.2b):
+            // the shared source reference, with the program's name links.
             return Ok((
-                Some(recognize_source_control_duration(cursor, &[], None)?),
+                Some(recognize_source_control_duration(
+                    cursor,
+                    frame.name_links,
+                    frame.name_failure,
+                )?),
                 None,
             ));
         }
         return Ok((None, Some(recognize_exiled_window(cursor)?)));
+    }
+    if next_upkeep_window_starts(cursor) {
+        return Ok((None, Some(recognize_next_upkeep_window(cursor)?)));
     }
     if peek_word(cursor, 0, "until") && peek_word(cursor, 1, "your") && peek_word(cursor, 3, "end")
     {
@@ -924,11 +1028,31 @@ fn recognize_any_type_spending(cursor: &mut OracleTokenCursor<'_>) -> MachineRes
 enum PermittedCardOrigin {
     /// `from among them|those cards|the exiled cards|cards exiled with this`.
     Collection(CardCollectionReferenceNode),
-    /// `from your|target player's ZONE`.
+    /// `from your|target player's|that player's|each opponent's ZONE [or
+    /// ZONE]`: one owner's zones, read as one union (`from your hand or
+    /// graveyard`).
     Zone {
         zone: CardZoneName,
         owner: CardZoneOwnerNode,
+        additional: Vec<CardZoneName>,
     },
+    /// `from the command zone` (CR 408.1): the controller's command zone.
+    CommandZone,
+}
+
+/// Whether a registered zone noun of a permitted origin stands at `offset`.
+fn origin_zone_word_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    ["graveyard", "hand", "exile", "library"]
+        .iter()
+        .any(|zone| peek_word(cursor, offset, zone))
+}
+
+/// `each opponent's` / `an opponent's`: the possessive of the opponents of
+/// the ability's controller, before a graveyard.
+fn opponent_possessive_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    cursor.peek_ahead(offset).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("opponent's") || raw.eq_ignore_ascii_case("opponent\u{2019}s")
+    })
 }
 
 fn recognize_permitted_card_origin(
@@ -956,46 +1080,85 @@ fn recognize_permitted_card_origin(
         )?;
         return Ok(PermittedCardOrigin::Collection(reference));
     }
+    if peek_word(cursor, 0, "the") && peek_word(cursor, 1, "command") {
+        // `from the command zone` (CR 408.1): only the controller's own
+        // command zone holds cards they can cast from it.
+        cursor.enter("card-action.permit.origin.command-zone");
+        cursor.consume_phrase(&["the", "command", "zone"])?;
+        return Ok(PermittedCardOrigin::CommandZone);
+    }
     cursor.enter("card-action.permit.origin.zone");
     let owner = if peek_word(cursor, 0, "your") {
         cursor.consume("your")?;
         CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
-    } else if peek_word(cursor, 0, "a") && peek_word(cursor, 1, "graveyard") {
-        // `from a graveyard`: any player's graveyard, one public zone union.
-        cursor.consume("a")?;
+    } else if (peek_word(cursor, 0, "a") || peek_word(cursor, 0, "any"))
+        && peek_word(cursor, 1, "graveyard")
+    {
+        // `from a|any graveyard`: any player's graveyard, one public zone
+        // union.
+        let determiner = cursor.peek().unwrap_or("a").to_owned();
+        cursor.consume(&determiner)?;
         CardZoneOwnerNode::Players(PlayerSetReferenceNode::EachPlayer)
-    } else if peek_word(cursor, 0, "an")
-        && cursor.peek_ahead(1).is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("opponent's") || raw.eq_ignore_ascii_case("opponent\u{2019}s")
-        })
+    } else if (peek_word(cursor, 0, "an") || peek_word(cursor, 0, "each"))
+        && opponent_possessive_at(cursor, 1)
         && peek_word(cursor, 2, "graveyard")
     {
-        // `from an opponent's graveyard`: the union of the opponents'
-        // graveyards, from which one card is chosen.
+        // `from an|each opponent's graveyard`: the union of the opponents'
+        // graveyards, from which the cards are chosen.
+        let determiner = cursor.peek().unwrap_or("an").to_owned();
         let role = cursor.peek_ahead(1).unwrap_or("opponent's").to_owned();
-        cursor.consume("an")?;
+        cursor.consume(&determiner)?;
         cursor.consume(&role)?;
         CardZoneOwnerNode::Players(PlayerSetReferenceNode::OpponentsOfAbilityController)
     } else if starts_possessive_target_player(cursor) {
         CardZoneOwnerNode::TargetPlayer(recognize_possessive_target_player(cursor)?)
+    } else if let Some(player) = try_recognize_bound_possessive_player(cursor)? {
+        // `from that player's|defending player's graveyard`: the player the
+        // binding environment names; the zone is that player's own.
+        CardZoneOwnerNode::Player(LocalPlayerReference::Bound(player))
     } else {
-        return Err(
-            cursor.fail("`among` a bound collection, `your` zone or a targeted player's zone")
-        );
+        return Err(cursor.fail(
+            "`among` a bound collection, the command zone, `your` zone, or a bound or targeted player's zone",
+        ));
     };
     let zone = recognize_card_zone_atom(cursor)?;
+    // `from your hand or graveyard`, `from your graveyard and/or hand`: one
+    // owner, several of their zones. A connector not followed by a zone
+    // noun is the parent's.
+    let mut additional = Vec::new();
+    while (peek_word(cursor, 0, "or") || peek_word(cursor, 0, "and/or"))
+        && origin_zone_word_at(cursor, 1)
+    {
+        cursor.enter("card-action.permit.origin.zone-union");
+        let connector = cursor.peek().unwrap_or("or").to_owned();
+        cursor.consume(&connector)?;
+        let other = recognize_card_zone_atom(cursor)?;
+        cursor.require(
+            other != zone && !additional.contains(&other),
+            "distinct zones in one origin union",
+        )?;
+        additional.push(other);
+    }
+    cursor.enter("card-action.permit.origin.zone-kind");
     cursor.require(
-        matches!(
-            zone,
-            CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
-        ),
+        std::iter::once(&zone).chain(additional.iter()).all(|zone| {
+            matches!(
+                zone,
+                CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
+            )
+        }),
         "a hand, graveyard or exile origin of the permitted cards",
     )?;
     cursor.require(
-        !matches!(owner, CardZoneOwnerNode::Players(_)) || zone == CardZoneName::Graveyard,
+        !matches!(owner, CardZoneOwnerNode::Players(_))
+            || (zone == CardZoneName::Graveyard && additional.is_empty()),
         "a population of owners only for the public graveyard (CR 400.2)",
     )?;
-    Ok(PermittedCardOrigin::Zone { zone, owner })
+    Ok(PermittedCardOrigin::Zone {
+        zone,
+        owner,
+        additional,
+    })
 }
 
 /// CR 601.2a: a card becomes a spell with the same characteristics, so a
@@ -1019,15 +1182,231 @@ fn spell_query_as_card_query(predicate: &ObjectPredicate) -> ObjectPredicate {
     }
 }
 
-/// `... from your graveyard with mana value 4 or less`: a numeric qualifier
-/// placed after the origin still qualifies the whole query.
+/// Intersects one more qualifier into a query predicate.
+fn intersect_predicate(predicate: ObjectPredicate, qualifier: ObjectPredicate) -> ObjectPredicate {
+    match predicate {
+        ObjectPredicate::Intersection(mut operands) => {
+            operands.push(qualifier);
+            ObjectPredicate::Intersection(operands)
+        }
+        other => ObjectPredicate::Intersection(vec![other, qualifier]),
+    }
+}
+
+/// Lexical lookahead for a mana-value comparison this frame owns: `with
+/// mana value ...` or a relative `with [equal or] lesser|greater mana
+/// value`. Pure lookahead.
+fn spell_comparison_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if !peek_word(cursor, 0, "with") {
+        return false;
+    }
+    let relative_at = |offset: usize| {
+        (peek_word(cursor, offset, "lesser") || peek_word(cursor, offset, "greater"))
+            && peek_word(cursor, offset + 1, "mana")
+            && peek_word(cursor, offset + 2, "value")
+    };
+    (peek_word(cursor, 1, "mana") && peek_word(cursor, 2, "value"))
+        || relative_at(1)
+        || (peek_word(cursor, 1, "equal") && peek_word(cursor, 2, "or") && relative_at(3))
+}
+
+/// The position of the first comparison `with` this frame owns before the
+/// end of the clause, for a phrase that the shared reader cannot finish
+/// with it. Pure lookahead.
+fn owned_comparison_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let mut trial = cursor.clone();
+    for offset in 0..24 {
+        match trial.peek() {
+            None | Some("." | ";" | ",") => return None,
+            _ => {}
+        }
+        if spell_comparison_starts(&trial) {
+            return Some(offset);
+        }
+        if peek_word(&trial, 0, "from") {
+            return None;
+        }
+        trial.advance_to(trial.position() + 1).ok()?;
+    }
+    None
+}
+
+/// The antecedent spell a relative comparison (`with equal or lesser mana
+/// value`) is measured against: the spell the triggering cast event records
+/// (CR 603.2). Any other antecedent stays an explicit failure.
+fn antecedent_spell_mana_value(cursor: &OracleTokenCursor<'_>) -> MachineResult<NumericExpression> {
+    cursor.require(
+        cursor
+            .binding_environment()
+            .is_some_and(|environment| environment.frame.event_spell),
+        "a triggering cast event whose spell the relative mana-value comparison names",
+    )?;
+    Ok(NumericExpression::EventValue(
+        EventNumericBinding::CastSpellManaValue,
+    ))
+}
+
+/// The right operand of a mana-value comparison: `that damage` (the amount
+/// the triggering damage event records, CR 120.3), `that spell's mana value`
+/// (the triggering cast's spell), or the shared query numeric expression
+/// (`X`, `the number of Spirits you control`, `this creature's power`). A
+/// demonstrative without its event is an explicit failure, never zero.
+fn recognize_comparison_operand(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: CardActionReadContext<'_>,
+) -> MachineResult<NumericExpression> {
+    if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "damage") {
+        cursor.enter("card-action.permit.query.comparison.event-damage");
+        cursor.consume_phrase(&["that", "damage"])?;
+        cursor.require(
+            cursor.event_numeric_binding() == Some(EventNumericBinding::DamageAmount),
+            "a triggering damage event whose amount `that damage` names",
+        )?;
+        return Ok(NumericExpression::EventValue(
+            EventNumericBinding::DamageAmount,
+        ));
+    }
+    if peek_word(cursor, 0, "that")
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("spell's") || raw.eq_ignore_ascii_case("spell\u{2019}s")
+        })
+        && peek_word(cursor, 2, "mana")
+    {
+        cursor.enter("card-action.permit.query.comparison.event-spell");
+        let possessive = cursor.peek_ahead(1).unwrap_or("spell's").to_owned();
+        cursor.consume("that")?;
+        cursor.consume(&possessive)?;
+        cursor.consume_phrase(&["mana", "value"])?;
+        return antecedent_spell_mana_value(cursor);
+    }
+    cursor.enter("card-action.permit.query.comparison.expression");
+    let expression = recognize_query_numeric_expression(cursor)?;
+    // The source's counters or characteristics are read only where the
+    // frame proves its source (CR 608.2h), as in the shared selector.
+    cursor.enter("card-action.permit.query.comparison.source-context");
+    cursor.require(
+        frame.source_available || !numeric_expression_reads_source(&expression),
+        "a source whose counters or characteristics the comparison reads",
+    )?;
+    Ok(expression)
+}
+
+/// Whether an expression reads the ability source's counters or
+/// characteristics, directly or inside arithmetic.
+fn numeric_expression_reads_source(expression: &NumericExpression) -> bool {
+    match expression {
+        NumericExpression::CountCounters {
+            object: LocalObjectReference::SourceSelf,
+            ..
+        }
+        | NumericExpression::ObjectProperty {
+            object: LocalObjectReference::SourceSelf,
+            ..
+        } => true,
+        NumericExpression::Add { left, right }
+        | NumericExpression::Subtract { left, right }
+        | NumericExpression::Multiply { left, right }
+        | NumericExpression::Divide { left, right, .. } => {
+            numeric_expression_reads_source(left) || numeric_expression_reads_source(right)
+        }
+        _ => false,
+    }
+}
+
+/// `with mana value [equal to|less than|greater than [or equal to]] OPERAND
+/// [or less|or greater]` and the relative `with [equal or] lesser|greater
+/// mana value` (CR 202.3): one mana-value comparison of the permitted cards
+/// with a numeric expression or with the antecedent spell's mana value.
+/// The parent intersects the comparison into the whole query.
+fn recognize_spell_comparison_qualifier(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: CardActionReadContext<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("card-action.permit.query.comparison");
+    cursor.consume("with")?;
+    let comparison = |operator, right| ObjectPredicate::NumericComparison {
+        left: SelectorNumericProperty::ManaValue,
+        operator,
+        right: Box::new(right),
+    };
+    if !peek_word(cursor, 0, "mana") {
+        // `with [equal or] lesser|greater mana value`.
+        cursor.enter("card-action.permit.query.comparison.relative");
+        let inclusive = peek_word(cursor, 0, "equal");
+        if inclusive {
+            cursor.consume_phrase(&["equal", "or"])?;
+        }
+        let lesser = peek_word(cursor, 0, "lesser");
+        cursor.consume(if lesser { "lesser" } else { "greater" })?;
+        cursor.consume_phrase(&["mana", "value"])?;
+        let operator = match (lesser, inclusive) {
+            (true, true) => NumericComparisonOperator::LessThanOrEqual,
+            (true, false) => NumericComparisonOperator::LessThan,
+            (false, true) => NumericComparisonOperator::GreaterThanOrEqual,
+            (false, false) => NumericComparisonOperator::GreaterThan,
+        };
+        return Ok(comparison(operator, antecedent_spell_mana_value(cursor)?));
+    }
+    cursor.consume_phrase(&["mana", "value"])?;
+    cursor.enter("card-action.permit.query.comparison.relation");
+    let prefix = |less: bool, inclusive: bool| match (less, inclusive) {
+        (true, true) => NumericComparisonOperator::LessThanOrEqual,
+        (true, false) => NumericComparisonOperator::LessThan,
+        (false, true) => NumericComparisonOperator::GreaterThanOrEqual,
+        (false, false) => NumericComparisonOperator::GreaterThan,
+    };
+    let mut operator = if peek_word(cursor, 0, "equal") && peek_word(cursor, 1, "to") {
+        cursor.consume_phrase(&["equal", "to"])?;
+        Some(NumericComparisonOperator::Equal)
+    } else if (peek_word(cursor, 0, "less") || peek_word(cursor, 0, "greater"))
+        && peek_word(cursor, 1, "than")
+    {
+        let less = peek_word(cursor, 0, "less");
+        cursor.consume_phrase(&[if less { "less" } else { "greater" }, "than"])?;
+        let inclusive = peek_word(cursor, 0, "or")
+            && peek_word(cursor, 1, "equal")
+            && peek_word(cursor, 2, "to");
+        if inclusive {
+            cursor.consume_phrase(&["or", "equal", "to"])?;
+        }
+        Some(prefix(less, inclusive))
+    } else {
+        None
+    };
+    let right = recognize_comparison_operand(cursor, frame)?;
+    if operator.is_none() {
+        // `X or less`, `4 or greater`: the postfix direction of a bare
+        // operand; a bare operand alone is an equality.
+        operator = Some(
+            if peek_word(cursor, 0, "or")
+                && (peek_word(cursor, 1, "less") || peek_word(cursor, 1, "greater"))
+            {
+                cursor.enter("card-action.permit.query.comparison.direction");
+                let less = peek_word(cursor, 1, "less");
+                cursor.consume_phrase(&["or", if less { "less" } else { "greater" }])?;
+                prefix(less, true)
+            } else {
+                NumericComparisonOperator::Equal
+            },
+        );
+    }
+    let operator = cursor.require_value(operator, "a mana-value comparison operator")?;
+    Ok(comparison(operator, right))
+}
+
+/// `... from your graveyard with mana value 4 or less`: a qualifier placed
+/// after the origin still qualifies the whole query. Mana value is this
+/// frame's comparison; power and toughness keep the shared selector tail.
 fn recognize_postposed_numeric_qualifier(
     cursor: &mut OracleTokenCursor<'_>,
     predicate: ObjectPredicate,
+    frame: CardActionReadContext<'_>,
 ) -> MachineResult<ObjectPredicate> {
-    let property_follows = peek_word(cursor, 1, "mana")
-        || peek_word(cursor, 1, "power")
-        || peek_word(cursor, 1, "toughness");
+    if spell_comparison_starts(cursor) {
+        let comparison = recognize_spell_comparison_qualifier(cursor, frame)?;
+        return Ok(intersect_predicate(predicate, comparison));
+    }
+    let property_follows = peek_word(cursor, 1, "power") || peek_word(cursor, 1, "toughness");
     if !(peek_word(cursor, 0, "with") && property_follows) {
         return Ok(predicate);
     }
@@ -1035,32 +1414,91 @@ fn recognize_postposed_numeric_qualifier(
     cursor.consume("with")?;
     let property = recognize_selector_numeric_property(cursor)?;
     let comparison = recognize_numeric_property_comparison_tail(cursor, property)?;
-    Ok(match predicate {
-        ObjectPredicate::Intersection(mut operands) => {
-            operands.push(comparison);
-            ObjectPredicate::Intersection(operands)
+    Ok(intersect_predicate(predicate, comparison))
+}
+
+/// The permitted card noun phrase in the spell and card domains. The
+/// ordinary query is read first; a comparison it cannot admit is read again
+/// as a resolution-owned query (CR 608.2c), whose comparisons may read the
+/// shared numeric expressions the source context proves. When neither can
+/// finish the phrase with a comparison this frame owns (`with equal or
+/// lesser mana value`, `with mana value less than or equal to that
+/// damage`), the phrase is read up to that `with` and this frame reads the
+/// comparison.
+fn recognize_permitted_noun_phrase(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: CardActionReadContext<'_>,
+) -> MachineResult<(ObjectNounPhrase, Option<ObjectPredicate>)> {
+    const DOMAINS: &[ObjectKind] = &[ObjectKind::Spell, ObjectKind::Card];
+    let mut first = None;
+    for context in [
+        ObjectQueryContext::ORDINARY,
+        ObjectQueryContext::resolution(frame.source_available),
+    ] {
+        let expectation = ObjectNounPhraseExpectation {
+            domains: DOMAINS,
+            context,
+        };
+        let mut trial = cursor.clone();
+        match recognize_object_noun_phrase(&mut trial, expectation) {
+            Ok(phrase) => {
+                *cursor = trial;
+                // A comparison the shared reader left unread right after
+                // the noun belongs to the same query.
+                let comparison = if spell_comparison_starts(cursor) {
+                    Some(recognize_spell_comparison_qualifier(cursor, frame)?)
+                } else {
+                    None
+                };
+                return Ok((phrase, comparison));
+            }
+            Err(failure) => {
+                first.get_or_insert(failure);
+            }
         }
-        other => ObjectPredicate::Intersection(vec![other, comparison]),
-    })
+    }
+    let first = cursor.require_value(first, "a permitted card noun phrase")?;
+    let Some(offset) = owned_comparison_offset(cursor) else {
+        return Err(first);
+    };
+    let end = cursor.position() + offset;
+    let phrase = cursor.bounded(end, |inner| {
+        recognize_object_noun_phrase(inner, ObjectNounPhraseExpectation::in_domains(DOMAINS))
+    })?;
+    let comparison = recognize_spell_comparison_qualifier(cursor, frame)?;
+    Ok((phrase, Some(comparison)))
 }
 
 /// `a|N|up to N|any number of|[bare plural] SPELL-OR-CARD-QUERY from ORIGIN`:
 /// the permitted cards of a permission as one shared noun phrase (its
 /// quantity and query) and an origin. A spell query (`cast`) is read in the
 /// card domain. Targets, references and library positions stay with the
-/// shared card operand; the phrase is committed at its `from`.
+/// shared card operand; the phrase is committed at its `from`. `your
+/// commander from the command zone` reads the shared commander predicate.
 fn try_recognize_permitted_card_query(
     cursor: &mut OracleTokenCursor<'_>,
     verb: CardPermissionVerb,
+    frame: CardActionReadContext<'_>,
 ) -> CollectionOperandAttempt<CardOperandNode> {
     let mut trial = cursor.clone();
     let mut committed = false;
     let result = (|| -> MachineResult<CardOperandNode> {
         trial.enter("card-action.permit.query");
-        let phrase = recognize_object_noun_phrase(
-            &mut trial,
-            ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Spell, ObjectKind::Card]),
-        )?;
+        if your_commander_starts(&trial) {
+            // `your commander from the command zone` (CR 903.3): the
+            // commander designation and the controller's ownership.
+            let predicate = recognize_your_commander(&mut trial)?;
+            committed = true;
+            trial.enter("card-action.permit.query.commander-origin");
+            trial.consume("from")?;
+            let origin = recognize_permitted_card_origin(&mut trial)?;
+            trial.require(
+                matches!(origin, PermittedCardOrigin::CommandZone),
+                "the command zone as the origin of your commander",
+            )?;
+            return Ok(CardOperandNode::CommandZone { predicate });
+        }
+        let (phrase, comparison) = recognize_permitted_noun_phrase(&mut trial, frame)?;
         let quantity = match phrase.determiner {
             None | Some(ObjectDeterminer::Universal { each: false }) => {
                 CardSelectionQuantityNode::All {
@@ -1093,11 +1531,15 @@ fn try_recognize_permitted_card_query(
             Some(ObjectKind::Card) => phrase.query.predicate().clone(),
             _ => return Err(trial.fail("a spell or card query")),
         };
+        let predicate = match comparison {
+            Some(comparison) => intersect_predicate(predicate, comparison),
+            None => predicate,
+        };
         trial.enter("card-action.permit.query.origin");
         trial.consume("from")?;
         committed = true;
         let origin = recognize_permitted_card_origin(&mut trial)?;
-        let predicate = recognize_postposed_numeric_qualifier(&mut trial, predicate)?;
+        let predicate = recognize_postposed_numeric_qualifier(&mut trial, predicate, frame)?;
         trial.enter("card-action.permit.query.domain");
         trial.require(
             predicate.is_in_domain(ObjectKind::Card),
@@ -1113,17 +1555,22 @@ fn try_recognize_permitted_card_query(
                     from,
                 })
             }
-            PermittedCardOrigin::Zone { zone, owner } => {
-                CardOperandNode::ZoneCollection(CardZoneCollectionNode {
-                    zone,
-                    owner,
-                    predicate,
-                    quantity: match quantity {
-                        CardSelectionQuantityNode::All { .. } => None,
-                        other => Some(other),
-                    },
-                    additional_zones: Vec::new(),
-                })
+            PermittedCardOrigin::Zone {
+                zone,
+                owner,
+                additional,
+            } => CardOperandNode::ZoneCollection(CardZoneCollectionNode {
+                zone,
+                owner,
+                predicate,
+                quantity: match quantity {
+                    CardSelectionQuantityNode::All { .. } => None,
+                    other => Some(other),
+                },
+                additional_zones: additional,
+            }),
+            PermittedCardOrigin::CommandZone => {
+                return Err(trial.fail("`your commander` as the card cast from the command zone"));
             }
         })
     })();
@@ -1196,17 +1643,92 @@ fn recognize_reveal_until(
     })
 }
 
-/// `by paying COST rather than paying its|their mana cost(s)` (CR 118.9):
-/// the shared mana-cost reader supplies the substituted cost.
-fn recognize_alternative_base_cost(
+/// `its|the spell's|that spell's mana value`: the mana value of what the
+/// frame casts (CR 202.3), the measure of a non-mana alternative cost.
+fn recognize_cast_spell_mana_value(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.enter("card-action.permit.alternative-cost.mana-value");
+    if peek_word(cursor, 0, "its") {
+        cursor.consume("its")?;
+    } else {
+        let determiner = if peek_word(cursor, 0, "that") {
+            "that"
+        } else {
+            "the"
+        };
+        cursor.consume(determiner)?;
+        let possessive = cursor
+            .peek()
+            .filter(|raw| {
+                raw.eq_ignore_ascii_case("spell's") || raw.eq_ignore_ascii_case("spell\u{2019}s")
+            })
+            .map(str::to_owned)
+            .ok_or_else(|| cursor.fail("`its`, `the spell's` or `that spell's` mana value"))?;
+        cursor.consume(&possessive)?;
+    }
+    cursor.consume_phrase(&["mana", "value"])
+}
+
+/// The cost an alternative base cost pays instead of the mana cost: a mana
+/// cost (the shared reader), `life equal to MANA-VALUE`, `an amount of {E}
+/// equal to MANA-VALUE` (CR 107.14) or `discarding N card(s)`.
+fn recognize_alternative_cost_payment(
     cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<Option<ManaCostNode>> {
-    if !(peek_word(cursor, 0, "by") && peek_word(cursor, 1, "paying")) {
-        return Ok(None);
+) -> MachineResult<CardCastCostNode> {
+    if peek_word(cursor, 0, "by") && peek_word(cursor, 1, "discarding") {
+        cursor.enter("card-action.permit.alternative-cost.discard");
+        cursor.consume_phrase(&["by", "discarding"])?;
+        let count = if peek_word(cursor, 0, "a") {
+            cursor.consume("a")?;
+            NumericExpression::from(1)
+        } else {
+            recognize_numeric_expression(cursor, None)?
+        };
+        let singular = count == NumericExpression::from(1);
+        cursor.consume(if singular { "card" } else { "cards" })?;
+        return Ok(CardCastCostNode::AlternativeNonMana(
+            NonManaCastCostNode::Discard(count),
+        ));
     }
     cursor.enter("card-action.permit.alternative-cost");
     cursor.consume_phrase(&["by", "paying"])?;
-    let cost = recognize_mana_cost(cursor)?;
+    if peek_word(cursor, 0, "life") {
+        cursor.enter("card-action.permit.alternative-cost.life");
+        cursor.consume_phrase(&["life", "equal", "to"])?;
+        recognize_cast_spell_mana_value(cursor)?;
+        return Ok(CardCastCostNode::AlternativeNonMana(
+            NonManaCastCostNode::LifeEqualToManaValue,
+        ));
+    }
+    if peek_word(cursor, 0, "an") && peek_word(cursor, 1, "amount") {
+        cursor.enter("card-action.permit.alternative-cost.counters");
+        cursor.consume_phrase(&["an", "amount", "of"])?;
+        let symbol = cursor.consume_type("counterSymbol")?;
+        cursor.require(
+            symbol.raw.eq_ignore_ascii_case("{E}"),
+            "the registered energy-counter symbol `{E}`",
+        )?;
+        cursor.consume_phrase(&["equal", "to"])?;
+        recognize_cast_spell_mana_value(cursor)?;
+        let counter = crate::oracle::counter_name::CounterName::from_parts(["energy"])
+            .expect("a non-empty counter name");
+        return Ok(CardCastCostNode::AlternativeNonMana(
+            NonManaCastCostNode::PlayerCountersEqualToManaValue(counter),
+        ));
+    }
+    Ok(CardCastCostNode::Alternative(recognize_mana_cost(cursor)?))
+}
+
+/// `by paying COST | by discarding N cards rather than paying its|their mana
+/// cost(s)` (CR 118.9): the substituted cost, then the replaced mana cost.
+fn recognize_alternative_base_cost(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<CardCastCostNode>> {
+    if !(peek_word(cursor, 0, "by")
+        && (peek_word(cursor, 1, "paying") || peek_word(cursor, 1, "discarding")))
+    {
+        return Ok(None);
+    }
+    let cost = recognize_alternative_cost_payment(cursor)?;
     cursor.enter("card-action.permit.alternative-cost.replaced");
     cursor.consume_phrase(&["rather", "than", "paying"])?;
     let (possessive, noun) = if peek_word(cursor, 0, "their") {
@@ -1225,10 +1747,7 @@ fn recognize_cast_cost_policy(
     if recognize_without_paying(cursor)? {
         return Ok(CardCastCostNode::WithoutManaCost);
     }
-    Ok(match recognize_alternative_base_cost(cursor)? {
-        Some(cost) => CardCastCostNode::Alternative(cost),
-        None => CardCastCostNode::Printed,
-    })
+    Ok(recognize_alternative_base_cost(cursor)?.unwrap_or(CardCastCostNode::Printed))
 }
 
 /// `if able` after an imperative cast (CR 608.2g): the player must cast
@@ -1249,6 +1768,8 @@ fn permission_ends_without_window(cursor: &OracleTokenCursor<'_>) -> bool {
     matches!(cursor.peek(), None | Some("."))
         || any_type_spending_starts(cursor)
         || peek_word(cursor, 0, "if")
+        // `, where X is EXPR` (CR 107.3): the sentence owns the definition.
+        || where_x_definition_starts(cursor)
 }
 
 /// Lexical lookahead for the graveyard-exile sentence that amends the
@@ -1363,9 +1884,10 @@ fn recognize_cast_graveyard_exile(
 
 fn recognize_card_permission(
     cursor: &mut OracleTokenCursor<'_>,
-    supplied_duration: Option<&EffectDurationNode>,
+    frame: CardActionReadContext<'_>,
     preposed_window: Option<CardPermissionWindowNode>,
 ) -> MachineResult<CardPermissionNode> {
+    let supplied_duration = frame.preposed_duration;
     cursor.enter("card-action.permit.head");
     let optional = peek_word(cursor, 0, "you");
     if optional {
@@ -1383,7 +1905,7 @@ fn recognize_card_permission(
         CardPermissionVerb::Cast
     };
     cursor.enter("card-action.permit.cards");
-    let cards = match try_recognize_permitted_card_query(cursor, verb) {
+    let cards = match try_recognize_permitted_card_query(cursor, verb, frame) {
         CollectionOperandAttempt::Recognized(fragment) => fragment.node,
         CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
         CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {
@@ -1399,8 +1921,9 @@ fn recognize_card_permission(
                 | CardOperandNode::ZoneCollection(_)
                 | CardOperandNode::Targets(_)
                 | CardOperandNode::CardCopies { .. }
+                | CardOperandNode::CommandZone { .. }
         ),
-        "a bound card collection, declared card targets, card copies or a quantified card query as the cast object",
+        "a bound card collection, declared card targets, card copies, your commander or a quantified card query as the cast object",
     )?;
     let mut if_able = recognize_if_able(cursor)?;
     let mut cost = recognize_cast_cost_policy(cursor)?;
@@ -1412,7 +1935,7 @@ fn recognize_card_permission(
         )?;
         (supplied_duration.cloned(), preposed_window)
     } else if permission_window_starts(cursor) {
-        recognize_trailing_permission_window(cursor)?
+        recognize_trailing_permission_window(cursor, frame)?
     } else if permission_ends_without_window(cursor) {
         (None, None)
     } else {
@@ -1475,6 +1998,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
             shuffle: false,
             attached_to: None,
             origin_library: false,
+            attacking: None,
         });
     }
     cursor.enter("card-action.move.destination");

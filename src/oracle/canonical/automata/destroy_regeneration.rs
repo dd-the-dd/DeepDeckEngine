@@ -18,12 +18,30 @@ enum AmendmentState {
     Complete,
 }
 
+/// `. that|the NOUN can't` after a destruction: a nominal anaphor of the
+/// destroyed object (the selector check follows once it is read).
+fn nominal_amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that") || raw.eq_ignore_ascii_case("the"))
+        && cursor.peek_ahead(2).is_some_and(|raw| {
+            crate::oracle::characteristic_vocabulary::lookup_card_type(
+                raw,
+                AcceptedForms::SingularOnly,
+            )
+            .is_some()
+        })
+        && cursor.peek_ahead(3).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
+        })
+}
+
 fn amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor.peek() == Some(".")
-        && ((cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("it") || raw.eq_ignore_ascii_case("they"))
-            && cursor.peek_ahead(2).is_some_and(|raw| {
+        && (nominal_amendment_starts(cursor)
+            || (cursor.peek_ahead(1).is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("it") || raw.eq_ignore_ascii_case("they")
+            }) && cursor.peek_ahead(2).is_some_and(|raw| {
                 raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
             }))
             || (cursor
@@ -43,6 +61,29 @@ fn amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
                 })))
 }
 
+/// The singular card type a destroyed scalar target is guaranteed to have,
+/// named by a following nominal anaphor (`That creature`, `The land`).
+fn recognize_destroyed_nominal(
+    cursor: &mut OracleTokenCursor<'_>,
+    zone_change: &ZoneChangeEffectNode,
+) -> MachineResult<super::ObjectCardType> {
+    let determiner = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&determiner)?;
+    let predicate = recognize_object_predicate_atom(cursor, AcceptedForms::SingularOnly)?;
+    let ObjectPredicate::CardType(object_type) = predicate else {
+        return Err(cursor.fail("a singular registered card type"));
+    };
+    cursor.require(
+        zone_change.target.slots.len() == 1
+            && zone_change.target.slots[0].cardinality.maximum == 1
+            && zone_change.target.slots[0]
+                .selector
+                .guarantees_card_type(object_type),
+        "a preceding scalar target selector guaranteed to have the referenced card type",
+    )?;
+    Ok(object_type)
+}
+
 /// `. They can't be regenerated` after a destroyed collection: the later
 /// sentence amends the earlier destruction (CR 608.2c, 701.19c). Returns
 /// false without consuming when the amendment does not start here; once its
@@ -52,6 +93,57 @@ pub(in crate::oracle::canonical) fn recognize_plural_regeneration_amendment(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<bool> {
     recognize_pronoun_regeneration_amendment(cursor, "they")
+}
+
+/// `. Creatures destroyed this way can't be regenerated` after a destroyed
+/// collection: the restated collection names the destroyed objects (CR
+/// 608.2c, 701.19c). Its noun must be the collection's own query, or
+/// `permanents`, so the amendment never reaches objects the collection did
+/// not destroy. Returns false without consuming when it does not start here.
+pub(in crate::oracle::canonical) fn recognize_restated_collection_regeneration_amendment(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &super::ObjectQueryNode,
+) -> MachineResult<bool> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !(cursor.peek() == Some(".")
+        && word(2, "destroyed")
+        && word(3, "this")
+        && word(4, "way")
+        && cursor.peek_ahead(5).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
+        }))
+    {
+        return Ok(false);
+    }
+    let mut trial = cursor.clone();
+    trial.enter("sequence.collection-regeneration.restated");
+    trial.consume(".")?;
+    let Ok(noun) = recognize_object_predicate_atom(&mut trial, AcceptedForms::SingularOrPlural)
+    else {
+        return Ok(false);
+    };
+    if trial
+        .peek()
+        .is_none_or(|raw| !raw.eq_ignore_ascii_case("destroyed"))
+    {
+        return Ok(false);
+    }
+    *cursor = trial;
+    cursor.require(
+        noun == objects.predicate
+            || noun == ObjectPredicate::ObjectKind(super::ObjectKind::Permanent),
+        "the destroyed collection's own noun or `permanents`",
+    )?;
+    cursor.consume_phrase(&["destroyed", "this", "way"])?;
+    let modal = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&modal)?;
+    cursor.enter("sequence.collection-regeneration.regenerated");
+    cursor.consume_phrase(&["be", "regenerated"])?;
+    Ok(true)
 }
 
 /// `. It can't be regenerated` after the destruction of one bound object.
@@ -134,6 +226,13 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_with_regeneration_amen
                             && zone_change.target.slots[0].cardinality.maximum == 1,
                         "one scalar destroyed-object antecedent",
                     )?;
+                    AmendmentState::NegatedModal
+                } else if cursor.peek().is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("that") || raw.eq_ignore_ascii_case("the")
+                }) {
+                    // `That creature can't be regenerated.` (CR 701.19c):
+                    // the destroyed target named by its guaranteed type.
+                    referenced_type = Some(recognize_destroyed_nominal(cursor, &zone_change)?);
                     AmendmentState::NegatedModal
                 } else if cursor
                     .peek()

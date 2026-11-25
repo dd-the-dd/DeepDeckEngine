@@ -133,6 +133,11 @@ fn recognize_counted_collection(
     color_noun: &str,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.for-each.countable");
+    // `colors of mana spent to cast this spell` (Converge): a fact of the
+    // spell's own payment, not a collection.
+    if mana_spent_colors_starts(cursor, color_noun) {
+        return recognize_mana_spent_colors(cursor, color_noun);
+    }
     // `cards revealed this way`: the objects an earlier action affected.
     if !distinct_measure_among_starts(cursor) && action_result_reference_starts(cursor) {
         return recognize_action_result_count(cursor);
@@ -291,6 +296,36 @@ fn recognize_counted_collection(
             measure,
         },
     )))
+}
+
+/// `colors of mana spent to cast` after a counting introducer. Lexical
+/// lookahead only.
+fn mana_spent_colors_starts(cursor: &OracleTokenCursor<'_>, color_noun: &str) -> bool {
+    [color_noun, "of", "mana", "spent", "to", "cast"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// `the number of colors of mana spent to cast this spell` / `for each color
+/// of mana spent to cast this spell` (CR 601.2h, 105.1): the distinct colors
+/// among the mana paid for the spell's own cast. Only `this spell` is read;
+/// the card-context validation keeps the amount in the spell ability whose
+/// payment records it. A permanent or another object (`this creature`,
+/// `it`) has no recorded payment here and fails.
+fn recognize_mana_spent_colors(
+    cursor: &mut OracleTokenCursor<'_>,
+    color_noun: &str,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.mana-spent-colors.measure");
+    cursor.consume_phrase(&[color_noun, "of", "mana", "spent", "to", "cast"])?;
+    cursor.enter("numeric.mana-spent-colors.spell");
+    cursor.consume_phrase(&["this", "spell"])?;
+    Ok(NumericExpression::ColorsOfManaSpentToCastSource)
 }
 
 /// The collection of a card-types measure: cards of the shared scoped query
@@ -534,6 +569,7 @@ pub(in crate::oracle::canonical) fn count_excludes_source(count: &NumericExpress
         | NumericExpression::CountCounters { .. }
         | NumericExpression::CountersOnRecipient { .. }
         | NumericExpression::SourceCastX
+        | NumericExpression::ColorsOfManaSpentToCastSource
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)
@@ -652,6 +688,9 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
     // scaled by the same count; a zero component stays zero (CR 613.4c).
     let affected = match effect {
         LocalEffectNode::ModifyStats(node) => Some(&node.targets),
+        // One count scales one placement; listed or chosen kinds would keep
+        // their own unscaled counts, so they are refused.
+        LocalEffectNode::PutCounters(node) if !node.kinds.is_single() => return false,
         LocalEffectNode::PutCounters(node) => Some(&node.permanent),
         _ => None,
     };

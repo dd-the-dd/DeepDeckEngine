@@ -27,6 +27,29 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .is_none_or(singular_player_reference_supported)
                 && effect.get("bind").is_none_or(Value::is_string)
         }
+        // CR 608.2d: one placement the controller chooses on resolution;
+        // each option is an ordinary placement on the same object.
+        Some("putChosenCounters") => {
+            effect["options"].as_array().is_some_and(|options| {
+                let mut kinds = std::collections::BTreeSet::new();
+                options.len() >= 2
+                    && options.iter().all(|option| {
+                        option["counter"]
+                            .as_str()
+                            .is_some_and(|counter| kinds.insert(counter.to_string()))
+                            && numeric_expression_supported(&option["count"])
+                    })
+            }) && {
+                let mut placement = effect.clone();
+                placement["kind"] = json!("putCounters");
+                placement["counter"] = effect["options"][0]["counter"].clone();
+                placement["count"] = effect["options"][0]["count"].clone();
+                if let Some(object) = placement.as_object_mut() {
+                    object.remove("options");
+                }
+                supports_known_effect(&placement)
+            }
+        }
         // CR 601.2d: the division announced with the targets.
         Some("putDividedCounters") => {
             effect["targetsDecisionId"].is_string()
@@ -121,6 +144,43 @@ impl GameEngine {
         provider: &mut P,
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
+            // CR 608.2d: the controller chooses one placement among the
+            // options, then that ordinary placement happens.
+            Some("putChosenCounters") => {
+                let options = effect["options"].as_array().cloned().unwrap_or_default();
+                let labels = options
+                    .iter()
+                    .filter_map(|option| option["counter"].as_str().map(str::to_string))
+                    .collect::<Vec<_>>();
+                let Some(chosen) = self.choose_resolution_option(
+                    stack_object,
+                    provider,
+                    &stack_object.controller,
+                    labels,
+                    "Choose which kind of counter to put.",
+                )?
+                else {
+                    return Ok(());
+                };
+                let option = options
+                    .iter()
+                    .find(|option| option["counter"].as_str() == Some(chosen.as_str()))
+                    .ok_or_else(|| EngineError::new("the chosen counter kind is not an option"))?;
+                let mut placement = effect.clone();
+                placement["kind"] = json!("putCounters");
+                placement["counter"] = option["counter"].clone();
+                placement["count"] = option["count"].clone();
+                if let Some(object) = placement.as_object_mut() {
+                    object.remove("options");
+                }
+                self.execute_counters_domain_known(
+                    &placement,
+                    stack_object,
+                    bindings,
+                    decisions,
+                    provider,
+                )?;
+            }
             Some("putCounters") => {
                 let mut excluded_instance_ids = effect["permanent"]
                     .get("exclude")
@@ -1019,3 +1079,10 @@ impl GameEngine {
         Ok(())
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "counters_tests.rs"]
+mod tests;

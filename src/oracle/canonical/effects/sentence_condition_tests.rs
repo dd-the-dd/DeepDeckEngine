@@ -285,7 +285,7 @@ fn unsupported_or_unproven_conditions_fail_explicitly() {
     // information; only its captured characteristics answer.
     let (state, expected) = failure(
         "Instant",
-        "Destroy target creature. If it was tapped, you gain 3 life.",
+        "Destroy target creature. If it was white, you gain 3 life.",
     );
     assert_eq!(state, "condition.sentence.object.last-known-information");
     assert!(expected.contains("last-known information"));

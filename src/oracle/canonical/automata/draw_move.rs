@@ -203,6 +203,7 @@ fn recognize_draw_action_attempt(
                 {
                     NumericExpression::Atom(atom) => recognize_card_noun(cursor, atom)?,
                     NumericExpression::SourceCastX
+                    | NumericExpression::ColorsOfManaSpentToCastSource
                     | NumericExpression::ObjectProperty { .. }
                     | NumericExpression::EventValue(_)
                     | NumericExpression::CountDistinctCardTypes { .. }

@@ -59,6 +59,7 @@ fn engine() -> GameEngine {
         },
         defending_player_id: "player-1".to_string(),
     });
+    engine.state.step = GameStep::DeclareBlockers;
     engine
 }
 
@@ -103,6 +104,12 @@ fn declare_block(engine: &mut GameEngine) {
 #[test]
 fn block_status_follows_declaration_and_survives_blocker_removal() {
     let mut engine = engine();
+    // CR 509.1h: in the declare-attackers step no blockers have been
+    // declared yet, so a declared attacker is neither blocked nor unblocked.
+    engine.state.step = GameStep::DeclareAttackers;
+    assert!(!status(&engine, "attacker", "isUnblockedAttacker"));
+    assert!(!status(&engine, "attacker", "isBlocked"));
+    engine.state.step = GameStep::DeclareBlockers;
     assert!(status(&engine, "attacker", "isUnblockedAttacker"));
     assert!(!status(&engine, "attacker", "isBlocked"));
     // A creature that is not attacking is neither blocked nor unblocked.

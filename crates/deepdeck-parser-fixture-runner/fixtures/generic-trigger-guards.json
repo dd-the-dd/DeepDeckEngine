@@ -631,7 +631,7 @@
       }
     },
     {
-      "id": "near-miss-unproved-subject-ellipsis",
+      "id": "sibling-elided-control-subject-conjunction",
       "request": {
         "cardName": "Condition Program Probe",
         "typeLine": "Creature — Human Wizard",
@@ -641,12 +641,41 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "and"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-elided-control-conjunct-names-a-nonpermanent",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "When this creature enters, if you control an artifact and an instant, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
-        "abilityCount": 1,
         "diagnostics": [
           {
-            "code": "oracle_machine_failure"
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.atom-kind"
           }
         ]
       }

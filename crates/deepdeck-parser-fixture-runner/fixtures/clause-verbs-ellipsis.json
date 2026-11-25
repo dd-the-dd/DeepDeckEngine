@@ -839,7 +839,7 @@
       }
     },
     {
-      "id": "known-gap-incremental-growth-ordinal-target",
+      "id": "exact-incremental-growth-ordinal-target",
       "request": {
         "cardName": "Incremental Growth",
         "typeLine": "Sorcery",
@@ -849,20 +849,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "effect.start",
-            "found": "three"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
       }
     },
     {
-      "id": "known-gap-arc-trail-gapped-subject-clause",
+      "id": "exact-arc-trail-gapped-subject-clause",
       "request": {
         "cardName": "Arc Trail",
         "typeLine": "Sorcery",
@@ -872,14 +865,22 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "effect.start",
-            "found": "1"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/declaration/decisions/1/distinctFrom/0",
+                "equals": "targetDamageable1"
+              }
+            ]
           }
         ]
       }

@@ -265,6 +265,9 @@ impl ActionResultQuantity {
     ) -> Option<ActionResultField> {
         match (self, runtime_kind) {
             (Self::LifeLost | Self::Amount, "loseLife") => Some(ActionResultField::Integer),
+            // A number chosen on resolution (CR 608.2d) is the amount or the
+            // count a later `that much` / `that many` restates.
+            (Self::Amount | Self::ObjectCount, "chooseNumber") => Some(ActionResultField::Integer),
             (
                 Self::ObjectCount,
                 "discardCards"
@@ -491,6 +494,20 @@ pub(in crate::oracle::canonical) fn resolve_action_result_antecedent(
             action: SingularPlayerAction::Sacrifice(sacrifice),
             ..
         }) => guaranteed_by(&reference.predicate, &sacrifice.object.predicate)
+            .then_some(ActionResultFilter::All)?,
+        // Destroyed targets left the battlefield as well; the noun must be
+        // one every declared slot's own predicate guarantees.
+        LocalEffectNode::ZoneChange(node) => node
+            .target
+            .slots
+            .iter()
+            .all(|slot| match &slot.selector {
+                super::TargetSelector::Object(predicate)
+                | super::TargetSelector::ControlledObject { predicate, .. } => {
+                    guaranteed_by(&reference.predicate, predicate)
+                }
+                _ => false,
+            })
             .then_some(ActionResultFilter::All)?,
         // Exiled target cards keep their characteristics in exile.
         LocalEffectNode::TargetCardZoneChange(_) => {

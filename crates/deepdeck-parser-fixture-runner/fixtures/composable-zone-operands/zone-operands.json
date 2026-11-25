@@ -518,7 +518,7 @@
       }
     },
     {
-      "id": "unsupported-suffix",
+      "id": "unless-suffix-pays-for-the-targeted-zone-owner",
       "request": {
         "cardName": "Shared Zone Negative",
         "typeLine": "Sorcery",
@@ -527,13 +527,43 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "tryPayCost"
+              },
+              {
+                "pointer": "/effects/0/player/id",
+                "equals": "targetZonePlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unless-suffix-scaled-payment",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile target player's graveyard unless they pay {2} for each card in it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
-        "abilityCount": 1,
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "sequence.unless.sentence-end"
           }
         ]
       }

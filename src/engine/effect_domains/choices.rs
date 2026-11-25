@@ -113,6 +113,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && player_reference_supported(&effect["player"])
                 && numeric_expression_supported(&effect["minimum"])
                 && numeric_expression_supported(&effect["maximum"])
+                && effect.get("bind").is_none_or(Value::is_string)
         }
         Some("chooseOrder") => {
             effect["id"].is_string()
@@ -428,6 +429,10 @@ impl GameEngine {
                     Some(stack_object.card.instance_id.clone()),
                 )?;
                 decisions.insert(decision_id.to_string(), Value::from(selected));
+                // `that many` / `that much` reads the chosen number (CR 608.2d).
+                if let Some(binding) = effect["bind"].as_str() {
+                    bindings.insert(binding.to_string(), RuntimeBinding::Integer(selected));
+                }
                 self.record_event(
                     "resolutionChoiceMade",
                     Some(stack_object.controller.clone()),

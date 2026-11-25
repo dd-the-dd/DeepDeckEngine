@@ -123,7 +123,52 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// planeswalker`). The program parent publishes it from its earlier
     /// actions (`publish_program_antecedents`); `that player` names it.
     pub player_target: Option<PlayerTargetAntecedent>,
+    /// The one object the latest object-producing action of the program
+    /// selected or moved on resolution (`sacrifices a creature of their
+    /// choice`, `reveal the top card of your library`, CR 608.2c). The
+    /// program parent publishes it (`publish_program_antecedents`); `that
+    /// NOUN`, `its PROPERTY`, `that NOUN's PROPERTY` and `the VERBed NOUN's
+    /// PROPERTY` resolve against it. A result that is no longer a
+    /// battlefield permanent answers only reads of its last known
+    /// information (CR 400.7, 608.2h); an operand reader refuses it.
+    pub result_object: Option<ActionResultObject>,
 }
+
+/// The one object an earlier action of the same program selected or moved
+/// on resolution (CR 608.2c): the action that produced it, the selector its
+/// own selection guarantees (a nominal anaphor must follow from it), the
+/// number it stated, and the verb a participle (`the sacrificed creature`)
+/// restates.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ActionResultObject {
+    pub reference: super::ActionResultReference,
+    pub selector: TargetSelector,
+    pub number: GrammaticalNumber,
+    /// The producing verb (`sacrificed`, `discarded`, `revealed`, `milled`,
+    /// `exiled`), when the action is one of those; a move without such a
+    /// verb (`put the top card of your library into your graveyard`) has
+    /// none.
+    pub verb: Option<super::ActionResultVerb>,
+}
+
+impl ActionResultObject {
+    /// The reference a reader of this result returns.
+    pub(in crate::oracle::canonical) fn permanent_reference(&self) -> PermanentEffectReference {
+        PermanentEffectReference::ActionResult(self.reference)
+    }
+
+    /// A singular nominal anaphor names the result when the producer's
+    /// selector guarantees the nominal.
+    fn names(&self, nominals: &[TargetNominal]) -> bool {
+        self.number == GrammaticalNumber::Singular
+            && selector_names_nominals(&self.selector, nominals)
+    }
+}
+
+/// The operand diagnostic of a reference to an action result that left the
+/// battlefield or is a card (CR 400.7): only its last known information is
+/// readable (CR 608.2h).
+pub(in crate::oracle::canonical) const DEPARTED_ACTION_RESULT_OPERAND: &str = "a battlefield permanent for the anaphor; the object the earlier action selected or moved is not a permanent any more (CR 400.7), only its last known information is readable";
 
 /// A singular declared target that may be a player (CR 115.1): `that
 /// player` names the player it is; when its selector also admits
@@ -147,7 +192,20 @@ pub(in crate::oracle::canonical) fn publish_program_antecedents(
     effects: &[super::LocalEffectNode],
 ) -> BindingEnvironment {
     environment.player_target = program_player_target(effects);
+    environment.result_object = super::permanent_subject::program_action_result(effects);
     environment
+}
+
+/// Copies the action result the program parent published on the cursor
+/// into an environment a context parent built (`for_permanent_context`),
+/// so its references see the same antecedents as the program's.
+pub(in crate::oracle::canonical) fn inherit_installed_action_result(
+    environment: &mut BindingEnvironment,
+    cursor: &OracleTokenCursor<'_>,
+) {
+    if environment.result_object.is_none() {
+        environment.result_object = installed_binding_environment(cursor).result_object;
+    }
 }
 
 /// The same producer contract over the environment the program parent just
@@ -295,6 +353,7 @@ impl BindingEnvironment {
             number: None,
             objects: None,
             player_target: None,
+            result_object: None,
         }
     }
 }
@@ -1038,6 +1097,9 @@ fn relation_supported(reference: PermanentEffectReference) -> bool {
         ),
         // A set of declared targets has no single controller or owner.
         PermanentEffectReference::TargetSet(_) => false,
+        // An action result's player relations are read only while it is
+        // still a permanent; no last known controller is recorded for it.
+        PermanentEffectReference::ActionResult(result) => result.permanent,
         _ => true,
     }
 }
@@ -1248,6 +1310,20 @@ pub(in crate::oracle::canonical) fn resolve_pronoun_antecedent(
     if let Some(object) = environment.object.as_ref() {
         return Ok(object.reference);
     }
+    // The one object an earlier action selected or moved: an operand reader
+    // acts on a permanent, so a result that is no longer one is refused
+    // with its own diagnostic (CR 400.7).
+    if let Some(result) = environment
+        .result_object
+        .as_ref()
+        .filter(|result| result.number == GrammaticalNumber::Singular)
+    {
+        return if result.reference.permanent {
+            Ok(result.permanent_reference())
+        } else {
+            Err(DEPARTED_ACTION_RESULT_OPERAND)
+        };
+    }
     if environment
         .objects
         .as_ref()
@@ -1280,6 +1356,30 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
         return Ok(PermanentEffectReference::Observed(
             TypedObservedEventObject::CombatCounterpart,
         ));
+    }
+    // The object a later action of the program selected or moved is the
+    // nearest antecedent with this nominal (CR 608.2c), unless a target an
+    // even later action declared has it: `Target player sacrifices a
+    // creature of their choice. You gain life equal to that creature's
+    // toughness.` A result that is no longer a permanent answers only a
+    // read of its last known information (CR 400.7, 608.2h).
+    if let Some(result) = environment
+        .result_object
+        .as_ref()
+        .filter(|result| result.names(nominals))
+        && !environment.object.as_ref().is_some_and(|antecedent| {
+            matches!(
+                antecedent.reference,
+                PermanentEffectReference::Target(binding)
+                    if binding.effect_index > result.reference.effect_index
+            ) && antecedent_names(antecedent, nominals)
+        })
+    {
+        return if result.reference.permanent || departed_readable {
+            Ok(result.permanent_reference())
+        } else {
+            Err(DEPARTED_ACTION_RESULT_OPERAND)
+        };
     }
     // A lexical target with this nominal wins; otherwise the event's object
     // when the event wrote this nominal for it.
@@ -1392,6 +1492,17 @@ pub(in crate::oracle::canonical) fn resolve_possessive_antecedent(
             .then_some(object.reference)
             .ok_or(PLURAL_SET_FOR_SINGULAR);
     }
+    // The object an earlier action selected or moved is nearer than the
+    // event's subject (`When this creature dies, exile the top card of your
+    // library. Target opponent loses life equal to its mana value.`); its
+    // last known information answers the read (CR 608.2h).
+    if let Some(result) = environment
+        .result_object
+        .as_ref()
+        .filter(|result| result.number == GrammaticalNumber::Singular)
+    {
+        return Ok(result.permanent_reference());
+    }
     if let Some(slot) = environment
         .frame
         .event_object
@@ -1444,6 +1555,12 @@ pub(in crate::oracle::canonical) fn condition_object_antecedent(
                 _ => None,
             }
         }
+        // `As long as this creature's power is 5 or greater`: a comparison
+        // of one object's numeric property with a fixed number is about
+        // that object as much as a predicate over it is.
+        super::BooleanConditionNode::Atom(super::ConditionAtom::Compare(comparison)) => {
+            compared_object(comparison)
+        }
         super::BooleanConditionNode::Atom(_) => None,
         super::BooleanConditionNode::Not(inner) => condition_object_antecedent(inner),
         super::BooleanConditionNode::And(operands) | super::BooleanConditionNode::Or(operands) => {
@@ -1453,6 +1570,23 @@ pub(in crate::oracle::canonical) fn condition_object_antecedent(
                 .all(|operand| condition_object_antecedent(operand) == Some(reference))
                 .then_some(reference)
         }
+    }
+}
+
+/// The one object a comparison reads: a numeric property of one object
+/// compared with a fixed number. Any other operand pair names no object.
+fn compared_object(comparison: &super::ConditionComparison) -> Option<PermanentEffectReference> {
+    let object_of = |number: &super::ConditionNumber| match number {
+        super::ConditionNumber::Expression(
+            NumericExpression::ObjectProperty { object, .. }
+            | NumericExpression::CountCounters { object, .. },
+        ) => Some(PermanentEffectReference::Source(*object)),
+        _ => None,
+    };
+    match (&comparison.left, &comparison.right) {
+        (object, super::ConditionNumber::Integer(_))
+        | (super::ConditionNumber::Integer(_), object) => object_of(object),
+        _ => None,
     }
 }
 
@@ -1673,6 +1807,9 @@ pub(in crate::oracle::canonical) fn bound_object_property_starts(
     {
         return possessive_property(1);
     }
+    if participle_property_starts(cursor) {
+        return true;
+    }
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
@@ -1736,6 +1873,9 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_property(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
 ) -> MachineResult<NumericExpression> {
+    if participle_property_starts(cursor) {
+        return recognize_participle_object_property(cursor, environment);
+    }
     cursor.enter("numeric.genitive.reference");
     let source = cursor
         .peek()
@@ -1811,6 +1951,79 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_property(
     bound_object_numeric_property(reference, property, nominal.as_predicate())
         .map_err(|expected| cursor.fail(expected))
 }
+
+/// Lexical lookahead for `the VERBed NOUN's power|toughness|mana value`
+/// (`the sacrificed creature's power`, `the exiled card's mana value`): a
+/// definite description of an object an action selected or moved.
+fn participle_property_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && cursor
+            .peek_ahead(1)
+            .and_then(super::ActionResultVerb::from_word)
+            .is_some()
+        && cursor
+            .token_slice(cursor.position() + 2, cursor.position() + 3)
+            .first()
+            .is_some_and(|token| token.token_type == "possessiveTypeWord")
+        && cursor.peek_ahead(3).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("power")
+                || raw.eq_ignore_ascii_case("toughness")
+                || (raw.eq_ignore_ascii_case("mana")
+                    && cursor
+                        .peek_ahead(4)
+                        .is_some_and(|next| next.eq_ignore_ascii_case("value")))
+        })
+}
+
+/// `the VERBed NOUN's PROPERTY` (CR 608.2c, 608.2h): the property of the one
+/// object an earlier action of this program VERBed, when its selection
+/// guarantees the nominal; read as last known information once it left the
+/// battlefield. `the sacrificed NOUN's power|toughness` without such an
+/// action keeps its reading as the permanent sacrificed to pay a cost of
+/// this ability (`recognize_sacrificed_cost_object_property`). Any other
+/// participle without a producing action is a committed diagnostic.
+fn recognize_participle_object_property(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<NumericExpression> {
+    let start = cursor.clone();
+    cursor.enter("numeric.participle.reference");
+    cursor.consume("the")?;
+    let verb = cursor
+        .peek()
+        .and_then(super::ActionResultVerb::from_word)
+        .ok_or_else(|| cursor.fail("the past participle of an object-producing verb"))?;
+    let participle = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&participle)?;
+    cursor.enter("numeric.participle.nominal");
+    let possessive = cursor.consume_type("possessiveTypeWord")?;
+    let nominal = possessive_nominal(&possessive.raw)
+        .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
+    cursor.enter("numeric.participle.property");
+    let property = super::recognize_selector_numeric_property(cursor)?;
+    cursor.enter("numeric.participle.antecedent");
+    let result = environment
+        .result_object
+        .as_ref()
+        .filter(|result| result.verb == Some(verb) && result.names(&[nominal]));
+    match result {
+        Some(result) => {
+            let reference = result.permanent_reference();
+            bound_object_numeric_property(reference, property, nominal.as_predicate())
+                .map_err(|expected| cursor.fail(expected))
+        }
+        None if verb == super::ActionResultVerb::Sacrificed => {
+            *cursor = start;
+            super::recognize_sacrificed_cost_object_property(cursor)
+        }
+        None => Err(cursor.fail(PARTICIPLE_WITHOUT_PRODUCER)),
+    }
+}
+
+/// The diagnostic of `the VERBed NOUN's PROPERTY` without a producer.
+const PARTICIPLE_WITHOUT_PRODUCER: &str = "an earlier action of this program that selected or moved exactly one object of this nominal with this verb";
 
 /// Reads a clause's arguments with `subject` as the clause subject of the
 /// installed environment, then restores the enclosing environment.

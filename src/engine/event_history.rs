@@ -276,7 +276,7 @@ fn type_line_contains_phrase(type_line: &str, phrase: &str) -> bool {
 /// type), evaluated for type atoms only; `was_creature` is the recorded
 /// last-known creature status, when the event has one. `None` for any other
 /// atom.
-fn type_line_filter(
+pub(super) fn type_line_filter(
     type_line: &str,
     was_creature: Option<bool>,
     is_token: Option<bool>,
@@ -565,6 +565,9 @@ pub(super) fn departed_object_condition_supported(condition: &Value) -> bool {
                     "cardTypeContains" | "subtypeContains" | "typeLineContains" | "isLegendary"
                     | "isBasic",
                 ) => filter["value"].is_string() || filter.get("value").is_none(),
+                Some(kind) if state_condition_atoms::departure_record_atom(kind) => {
+                    state_condition_atoms::departure_record_atom_supported(filter)
+                }
                 Some("not") => type_line_atoms(&filter["operand"], depth + 1),
                 Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
                     !operands.is_empty()
@@ -612,16 +615,7 @@ impl GameEngine {
         }) else {
             return false;
         };
-        departure.detail["typeLine"]
-            .as_str()
-            .and_then(|type_line| {
-                type_line_filter(
-                    type_line,
-                    departure.detail["wasCreature"].as_bool(),
-                    None,
-                    &condition["where"],
-                )
-            })
+        state_condition_atoms::departure_record_matches(&departure.detail, &condition["where"], 0)
             .unwrap_or(false)
     }
 }

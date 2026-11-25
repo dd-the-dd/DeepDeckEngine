@@ -425,6 +425,9 @@ fn damage_recipient_boundary(cursor: &OracleTokenCursor<'_>) -> bool {
 fn recognize_damage_recipient_group(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<DamageRecipientNode> {
+    if let Some(reference) = super::recognize_damage_recipient_reference(cursor) {
+        return reference;
+    }
     if cursor
         .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("you"))
@@ -753,7 +756,15 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                             "one target permanent put into its owner's library",
                         )?;
                         cursor.enter("effect.zone-change.library.position");
-                        let position = if cursor.consume_phrase(&["on", "top", "of"]).is_ok() {
+                        let into = cursor
+                            .peek()
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("into"));
+                        let position = if into {
+                            // `into its owner's library ORDINAL from the top`:
+                            // the position follows the library (read below).
+                            cursor.consume("into")?;
+                            super::LibraryPosition::Top
+                        } else if cursor.consume_phrase(&["on", "top", "of"]).is_ok() {
                             super::LibraryPosition::Top
                         } else {
                             cursor.consume_phrase(&["on", "the", "bottom", "of"])?;
@@ -774,6 +785,16 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                             .ok_or_else(|| cursor.fail("`owner's`"))?;
                         cursor.consume(&owner)?;
                         cursor.consume("library")?;
+                        if into {
+                            cursor.enter("effect.zone-change.library.beneath-top");
+                            let position = super::try_recognize_beneath_top_position(cursor)?
+                                .ok_or_else(|| {
+                                    cursor.fail("`ORDINAL from the top` after `into` a library")
+                                })?;
+                            action = Some(ZoneChangeAction::Move(
+                                ZoneChangeDestination::OwnerLibrary(position),
+                            ));
+                        }
                         ZoneChangeState::Complete
                     }
                     _ => ZoneChangeState::Complete,

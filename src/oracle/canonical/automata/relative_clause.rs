@@ -336,6 +336,31 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
     let pronoun = cursor.peek().unwrap_or_default().to_string();
     cursor.require(is_relative_pronoun(cursor), "`that`, `which` or `who`")?;
     cursor.consume(&pronoun)?;
+    recognize_relative_predicate(cursor)
+}
+
+/// True at a verb phrase `recognize_relative_predicate` reads without its
+/// pronoun after another subject (`if it shares a creature type with this
+/// creature`, `as long as it entered this turn`, `as long as this Equipment
+/// is attached to a creature`). Status copulas and possession stay with the
+/// subject's own reader. A pure lookahead.
+pub(in crate::oracle::canonical) fn relative_predicate_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    copular_participle_at(cursor, 0).is_some()
+        || share_verb_at(cursor, 0).is_some()
+        || past_fact_at(cursor, 0).is_some()
+        || negated_past_at(cursor, 0).is_some()
+        || dealt_damage_to_player_at(cursor, 0).is_some()
+        || targets_clause_starts(cursor, 0)
+}
+
+/// The verb phrase of a relative clause after its pronoun (or after the
+/// subject of a condition, `relative_predicate_starts`): one grammar for the
+/// object predicate it states.
+pub(in crate::oracle::canonical) fn recognize_relative_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
     if let Some(copula_width) = copular_participle_at(cursor, 0) {
         // `that are attached to it`: the present copula before the same
         // participle; the relation holds now (CR 301.5, 303.4).
@@ -921,36 +946,61 @@ fn shared_characteristic_at(
         .then_some((SharedCharacteristic::Color, 1))
 }
 
-/// `[that] share(s) a creature type with it`, `that shares at least one
-/// color with the exiled card`, `that share no creature types with X`,
-/// `that doesn't share a color with X` (CR 105.1, 205.2, 205.3). The anchor
-/// is mandatory: a share among the members of a set has no anchor.
-fn recognize_share_clause(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectPredicate> {
-    cursor.enter("selector.relative-clause.share");
+/// The share quantity at `offset` (`a`, `an`, `any`, `at least one`, `no`):
+/// its width and whether it negates the share.
+fn share_quantity_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(usize, bool)> {
+    if word_at(cursor, offset, "at")
+        && word_at(cursor, offset + 1, "least")
+        && word_at(cursor, offset + 2, "one")
+    {
+        return Some((3, false));
+    }
+    if ["a", "an", "any"]
+        .iter()
+        .any(|word| word_at(cursor, offset, word))
+    {
+        return Some((1, false));
+    }
+    word_at(cursor, offset, "no").then_some((1, true))
+}
+
+/// Reads `share(s) <quantity> <characteristic>`, the head every share clause
+/// has, into the characteristic and whether the share is negated.
+fn recognize_share_head(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(SharedCharacteristic, bool)> {
     let (width, mut negated) = cursor.require_value(
         share_verb_at(cursor, 0),
         "`share`, `shares` or `doesn't share`",
     )?;
     consume_words(cursor, width)?;
     cursor.enter("selector.relative-clause.share.quantity");
-    if word_at(cursor, 0, "at") && word_at(cursor, 1, "least") && word_at(cursor, 2, "one") {
-        consume_words(cursor, 3)?;
-    } else if word_at(cursor, 0, "a") || word_at(cursor, 0, "an") || word_at(cursor, 0, "any") {
-        consume_words(cursor, 1)?;
-    } else if word_at(cursor, 0, "no") {
+    let (quantity_width, quantity_negates) = cursor.require_value(
+        share_quantity_at(cursor, 0),
+        "`a`, `an`, `at least one`, `any` or `no` before the shared characteristic",
+    )?;
+    if quantity_negates {
         cursor.require(!negated, "one negation of a share clause")?;
-        consume_words(cursor, 1)?;
         negated = true;
-    } else {
-        return Err(cursor
-            .fail("`a`, `an`, `at least one`, `any` or `no` before the shared characteristic"));
     }
+    consume_words(cursor, quantity_width)?;
     cursor.enter("selector.relative-clause.share.characteristic");
     let (characteristic, characteristic_width) = cursor.require_value(
         shared_characteristic_at(cursor, 0),
         "a creature type, card type, permanent type, land type or color",
     )?;
     consume_words(cursor, characteristic_width)?;
+    Ok((characteristic, negated))
+}
+
+/// `[that] share(s) a creature type with it`, `that shares at least one
+/// color with the exiled card`, `that share no creature types with X`,
+/// `that doesn't share a color with X` (CR 105.1, 205.2, 205.3). The anchor
+/// is mandatory: a share among the members of a set has no anchor and is
+/// read by `recognize_shared_characteristic_set_clause`.
+fn recognize_share_clause(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relative-clause.share");
+    let (characteristic, negated) = recognize_share_head(cursor)?;
     cursor.enter("selector.relative-clause.share.anchor");
     // `creatures that share a creature type` compares the members of the
     // set with each other: no anchor is invented for it here.
@@ -965,6 +1015,49 @@ fn recognize_share_clause(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<O
     } else {
         relation
     })
+}
+
+/// Whether `that share(s) ...` starts a share clause over the members of a
+/// plural set (`two land cards that share a land type`, CR 205.3i), with no
+/// `with ANCHOR`. Lexical lookahead over the same verb, quantity and
+/// characteristic readers as the anchored clause; an anchored share is not
+/// a set clause.
+pub(in crate::oracle::canonical) fn shared_characteristic_set_clause_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    if !word_at(cursor, 0, "that") {
+        return false;
+    }
+    let Some((verb, _)) = share_verb_at(cursor, 1) else {
+        return false;
+    };
+    let Some((quantity, _)) = share_quantity_at(cursor, 1 + verb) else {
+        return false;
+    };
+    let Some((_, characteristic)) = shared_characteristic_at(cursor, 1 + verb + quantity) else {
+        return false;
+    };
+    !word_at(cursor, 1 + verb + quantity + characteristic, "with")
+}
+
+/// Reads `that share(s) <quantity> <characteristic>` over the members of a
+/// set into the shared characteristic. A negated set share (`that share no
+/// creature types`) is a different constraint (pairwise distinct) and is
+/// refused, as is an anchor after it.
+pub(in crate::oracle::canonical) fn recognize_shared_characteristic_set_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<SharedCharacteristic> {
+    cursor.enter("selector.relative-clause.share-set");
+    cursor.consume("that")?;
+    let (characteristic, negated) = recognize_share_head(cursor)?;
+    cursor.enter("selector.relative-clause.share-set.polarity");
+    cursor.require(!negated, "a positive share among the members of the set")?;
+    cursor.enter("selector.relative-clause.share-set.anchorless");
+    cursor.require(
+        !word_at(cursor, 0, "with"),
+        "a share among the set's members, without an anchor",
+    )?;
+    Ok(characteristic)
 }
 
 /// Whether the lowering has a value for this bound anchor: a declared

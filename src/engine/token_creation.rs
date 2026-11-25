@@ -484,7 +484,7 @@ impl GameEngine {
     /// Applies one copiable-value exception of a token copy (CR 707.9b). The
     /// operations are the characteristic-change vocabulary without object or
     /// duration; each changes the copy's copiable values.
-    fn apply_copy_exception(
+    pub(super) fn apply_copy_exception(
         &self,
         definition: &mut CardDefinition,
         exception: &Value,
@@ -767,85 +767,12 @@ impl GameEngine {
         stack_object: &StackObject,
         provider: &mut P,
     ) -> Result<(), EngineError> {
-        let Some((player_index, card_index)) = self.permanent_position(token_id) else {
-            return Ok(());
-        };
-        let controller = self.state.players[player_index].battlefield[card_index]
-            .controller
-            .clone();
-        let active_player_id = self.state.players[self.state.active_player].id.clone();
-        let in_combat = matches!(
-            self.state.step,
-            GameStep::DeclareAttackers | GameStep::DeclareBlockers | GameStep::CombatDamage
-        );
-        if !in_combat || controller != active_player_id {
-            return Ok(());
-        }
-        let mut defenders = self
-            .state
-            .players
-            .iter()
-            .map(|player| TargetRef::Player {
-                player_id: player.id.clone(),
-            })
-            .chain(self.state.players.iter().flat_map(|player| {
-                player
-                    .battlefield
-                    .iter()
-                    .map(|permanent| TargetRef::Permanent {
-                        instance_id: permanent.instance_id.clone(),
-                    })
-            }))
-            .filter_map(|defender| {
-                self.attack_defending_player_id(&active_player_id, &defender)
-                    .map(|defending_player_id| (defender, defending_player_id))
-            })
-            .collect::<Vec<_>>();
-        let label = |defender: &TargetRef| match defender {
-            TargetRef::Player { player_id } => player_id.clone(),
-            TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
-                instance_id.clone()
-            }
-            TargetRef::StackObject { stack_id } => stack_id.clone(),
-        };
-        let (defender, defending_player_id) = match defenders.len() {
-            0 => return Ok(()),
-            1 => defenders.remove(0),
-            _ => {
-                let options = defenders
-                    .iter()
-                    .map(|(defender, _)| label(defender))
-                    .collect();
-                let selected = self.choose_resolution_option(
-                    stack_object,
-                    provider,
-                    &controller,
-                    options,
-                    "Choose the player, planeswalker or battle the token is attacking.",
-                )?;
-                let index = selected
-                    .and_then(|selected| {
-                        defenders
-                            .iter()
-                            .position(|(defender, _)| label(defender) == selected)
-                    })
-                    .ok_or_else(|| {
-                        EngineError::new("an attacking token needs a chosen defender")
-                    })?;
-                defenders.remove(index)
-            }
-        };
-        if let Some((player_index, card_index)) = self.permanent_position(token_id) {
-            self.state.players[player_index].battlefield[card_index]
-                .flags
-                .insert("attacking".to_string(), true);
-        }
-        self.state.combat.attackers.push(DeclaredAttacker {
-            attacker_id: token_id.to_string(),
-            defender,
-            defending_player_id,
-        });
-        Ok(())
+        self.put_permanent_into_combat_attacking(
+            token_id,
+            &super::entering_attacking::AdmittedDefenders::Any,
+            stack_object,
+            provider,
+        )
     }
 
     #[cfg(test)]

@@ -166,6 +166,14 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         PaymentActionNode::Untap(_)
         | PaymentActionNode::TapTotalPower(_)
         | PaymentActionNode::ReturnToHand(PaymentObjectsNode::Source(_))
+        | PaymentActionNode::ReturnToHand(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Sacrifice(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Discard(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Tap(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Exile {
+            objects: PaymentObjectsNode::Designated(_),
+            ..
+        }
         | PaymentActionNode::PutCounters(_)
         | PaymentActionNode::Reveal { .. }
         | PaymentActionNode::Mill { .. }

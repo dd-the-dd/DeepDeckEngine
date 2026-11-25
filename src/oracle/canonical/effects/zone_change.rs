@@ -210,14 +210,19 @@ pub(in crate::oracle::canonical) fn lower_targeted_zone_change_effect(
             "kind": "returnToOwnersHand",
             "object": target,
         }),
-        ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(position)) => json!({
-            "kind": "putPermanentOnOwnerLibrary",
-            "permanent": target,
-            "position": match position {
-                LibraryPosition::Top => "top",
-                LibraryPosition::Bottom => "bottom",
-            },
-        }),
+        ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(position)) => {
+            let (word, above) = position.engine_position();
+            let mut operation = json!({
+                "kind": "putPermanentOnOwnerLibrary",
+                "permanent": target,
+                "position": word,
+            });
+            // `ORDINAL from the top`: the cards that stay above it.
+            if let Some(above) = above {
+                operation["cardsAbove"] = lower_numeric_atom(above);
+            }
+            operation
+        }
     }
 }
 

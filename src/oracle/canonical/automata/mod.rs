@@ -67,6 +67,7 @@ mod container_body;
 mod contextual_list;
 mod control_change;
 mod controlled_count_entry;
+mod copy_exception;
 mod cost;
 mod cost_keyword;
 mod counter_delayed_draw;
@@ -333,6 +334,7 @@ pub(super) use container_body::*;
 pub(super) use contextual_list::*;
 pub(super) use control_change::*;
 pub(super) use controlled_count_entry::*;
+pub(super) use copy_exception::*;
 pub(super) use cost::*;
 pub(super) use cost_keyword::*;
 pub(super) use counter_delayed_draw::*;
@@ -603,6 +605,22 @@ pub(in crate::oracle::canonical) enum PermanentEffectReference {
     /// `enchanted creature` / `equipped creature`: the permanent the ability
     /// source is attached to (CR 301.5a, 303.4a), resolved at execution.
     Attached(AttachedObjectRole),
+    /// The one object an earlier action of the same program selected or
+    /// moved on resolution (`sacrifices a creature of their choice ... that
+    /// creature's toughness`, `reveal the top card ... its mana value`,
+    /// CR 608.2c). The program lowering binds that action's result; a
+    /// result that is no longer a battlefield permanent answers only reads
+    /// of its last known information (CR 400.7, 608.2h).
+    ActionResult(ActionResultReference),
+}
+
+/// The producing action of an action-result object and whether the object
+/// is still a battlefield permanent after it (a sacrificed creature, a
+/// discarded or revealed card is not).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ActionResultReference {
+    pub effect_index: usize,
+    pub permanent: bool,
 }
 
 /// The parent that owns ability-restriction sentences (`Activate only ...`,
@@ -892,6 +910,10 @@ pub(super) enum NumericExpression {
     /// among it (shared `for each` count child).
     PermanentCount(Box<PermanentCountNode>),
     SourceCastX,
+    /// The number of colors of mana spent to cast the source spell (CR
+    /// 601.2h records the payment; Converge reads it). Only the spell's own
+    /// resolution carries that payment.
+    ColorsOfManaSpentToCastSource,
     EventValue(EventNumericBinding),
     /// `card types among COLLECTION` (CR 205.2a): the distinct card types
     /// among the cards of a graveyard collection, read by the shared scoped
@@ -1154,6 +1176,7 @@ impl NumericExpression {
             | Self::CountCounters { .. }
             | Self::CountersOnRecipient { .. }
             | Self::SourceCastX
+            | Self::ColorsOfManaSpentToCastSource
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
             | Self::OpponentCount(_)
@@ -1345,6 +1368,9 @@ pub(super) enum GrantedKeyword {
     Landwalk(LandwalkWord),
     Lifelink,
     Menace,
+    /// CR 702.116a: an attack trigger creating attacking token copies for
+    /// each other opponent (engine `myriad` runtime).
+    Myriad,
     Persist,
     Prowess,
     Reach,
@@ -1404,6 +1430,7 @@ impl GrantedKeyword {
             Self::Landwalk(word) => word.keyword,
             Self::Lifelink => "lifelink",
             Self::Menace => "menace",
+            Self::Myriad => "myriad",
             Self::Persist => "persist",
             Self::Prowess => "prowess",
             Self::Reach => "reach",
@@ -1556,6 +1583,9 @@ pub(super) enum DamageRecipientNode {
     BoundPlayer(BoundPlayerReference),
     /// `to it`, `to that creature`: an object the binding environment names.
     BoundObject(PermanentEffectReference),
+    /// `to the player or planeswalker it's attacking` (CR 506.3): what the
+    /// named attacking creature attacks, read from the combat at resolution.
+    AttackedRecipient(PermanentEffectReference),
 }
 
 impl DamageRecipientNode {
@@ -1563,7 +1593,7 @@ impl DamageRecipientNode {
     /// needs the program's target bindings.
     pub(super) fn is_bound(&self) -> bool {
         match self {
-            Self::BoundPlayer(_) | Self::BoundObject(_) => true,
+            Self::BoundPlayer(_) | Self::BoundObject(_) | Self::AttackedRecipient(_) => true,
             Self::All(groups) => groups.iter().any(Self::is_bound),
             _ => false,
         }
@@ -1668,6 +1698,9 @@ pub(in crate::oracle::canonical) struct PutCountersOnObjectEffectNode {
     pub counter: crate::oracle::counter_name::CounterName,
     pub count: NumericExpression,
     pub direction: CounterChangeDirection,
+    /// Further placements of the same action, or a choice among kinds
+    /// (`put_counters.rs`); `Single` is exactly `count` `counter` counters.
+    pub kinds: CounterKindsNode,
 }
 
 /// CR 122.5: moving counters removes them from one object and puts them on
@@ -2235,6 +2268,12 @@ pub(super) enum PermanentKeywordAction {
     PhaseOut,
     /// `remove OBJECT from combat` (CR 506.4).
     RemoveFromCombat,
+    /// `remove all|up to N|any number of counters from OBJECT`: counters of
+    /// any kinds (CR 122.8), chosen by the remover while it resolves.
+    RemoveUnnamedCounters(UnnamedCounterRemoval),
+    /// `put its|those counters on OBJECT`: as many counters of each kind as
+    /// the referenced object has, or had as it last existed (CR 608.2h).
+    PutCountersOf(PermanentEffectReference),
 }
 
 impl PermanentKeywordAction {
@@ -2277,7 +2316,14 @@ impl PermanentKeywordAction {
             | Self::Explore
             | Self::BecomeDesignated(_)
             | Self::PhaseOut
-            | Self::RemoveFromCombat => KeywordQuantityPolicy::None,
+            | Self::RemoveFromCombat
+            | Self::RemoveUnnamedCounters(
+                UnnamedCounterRemoval::Every | UnnamedCounterRemoval::AnyNumber,
+            )
+            | Self::PutCountersOf(_) => KeywordQuantityPolicy::None,
+            Self::RemoveUnnamedCounters(UnnamedCounterRemoval::UpTo) => {
+                KeywordQuantityPolicy::Required
+            }
             Self::Connive => KeywordQuantityPolicy::Optional,
             Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
         }
@@ -2306,6 +2352,8 @@ impl PermanentKeywordAction {
             Self::BecomeDesignated(designation) => designation.flag(),
             Self::PhaseOut => "phase out",
             Self::RemoveFromCombat => "remove from combat",
+            Self::RemoveUnnamedCounters(_) => "remove counters",
+            Self::PutCountersOf(_) => "put counters of",
         }
     }
 }
@@ -2520,10 +2568,11 @@ mod permanent_action;
 mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
-    PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
-    object_relation_declaration_starts, performer_description, performer_modality,
-    permission_sentence_end, person_shifted_permission_tokens, person_shifted_tokens,
-    recognize_declaring_performer, recognize_object_relation_declaration, recognize_performer,
+    PerformedEffectNode, PerformerContext, PerformerNode, affected_object_player_at,
+    controller_reference_failure, object_relation_declaration_starts, performer_description,
+    performer_modality, permission_sentence_end, person_shifted_permission_tokens,
+    person_shifted_tokens, recognize_declaring_performer, recognize_object_relation_declaration,
+    recognize_performer,
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
     OwnerLibraryPlacement, ReferencedPermanentAction, ReferencedPermanentActionAttempt,
@@ -2542,6 +2591,6 @@ pub(in crate::oracle::canonical) use permanent_action::{
     try_recognize_permanent_action,
 };
 pub(in crate::oracle::canonical) use permanent_subject::{
-    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding,
+    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding, action_result_object,
     recognize_contextual_permanent_operand, selector_guarantees_permanent,
 };

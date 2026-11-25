@@ -72,6 +72,44 @@ fn lower_stat_component(expression: &NumericExpression) -> Result<Value, &'stati
 /// The copiable-value modifications of a characteristic change (CR 707.9b),
 /// with no object and no duration: the same operation kinds as a resolved
 /// change, so a copy's `except` list and a `becomes` share one vocabulary.
+/// The copiable-value exceptions of a copy as the engine's modification
+/// list (CR 707.9b): the characteristic changes, then `isn't legendary`.
+/// The one lowering of every copy's exceptions; an empty list is none.
+pub(in crate::oracle::canonical) fn lower_copy_exception_list(
+    exceptions: &TokenCopyExceptionsNode,
+) -> Result<Vec<Value>, &'static str> {
+    if exceptions.retains_this_ability {
+        return Err("a copy of the ability's own object for `has this ability`");
+    }
+    lower_copied_value_changes(exceptions)
+}
+
+/// The copiable-value modifications of the exceptions, without the
+/// retained ability their parent lowers itself.
+fn lower_copied_value_changes(
+    exceptions: &TokenCopyExceptionsNode,
+) -> Result<Vec<Value>, &'static str> {
+    let mut except = match &exceptions.changes {
+        Some(changes) => lower_copiable_characteristic_changes(changes)?,
+        None => Vec::new(),
+    };
+    if exceptions.not_legendary {
+        except.push(json!({ "kind": "removeSupertype", "supertype": "Legendary" }));
+    }
+    Ok(except)
+}
+
+/// A stack copy's exceptions (CR 707.10): `None` without any, else the
+/// shared modification list; an unsupported change is a lowering failure.
+pub(in crate::oracle::canonical) fn lower_stack_copy_exceptions(
+    cursor: &mut OracleTokenCursor<'_>,
+    exceptions: &TokenCopyExceptionsNode,
+) -> MachineResult<Option<Value>> {
+    cursor.enter("lower.copy-stack-object.exceptions");
+    let except = lower_copy_exception_list(exceptions).map_err(|expected| cursor.fail(expected))?;
+    Ok((!except.is_empty()).then(|| Value::Array(except)))
+}
+
 pub(in crate::oracle::canonical) fn lower_copiable_characteristic_changes<Subject>(
     node: &BecomeTypesNode<Subject>,
 ) -> Result<Vec<Value>, &'static str> {
@@ -184,12 +222,24 @@ pub(in crate::oracle::canonical) fn lower_become_types_to_object_in_scope(
         // CR 707.2: layer 1 copies the copiable values; the copy effect has
         // no other characteristic of its own.
         let copy = copy.ok_or("the lowered object of `becomes a copy of`")?;
+        // CR 707.9b: `except it has this ability` keeps the resolving
+        // ability; every other exception changes the copied values.
+        let (retains, except) = match node.copy_exceptions.as_deref() {
+            Some(exceptions) => (
+                exceptions.retains_this_ability,
+                lower_copied_value_changes(exceptions)?,
+            ),
+            None => (false, Vec::new()),
+        };
         let mut effect = json!({
             "kind": "becomeCopyOfPermanent",
             "object": object,
             "copy": copy,
-            "retainResolvingAbility": false,
+            "retainResolvingAbility": retains,
         });
+        if !except.is_empty() {
+            effect["except"] = Value::Array(except);
+        }
         if duration["kind"] == "untilEndOfCurrentTurn" {
             effect["duration"] = duration.clone();
         }

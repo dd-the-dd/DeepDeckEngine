@@ -46,7 +46,8 @@ pub(in crate::oracle::canonical) fn parse_promoted_tap_scoped_mana(
     let mana_kind = match ability.effect.domain {
         ManaChoiceDomain::CommanderColorIdentity => "chooseCommanderColor",
         ManaChoiceDomain::LandColorsControlledBy(_)
-        | ManaChoiceDomain::LandTypesControlledByAbilityController => {
+        | ManaChoiceDomain::LandTypesControlledByAbilityController
+        | ManaChoiceDomain::EventProducedTypes => {
             unreachable!("the commander-domain automaton cannot emit a land-color domain")
         }
     };

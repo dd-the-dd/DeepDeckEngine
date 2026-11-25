@@ -322,6 +322,9 @@ pub(in crate::oracle::canonical) enum ObjectQualifier {
         property: SelectorNumericProperty,
         maximum: Box<NumericExpression>,
     },
+    /// `that share a land type` after a plural chosen set (CR 205.3i): the
+    /// chosen objects have one value of the characteristic in common.
+    SharedValue(super::SharedCharacteristic),
     /// `with the greatest power among creatures they control`.
     Extremum {
         property: SelectorNumericProperty,
@@ -338,7 +341,8 @@ impl ObjectQualifier {
             Self::KeywordAbility(_)
             | Self::ManaCostSymbol(_)
             | Self::DistinctValues(_)
-            | Self::TotalAtMost { .. } => true,
+            | Self::TotalAtMost { .. }
+            | Self::SharedValue(_) => true,
             Self::DamagedBySourceThisTurn | Self::Extremum { .. } => {
                 domain == ObjectKind::Permanent
             }
@@ -347,7 +351,10 @@ impl ObjectQualifier {
 
     /// A constraint over the chosen set rather than over one candidate.
     pub(in crate::oracle::canonical) const fn is_set_constraint(&self) -> bool {
-        matches!(self, Self::DistinctValues(_) | Self::TotalAtMost { .. })
+        matches!(
+            self,
+            Self::DistinctValues(_) | Self::TotalAtMost { .. } | Self::SharedValue(_)
+        )
     }
 
     /// Whether the atom reads the declared `X` (`with total mana value X or

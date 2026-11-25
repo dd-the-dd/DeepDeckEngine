@@ -1907,7 +1907,10 @@ fn lower_local_event(
                 AttachedObjectEventAction::BecomeBlocked => {
                     json!({"kind": "attachedCreatureBecameBlocked", "attachment": self_ref()})
                 }
-                // The mana-ability observer of the enchanted permanent.
+                // The mana-ability observer of the enchanted permanent. A
+                // program that adds mana makes it a triggered mana ability
+                // (CR 605.1b); the trigger program refuses that form while
+                // the checked mana discovery cannot type its context.
                 AttachedObjectEventAction::TappedForMana => {
                     json!({"kind": "attachedPermanentManaAbilityActivated", "object": self_ref()})
                 }

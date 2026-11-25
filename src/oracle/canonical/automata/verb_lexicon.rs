@@ -1099,9 +1099,21 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
 pub(in crate::oracle::canonical) static EVENT_LEMMAS: std::sync::LazyLock<Vec<VerbLemma>> =
     std::sync::LazyLock::new(|| EVENT_VERB_LEXICON.iter().map(|entry| entry.lemma).collect());
 
-/// Every lemma a performer may take, in entry order.
+/// Every lemma a performer may take, in entry order: the performed rows,
+/// then the non-performed rows whose action the engine already runs as the
+/// performer's own (`that player adds {G}`: the mana goes to the performer's
+/// pool, CR 106.4, 605.1b).
 pub(in crate::oracle::canonical) static ALL_LEMMAS: std::sync::LazyLock<Vec<VerbLemma>> =
-    std::sync::LazyLock::new(|| VERB_LEXICON.iter().map(|entry| entry.lemma).collect());
+    std::sync::LazyLock::new(|| {
+        VERB_LEXICON
+            .iter()
+            .map(|entry| entry.lemma)
+            .chain(PERFORMED_NON_LEXICON_LEMMAS.iter().copied())
+            .collect()
+    });
+
+/// Rows of `NON_PERFORMED_LEXICON` a performer takes (see `ALL_LEMMAS`).
+const PERFORMED_NON_LEXICON_LEMMAS: &[VerbLemma] = &[VerbLemma::Add, VerbLemma::Have];
 
 /// Every lemma of the lexicon, performed or not: the vocabulary the effect
 /// clause dispatches on.

@@ -84,7 +84,7 @@ fn lower_condition_atom(
     bindings: Option<&ConditionObjectBindings<'_>>,
 ) -> Lowered {
     match atom {
-        ConditionAtom::Compare(comparison) => lower_comparison(comparison),
+        ConditionAtom::Compare(comparison) => lower_comparison(comparison, bindings),
         ConditionAtom::ObjectSatisfies(node) => lower_object_condition(node, bindings),
         ConditionAtom::EventHistory(node) => Ok(lower_event_history(node)),
         ConditionAtom::CastFact(node) => lower_cast_fact(node),
@@ -107,24 +107,153 @@ fn lower_condition_atom(
         } else {
             json!({ "kind": "notYourTurn" })
         }),
-        ConditionAtom::PlayerDesignation(node) => Ok(lower_player_designation(node)),
+        ConditionAtom::PlayerTurn(node) => lower_player_turn(node),
+        ConditionAtom::PlayerDesignation(node) => lower_player_designation(node),
+        ConditionAtom::ObjectZone(node) => lower_object_zone(node, bindings),
+        ConditionAtom::ObjectControl(node) => lower_object_control(node, bindings),
     }
 }
 
-fn lower_player_designation(node: &PlayerDesignationNode) -> Value {
-    let atom = match &node.designation {
-        PlayerDesignation::EnduringStory => {
-            json!({ "kind": "hasEnduringStory", "player": controller() })
-        }
-        PlayerDesignation::CompletedDungeon { dungeon } => {
-            let mut atom = json!({ "kind": "completedDungeon", "player": controller() });
-            if let Some(dungeon) = dungeon {
-                atom["name"] = json!(dungeon);
-            }
-            atom
-        }
+/// `you [didn't] control[led] OBJECT`: the shared player equality of the
+/// object's controller (its last known controller once it left the
+/// battlefield, CR 608.2h) and the ability's controller. Only an effect
+/// program's resolution binds the object.
+fn lower_object_control(
+    node: &ObjectControlConditionNode,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    let bindings = bindings.ok_or("an object binding of an effect program")?;
+    let ConditionObjectReference::Permanent(reference) = node.object else {
+        return Err("a permanent whose controller the runtime reads");
     };
-    if node.held { atom } else { not(atom) }
+    let object = bound_permanent_reference_value(reference, bindings.permanent_targets)
+        .ok_or("the previously declared permanent target slot in this lexical scope")?;
+    let fact = json!({
+        "kind": "playersEqual",
+        "left": { "kind": "controllerOf", "object": object },
+        "right": controller(),
+    });
+    Ok(if node.negated { not(fact) } else { fact })
+}
+
+/// `it's [not] their turn`: whether the active player is the player the
+/// triggering event records (CR 500.1). `an opponent's turn` is the turn of
+/// a player other than the controller, the negated controller turn.
+fn lower_player_turn(node: &PlayerTurnNode) -> Lowered {
+    let fact = match node.player {
+        ConditionPlayerSubject::EventPlayer => json!({
+            "kind": "isPlayersTurn",
+            "player": { "kind": "triggeringPlayer" },
+        }),
+        ConditionPlayerSubject::Quantified {
+            quantifier: PlayerQuantifier::Some,
+            population: PlayerPopulation::Opponents,
+        } => negation(json!({ "kind": "duringControllerTurn", "player": controller() })),
+        _ => return Err("the turn of the controller, of an opponent or of the event's player"),
+    };
+    Ok(if node.is_turn { fact } else { negation(fact) })
+}
+
+/// A player designation for its holder: the controller, the player the
+/// triggering event records, or each member of a quantified population
+/// (`playerQuantifier` over `quantifiedPlayer`, CR 102.2-102.3).
+fn lower_player_designation(node: &PlayerDesignationNode) -> Lowered {
+    let held = |player: Value| -> Lowered {
+        let atom = match &node.designation {
+            PlayerDesignation::EnduringStory => {
+                json!({ "kind": "hasEnduringStory", "player": player })
+            }
+            PlayerDesignation::CityBlessing => {
+                json!({ "kind": "hasCityBlessing", "player": player })
+            }
+            PlayerDesignation::CompletedDungeon { dungeon } => {
+                let mut atom = json!({ "kind": "completedDungeon", "player": player });
+                if let Some(dungeon) = dungeon {
+                    atom["name"] = json!(dungeon);
+                }
+                atom
+            }
+            PlayerDesignation::Monarch => json!({ "kind": "playerIsMonarch", "player": player }),
+            PlayerDesignation::StartingPlayer => {
+                json!({ "kind": "playerWasStartingPlayer", "player": player })
+            }
+        };
+        Ok(if node.held { atom } else { not(atom) })
+    };
+    if !node.designation.is_per_player() && node.subject != ConditionPlayerSubject::Controller {
+        return Err("a designation the runtime records for the ability's controller");
+    }
+    match node.subject {
+        ConditionPlayerSubject::Controller => held(controller()),
+        ConditionPlayerSubject::EventPlayer => held(json!({ "kind": "triggeringPlayer" })),
+        ConditionPlayerSubject::Quantified {
+            quantifier,
+            population,
+        } => {
+            let players = match population {
+                PlayerPopulation::Opponents => {
+                    json!({ "kind": "opponentsOf", "player": controller() })
+                }
+                PlayerPopulation::Players => json!({ "kind": "eachPlayer" }),
+            };
+            let inner = held(json!({ "kind": "quantifiedPlayer" }))?;
+            let quantified = |quantifier: &str| {
+                json!({
+                    "kind": "playerQuantifier",
+                    "quantifier": quantifier,
+                    "players": players,
+                    "condition": inner,
+                })
+            };
+            Ok(match quantifier {
+                PlayerQuantifier::Some => quantified("some"),
+                PlayerQuantifier::Every => quantified("every"),
+                PlayerQuantifier::None => not(quantified("some")),
+            })
+        }
+        ConditionPlayerSubject::DefendingPlayer | ConditionPlayerSubject::OpponentsTogether => {
+            Err("a designation holder the condition lowering binds")
+        }
+    }
+}
+
+/// `OBJECT is [not] in ZONE [or ZONE]` (CR 400.1). The source on the
+/// battlefield is the continuous evaluator's `sourceOnBattlefield`; any
+/// other object or zone is the generic `objectInZone` over the referenced
+/// object, resolved like every object condition subject.
+fn lower_object_zone(
+    node: &ObjectZoneConditionNode,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    let fact = if node.object == ConditionObjectReference::SOURCE
+        && node.zones == [ConditionZone::Battlefield]
+    {
+        json!({ "kind": "sourceOnBattlefield" })
+    } else {
+        let object = match (node.object, bindings) {
+            (object, _) if object == ConditionObjectReference::SOURCE => self_ref(),
+            (ConditionObjectReference::Permanent(reference), Some(bindings)) => {
+                bound_permanent_reference_value(reference, bindings.permanent_targets)
+                    .ok_or("the previously declared permanent target slot in this lexical scope")?
+            }
+            (ConditionObjectReference::CardTarget(binding), Some(bindings)) => bindings
+                .card_targets
+                .iter()
+                .find_map(|(candidate, id)| (*candidate == binding).then(|| chosen_target(id)))
+                .ok_or("the singular card target declared earlier in this sequence")?,
+            (ConditionObjectReference::CardFocus, Some(bindings)) => bindings
+                .card_focus
+                .clone()
+                .ok_or("a singular card result in the current card-collection scope")?,
+            _ => return Err("an object whose current zone the runtime can read"),
+        };
+        json!({
+            "kind": "objectInZone",
+            "object": object,
+            "zones": node.zones.iter().map(|zone| zone.ir_name()).collect::<Vec<_>>(),
+        })
+    };
+    Ok(if node.negated { not(fact) } else { fact })
 }
 
 /// A cast fact of the ability's own source, or the mana spent to cast the
@@ -194,7 +323,12 @@ fn lower_cast_fact(node: &CastFactNode) -> Lowered {
 /// `Compare(left, op, right)` for its player subject. A quantified subject
 /// wraps the same comparison in `playerQuantifier`, whose inner condition
 /// names the member with `quantifiedPlayer` (CR 102.2-102.3).
-fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
+fn lower_comparison(
+    comparison: &ConditionComparison,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    let lower_condition_number =
+        |number: &ConditionNumber, player: Value| lower_condition_number(number, player, bindings);
     let operator = comparison.operator.ir_operator();
     match comparison.subject {
         ConditionPlayerSubject::Controller => Ok(compare(
@@ -276,10 +410,26 @@ fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
     }
 }
 
-fn lower_condition_number(number: &ConditionNumber, player: Value) -> Lowered {
+fn lower_condition_number(
+    number: &ConditionNumber,
+    player: Value,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
     match number {
         ConditionNumber::Integer(value) => Ok(integer(*value)),
+        // A target property (`that creature's power`) reads the permanent
+        // target the program declared before the condition (CR 608.2c).
         ConditionNumber::Expression(expression) => lower_numeric_expression(expression)
+            .or_else(|| {
+                let targets = bindings?.permanent_targets;
+                let resolve = |binding: TargetBinding| {
+                    targets
+                        .iter()
+                        .find(|(declared, _)| *declared == binding)
+                        .map(|(_, id)| json!({ "kind": "chosenTarget", "id": id }))
+                };
+                lower_numeric_expression_with_bound_targets(expression, &resolve)
+            })
             .ok_or("a numeric expression without a target binding"),
         // Bound by the program lowering to the action before the condition.
         ConditionNumber::ActionResultObjects(reference) => lower_action_result_objects(reference),

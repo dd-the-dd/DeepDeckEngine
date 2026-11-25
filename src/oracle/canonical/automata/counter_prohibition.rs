@@ -70,6 +70,17 @@ pub(in crate::oracle::canonical) fn recognize_counter_prohibition(
             CounterProhibitionState::Terminator => {
                 cursor.enter("counter-prohibition.terminator");
                 cursor.consume(".")?;
+                // `(This includes by the ward ability.)` restates that a
+                // ward trigger's counter is a counter too (CR 702.21a); it
+                // adds no rule and only follows the spell's own prohibition.
+                if cursor.peek() == Some("(")
+                    && matches!(subject, Some(CounterProhibitionSubjectNode::SourceSelf(_)))
+                {
+                    cursor.enter("counter-prohibition.ward-reminder");
+                    cursor.consume_phrase(&[
+                        "(", "this", "includes", "by", "the", "ward", "ability", ".", ")",
+                    ])?;
+                }
                 CounterProhibitionState::Complete
             }
             CounterProhibitionState::Complete => {

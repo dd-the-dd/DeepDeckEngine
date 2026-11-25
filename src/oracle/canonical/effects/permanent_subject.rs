@@ -37,6 +37,13 @@ pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
         PermanentEffectReference::Attached(_) => {
             Some(json!({"kind":"attachedPermanent","attachment":self_ref()}))
         }
+        // The one object an earlier action of the program selected or moved;
+        // the program lowering binds that action's result under this id
+        // (`resolve_action_result_objects`).
+        PermanentEffectReference::ActionResult(result) => Some(json!({
+            "kind": "singleBoundObject",
+            "binding": action_result_binding(result.effect_index),
+        })),
         PermanentEffectReference::Target(target) => bindings
             .iter()
             .find_map(|(binding, id)| (*binding == target).then(|| chosen_target(id))),
@@ -53,7 +60,7 @@ pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
 /// The key a plural slot's binding is recorded under. Plural slots live in a
 /// key space disjoint from singular slot keys, so a singular reference
 /// (`it`, `its power`) never resolves to a set of targets.
-fn target_set_binding_key(slot: TargetBinding) -> TargetBinding {
+pub(super) fn target_set_binding_key(slot: TargetBinding) -> TargetBinding {
     const TARGET_SET_SLOT_OFFSET: usize = 1 << 16;
     TargetBinding {
         effect_index: slot.effect_index,

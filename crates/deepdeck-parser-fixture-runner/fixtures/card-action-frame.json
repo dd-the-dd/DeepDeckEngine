@@ -148,17 +148,9 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 2,
-        "diagnostics": [
-          {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "effect.start",
-            "found": "cast"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
       }
     },
     {
@@ -930,7 +922,7 @@
       }
     },
     {
-      "id": "near-miss-fork-color-exception-has-no-copy-modification",
+      "id": "sibling-fork-color-exception-modifies-the-stack-copy",
       "request": {
         "cardName": "Fork",
         "typeLine": "Instant",
@@ -940,12 +932,44 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/except/0/kind",
+                "equals": "setColors"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-fork-exception-names-a-cost-outside-the-copiable-values",
+      "request": {
+        "cardName": "Fork",
+        "typeLine": "Instant",
+        "manaCost": "{R}{R}",
+        "oracleText": "Copy target instant or sorcery spell, except that the copy is red and costs {1} more. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
           }
         ]
       }
@@ -972,7 +996,7 @@
       }
     },
     {
-      "id": "near-miss-static-self-cast-permission",
+      "id": "static-self-cast-permission-is-not-a-card-action",
       "request": {
         "cardName": "Frame Witness",
         "typeLine": "Creature — Spirit",
@@ -982,19 +1006,34 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "state": "ability-frame.permission.action",
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "near-miss-copy-target-ability-is-a-stack-copy",
+      "id": "sibling-copy-target-ability-is-a-stack-copy",
       "request": {
         "cardName": "Frame Witness",
         "typeLine": "Instant",
@@ -1004,13 +1043,44 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/mayChooseNewTargets",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-target-ability-plural-copies-disagree-with-one-copy",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Copy target activated or triggered ability you control. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "state": "sequence.connector-or-end",
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "effect.copy-stack-object.new-targets.object"
           }
         ]
       }
@@ -1080,7 +1150,7 @@
       }
     },
     {
-      "id": "near-miss-play-during-resolution",
+      "id": "sibling-play-during-resolution",
       "request": {
         "cardName": "Frame Witness",
         "typeLine": "Sorcery",
@@ -1090,14 +1160,8 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical"
       }
     }
   ]

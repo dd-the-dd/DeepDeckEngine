@@ -672,6 +672,62 @@
       "reminders": [
         "$cost: Put a level counter on this. Level up only as a sorcery."
       ]
+    },
+    {
+      "canonicalId": "ascend",
+      "templateVersion": 1,
+      "lexeme": "ascend",
+      "parameter": "none",
+      "rulesClause": "ascend.cr-702-131b",
+      "rulesSection": "702.131b",
+      "intrinsic": "ascend",
+      "abilities": [],
+      "reminders": [
+        "If you control ten or more permanents, you get the city's blessing for the rest of the game."
+      ]
+    },
+    {
+      "canonicalId": "storied",
+      "templateVersion": 1,
+      "lexeme": "storied",
+      "parameter": "none",
+      "rulesClause": "storied.cr-702-195a",
+      "rulesSection": "702.195a",
+      "intrinsic": "storied",
+      "faceKind": "permanent",
+      "abilities": [],
+      "reminders": [
+        "If you control three or more artifacts, legendaries, and/or Sagas, you have an enduring story for the rest of the game."
+      ]
+    },
+    {
+      "canonicalId": "read-ahead",
+      "templateVersion": 1,
+      "lexeme": "read ahead",
+      "parameter": "none",
+      "rulesClause": "read-ahead.cr-702-155b",
+      "rulesSection": "702.155b",
+      "faceSubtype": "Saga",
+      "intrinsic": "readAhead",
+      "abilities": [],
+      "reminders": [
+        "Choose a chapter and start with that many lore counters. Add one after your draw step. Skipped chapters don't trigger. Sacrifice after III.",
+        "Choose a chapter and start with that many lore counters. Add one after your draw step. Skipped chapters don't trigger. Sacrifice after IV."
+      ]
+    },
+    {
+      "canonicalId": "ninjutsu",
+      "templateVersion": 1,
+      "lexeme": "ninjutsu",
+      "parameter": "manaCost",
+      "rulesClause": "ninjutsu.cr-702-49a",
+      "rulesSection": "702.49a",
+      "intrinsic": "ninjutsu",
+      "activationCosts": "$cost, Reveal this card from your hand, Return an unblocked attacking creature you control to its owner's hand",
+      "abilities": [],
+      "reminders": [
+        "$cost, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking."
+      ]
     }
   ]
 }

@@ -32,8 +32,9 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     BasePowerToughnessNode, ColorComplementNode, EffectDurationNode, GRANTED_OBJECT_TYPE_LINE,
     GrantedKeyword, ObjectCardType, QuotedAbilityNode, RecognizedEffectFragment, TargetListNode,
-    TypeChangeNumber, TypeChangeSubtype, color_complement_starts, numeric_power_toughness_starts,
-    recognize_card_color_set, recognize_clause_subject_equal_amount, recognize_color_complement,
+    TokenCopyExceptionsNode, TypeChangeNumber, TypeChangeSubtype, color_complement_starts,
+    numeric_power_toughness_starts, recognize_card_color_set,
+    recognize_clause_subject_equal_amount, recognize_color_complement, recognize_copy_exceptions,
     recognize_effect_owned_granted_ability_list, recognize_effect_owned_keyword_list,
     recognize_numeric_power_toughness, recognize_trailing_or_supplied_duration,
     recognize_type_change_nouns, type_change_noun_at,
@@ -98,6 +99,9 @@ pub(in crate::oracle::canonical) struct BecomeTypesNode<Subject = TargetListNode
     pub chosen_subtype: Option<ChosenSubtypeClass>,
     /// `becomes a copy of OBJECT` (layer 1, CR 707.2).
     pub copy_of: Option<Subject>,
+    /// `, except ...` after the copy (CR 707.9b), read by the shared
+    /// copy-exception reader.
+    pub copy_exceptions: Option<Box<TokenCopyExceptionsNode>>,
     pub characteristics: BecomeCharacteristicsNode,
     pub retention: TypeChangeRetention,
     /// `None` is a continuous effect without a stated duration (CR 611.2a).
@@ -115,6 +119,7 @@ impl<Subject> BecomeTypesNode<Subject> {
             card_types: Vec::new(),
             chosen_subtype: None,
             copy_of: None,
+            copy_exceptions: None,
             characteristics: BecomeCharacteristicsNode::default(),
             retention: TypeChangeRetention::ReplacesSameClass,
             duration: None,
@@ -329,6 +334,7 @@ enum BecomeTypesState {
     Retention,
     Coordination,
     Duration,
+    CopyExceptions,
     RetentionSentence,
     Complete,
 }
@@ -616,6 +622,20 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
                     )?;
                     None
                 };
+                BecomeTypesState::CopyExceptions
+            }
+            BecomeTypesState::CopyExceptions => {
+                cursor.enter("effect.become-types.copy-exceptions");
+                let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
+                if change.copy_of.is_some()
+                    && cursor.peek() == Some(",")
+                    && word_at(cursor, 1, "except")
+                {
+                    change.copy_exceptions = Some(Box::new(recognize_copy_exceptions(
+                        cursor,
+                        number == TypeChangeNumber::Plural,
+                    )?));
+                }
                 BecomeTypesState::RetentionSentence
             }
             BecomeTypesState::RetentionSentence => {
@@ -773,6 +793,108 @@ pub(in crate::oracle::canonical) fn recognize_possessed_base_power_toughness<Sub
         node,
         end_position: cursor.position(),
     })
+}
+
+/// True at `It's still a TYPE` / `They're still TYPEs` opening a sentence.
+pub(in crate::oracle::canonical) fn type_retention_amendment_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    (word_at(cursor, 0, "it's")
+        || word_at(cursor, 0, "it’s")
+        || word_at(cursor, 0, "they're")
+        || word_at(cursor, 0, "they’re"))
+        && word_at(cursor, 1, "still")
+}
+
+/// The type change a retention sentence amends: the last action of the
+/// sentence just closed, inside an optional wrapper when the change was
+/// optional (`you may have it become ...`).
+fn last_type_change(
+    effect: Option<&mut super::LocalEffectNode>,
+) -> Option<&mut BecomeTypesNode<super::PermanentOperandNode>> {
+    match effect? {
+        super::LocalEffectNode::BecomeTypes(node) => Some(node),
+        super::LocalEffectNode::OptionalSequence(sequence) => {
+            last_type_change(sequence.effects.last_mut())
+        }
+        _ => None,
+    }
+}
+
+/// The last action of a program's last written sentence, through the
+/// wrappers that only gate it (`Then you may have it become ...`).
+pub(in crate::oracle::canonical) fn last_program_action_mut(
+    program: &mut super::EffectProgramNode,
+) -> Option<&mut super::LocalEffectNode> {
+    match program {
+        super::EffectProgramNode::Sequence(sequence) => sequence.effects.last_mut(),
+        super::EffectProgramNode::Optional { body, .. } => last_program_action_mut(body),
+        super::EffectProgramNode::Outcome {
+            body,
+            otherwise: None,
+            ..
+        } => last_program_action_mut(body),
+        super::EffectProgramNode::Steps(steps) => last_program_action_mut(steps.last_mut()?),
+        super::EffectProgramNode::Outcome { .. }
+        | super::EffectProgramNode::Alternatives { .. }
+        | super::EffectProgramNode::Offer { .. } => None,
+    }
+}
+
+/// `It's still a TYPE.` / `They're still TYPEs.` as its own sentence after
+/// a type change whose sentence another tail closed first (a postposed
+/// `where X is ...`, the period of a quoted granted ability, CR 205.1b).
+/// The pronoun agrees with the changed objects; the retained type must be a
+/// prior card type distinct from the new ones. The sentence terminator stays
+/// with the enclosing sequence.
+pub(in crate::oracle::canonical) fn recognize_type_retention_amendment(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: Option<&mut super::LocalEffectNode>,
+) -> MachineResult<()> {
+    cursor.enter("effect.become-types.retention-amendment");
+    let change = last_type_change(antecedent).ok_or_else(|| {
+        cursor.fail("a type change in the preceding sentence to retain types for")
+    })?;
+    cursor.require(
+        change.names_types() && !change.retention.retains_prior_types(),
+        "a type change that names new types and no other retention clause",
+    )?;
+    let plural = word_at(cursor, 0, "they're") || word_at(cursor, 0, "they’re");
+    cursor.enter("effect.become-types.retention-amendment.agreement");
+    cursor.require(
+        plural == super::permanent_operand_is_plural(&change.objects),
+        "a pronoun agreeing in number with the changed objects",
+    )?;
+    let pronoun = cursor.peek().expect("a contracted pronoun").to_string();
+    cursor.consume(&pronoun)?;
+    change.retention = if plural {
+        recognize_plural_still_type(cursor, &change.card_types)?
+    } else {
+        recognize_still_type(cursor, &change.card_types)?
+    };
+    Ok(())
+}
+
+/// `still TYPEs` after a plural subject: the plural retained card type.
+fn recognize_plural_still_type(
+    cursor: &mut OracleTokenCursor<'_>,
+    card_types: &[ObjectCardType],
+) -> MachineResult<TypeChangeRetention> {
+    cursor.enter("effect.become-types.still");
+    cursor.consume("still")?;
+    cursor.enter("effect.become-types.still.plural-type");
+    let raw = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("a retained plural permanent card type"))?;
+    let retained = lookup_permanent_card_type(raw, AcceptedForms::SingularOrPlural)
+        .filter(|_| lookup_permanent_card_type(raw, AcceptedForms::SingularOnly).is_none())
+        .ok_or_else(|| cursor.fail("a retained plural permanent card type"))?;
+    cursor.require(
+        !card_types.contains(&retained),
+        "a retained type distinct from the newly assigned card types",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    Ok(TypeChangeRetention::StillA(retained))
 }
 
 /// `still a TYPE`: the retained type is a prior card type, so it must differ

@@ -578,7 +578,8 @@ fn evolve_guard_reads_the_event_object_through_the_trigger_frame() {
             "right": { "kind": "powerOf", "object": { "kind": "self" } },
         })
     );
-    // Near miss: an unknown comparison word stays an explicit failure.
+    // Near miss: an unknown comparison word stays an explicit failure of
+    // the shared comparison tail, at that word.
     let parsed = parse(
         "Near Miss",
         "Creature \u{2014} Elf",
@@ -586,11 +587,15 @@ fn evolve_guard_reads_the_event_object_through_the_trigger_frame() {
     );
     assert_eq!(parsed.status, "unsupported");
     assert!(
-        parsed.abilities[0]
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.state.as_deref()
-                == Some("condition.sentence.relation.operator"))
+        parsed.abilities[0].diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .state
+                .as_deref()
+                .is_some_and(|state| state.starts_with("condition."))
+                && diagnostic.found.as_deref() == Some("bigger")
+        }),
+        "{:#?}",
+        parsed.abilities[0].diagnostics
     );
 }
 

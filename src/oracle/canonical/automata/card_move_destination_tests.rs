@@ -109,14 +109,27 @@ fn entry_modifiers_compose_in_any_order_and_leave_foreign_connectors() {
     assert!(fragment.node.face_down && !fragment.node.transformed);
     assert_eq!(fragment.node.owner, CardMoveOwnerNode::EachCardOwner);
 
+    // `tapped and attacking` is one entry modifier pair (CR 508.4): the
+    // destination owns the `and`, while any other `and` stays foreign.
     let tokens = recognize_entities("onto the battlefield tapped and attacking");
+    let mut cursor = OracleTokenCursor::new("entry-modifiers-attacking", &tokens);
+    let CollectionOperandAttempt::Recognized(fragment) =
+        try_recognize_card_move_destination(&mut cursor)
+    else {
+        panic!("a tapped and attacking battlefield destination")
+    };
+    assert!(fragment.node.tapped);
+    assert!(fragment.node.attacking.is_some());
+    assert_eq!(cursor.peek(), None);
+
+    let tokens = recognize_entities("onto the battlefield tapped and draw a card");
     let mut cursor = OracleTokenCursor::new("entry-modifiers-boundary", &tokens);
     let CollectionOperandAttempt::Recognized(fragment) =
         try_recognize_card_move_destination(&mut cursor)
     else {
         panic!("a tapped battlefield destination")
     };
-    assert!(fragment.node.tapped);
+    assert!(fragment.node.tapped && fragment.node.attacking.is_none());
     assert_eq!(cursor.peek(), Some("and"));
 }
 

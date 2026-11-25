@@ -134,6 +134,20 @@ fn compile_recognized_trigger_program(
         !lowered.effects.is_empty(),
         "at least one executable action",
     )?;
+    // CR 605.1b: a trigger on an enchanted permanent's mana ability whose
+    // program adds mana is a triggered mana ability. The checked mana
+    // discovery refuses that program until its recipient and timing context
+    // are typed, so a rule with it would fail when the land is tapped; any
+    // other program is an ordinary triggered ability.
+    if event["kind"] == "attachedPermanentManaAbilityActivated"
+        && lowered.effects.iter().any(adds_mana)
+    {
+        cursor.enter("trigger.program.attached-mana-ability");
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
+            "a checked mana discovery for a triggered mana ability of the enchanted permanent",
+        ));
+    }
     let mut rule = json!({"kind":"triggeredAbility", "source":self_ref(), "event":event, "effects":lowered.effects});
     if let Some(condition) = condition {
         rule["condition"] = condition;
@@ -161,6 +175,18 @@ fn compile_recognized_trigger_program(
     );
     result.construction = construction;
     Ok(result)
+}
+
+/// Whether a lowered effect adds mana anywhere in its nested programs.
+fn adds_mana(effect: &Value) -> bool {
+    match effect {
+        Value::Object(map) => {
+            map.get("kind").and_then(Value::as_str) == Some("addMana")
+                || map.values().any(adds_mana)
+        }
+        Value::Array(items) => items.iter().any(adds_mana),
+        _ => false,
+    }
 }
 
 fn guard_excludes_source(guard: &SentenceConditionNode) -> bool {

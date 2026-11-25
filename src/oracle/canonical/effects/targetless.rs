@@ -90,6 +90,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         | NumericExpression::CountCounters { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
+        | NumericExpression::ColorsOfManaSpentToCastSource
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)
@@ -171,7 +172,21 @@ pub(in crate::oracle::canonical) fn lower_targetless_damage_recipient(
             bound_permanent_reference_value(*reference, &[])
                 .ok_or(TargetlessLoweringError::RequiresTarget)
         }
+        DamageRecipientNode::AttackedRecipient(attacker) => {
+            lower_attacked_recipient(*attacker, &[])
+        }
     }
+}
+
+/// `the player or planeswalker ATTACKER is attacking` (CR 506.3): resolved
+/// from the combat at resolution, through the attacker's reference.
+pub(in crate::oracle::canonical) fn lower_attacked_recipient(
+    attacker: PermanentEffectReference,
+    bindings: &[(TargetBinding, String)],
+) -> Result<Value, TargetlessLoweringError> {
+    let object = bound_permanent_reference_value(attacker, bindings)
+        .ok_or(TargetlessLoweringError::RequiresTarget)?;
+    Ok(json!({ "kind": "attackedRecipientOf", "object": object }))
 }
 
 /// Expands procedural actions and retains atomic effects as one-element lists.
@@ -389,8 +404,9 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         LocalEffectNode::ControllerKeywordAction(_) => {
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
+        // Listed or chosen counter kinds are lowered by the effect sequence.
         LocalEffectNode::PutCounters(effect)
-            if effect.direction == CounterChangeDirection::Divided =>
+            if effect.direction == CounterChangeDirection::Divided || !effect.kinds.is_single() =>
         {
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
@@ -450,6 +466,10 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
                 // An attachment needs the sequence's operand lowering.
                 && movement.attached_to.is_none()
                 && (movement.from == SourceZone::Graveyard
+                    // `put this card from your hand onto the battlefield`:
+                    // the ability is activated from hand, where the card is.
+                    || (movement.from == SourceZone::Hand
+                        && movement.to == SourceZone::Battlefield)
                     // `return SOURCE to its owner's hand` (CR 108.3).
                     || (movement.from == SourceZone::Battlefield
                         && movement.to == SourceZone::Hand

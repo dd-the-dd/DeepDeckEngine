@@ -241,11 +241,14 @@ fn recognize_positive_atom(
     if let Some(supertype) = lookup_supertype(first, AcceptedForms::SingularOnly) {
         return Some((ObjectPredicate::Supertype(supertype), 1));
     }
-    // CR 110.4b: `permanent card` names a card with a permanent card type.
-    // The following card noun is read as the object domain by the parent.
+    // CR 110.4b: `permanent card` names a card with a permanent card type,
+    // and `permanent spell` the spell of such a card. The following card or
+    // spell noun is read as the object domain by the parent.
     if lookup_card_category(first, AcceptedForms::SingularOnly).is_some()
         && second.is_some_and(|noun| {
-            noun.eq_ignore_ascii_case("card") || noun.eq_ignore_ascii_case("cards")
+            ["card", "cards", "spell", "spells"]
+                .iter()
+                .any(|domain| noun.eq_ignore_ascii_case(domain))
         })
     {
         return Some((ObjectPredicate::PermanentCard, 1));

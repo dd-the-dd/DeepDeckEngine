@@ -1,0 +1,1231 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch6/keyword-template-rows",
+  "cases": [
+    {
+      "id": "exact-spring-leaf-avenger-ninjutsu",
+      "request": {
+        "cardName": "Spring-Leaf Avenger",
+        "typeLine": "Creature — Insect Ninja",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Ninjutsu {3}{G} ({3}{G}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, return target permanent card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ninjutsu"
+              },
+              {
+                "pointer": "/parameters",
+                "equals": {
+                  "cost": "{3}{G}"
+                }
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/activationZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/0",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{3}{G}"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/1",
+                "equals": {
+                  "kind": "revealCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/2/kind",
+                "equals": "returnPermanentToOwnersHand"
+              },
+              {
+                "pointer": "/rules/0/declaration/decisions/0/kind",
+                "equals": "chooseObjects"
+              },
+              {
+                "pointer": "/rules/0/effects/0",
+                "equals": {
+                  "kind": "moveAbilitySourceToBattlefield",
+                  "from": "hand",
+                  "tapped": true,
+                  "attacking": {
+                    "kind": "sameDefenderAs",
+                    "object": {
+                      "kind": "chosenObject",
+                      "id": "activationCostReturn2"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-ninja-of-the-deep-hours-ninjutsu",
+      "request": {
+        "cardName": "Ninja of the Deep Hours",
+        "typeLine": "Creature — Human Ninja",
+        "manaCost": "{3}{U}",
+        "oracleText": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ninjutsu"
+              },
+              {
+                "pointer": "/parameters",
+                "equals": {
+                  "cost": "{1}{U}"
+                }
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/activationZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/0",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{1}{U}"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/1",
+                "equals": {
+                  "kind": "revealCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/2/kind",
+                "equals": "returnPermanentToOwnersHand"
+              },
+              {
+                "pointer": "/rules/0/declaration/decisions/0/kind",
+                "equals": "chooseObjects"
+              },
+              {
+                "pointer": "/rules/0/effects/0",
+                "equals": {
+                  "kind": "moveAbilitySourceToBattlefield",
+                  "from": "hand",
+                  "tapped": true,
+                  "attacking": {
+                    "kind": "sameDefenderAs",
+                    "object": {
+                      "kind": "chosenObject",
+                      "id": "activationCostReturn2"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-ninjutsu-without-reminder",
+      "request": {
+        "cardName": "Generic Shadow Ninja",
+        "typeLine": "Creature — Human Ninja",
+        "manaCost": "{3}{B}",
+        "oracleText": "Ninjutsu {2}{B}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ninjutsu"
+              },
+              {
+                "pointer": "/parameters",
+                "equals": {
+                  "cost": "{2}{B}"
+                }
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/activationZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/0",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{2}{B}"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/1",
+                "equals": {
+                  "kind": "revealCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/2/kind",
+                "equals": "returnPermanentToOwnersHand"
+              },
+              {
+                "pointer": "/rules/0/declaration/decisions/0/kind",
+                "equals": "chooseObjects"
+              },
+              {
+                "pointer": "/rules/0/effects/0",
+                "equals": {
+                  "kind": "moveAbilitySourceToBattlefield",
+                  "from": "hand",
+                  "tapped": true,
+                  "attacking": {
+                    "kind": "sameDefenderAs",
+                    "object": {
+                      "kind": "chosenObject",
+                      "id": "activationCostReturn2"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ninjutsu-without-cost",
+      "request": {
+        "cardName": "Generic Costless Ninja",
+        "typeLine": "Creature — Ninja",
+        "manaCost": "{2}",
+        "oracleText": "Ninjutsu",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "ability-frame.keyword.expansion"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ninjutsu-foreign-reminder",
+      "request": {
+        "cardName": "Generic Hasty Ninja",
+        "typeLine": "Creature — Ninja",
+        "manaCost": "{2}",
+        "oracleText": "Ninjutsu {1}{U} ({1}{U}, Return a creature you control to hand: Put this card onto the battlefield.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.template.reminder.body"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dusk-charger-ascend-and-blessing",
+      "request": {
+        "cardName": "Dusk Charger",
+        "typeLine": "Creature — Horse",
+        "manaCost": "{3}{B}",
+        "oracleText": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nThis creature gets +2/+2 as long as you have the city's blessing.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ascend"
+              },
+              {
+                "pointer": "/rules/0",
+                "equals": {
+                  "kind": "keywordAbility",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "ability": {
+                    "kind": "ascend"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "hasCityBlessing",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-storm-fleet-swashbuckler-blessing-grant",
+      "request": {
+        "cardName": "Storm Fleet Swashbuckler",
+        "typeLine": "Creature — Human Pirate",
+        "manaCost": "{1}{R}",
+        "oracleText": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nThis creature has double strike as long as you have the city's blessing.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ascend"
+              },
+              {
+                "pointer": "/rules/0",
+                "equals": {
+                  "kind": "keywordAbility",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "ability": {
+                    "kind": "ascend"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "hasCityBlessing",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "doubleStrike"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-arch-of-orazca-blessing-activation",
+      "request": {
+        "cardName": "Arch of Orazca",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\n{T}: Add {C}.\n{5}, {T}: Draw a card. Activate only if you have the city's blessing.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ascend"
+              },
+              {
+                "pointer": "/rules/0",
+                "equals": {
+                  "kind": "keywordAbility",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "ability": {
+                    "kind": "ascend"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-ascend-spell-ability",
+      "request": {
+        "cardName": "Generic Golden Ritual",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "ascend"
+              },
+              {
+                "pointer": "/rules/0",
+                "equals": {
+                  "kind": "spellAbility",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "effects": [
+                    {
+                      "kind": "ascend",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ascend-foreign-reminder",
+      "request": {
+        "cardName": "Generic Small City",
+        "typeLine": "Creature — Human",
+        "manaCost": "{2}",
+        "oracleText": "Ascend (If you control five or more permanents, you get the city's blessing for the rest of the game.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.template.reminder.body"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fili-the-pathfinder-storied",
+      "request": {
+        "cardName": "Fíli the Pathfinder",
+        "typeLine": "Legendary Creature — Dwarf Scout",
+        "manaCost": "{3}{W}",
+        "oracleText": "Storied (If you control three or more artifacts, legendaries, and/or Sagas, you have an enduring story for the rest of the game.)\nAs long as you have an enduring story, creatures you control get +1/+1.\nWhenever Fíli or another nontoken Dwarf you control enters, create a 2/2 red Dwarf creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "storied"
+              },
+              {
+                "pointer": "/rules/0",
+                "equals": {
+                  "kind": "keywordAbility",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "ability": {
+                    "kind": "storied"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-storied-on-a-sorcery",
+      "request": {
+        "cardName": "Generic Told Tale",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Storied (If you control three or more artifacts, legendaries, and/or Sagas, you have an enduring story for the rest of the game.)\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.template.face-kind"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-read-ahead-saga",
+      "request": {
+        "cardName": "Generic Chronicle",
+        "typeLine": "Enchantment — Saga",
+        "manaCost": "{2}",
+        "oracleText": "Read ahead (Choose a chapter and start with that many lore counters. Add one after your draw step. Skipped chapters don't trigger. Sacrifice after III.)\nI — Draw a card.\nII — Draw a card.\nIII — Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "read-ahead"
+              },
+              {
+                "pointer": "/rules/0",
+                "equals": {
+                  "kind": "keywordAbility",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "ability": {
+                    "kind": "readAhead"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-read-ahead-without-saga",
+      "request": {
+        "cardName": "Generic Unread Book",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Read ahead (Choose a chapter and start with that many lore counters. Add one after your draw step. Skipped chapters don't trigger. Sacrifice after III.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.template.face-subtype"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-caller-of-the-pack-myriad",
+      "request": {
+        "cardName": "Caller of the Pack",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{5}{G}{G}",
+        "oracleText": "Trample\nMyriad (Whenever this creature attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability",
+                "equals": {
+                  "kind": "myriad"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-polygoyf-keyword-list-myriad",
+      "request": {
+        "cardName": "Polygoyf",
+        "typeLine": "Creature — Lhurgoyf",
+        "manaCost": "{2}{G}",
+        "oracleText": "Trample, myriad (Whenever this creature attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)\nPolygoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbilityGroup"
+              },
+              {
+                "pointer": "/abilities",
+                "equals": [
+                  {
+                    "kind": "trample"
+                  },
+                  {
+                    "kind": "myriad"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cybermen-squadron-myriad-grant",
+      "request": {
+        "cardName": "Cybermen Squadron",
+        "typeLine": "Artifact Creature — Cyberman",
+        "manaCost": "{7}",
+        "oracleText": "Nonlegendary artifact creatures you control have myriad. (Whenever a creature with myriad attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "myriad"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-blade-of-selves-attached-myriad",
+      "request": {
+        "cardName": "Blade of Selves",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature has myriad. (Whenever it attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)\nEquip {4}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "myriad"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-temporary-myriad-grant",
+      "request": {
+        "cardName": "Generic Projection",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}{R}",
+        "oracleText": "Target creature you control gains myriad until end of turn. (Whenever it attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "myriad"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-myriad-noncreature-keeps-the-keyword",
+      "request": {
+        "cardName": "Generic Myriad Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Myriad",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability",
+                "equals": {
+                  "kind": "myriad"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-myriad-foreign-reminder",
+      "request": {
+        "cardName": "Generic Lone Beast",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{2}",
+        "oracleText": "Myriad (Whenever this creature attacks, you may create a token copy that's tapped and attacking defending player.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.myriad.reminder.copies"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sneak-instant",
+      "request": {
+        "cardName": "Generic Quick Technique",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "Sneak {W}{B} (You may cast this spell for {W}{B} if you also return an unblocked attacker you control to hand during the declare blockers step.)\nTarget creature gets +3/+3 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              },
+              {
+                "pointer": "/ability/mode",
+                "equals": "sneak"
+              },
+              {
+                "pointer": "/ability/costs/0",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{W}{B}"
+                }
+              },
+              {
+                "pointer": "/ability/costs/1/kind",
+                "equals": "returnPermanentToOwnersHand"
+              },
+              {
+                "pointer": "/ability/condition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "duringControllerTurn",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "declareBlockers"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-karais-technique-sneak-sorcery",
+      "request": {
+        "cardName": "Karai's Technique",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "Sneak {W}{B} (You may cast this spell for {W}{B} if you also return an unblocked attacker you control to hand during the declare blockers step.)\nChoose one or both —\n• Target creature gets +3/+3 until end of turn.\n• Target creature gets -3/-3 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.casting.lowering"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-bestow-creature",
+      "request": {
+        "cardName": "Generic Bestowed Spirit",
+        "typeLine": "Enchantment Creature — Spirit",
+        "manaCost": "{1}{W}",
+        "oracleText": "Bestow {2}{W} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nFlying",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability",
+                "equals": {
+                  "kind": "bestow",
+                  "manaCost": "{2}{W}"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-bestow-noncreature",
+      "request": {
+        "cardName": "Generic Bestowed Charm",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Bestow {2}{W} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.casting.lowering"
+          }
+        ]
+      }
+    },
+    {
+      "id": "combination-ninjutsu-ascend-blessing-grant",
+      "request": {
+        "cardName": "Generic City Shinobi",
+        "typeLine": "Creature — Human Ninja",
+        "manaCost": "{3}{B}",
+        "oracleText": "Ninjutsu {2}{B}\nAscend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nThis creature has menace as long as you have the city's blessing.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ninjutsu"
+              },
+              {
+                "pointer": "/parameters",
+                "equals": {
+                  "cost": "{2}{B}"
+                }
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/activationZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "ninjutsuTiming"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/0",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{2}{B}"
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/1",
+                "equals": {
+                  "kind": "revealCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/2/kind",
+                "equals": "returnPermanentToOwnersHand"
+              },
+              {
+                "pointer": "/rules/0/declaration/decisions/0/kind",
+                "equals": "chooseObjects"
+              },
+              {
+                "pointer": "/rules/0/effects/0",
+                "equals": {
+                  "kind": "moveAbilitySourceToBattlefield",
+                  "from": "hand",
+                  "tapped": true,
+                  "attacking": {
+                    "kind": "sameDefenderAs",
+                    "object": {
+                      "kind": "chosenObject",
+                      "id": "activationCostReturn2"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "ascend"
+              },
+              {
+                "pointer": "/rules/0",
+                "equals": {
+                  "kind": "keywordAbility",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "ability": {
+                    "kind": "ascend"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "hasCityBlessing",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "menace"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

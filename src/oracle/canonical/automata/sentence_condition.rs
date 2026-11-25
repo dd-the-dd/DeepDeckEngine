@@ -10,6 +10,16 @@
 //! creature's power`). Every parent supplies a `ConditionContext` whose scope
 //! is the allow-list of atom families its evaluation moment can resolve.
 //!
+//! After a referenced object, one verb phrase grammar reads every predicate
+//! of the object: the copula and possession predicates, the relative-clause
+//! verb phrases of the shared object query (`shares a color with ...`,
+//! `entered this turn`, `is attached to a creature`), a typed zone (`is
+//! still on the battlefield`), the source's cast record, and the object's
+//! (last known) controller (`you controlled it`). A player copula reads the
+//! player designations (`the monarch`, `the starting player`) and poison; an
+//! elided `you control` of a coordinated conjunct is restored from the
+//! conjunct that states it.
+//!
 //! The effect-sequence parent owns the introducer position, the sentence
 //! boundaries and the branch ranges; this child owns only the Boolean
 //! program between `if` and its comma. A referenced object is a symbolic
@@ -302,6 +312,10 @@ fn read_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
+    // ObjectControl: `you controlled it`, `you don't control that creature`.
+    if let Some((width, negated)) = object_control_verb(cursor) {
+        return recognize_object_control_atom(cursor, context, width, negated);
+    }
     // ActionOutcome: `you can't`, `you don't`; `the player can't`, `they
     // can't` restate the performer of the previous instruction (CR 609.3).
     if let Some(subject_width) = impossible_outcome_subject_width(cursor) {
@@ -334,6 +348,16 @@ fn read_condition_atom(
         return Ok(ConditionAtom::ActionOutcome(
             ActionOutcomeNode::CostNotPaid { payment },
         ));
+    }
+    // A conjunct whose `you control` the preceding conjunct stated (`if you
+    // control an artifact and an enchantment`).
+    if super::elided_controlled_presence_starts(cursor) {
+        return super::recognize_elided_controlled_presence_atom(cursor);
+    }
+    // Compare / PlayerDesignation: `you're the monarch`, `an opponent is
+    // poisoned`, `you weren't the starting player`.
+    if let Some(atom) = try_recognize_player_copula_atom(cursor)? {
+        return Ok(atom);
     }
     // EventHistory read by the shared past life clause.
     if let Some(atom) = super::try_recognize_life_history_atom(cursor)? {
@@ -404,6 +428,12 @@ fn read_condition_atom(
     if super::object_event_history_starts(cursor) {
         return super::recognize_object_event_history_atom(cursor);
     }
+    // Compare: an object quantity where it is now (`no creatures are on the
+    // battlefield`, `a Warrior card is in your graveyard`, `three or more
+    // creatures are attacking`).
+    if super::located_quantity_atom_starts(cursor) {
+        return super::recognize_located_quantity_atom(cursor);
+    }
     // ObjectSatisfies: `there are no KIND counters on OBJECT` (CR 122.1).
     if existential_counter_follows(cursor) {
         return recognize_existential_counter_atom(cursor, context)
@@ -427,6 +457,10 @@ fn read_condition_atom(
     }
     if object_property_operand_starts(cursor) {
         return recognize_numeric_relation_atom(cursor);
+    }
+    // TurnOwnership of another player: `it's not their turn`.
+    if player_turn_parts(cursor).is_some() {
+        return recognize_player_turn_atom(cursor, context);
     }
     // TurnOwnership.
     if contraction_is(cursor, 0, "it", "s")
@@ -454,8 +488,7 @@ fn read_condition_atom(
         || word_is(cursor, 0, "its")
         || word_is(cursor, 0, "that")
     {
-        return recognize_referenced_object_atom(cursor, context)
-            .map(ConditionAtom::ObjectSatisfies);
+        return recognize_referenced_object_atom(cursor, context);
     }
     // Compare: a numeric subject of the shared definition grammar (`your
     // devotion to white is less than five`, `your life total is 5 or less`).
@@ -563,11 +596,13 @@ fn recognize_comparison_tail(
             false,
         ));
     }
-    let threshold = recognize_count_threshold(cursor, false)?;
+    // The quantifier `no` counts objects; a number compared with `0 or
+    // less` is an ordinary upper bound (a power can be negative).
     cursor.require(
-        !(threshold.operator == ThresholdOperator::AtMost && threshold.value == 0),
+        !word_is(cursor, 0, "no"),
         "a numeric threshold rather than `no`",
     )?;
+    let threshold = recognize_count_threshold(cursor, false)?;
     let (operator, value) = threshold_comparison(threshold);
     Ok((operator, ConditionNumber::Integer(value), false))
 }
@@ -779,37 +814,60 @@ fn object_property_operand_starts(cursor: &OracleTokenCursor<'_>) -> bool {
             && (word_is(cursor, 2, "power") || word_is(cursor, 2, "toughness")))
 }
 
-/// `EXPRESSION is greater than|less than|equal to EXPRESSION`.
+/// `EXPRESSION is|was COMPARISON` with a genitive property subject (`that
+/// creature's power is 2 or less`, `that spell's mana value was 3 or less`,
+/// `this creature's power is greater than X`): the right side is the shared
+/// comparison tail (a relation before an expression, a threshold or a
+/// number), the same one every numeric subject reads.
 fn recognize_numeric_relation_atom(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.sentence.relation.left");
     let left = recognize_numeric_expression(cursor, None)?;
     cursor.enter("condition.sentence.relation.copula");
-    cursor.consume("is")?;
+    cursor.require(
+        word_is(cursor, 0, "is") || word_is(cursor, 0, "was"),
+        "`is` or `was` after the compared property",
+    )?;
+    consume_current(cursor)?;
     cursor.enter("condition.sentence.relation.operator");
-    let operator = if word_is(cursor, 0, "greater") && word_is(cursor, 1, "than") {
-        cursor.consume("greater")?;
-        cursor.consume("than")?;
-        NumericComparisonOperator::GreaterThan
+    // A strict relation or `equal to` before an operand of the shared
+    // numeric expression grammar (`greater than each other creature's
+    // power`); every other comparison is the shared tail.
+    let strict = (if word_is(cursor, 0, "greater") && word_is(cursor, 1, "than") {
+        Some(NumericComparisonOperator::GreaterThan)
     } else if word_is(cursor, 0, "less") && word_is(cursor, 1, "than") {
-        cursor.consume("less")?;
-        cursor.consume("than")?;
-        NumericComparisonOperator::LessThan
+        Some(NumericComparisonOperator::LessThan)
     } else if word_is(cursor, 0, "equal") && word_is(cursor, 1, "to") {
-        cursor.consume("equal")?;
-        cursor.consume("to")?;
-        NumericComparisonOperator::Equal
+        Some(NumericComparisonOperator::Equal)
     } else {
-        return Err(cursor.fail("`greater than`, `less than` or `equal to`"));
+        None
+    })
+    .filter(|_| !word_is(cursor, 2, "or") && !word_is(cursor, 2, "half"));
+    if let Some(operator) = strict {
+        consume_current(cursor)?;
+        consume_current(cursor)?;
+        cursor.enter("condition.sentence.relation.right");
+        let right = recognize_numeric_expression(cursor, None)?;
+        return Ok(ConditionAtom::Compare(ConditionComparison {
+            subject: ConditionPlayerSubject::Controller,
+            left: ConditionNumber::Expression(left),
+            operator,
+            right: ConditionNumber::Expression(right),
+        }));
+    }
+    let (operator, right, halved) = recognize_comparison_tail(cursor)?;
+    // `L OP half R` is `2 * L OP R`: the comparison needs no rounding.
+    let left = if halved {
+        NumericExpression::multiply(NumericExpression::from(2), left)
+    } else {
+        left
     };
-    cursor.enter("condition.sentence.relation.right");
-    let right = recognize_numeric_expression(cursor, None)?;
     Ok(ConditionAtom::Compare(ConditionComparison {
         subject: ConditionPlayerSubject::Controller,
         left: ConditionNumber::Expression(left),
         operator,
-        right: ConditionNumber::Expression(right),
+        right,
     }))
 }
 
@@ -823,11 +881,13 @@ fn recognize_numeric_comparison_atom(
     cursor.enter("condition.sentence.numeric.copula");
     cursor.consume("is")?;
     cursor.enter("condition.sentence.numeric.threshold");
-    let threshold = recognize_count_threshold(cursor, false)?;
+    // The quantifier `no` counts objects; a number compared with `0 or
+    // less` is an ordinary upper bound (a power can be negative).
     cursor.require(
-        !(threshold.operator == ThresholdOperator::AtMost && threshold.value == 0),
+        !word_is(cursor, 0, "no"),
         "a numeric threshold rather than `no`",
     )?;
+    let threshold = recognize_count_threshold(cursor, false)?;
     let (operator, value) = threshold_comparison(threshold);
     Ok(ConditionAtom::Compare(ConditionComparison {
         subject: ConditionPlayerSubject::Controller,
@@ -872,9 +932,49 @@ fn recognize_source_condition_atom(
             },
         }));
     }
-    let predicate = recognize_object_state_predicate(cursor, false)?;
-    finish_referenced_object(cursor, context, ConditionObjectReference::SOURCE, predicate)
-        .map(ConditionAtom::ObjectSatisfies)
+    // `Jor Kadeen's power is 4 or greater`: the source's name in the
+    // genitive before a numeric property, compared like `its power`.
+    if previous_token_is_genitive(cursor) && numeric_property_word_follows(cursor) {
+        cursor.enter("condition.source.property");
+        let property = recognize_selector_numeric_property(cursor)?;
+        cursor.enter("condition.source.copula");
+        cursor.require(
+            word_is(cursor, 0, "is") || word_is(cursor, 0, "was"),
+            "`is` or `was` after the possessed property",
+        )?;
+        consume_current(cursor)?;
+        cursor.enter("condition.source.comparison");
+        let predicate = recognize_numeric_property_comparison_tail(cursor, property)?;
+        return finish_referenced_object(
+            cursor,
+            context,
+            ConditionObjectReference::SOURCE,
+            predicate,
+        )
+        .map(ConditionAtom::ObjectSatisfies);
+    }
+    let phrase = recognize_object_verb_phrase(cursor, false)?;
+    finish_object_verb_phrase(cursor, context, ConditionObjectReference::SOURCE, phrase)
+}
+
+/// The token before the cursor is a genitive (`NAME's`, `creature's`).
+fn previous_token_is_genitive(cursor: &OracleTokenCursor<'_>) -> bool {
+    let position = cursor.position();
+    position > 0
+        && cursor
+            .token_slice(position - 1, position)
+            .first()
+            .is_some_and(|token| {
+                let raw = token.raw.replace('\u{2019}', "'").to_ascii_lowercase();
+                raw.ends_with("'s") || token.token_type == "possessiveTypeWord"
+            })
+}
+
+/// `power`, `toughness` or `mana value` at the cursor.
+fn numeric_property_word_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_is(cursor, 0, "power")
+        || word_is(cursor, 0, "toughness")
+        || (word_is(cursor, 0, "mana") && word_is(cursor, 1, "value"))
 }
 
 /// `you cast it`, `you cast this spell from your hand`: the controller cast
@@ -1207,7 +1307,7 @@ fn recognize_attached_object_atom(
 fn recognize_referenced_object_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
-) -> MachineResult<ReferencedObjectConditionNode> {
+) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.sentence.object.subject");
     if word_is(cursor, 0, "its") {
         cursor.consume("its")?;
@@ -1222,13 +1322,14 @@ fn recognize_referenced_object_atom(
         consume_current(cursor)?;
         cursor.enter("condition.sentence.object.comparison");
         let predicate = recognize_numeric_property_comparison_tail(cursor, property)?;
-        return finish_referenced_object(cursor, context, object, predicate);
+        return finish_referenced_object(cursor, context, object, predicate)
+            .map(ConditionAtom::ObjectSatisfies);
     }
     if contraction_is(cursor, 0, "it", "s") {
         consume_current(cursor)?;
         let object = resolve_object_anaphor(cursor, context)?;
-        let predicate = recognize_object_state_predicate(cursor, true)?;
-        return finish_referenced_object(cursor, context, object, predicate);
+        let phrase = recognize_object_verb_phrase(cursor, true)?;
+        return finish_object_verb_phrase(cursor, context, object, phrase);
     }
     let object = if word_is(cursor, 0, "it") {
         cursor.consume("it")?;
@@ -1251,8 +1352,576 @@ fn recognize_referenced_object_atom(
         let environment = condition_binding_environment(cursor, program.effects);
         ConditionObjectReference::Permanent(recognize_nominal_object_read(cursor, &environment)?)
     };
-    let predicate = recognize_object_state_predicate(cursor, false)?;
-    finish_referenced_object(cursor, context, object, predicate)
+    let phrase = recognize_object_verb_phrase(cursor, false)?;
+    finish_object_verb_phrase(cursor, context, object, phrase)
+}
+
+/// What the verb phrase after a referenced object states.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum ObjectVerbPhrase {
+    /// The shared object predicate (`is red`, `has flying`, `shares a
+    /// creature type with this creature`, `entered this turn`).
+    Satisfies(ObjectPredicate),
+    /// `is [not] [still] on the battlefield`, `is in your graveyard`.
+    Zone {
+        zones: Vec<ConditionZone>,
+        negated: bool,
+    },
+    /// `was cast`, `wasn't cast`, `was cast from your hand`: the cast record
+    /// the ability's own source keeps.
+    Cast {
+        zone: Option<SourceCastZone>,
+        negated: bool,
+    },
+}
+
+/// The width of a copula (`is`, `was`, `isn't`, `wasn't`, `is not`) at the
+/// cursor and whether it negates; `copula_read` after `it's` (an optional
+/// `not` only).
+fn object_copula_width(cursor: &OracleTokenCursor<'_>, copula_read: bool) -> Option<(usize, bool)> {
+    let (width, negated) = if copula_read {
+        (0, false)
+    } else if word_is(cursor, 0, "is") || word_is(cursor, 0, "was") {
+        (1, false)
+    } else if contraction_is(cursor, 0, "isn", "t") || contraction_is(cursor, 0, "wasn", "t") {
+        (1, true)
+    } else {
+        return None;
+    };
+    if !negated && word_is(cursor, width, "not") {
+        return Some((width + 1, true));
+    }
+    Some((width, negated))
+}
+
+/// The zones of `[still] ZONE [or ZONE]...` at `offset`, with the phrase
+/// width. `still` restates that the object has not left the zone; it adds no
+/// condition (CR 400.7: a new object would not be this one).
+fn object_zones_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(Vec<ConditionZone>, usize)> {
+    let mut width = usize::from(word_is(cursor, offset, "still"));
+    let (first, first_width) = ConditionZone::at(cursor, offset + width)?;
+    width += first_width;
+    let mut zones = vec![first];
+    while word_is(cursor, offset + width, "or")
+        && let Some((zone, zone_width)) = ConditionZone::at(cursor, offset + width + 1)
+    {
+        zones.push(zone);
+        width += 1 + zone_width;
+    }
+    Some((zones, width))
+}
+
+/// The verb phrase after a referenced object. In order: a relative-clause
+/// verb phrase of the shared object query (`shares a color with ...`,
+/// `entered this turn`, `is attached to a creature`), the cast record of the
+/// source (`was cast`), a zone (`is still on the battlefield`), and the
+/// copula or possession predicates of `recognize_object_state_predicate`.
+fn recognize_object_verb_phrase(
+    cursor: &mut OracleTokenCursor<'_>,
+    copula_read: bool,
+) -> MachineResult<ObjectVerbPhrase> {
+    cursor.enter("condition.sentence.object.verb");
+    if !copula_read && super::relative_predicate_starts(cursor) {
+        cursor.enter("condition.sentence.object.relative-predicate");
+        return super::recognize_relative_predicate(cursor).map(ObjectVerbPhrase::Satisfies);
+    }
+    if !copula_read
+        && (word_is(cursor, 0, "was") || contraction_is(cursor, 0, "wasn", "t"))
+        && word_is(cursor, 1, "cast")
+    {
+        cursor.enter("condition.sentence.object.cast");
+        let negated = !word_is(cursor, 0, "was");
+        consume_current(cursor)?;
+        cursor.consume("cast")?;
+        if !word_is(cursor, 0, "from") {
+            return Ok(ObjectVerbPhrase::Cast {
+                zone: None,
+                negated,
+            });
+        }
+        cursor.consume("from")?;
+        let (zone, complement) = recognize_cast_zone(cursor)?;
+        cursor.require(!(negated && complement), "one negation of a cast origin")?;
+        return Ok(ObjectVerbPhrase::Cast {
+            zone: Some(zone),
+            negated: negated || complement,
+        });
+    }
+    if let Some((copula_width, negated)) = object_copula_width(cursor, copula_read)
+        && let Some((zones, zones_width)) = object_zones_at(cursor, copula_width)
+    {
+        cursor.enter("condition.sentence.object.zone");
+        for _ in 0..copula_width + zones_width {
+            consume_current(cursor)?;
+        }
+        return Ok(ObjectVerbPhrase::Zone { zones, negated });
+    }
+    recognize_object_state_predicate(cursor, copula_read).map(ObjectVerbPhrase::Satisfies)
+}
+
+/// Lexical lookahead: a pronoun subject (`its`, `it's`, `it`) of a condition
+/// over an object its parent bound itself.
+pub(in crate::oracle::canonical) fn bound_pronoun_predicate_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    word_is(cursor, 0, "its") || word_is(cursor, 0, "it") || contraction_is(cursor, 0, "it", "s")
+}
+
+/// The predicate a pronoun's verb phrase states over an object the parent
+/// bound itself (the target of the instruction the condition guards, read
+/// when that instruction resolves): `its power is less than or equal to
+/// EXPR`, `it's white`, `it has flying`, `it shares a color with ...`. The
+/// verb phrase is the one of every referenced object; a zone or a cast
+/// record is no characteristic of the target and fails, and so does a
+/// predicate without a battlefield filter (it would match every object).
+pub(in crate::oracle::canonical) fn recognize_bound_pronoun_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("condition.bound-object.subject");
+    let predicate = if word_is(cursor, 0, "its") {
+        cursor.consume("its")?;
+        cursor.enter("condition.bound-object.property");
+        let property = recognize_selector_numeric_property(cursor)?;
+        cursor.enter("condition.bound-object.copula");
+        cursor.require(
+            word_is(cursor, 0, "is") || word_is(cursor, 0, "was"),
+            "`is` or `was` after the possessed property",
+        )?;
+        consume_current(cursor)?;
+        cursor.enter("condition.bound-object.comparison");
+        let (operator, right, halved) = recognize_comparison_tail(cursor)?;
+        cursor.require(!halved, "a whole operand of the property comparison")?;
+        let right = match right {
+            ConditionNumber::Integer(value) => NumericExpression::from(value),
+            ConditionNumber::Expression(expression) => expression,
+            _ => return Err(cursor.fail("a numeric operand of the property comparison")),
+        };
+        ObjectPredicate::NumericComparison {
+            left: property,
+            operator,
+            right: Box::new(right),
+        }
+    } else {
+        let copula_read = contraction_is(cursor, 0, "it", "s");
+        cursor.require(
+            copula_read || word_is(cursor, 0, "it"),
+            "the bound-object anaphor `it`, `it's` or `its`",
+        )?;
+        consume_current(cursor)?;
+        match recognize_object_verb_phrase(cursor, copula_read)? {
+            ObjectVerbPhrase::Satisfies(predicate) => predicate,
+            ObjectVerbPhrase::Zone { .. } | ObjectVerbPhrase::Cast { .. } => {
+                cursor.enter("condition.bound-object.characteristic");
+                return Err(cursor.fail(
+                    "a characteristic of the bound target (its zone or cast record is not one)",
+                ));
+            }
+        }
+    };
+    cursor.enter("condition.bound-object.filter");
+    cursor.require(
+        predicate.supports_domain(ObjectKind::Permanent)
+            && !crate::oracle::canonical::effects::lower_permanent_object_predicate(&predicate)
+                .is_null(),
+        "a characteristic of the bound permanent that lowers to a nonempty filter",
+    )?;
+    Ok(predicate)
+}
+
+/// The atom a referenced object and its verb phrase state.
+fn finish_object_verb_phrase(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+    object: ConditionObjectReference,
+    phrase: ObjectVerbPhrase,
+) -> MachineResult<ConditionAtom> {
+    match phrase {
+        ObjectVerbPhrase::Satisfies(predicate) => {
+            finish_referenced_object(cursor, context, object, predicate)
+                .map(ConditionAtom::ObjectSatisfies)
+        }
+        ObjectVerbPhrase::Zone { zones, negated } => {
+            cursor.enter("condition.sentence.object.zone-of-function");
+            // A static or triggered ability of a card functions from its
+            // zone of function (CR 113.6): only its parent can declare one
+            // outside the battlefield, which this condition does not.
+            let continuous = matches!(
+                context.scope,
+                ConditionScope::Static | ConditionScope::TriggerGuard | ConditionScope::Unless
+            );
+            cursor.require(
+                !(continuous
+                    && object == ConditionObjectReference::SOURCE
+                    && zones != [ConditionZone::Battlefield]),
+                "a zone of function the ability's parent declares for its source outside the battlefield (CR 113.6)",
+            )?;
+            cursor.enter("condition.sentence.object.zone-object");
+            cursor.require(
+                !matches!(object, ConditionObjectReference::DepartedTarget(_)),
+                "an object whose current zone the condition can read",
+            )?;
+            Ok(ConditionAtom::ObjectZone(ObjectZoneConditionNode {
+                object,
+                zones,
+                negated,
+            }))
+        }
+        ObjectVerbPhrase::Cast { zone, negated } => {
+            cursor.enter("condition.sentence.object.cast-record");
+            cursor.require(
+                object == ConditionObjectReference::SOURCE,
+                "the cast record of the ability's own source (another object's cast is not recorded)",
+            )?;
+            // A permanent remembers whether it was cast and whether from a
+            // hand (CR 601.2a); any other origin is not kept for it.
+            cursor.require(
+                zone.is_none_or(|zone| zone == SourceCastZone::Hand),
+                "`from your hand`; a permanent does not remember another cast zone",
+            )?;
+            Ok(ConditionAtom::CastFact(CastFactNode {
+                spell: CastSpellReference::Source(LocalObjectReference::SourceSelf),
+                fact: CastFact::Cast { zone, negated },
+            }))
+        }
+    }
+}
+
+/// `you control|controlled|don't control|didn't control|did not control`
+/// before a bound object reference (`it`, `that NOUN`): the verb's width
+/// after `you` and whether it is negated. A counted query (`you control a
+/// Forest`) is the controlled-permanent comparison's, not this atom's.
+fn object_control_verb(cursor: &OracleTokenCursor<'_>) -> Option<(usize, bool)> {
+    if !word_is(cursor, 0, "you") {
+        return None;
+    }
+    let (width, negated) = if word_is(cursor, 1, "control") || word_is(cursor, 1, "controlled") {
+        (1, false)
+    } else if (contraction_is(cursor, 1, "don", "t") || contraction_is(cursor, 1, "didn", "t"))
+        && word_is(cursor, 2, "control")
+    {
+        (2, true)
+    } else if (word_is(cursor, 1, "do") || word_is(cursor, 1, "did"))
+        && word_is(cursor, 2, "not")
+        && word_is(cursor, 3, "control")
+    {
+        (3, true)
+    } else {
+        return None;
+    };
+    let mut object = cursor.clone();
+    object.advance_to(cursor.position() + 1 + width).ok()?;
+    super::bound_object_reference_starts(&object).then_some((width, negated))
+}
+
+/// `you controlled it`, `you didn't control that permanent` (CR 108.4): the
+/// controller relation of one bound permanent, which the runtime reads as
+/// last known information once the permanent left (CR 608.2h). The object
+/// is resolved like every object condition subject; nothing is guessed.
+fn recognize_object_control_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+    width: usize,
+    negated: bool,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.object-control.subject");
+    cursor.consume("you")?;
+    for _ in 0..width {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.object-control.object");
+    let object = if cursor.peek().is_some_and(super::is_source_anaphor) {
+        consume_current(cursor)?;
+        resolve_object_anaphor(cursor, context)?
+    } else {
+        let program = cursor.require_value(
+            context.program,
+            "a nominal anaphor of an effect program's proven antecedent",
+        )?;
+        let environment = condition_binding_environment(cursor, program.effects);
+        ConditionObjectReference::Permanent(recognize_nominal_object_read(cursor, &environment)?)
+    };
+    cursor.enter("condition.object-control.permanent");
+    cursor.require(
+        matches!(object, ConditionObjectReference::Permanent(_)),
+        "a permanent whose controller (or last known controller) the condition reads",
+    )?;
+    Ok(ConditionAtom::ObjectControl(ObjectControlConditionNode {
+        object,
+        negated,
+    }))
+}
+
+/// A player predicate after a copula.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PlayerCopulaPredicate {
+    /// `the monarch` (CR 724.1).
+    Monarch,
+    /// `the starting player` (CR 103.1).
+    StartingPlayer,
+    /// `poisoned`: one or more poison counters (CR 122.1f, glossary).
+    Poisoned,
+}
+
+fn player_copula_predicate_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(PlayerCopulaPredicate, usize)> {
+    if word_is(cursor, offset, "the") && word_is(cursor, offset + 1, "monarch") {
+        Some((PlayerCopulaPredicate::Monarch, 2))
+    } else if word_is(cursor, offset, "the")
+        && word_is(cursor, offset + 1, "starting")
+        && word_is(cursor, offset + 2, "player")
+    {
+        Some((PlayerCopulaPredicate::StartingPlayer, 3))
+    } else if word_is(cursor, offset, "poisoned") {
+        Some((PlayerCopulaPredicate::Poisoned, 1))
+    } else {
+        None
+    }
+}
+
+/// A player copula at `offset`: its width, whether it negates and whether
+/// it is past (`is`, `are`, `was`, `were`, their contracted negations, and
+/// a following `not`).
+fn player_copula_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(usize, bool, bool)> {
+    let raw = cursor
+        .peek_ahead(offset)?
+        .replace('\u{2019}', "'")
+        .to_ascii_lowercase();
+    let (negated, past) = match raw.as_str() {
+        "is" | "are" => (false, false),
+        "was" | "were" => (false, true),
+        "isn't" | "aren't" => (true, false),
+        "wasn't" | "weren't" => (true, true),
+        _ => return None,
+    };
+    if !negated && word_is(cursor, offset + 1, "not") {
+        return Some((2, true, past));
+    }
+    Some((1, negated, past))
+}
+
+/// The subject and copula of a player predicate at the cursor.
+struct PlayerCopulaParts {
+    /// `None` for a bound player (`that player`, `defending player`), which
+    /// the binding environment resolves.
+    subject: Option<ConditionPlayerSubject>,
+    subject_width: usize,
+    copula_width: usize,
+    negated: bool,
+    past: bool,
+}
+
+impl PlayerCopulaParts {
+    fn width(&self) -> usize {
+        self.subject_width + self.copula_width
+    }
+}
+
+fn player_copula_parts(cursor: &OracleTokenCursor<'_>) -> Option<PlayerCopulaParts> {
+    // `you're [not]`: the subject and the copula in one token.
+    if contraction_is(cursor, 0, "you", "re") {
+        let negated = word_is(cursor, 1, "not");
+        return Some(PlayerCopulaParts {
+            subject: Some(ConditionPlayerSubject::Controller),
+            subject_width: 1,
+            copula_width: usize::from(negated),
+            negated,
+            past: false,
+        });
+    }
+    let (subject, subject_width) = if word_is(cursor, 0, "you") {
+        (Some(ConditionPlayerSubject::Controller), 1)
+    } else if let Some((quantifier, population)) = super::quantified_player_head(cursor) {
+        (
+            Some(ConditionPlayerSubject::Quantified {
+                quantifier,
+                population,
+            }),
+            2,
+        )
+    } else if (word_is(cursor, 0, "that") || word_is(cursor, 0, "defending"))
+        && word_is(cursor, 1, "player")
+    {
+        (None, 2)
+    } else {
+        return None;
+    };
+    let (copula_width, negated, past) = player_copula_at(cursor, subject_width)?;
+    Some(PlayerCopulaParts {
+        subject,
+        subject_width,
+        copula_width,
+        negated,
+        past,
+    })
+}
+
+/// `you're the monarch`, `an opponent is the monarch`, `defending player is
+/// poisoned`, `you weren't the starting player`: a player subject, a copula
+/// and a player predicate. `None` (nothing consumed) when no player
+/// predicate follows a player copula, so the other readers keep the clause.
+fn try_recognize_player_copula_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<ConditionAtom>> {
+    let Some(parts) = player_copula_parts(cursor) else {
+        return Ok(None);
+    };
+    let Some((predicate, predicate_width)) = player_copula_predicate_at(cursor, parts.width())
+    else {
+        return Ok(None);
+    };
+    cursor.enter("condition.player-copula.subject");
+    let subject = match parts.subject {
+        Some(subject) => {
+            for _ in 0..parts.subject_width {
+                consume_current(cursor)?;
+            }
+            subject
+        }
+        None => {
+            let environment = installed_binding_environment(cursor);
+            match super::recognize_condition_player_reference(cursor, &environment)? {
+                BoundPlayerReference::EventPlayer => ConditionPlayerSubject::EventPlayer,
+                BoundPlayerReference::DefendingPlayer => ConditionPlayerSubject::DefendingPlayer,
+                _ => {
+                    cursor.enter("condition.player-copula.binding");
+                    return Err(cursor.fail(
+                        "the player the triggering event records; a declared player is not read by a condition",
+                    ));
+                }
+            }
+        }
+    };
+    cursor.enter("condition.player-copula.copula");
+    for _ in 0..parts.copula_width {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.player-copula.tense");
+    // A designation held now is not a record of a past one; the starting
+    // player is a fact of the game in either tense.
+    cursor.require(
+        !parts.past || predicate == PlayerCopulaPredicate::StartingPlayer,
+        "the present tense of a player's current state (a past state is not recorded)",
+    )?;
+    cursor.enter("condition.player-copula.predicate");
+    for _ in 0..predicate_width {
+        consume_current(cursor)?;
+    }
+    let designation = match predicate {
+        PlayerCopulaPredicate::Poisoned => {
+            let counter = crate::oracle::counter_name::CounterName::from_parts(["poison"])
+                .ok_or_else(|| cursor.fail("the poison counter name"))?;
+            let threshold = if parts.negated {
+                CountThreshold {
+                    operator: ThresholdOperator::AtMost,
+                    value: 0,
+                }
+            } else {
+                CountThreshold::at_least(1)
+            };
+            return Ok(Some(ConditionAtom::Compare(ConditionComparison::measured(
+                subject,
+                PlayerStateMeasure::PlayerCounters(counter),
+                threshold,
+            ))));
+        }
+        PlayerCopulaPredicate::Monarch => PlayerDesignation::Monarch,
+        PlayerCopulaPredicate::StartingPlayer => PlayerDesignation::StartingPlayer,
+    };
+    cursor.enter("condition.player-copula.designation-subject");
+    // The defending player of a static combat check is bound by its
+    // measures only (`condition_reads_defending_player`); a designation of
+    // that player has no such binding and is refused, never guessed.
+    cursor.require(
+        !matches!(
+            subject,
+            ConditionPlayerSubject::DefendingPlayer | ConditionPlayerSubject::OpponentsTogether
+        ),
+        "the controller, a quantified player or the triggering event's player as the designation holder",
+    )?;
+    Ok(Some(ConditionAtom::PlayerDesignation(
+        PlayerDesignationNode {
+            designation,
+            held: !parts.negated,
+            subject,
+        },
+    )))
+}
+
+/// `it's [not] POSSESSOR turn`, `it is [not] ...`, `it isn't ...` where
+/// POSSESSOR is `their`, `that player's` or `an opponent's`: the width of
+/// the subject and copula, whether it negates, and the possessor's width.
+fn player_turn_parts(cursor: &OracleTokenCursor<'_>) -> Option<(usize, bool, usize)> {
+    let (mut width, mut negated) = if contraction_is(cursor, 0, "it", "s") {
+        (1, false)
+    } else if word_is(cursor, 0, "it") && word_is(cursor, 1, "is") {
+        (2, false)
+    } else if word_is(cursor, 0, "it") && contraction_is(cursor, 1, "isn", "t") {
+        (2, true)
+    } else {
+        return None;
+    };
+    if !negated && word_is(cursor, width, "not") {
+        width += 1;
+        negated = true;
+    }
+    let possessor = if word_is(cursor, width, "their") {
+        1
+    } else if (word_is(cursor, width, "that") && contraction_is(cursor, width + 1, "player", "s"))
+        || (word_is(cursor, width, "an") && contraction_is(cursor, width + 1, "opponent", "s"))
+    {
+        2
+    } else {
+        return None;
+    };
+    word_is(cursor, width + possessor, "turn").then_some((width, negated, possessor))
+}
+
+/// `it's not their turn` (the player the triggering event records),
+/// `it's an opponent's turn` (CR 102.1, 500.1): whose turn it is, for a
+/// player other than the controller. `their` without a recorded event
+/// player is a committed diagnostic.
+fn recognize_player_turn_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.player-turn.subject");
+    let (width, negated, possessor) = player_turn_parts(cursor)
+        .ok_or_else(|| cursor.fail("`it's [not] their|that player's|an opponent's turn`"))?;
+    for _ in 0..width {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.player-turn.possessor");
+    let player = if word_is(cursor, 0, "an") {
+        ConditionPlayerSubject::Quantified {
+            quantifier: PlayerQuantifier::Some,
+            population: PlayerPopulation::Opponents,
+        }
+    } else {
+        let environment = installed_binding_environment(cursor);
+        let event_player = context
+            .program
+            .is_some_and(|program| program.effects.frame.event_player)
+            || environment.frame.event_player;
+        cursor.require(
+            event_player && environment.player.is_none() && environment.player_target.is_none(),
+            "the one player the triggering event records for `their turn`",
+        )?;
+        ConditionPlayerSubject::EventPlayer
+    };
+    for _ in 0..possessor {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.player-turn.turn");
+    cursor.consume("turn")?;
+    Ok(ConditionAtom::PlayerTurn(PlayerTurnNode {
+        player,
+        is_turn: !negated,
+    }))
 }
 
 /// The environment a condition's nominal anaphor reads: the condition
@@ -1306,6 +1975,26 @@ fn recognize_object_state_predicate(
                 // shared counter qualifier of object queries.
                 if super::counter_qualifier_starts(cursor, 0) {
                     return super::recognize_counter_qualifier(cursor);
+                }
+                // `has the chosen name`, `has that name` (CR 201.2, 608.2d):
+                // the shared chosen-name relation `with the chosen name`
+                // reads, with the same proof of an earlier `choose` of the
+                // program; outside a program it has no producer.
+                if word_is(cursor, 0, "the")
+                    && word_is(cursor, 1, "chosen")
+                    && word_is(cursor, 2, "name")
+                    || word_is(cursor, 0, "that") && word_is(cursor, 1, "name")
+                {
+                    cursor.enter("condition.sentence.object.chosen-name");
+                    cursor.require(
+                        super::resolution_choice_in_scope(cursor),
+                        "a card name an earlier `choose` instruction of this program records",
+                    )?;
+                    let width = if word_is(cursor, 0, "the") { 3 } else { 2 };
+                    for _ in 0..width {
+                        consume_current(cursor)?;
+                    }
+                    return Ok(ObjectPredicate::Relation(ObjectRelation::ChosenName));
                 }
                 if let Some(keyword) = cursor
                     .peek()
@@ -1581,7 +2270,7 @@ fn finish_referenced_object(
             // instead of being read on the new object.
             cursor.require(
                 last_known_information_answers(&predicate),
-                "a mana value, power, toughness or type-line characteristic of a moved permanent (its other last-known information is not captured)",
+                "a mana value, power, toughness, type-line, counter, tapped, combat or token characteristic of a moved permanent (its other last-known information is not captured)",
             )?;
             ConditionObjectReference::DepartedTarget(binding)
         }
@@ -1605,21 +2294,32 @@ fn finish_referenced_object(
 
 /// Whether a departed permanent's recorded last known information answers
 /// the predicate: one numeric property comparison (the captured mana value,
-/// power or toughness), or a predicate over the recorded type line.
+/// power or toughness), or a predicate over what its departure record keeps:
+/// the type line, the counters, the tapped and combat status and the token
+/// status (CR 608.2h). Colors and other characteristics are not recorded.
 fn last_known_information_answers(predicate: &ObjectPredicate) -> bool {
-    fn type_line(predicate: &ObjectPredicate) -> bool {
+    fn recorded(predicate: &ObjectPredicate) -> bool {
         match predicate {
             ObjectPredicate::CardType(_)
             | ObjectPredicate::Subtype(_)
-            | ObjectPredicate::Supertype(_) => true,
-            ObjectPredicate::Not(operand) => type_line(operand),
+            | ObjectPredicate::Supertype(_)
+            | ObjectPredicate::HasCounter(_)
+            | ObjectPredicate::IsToken
+            | ObjectPredicate::ObjectKind(ObjectKind::Permanent)
+            | ObjectPredicate::Status(
+                ObjectStatus::Tapped
+                | ObjectStatus::Untapped
+                | ObjectStatus::Attacking
+                | ObjectStatus::Blocking,
+            ) => true,
+            ObjectPredicate::Not(operand) => recorded(operand),
             ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
-                !operands.is_empty() && operands.iter().all(type_line)
+                !operands.is_empty() && operands.iter().all(recorded)
             }
             _ => false,
         }
     }
-    matches!(predicate, ObjectPredicate::NumericComparison { .. }) || type_line(predicate)
+    matches!(predicate, ObjectPredicate::NumericComparison { .. }) || recorded(predicate)
 }
 
 pub(in crate::oracle::canonical) fn sentence_condition_depends_on_cast_choice(
@@ -1631,3 +2331,7 @@ pub(in crate::oracle::canonical) fn sentence_condition_depends_on_cast_choice(
 #[cfg(test)]
 #[path = "sentence_condition_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "sentence_condition_object_atoms_tests.rs"]
+mod object_atoms_tests;

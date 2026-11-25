@@ -16,6 +16,9 @@ fn lower_temporary_rule_duration(
         TemporaryRuleDuration::Effect(EffectDurationNode::UntilNextTurn {
             player: LocalPlayerReference::Controller,
         }) => Ok(json!({"kind": "untilNextTurn", "player": controller()})),
+        TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfNextTurn {
+            player: LocalPlayerReference::Controller,
+        }) => Ok(json!({"kind": "untilEndOfNextTurn", "player": controller()})),
         TemporaryRuleDuration::RestOfGame => Ok(json!({"kind": "restOfGame"})),
         TemporaryRuleDuration::Effect(_) => {
             Err(TargetlessLoweringError::UnsupportedPermissionLifetime)
@@ -40,6 +43,19 @@ fn lower_temporary_rule_modifiers(
             "kind": "eccStaticAbility",
             "ability": "damageCannotBePrevented",
         })]),
+        // CR 702.8a, 601.3: the same timing grant a static permission
+        // installs, held by the ability's controller while the rule lasts.
+        TemporaryRuleNode::FlashCasting { spells } => {
+            if !domain_filter_is_representable(spells) {
+                return Err(TargetlessLoweringError::UnsupportedEffect);
+            }
+            Ok(vec![json!({
+                "kind": "grantFlashCasting",
+                "player": controller(),
+                "where": lower_spell_object_predicate(spells).unwrap_or(Value::Null),
+                "firstEachTurn": false,
+            })])
+        }
         TemporaryRuleNode::Players { subject, predicate } => {
             let players = match subject {
                 StaticPlayerSubjectNode::You => controller(),

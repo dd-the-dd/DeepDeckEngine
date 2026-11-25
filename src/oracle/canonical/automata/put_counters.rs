@@ -23,6 +23,238 @@ struct PutCountersMemory {
     permanent: Option<super::PermanentOperandNode>,
     counter: Option<crate::oracle::counter_name::CounterName>,
     count: Option<NumericExpression>,
+    kinds: CounterKindsNode,
+    /// `a number of KIND counters ... equal to AMOUNT`: the count is the
+    /// shared `equal to` amount, written after the noun or the object.
+    equal_amount: bool,
+}
+
+/// True at `a number of`: the quantity of a counter action whose amount is
+/// a later `equal to` phrase.
+fn equal_amount_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    ["a", "number", "of"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// `equal to AMOUNT`: the shared definition amount of the counter count.
+fn recognize_equal_counter_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("effect.put-counters.equal-amount");
+    cursor.consume_phrase(&["equal", "to"])?;
+    super::recognize_equal_to_amount_expression(cursor, None)
+}
+
+/// One `COUNT KIND counter(s)` placement of a counter action.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CounterPlacementNode {
+    pub counter: crate::oracle::counter_name::CounterName,
+    pub count: NumericExpression,
+}
+
+/// The counter kinds one counter action places besides its `counter` /
+/// `count` pair (CR 122.1). The object operand is read once and shared.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CounterKindsNode {
+    /// Exactly `count` `counter` counters.
+    #[default]
+    Single,
+    /// `a +1/+1 counter and a flying counter on X`: the first pair, then
+    /// each listed pair, all placed on the same object(s).
+    Listed(Vec<CounterPlacementNode>),
+    /// `your choice of a flying counter or a hexproof counter on X`: the
+    /// controller chooses one placement among the first pair and these
+    /// while the action resolves (CR 608.2d); only that one is placed.
+    ChosenAmong(Vec<CounterPlacementNode>),
+}
+
+impl CounterKindsNode {
+    pub(in crate::oracle::canonical) fn is_single(&self) -> bool {
+        matches!(self, Self::Single)
+    }
+}
+
+/// True at `your choice of`: the head of a choice among counter kinds.
+fn counter_kind_choice_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    ["your", "choice", "of"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// `counter` agrees with a literal one, `counters` with any other count.
+fn counter_noun_for(count: &NumericExpression) -> &'static str {
+    if matches!(count, NumericExpression::Atom(NumericAtom::Integer(1))) {
+        "counter"
+    } else {
+        "counters"
+    }
+}
+
+/// `COUNT KIND counter(s)`: one complete placement with its own noun.
+fn recognize_counter_placement(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<CounterPlacementNode> {
+    cursor.enter("effect.put-counters.listed.count");
+    let count = recognize_counter_count(cursor, context)?;
+    cursor.enter("effect.put-counters.listed.kind");
+    let counter = recognize_counter_name(cursor)?;
+    cursor.enter("effect.put-counters.listed.noun");
+    cursor.consume(counter_noun_for(&count))?;
+    Ok(CounterPlacementNode { counter, count })
+}
+
+/// `, COUNT KIND counter(s)[,] and COUNT KIND counter(s)` after the first
+/// placement: a coordinated list of further placements on the same object.
+/// The list ends before `on`; every member has its own count and noun.
+fn recognize_listed_counter_placements(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Vec<CounterPlacementNode>> {
+    let mut placements = Vec::new();
+    loop {
+        cursor.enter("effect.put-counters.listed.connector");
+        let comma = cursor.peek() == Some(",");
+        if comma {
+            cursor.consume(",")?;
+        }
+        let conjunction = cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"));
+        if conjunction {
+            cursor.consume("and")?;
+        }
+        cursor.require(
+            comma || conjunction,
+            "`,` or `and` between counter placements",
+        )?;
+        placements.push(recognize_counter_placement(cursor, context)?);
+        if conjunction {
+            return Ok(placements);
+        }
+    }
+}
+
+/// One option's counter kind inside `your choice of`. A kind written before
+/// its own `counter(s)` noun is the lexer's resolved counter name; a kind
+/// that shares the list's final noun (`a +1/+1, first strike, or trample
+/// counter`) is read by the shared counter-name reader in its shared-noun
+/// mode, with the lexer's token-class check.
+fn recognize_choice_counter_name(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<crate::oracle::counter_name::CounterName> {
+    let boundary = |raw: &str| raw == "," || raw.eq_ignore_ascii_case("or");
+    let noun =
+        |raw: &str| raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters");
+    let own_noun = (0..8)
+        .map_while(|offset| cursor.peek_ahead(offset))
+        .find(|raw| boundary(raw) || noun(raw))
+        .is_some_and(noun);
+    if own_noun {
+        return recognize_counter_name(cursor);
+    }
+    cursor.enter("effect.put-counters.choice.shared-noun-kind");
+    super::recognize_counter_name_sharing_noun(cursor)
+}
+
+/// `your choice of OPTION (, OPTION)* [,] or OPTION`: each option is
+/// `[COUNT] KIND [counter(s)]`. An option without a count keeps the count
+/// before it; an option without its noun shares the noun of the last one
+/// (`a +1/+1, first strike, vigilance, or menace counter`), so every option
+/// before a nounless one is nounless too. The kinds are distinct.
+fn recognize_counter_kind_choice(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Vec<CounterPlacementNode>> {
+    cursor.enter("effect.put-counters.choice.head");
+    cursor.consume_phrase(&["your", "choice", "of"])?;
+    let mut options: Vec<CounterPlacementNode> = Vec::new();
+    let mut nouns = Vec::new();
+    let mut count: Option<NumericExpression> = None;
+    loop {
+        cursor.enter("effect.put-counters.choice.option");
+        let counted = count.is_none()
+            || cursor.peek().is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("a")
+                    || raw.eq_ignore_ascii_case("an")
+                    || raw.eq_ignore_ascii_case("that")
+            })
+            || recognize_numeric_atom(&mut cursor.clone()).is_ok();
+        if counted {
+            count = Some(recognize_counter_count(cursor, context)?);
+        }
+        let option_count = cursor.require_value(count.clone(), "a counter quantity")?;
+        cursor.enter("effect.put-counters.choice.kind");
+        let counter = recognize_choice_counter_name(cursor)?;
+        cursor.require(
+            !options.iter().any(|option| option.counter == counter),
+            "distinct counter kinds to choose among",
+        )?;
+        let has_noun = cursor.peek().is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters")
+        });
+        if has_noun {
+            cursor.enter("effect.put-counters.choice.noun");
+            cursor.consume(counter_noun_for(&option_count))?;
+        }
+        nouns.push(has_noun);
+        options.push(CounterPlacementNode {
+            counter,
+            count: option_count,
+        });
+        cursor.enter("effect.put-counters.choice.connector");
+        let comma = cursor.peek() == Some(",");
+        if comma {
+            cursor.consume(",")?;
+        }
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        {
+            cursor.consume("or")?;
+            // The last option, then the list is complete.
+            cursor.enter("effect.put-counters.choice.last");
+            let counted = cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+                || recognize_numeric_atom(&mut cursor.clone()).is_ok();
+            if counted {
+                count = Some(recognize_counter_count(cursor, context)?);
+            }
+            let option_count = cursor.require_value(count.clone(), "a counter quantity")?;
+            let counter = recognize_counter_name(cursor)?;
+            cursor.require(
+                !options.iter().any(|option| option.counter == counter),
+                "distinct counter kinds to choose among",
+            )?;
+            cursor.enter("effect.put-counters.choice.noun");
+            cursor.consume(counter_noun_for(&option_count))?;
+            options.push(CounterPlacementNode {
+                counter,
+                count: option_count,
+            });
+            // A shared noun closes the whole list: the options before the
+            // last one all lack their own noun, or all have it.
+            cursor.require(
+                nouns.iter().all(|noun| *noun) || nouns.iter().all(|noun| !*noun),
+                "one noun per option or one noun shared by all options",
+            )?;
+            cursor.require(options.len() >= 2, "at least two counter kinds")?;
+            return Ok(options);
+        }
+        cursor.require(comma, "`,` or `or` between counter kinds")?;
+    }
 }
 
 /// A structural pre-claim that commits only after `put`, a plausible numeric
@@ -39,7 +271,15 @@ pub(in crate::oracle::canonical) fn claims_put_counters_effect(
         crate::oracle::canonical::automata::VerbAgreement::Base,
     )
     .is_err()
-        || recognize_counter_count(&mut probe, &EffectRecognitionContext::default()).is_err()
+    {
+        return false;
+    }
+    // `put your choice of COUNT KIND ...`: a choice among counter kinds;
+    // `put a number of KIND counters ... equal to AMOUNT`.
+    if counter_kind_choice_starts(&probe) || equal_amount_count_starts(&probe) {
+        return true;
+    }
+    if recognize_counter_count(&mut probe, &EffectRecognitionContext::default()).is_err()
         || recognize_counter_name(&mut probe).is_err()
     {
         return false;
@@ -89,10 +329,32 @@ fn recognize_counter_count(
     Ok(NumericExpression::Atom(atom))
 }
 
-/// Recognizes one independent `put COUNT COUNTER counters on PERMANENT-OPERAND` effect.
-/// Numeric provenance and source anaphora are injected by the ability parent,
-/// while this machine owns only counter placement syntax.
+/// Recognizes one independent `put COUNT COUNTER counters on PERMANENT-OPERAND` effect
+/// with exactly one counter kind: the contract of parents whose own lowering
+/// reads one `counter`/`count` pair. A listed or chosen kind fails here,
+/// explicitly, instead of being dropped by such a parent.
 pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PutCountersOnObjectEffectNode> {
+    let node = recognize_put_counter_placements_effect(cursor, name_links, name_failure, context)?;
+    cursor.enter("effect.put-counters.kinds-support");
+    cursor.require(
+        node.kinds.is_single(),
+        "one counter kind for this parent (listed or chosen kinds are read by the effect sequence)",
+    )?;
+    Ok(node)
+}
+
+/// Recognizes one `put PLACEMENTS on PERMANENT-OPERAND` effect: one
+/// placement, a coordinated list of placements (`a +1/+1 counter and a
+/// flying counter`) or a choice among kinds (`your choice of a flying
+/// counter or a hexproof counter`). Numeric provenance and source anaphora
+/// are injected by the ability parent, while this machine owns only counter
+/// placement syntax. The effect sequence lowers every `CounterKindsNode`.
+pub(in crate::oracle::canonical) fn recognize_put_counter_placements_effect(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
@@ -113,8 +375,26 @@ pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
             }
             PutCountersState::Count => {
                 cursor.enter("effect.put-counters.count");
-                memory.count = Some(recognize_counter_count(cursor, context)?);
-                PutCountersState::CounterKind
+                if counter_kind_choice_starts(cursor) {
+                    // `your choice of`: the options are complete placements;
+                    // the first is the node's own pair, the rest the choice.
+                    let mut options = recognize_counter_kind_choice(cursor, context)?.into_iter();
+                    let first = options
+                        .next()
+                        .ok_or_else(|| cursor.fail("a first counter option"))?;
+                    memory.counter = Some(first.counter);
+                    memory.count = Some(first.count);
+                    memory.kinds = CounterKindsNode::ChosenAmong(options.collect());
+                    PutCountersState::Relation
+                } else if equal_amount_count_starts(cursor) {
+                    // `a number of KIND counters`: the amount follows later.
+                    cursor.consume_phrase(&["a", "number", "of"])?;
+                    memory.equal_amount = true;
+                    PutCountersState::CounterKind
+                } else {
+                    memory.count = Some(recognize_counter_count(cursor, context)?);
+                    PutCountersState::CounterKind
+                }
             }
             PutCountersState::CounterKind => {
                 cursor.enter("effect.put-counters.kind");
@@ -132,9 +412,29 @@ pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
                     "counters"
                 };
                 cursor.consume(noun)?;
+                if memory.equal_amount
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("equal"))
+                {
+                    // `a number of KIND counters equal to AMOUNT on X`.
+                    memory.count = Some(recognize_equal_counter_amount(cursor)?);
+                }
                 PutCountersState::Relation
             }
             PutCountersState::Relation => {
+                if memory.kinds.is_single()
+                    && (cursor.peek() == Some(",")
+                        || cursor
+                            .peek()
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("and")))
+                {
+                    // `a +1/+1 counter and a flying counter on X`: further
+                    // placements share the one object operand below.
+                    memory.kinds = CounterKindsNode::Listed(recognize_listed_counter_placements(
+                        cursor, context,
+                    )?);
+                }
                 cursor.enter("effect.put-counters.relation");
                 cursor.consume("on")?;
                 PutCountersState::Permanent
@@ -147,6 +447,10 @@ pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
                     name_failure,
                     context,
                 )?);
+                if memory.equal_amount && memory.count.is_none() {
+                    // `a number of KIND counters on X equal to AMOUNT`.
+                    memory.count = Some(recognize_equal_counter_amount(cursor)?);
+                }
                 PutCountersState::Complete
             }
             PutCountersState::Complete => {
@@ -157,6 +461,7 @@ pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
                     counter: cursor.require_value(memory.counter, "a counter kind")?,
                     count: cursor.require_value(memory.count, "a counter count")?,
                     direction: CounterChangeDirection::Put,
+                    kinds: memory.kinds,
                 });
             }
         };
@@ -203,6 +508,7 @@ pub(in crate::oracle::canonical) fn recognize_double_counters_effect(
         },
         counter,
         direction: CounterChangeDirection::Put,
+        kinds: CounterKindsNode::Single,
     })
 }
 
@@ -276,6 +582,163 @@ pub(in crate::oracle::canonical) fn claims_remove_counters_effect(
     })
 }
 
+/// True at `put its counters`, `put those counters` or `put this NOUN's
+/// counters`: the counters of a bound object, with no count of their own.
+pub(in crate::oracle::canonical) fn counter_copy_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !super::lemma_at(cursor, super::VerbLemma::Put, super::VerbAgreement::Base) {
+        return false;
+    }
+    ((word(1, "its") || word(1, "those")) && word(2, "counters"))
+        || (word(1, "this")
+            && cursor
+                .peek_ahead(2)
+                .is_some_and(super::registered_possessive_object)
+            && word(3, "counters"))
+}
+
+/// `put its|those|this NOUN's counters on PERMANENT-OPERAND`: as many
+/// counters of each kind as the possessed object has, or had as it last
+/// existed (CR 608.2h), are put on the operand. `its` and `those` name the
+/// object the one possessive resolver binds (the clause subject, the
+/// program's antecedent, else the event's subject); `this NOUN's` the
+/// ability's source. A counter kind is not read: every kind is put.
+pub(in crate::oracle::canonical) fn recognize_put_object_counters_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<super::LocalEffectNode> {
+    cursor.enter("effect.put-object-counters.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Put,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.put-object-counters.source");
+    let source = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+    {
+        let noun = cursor.peek_ahead(1).unwrap_or_default().to_owned();
+        cursor.consume("this")?;
+        cursor.consume(&noun)?;
+        super::PermanentEffectReference::Source(super::LocalObjectReference::SourceSelf)
+    } else {
+        let pronoun = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&pronoun)?;
+        let environment = super::installed_binding_environment(cursor);
+        super::resolve_possessive_antecedent(&environment)
+            .map_err(|expected| cursor.fail(expected))?
+    };
+    cursor.enter("effect.put-object-counters.noun");
+    cursor.consume("counters")?;
+    cursor.enter("effect.put-object-counters.relation");
+    cursor.consume("on")?;
+    cursor.enter("effect.put-object-counters.recipient");
+    let targets =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    Ok(super::LocalEffectNode::PermanentKeywordAction(
+        super::PermanentKeywordActionNode {
+            action: super::PermanentKeywordAction::PutCountersOf(source),
+            targets,
+            quantity: None,
+        },
+    ))
+}
+
+/// How many counters of any kinds an unnamed removal takes (CR 122.8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum UnnamedCounterRemoval {
+    /// `all counters`: every counter of every kind.
+    Every,
+    /// `up to N counters`: at most N, the action's quantity.
+    UpTo,
+    /// `any number of counters`.
+    AnyNumber,
+}
+
+/// The unnamed quantity after `remove` (`all counters`, `up to N counters`,
+/// `any number of counters`) when no counter kind follows it. Pure.
+fn unnamed_counter_removal_at(cursor: &OracleTokenCursor<'_>) -> Option<UnnamedCounterRemoval> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(1, "all") && word(2, "counters") {
+        return Some(UnnamedCounterRemoval::Every);
+    }
+    if word(1, "any") && word(2, "number") && word(3, "of") && word(4, "counters") {
+        return Some(UnnamedCounterRemoval::AnyNumber);
+    }
+    if word(1, "up") && word(2, "to") && (word(4, "counters") || word(4, "counter")) {
+        return Some(UnnamedCounterRemoval::UpTo);
+    }
+    None
+}
+
+/// `remove COUNT [KIND] counter(s) from PERMANENT-OPERAND` in an effect: the
+/// named-kind removal (a counter action in the removal direction) or, when
+/// no kind is named after an unnamed quantity, a removal of counters of any
+/// kinds the remover chooses (CR 122.8). `remove a counter from X` keeps the
+/// named-kind reader and its diagnostic.
+pub(in crate::oracle::canonical) fn recognize_remove_counters_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<super::LocalEffectNode> {
+    let Some(removal) = unnamed_counter_removal_at(cursor) else {
+        return recognize_remove_counters_effect(cursor, name_links, name_failure, context)
+            .map(super::LocalEffectNode::PutCounters);
+    };
+    cursor.enter("effect.remove-counters.unnamed.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Remove,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.remove-counters.unnamed.quantity");
+    let quantity = match removal {
+        UnnamedCounterRemoval::Every => {
+            cursor.consume("all")?;
+            None
+        }
+        UnnamedCounterRemoval::AnyNumber => {
+            cursor.consume_phrase(&["any", "number", "of"])?;
+            None
+        }
+        UnnamedCounterRemoval::UpTo => {
+            cursor.consume_phrase(&["up", "to"])?;
+            let NumericAtom::Integer(maximum) = recognize_numeric_atom(cursor)? else {
+                return Err(cursor.fail("a literal maximum number of removed counters"));
+            };
+            cursor.require(maximum > 0, "a positive maximum number of removed counters")?;
+            Some(NumericExpression::from(maximum))
+        }
+    };
+    cursor.enter("effect.remove-counters.unnamed.noun");
+    let singular = quantity == Some(NumericExpression::from(1));
+    cursor.consume(if singular { "counter" } else { "counters" })?;
+    cursor.enter("effect.remove-counters.unnamed.relation");
+    cursor.consume("from")?;
+    cursor.enter("effect.remove-counters.unnamed.permanent");
+    let targets =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    Ok(super::LocalEffectNode::PermanentKeywordAction(
+        super::PermanentKeywordActionNode {
+            action: super::PermanentKeywordAction::RemoveUnnamedCounters(removal),
+            targets,
+            quantity,
+        },
+    ))
+}
+
 /// `remove COUNT KIND counter(s) from PERMANENT-OPERAND` (CR 122.8): the
 /// counter action of `put … on`, read with the same count, counter-name and
 /// permanent-operand children, in the removal direction.
@@ -343,6 +806,7 @@ fn recognize_counters_from(
         counter,
         count,
         direction: CounterChangeDirection::Remove,
+        kinds: CounterKindsNode::Single,
     })
 }
 
@@ -460,6 +924,7 @@ pub(in crate::oracle::canonical) fn recognize_distribute_counters_effect(
         counter,
         count,
         direction: CounterChangeDirection::Divided,
+        kinds: CounterKindsNode::Single,
     })
 }
 

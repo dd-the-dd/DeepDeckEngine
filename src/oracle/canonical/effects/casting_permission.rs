@@ -12,12 +12,21 @@ pub(in crate::oracle::canonical) enum CastingPermissionProgramAttempt {
 pub(in crate::oracle::canonical) fn try_parse_casting_permission(
     input: &AbilityInput<'_>,
 ) -> CastingPermissionProgramAttempt {
-    // Spell instructions containing `you may cast` belong to resolution parents.
-    if !type_line_has_permanent_card_type(input.face_type_line) {
+    let mut cursor = OracleTokenCursor::new("static-casting-permission", input.tokens);
+    // Spell instructions containing `you may cast` belong to resolution
+    // parents. A card's own casting permission is a static ability of any
+    // card (CR 113.6), so it is the one kind read on a spell face.
+    let kind = static_permission_kind(&cursor, input.name_links, input.name_resolution_failure);
+    if !type_line_has_permanent_card_type(input.face_type_line)
+        && kind != Some(StaticPermissionKind::SelfCast)
+    {
         return CastingPermissionProgramAttempt::NotClaimed;
     }
-    let mut cursor = OracleTokenCursor::new("static-casting-permission", input.tokens);
-    let node = match try_recognize_casting_permission(&mut cursor) {
+    let node = match try_recognize_static_player_permission(
+        &mut cursor,
+        input.name_links,
+        input.name_resolution_failure,
+    ) {
         CastingPermissionRecognition::Parsed(node) => node,
         CastingPermissionRecognition::NotClaimed
         | CastingPermissionRecognition::RejectedEnvelope(_) => {
@@ -27,16 +36,74 @@ pub(in crate::oracle::canonical) fn try_parse_casting_permission(
             return CastingPermissionProgramAttempt::Failed(f);
         }
     };
-    let lowered = match node {
-        PlayerPermissionNode::Act(node) => lower_casting_permission(&mut cursor, node),
-        PlayerPermissionNode::LookAtLibraryTopAnyTime { actor } => {
-            lower_look_permission(&mut cursor, actor)
-        }
-    };
-    match lowered {
+    match lower_player_permission(&mut cursor, node) {
         Ok(rule) => CastingPermissionProgramAttempt::Parsed(rule),
         Err(f) => CastingPermissionProgramAttempt::Failed(f),
     }
+}
+
+fn lower_player_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: PlayerPermissionNode,
+) -> MachineResult<CanonicalRuleDraft> {
+    match node {
+        PlayerPermissionNode::Act(node) => lower_casting_permission(cursor, node),
+        PlayerPermissionNode::LookAtLibraryTopAnyTime { actor } => {
+            lower_look_permission(cursor, actor)
+        }
+        PlayerPermissionNode::CastSelf(node) => lower_self_cast_permission(cursor, &node),
+        PlayerPermissionNode::ExertAsAttacks { reflexive } => {
+            lower_exert_permission(cursor, reflexive.as_ref())
+        }
+        PlayerPermissionNode::AssignCombatDamageAsThoughUnblocked => Ok(static_permission(
+            vec![json!({"kind":"assignCombatDamageAsThoughUnblocked", "object":self_ref()})],
+            &[
+                "Read the source operand and the damage-assignment manner",
+                "Offer the source's controller an unblocked assignment when it is blocked",
+            ],
+        )),
+        PlayerPermissionNode::MayChooseNotToUntap => Ok(static_permission(
+            vec![json!({"kind":"optionalUntap", "object":self_ref()})],
+            &[
+                "Read the source operand and the untap step of its controller",
+                "Offer the controller the choice to leave the source tapped",
+            ],
+        )),
+        PlayerPermissionNode::AlternativeManaCost { cost, spells } => {
+            lower_alternative_mana_cost_permission(cursor, &cost, spells)
+        }
+        PlayerPermissionNode::Conjoined(nodes) => lower_conjoined_permissions(cursor, nodes),
+    }
+}
+
+/// Allowances granted by one static ability: each lowers alone, and the
+/// ability carries every modifier. Only unconditional battlefield statics
+/// combine (a part with its own zone of function or condition is refused).
+fn lower_conjoined_permissions(
+    cursor: &mut OracleTokenCursor<'_>,
+    nodes: Vec<PlayerPermissionNode>,
+) -> MachineResult<CanonicalRuleDraft> {
+    let mut modifiers = Vec::new();
+    let mut operations = Vec::new();
+    for node in nodes {
+        let draft = lower_player_permission(cursor, node)?;
+        cursor.enter("permission.conjunction-capability");
+        cursor.require(
+            draft.rule["kind"] == "staticAbility"
+                && draft.rule["activeWhile"] == active_while_battlefield()
+                && draft.rule.get("condition").is_none(),
+            "allowances that are unconditional statics of the permanent",
+        )?;
+        modifiers.extend(
+            draft.rule["modifiers"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default(),
+        );
+        operations.extend(draft.operations);
+    }
+    let operations = operations.iter().map(String::as_str).collect::<Vec<_>>();
+    Ok(static_permission(modifiers, &operations))
 }
 
 fn static_permission(modifiers: Vec<Value>, operations: &[&str]) -> CanonicalRuleDraft {
@@ -110,10 +177,23 @@ fn lower_casting_permission(
     cursor: &mut OracleTokenCursor<'_>,
     node: CastingPermissionNode,
 ) -> MachineResult<CanonicalRuleDraft> {
+    // A turn window is the zone permission's usage limit; the other routes
+    // have no window field.
+    cursor.enter("permission.window-capability");
+    cursor.require(
+        node.window == PermissionTurnWindowNode::Always
+            || matches!(node.origin, PermissionOriginNode::Zone(_)),
+        "a turn window over a permission to cast from a graveyard or exile",
+    )?;
     match node.origin {
         PermissionOriginNode::LibraryTop => lower_library_top_permission(cursor, node),
+        // The controller's flash grant keeps its spell-history ordinal; a
+        // player set (`Any player may cast ...`) holds the same timing
+        // permission through the shared hand-zone permission.
         PermissionOriginNode::UsualZone
-            if node.base_cost == CastingBaseCostPolicyNode::Printed && node.as_though_flash =>
+            if node.base_cost == CastingBaseCostPolicyNode::Printed
+                && node.as_though_flash
+                && node.actor == CastingPermissionActorNode::Controller =>
         {
             lower_flash_timing_permission(cursor, node)
         }
@@ -137,8 +217,8 @@ fn lower_flash_timing_permission(
             return Err(cursor.fail("a cast action for a flash timing permission"));
         };
         cursor.require(
-            spells.caster.is_none(),
-            "the permission actor without a second caster relation",
+            spells.caster.is_none() && *scope != PermittedSpellScopeNode::One,
+            "the permission actor without a second caster relation, over each matching spell",
         )?;
         let filter = require_spell_predicate(cursor, spells)?;
         modifiers.push(json!({
@@ -241,16 +321,32 @@ fn lower_zone_permission(
             PermittedActionNode::Cast { spells, scope } => {
                 cursor.enter("permission.cast.spell-query-scope");
                 cursor.require(
-                    spells.caster.is_none() && *scope == PermittedSpellScopeNode::Each,
+                    spells.caster.is_none()
+                        && match scope {
+                            PermittedSpellScopeNode::Each => true,
+                            // One spell per use: the once-per-turn window
+                            // counts the uses (CR 611.3a).
+                            PermittedSpellScopeNode::One => {
+                                node.window == PermissionTurnWindowNode::OnceDuringYourTurns
+                            }
+                            PermittedSpellScopeNode::FirstEachTurn => false,
+                        },
                     "the permission actor without a second caster relation",
                 )?;
                 let filter = require_spell_predicate(cursor, spells)?;
-                modifiers.push(json!({
+                let mut modifier = json!({
                     "kind":"castingPermission", "players":players, "sourceZone":zone.ir_name(),
                     "where":filter,
                     "withoutPayingManaCost":node.base_cost == CastingBaseCostPolicyNode::WithoutManaCost,
                     "asThoughFlash":node.as_though_flash
-                }));
+                });
+                if node.window != PermissionTurnWindowNode::Always {
+                    modifier["duringControllerTurnOnly"] = json!(true);
+                }
+                if node.window == PermissionTurnWindowNode::OnceDuringYourTurns {
+                    modifier["onceEachTurn"] = json!(true);
+                }
+                modifiers.push(modifier);
             }
             PermittedActionNode::Play { cards } => {
                 // Playing a land from a graveyard (CR 305.1) is a land play;
@@ -260,7 +356,8 @@ fn lower_zone_permission(
                     zone == CardZoneName::Graveyard
                         && *cards == ObjectPredicate::CardType(ObjectCardType::Land)
                         && node.base_cost == CastingBaseCostPolicyNode::Printed
-                        && !node.as_though_flash,
+                        && !node.as_though_flash
+                        && node.window == PermissionTurnWindowNode::Always,
                     "land plays from a graveyard with printed timing",
                 )?;
                 require_controller_actor(cursor, node.actor)?;
@@ -274,6 +371,136 @@ fn lower_zone_permission(
             "Read the actor, each permitted action, the shared query, source zone and base-cost policy independently",
             "Preserve normal casting timing; additional costs use the ordinary casting-cost pipeline",
             "A static future permission does not execute optional effects at resolution",
+        ],
+    ))
+}
+
+/// The card's own casting permission (CR 601.3): a static ability that
+/// functions from the zone it names (CR 113.6), or from the hand for the
+/// timing manner alone (CR 702.8a). Its condition is the shared static
+/// condition, checked where the permission functions.
+fn lower_self_cast_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &SelfCastPermissionNode,
+) -> MachineResult<CanonicalRuleDraft> {
+    let condition = node
+        .condition
+        .as_ref()
+        .map(|condition| {
+            lower_sentence_condition(
+                cursor,
+                condition,
+                &ConditionObjectBindings {
+                    permanent_targets: &[],
+                    card_targets: &[],
+                    card_focus: None,
+                    previous_action_result: None,
+                },
+            )
+        })
+        .transpose()?;
+    let (zone, modifier) = match node.origin {
+        Some(zone) => {
+            cursor.enter("permission.self-cast.manner-capability");
+            cursor.require(
+                !node.as_though_flash && node.timing_cost.is_none(),
+                "printed timing for a card cast from its own permission zone",
+            )?;
+            (
+                zone.ir_name(),
+                json!({
+                    "kind":"castingPermission", "players":controller(),
+                    "sourceZone":zone.ir_name(), "where":Value::Null, "object":self_ref(),
+                    "withoutPayingManaCost":false, "asThoughFlash":false
+                }),
+            )
+        }
+        None => {
+            let mut modifier = json!({"kind":"castAsThoughFlash", "object":self_ref()});
+            if let Some(cost) = &node.timing_cost {
+                // CR 601.2f: an increase paid only when the permission is
+                // what lets the spell be cast at that time.
+                modifier["additionalManaCost"] = json!(cost.as_oracle_cost());
+            }
+            (CardZoneName::Hand.ir_name(), modifier)
+        }
+    };
+    let mut rule = json!({
+        "kind":"staticAbility", "source":self_ref(),
+        "activeWhile":{"kind":"inZone", "object":self_ref(), "zone":{"kind":zone}},
+        "modifiers":[modifier],
+    });
+    if let Some(condition) = condition {
+        rule["condition"] = condition;
+    }
+    Ok(draft(
+        rule,
+        &[
+            "Read the source operand, its origin zone, timing manner and condition independently",
+            "Function from that zone; costs and other casting rules are unchanged",
+        ],
+    ))
+}
+
+/// CR 701.43, 508.1g, 603.12: the attack-declaration option, and the
+/// reflexive ability it creates when the creature is exerted. The reflexive
+/// program is the shared effect program lowered as a triggered body.
+fn lower_exert_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    reflexive: Option<&EffectProgramNode>,
+) -> MachineResult<CanonicalRuleDraft> {
+    let mut modifier = json!({"kind":"exertAsAttacks", "object":self_ref()});
+    if let Some(program) = reflexive {
+        let lowered = lower_effect_program(cursor, program)?;
+        cursor.enter("permission.exert.reflexive-lowering");
+        cursor.require(
+            !lowered.effects.is_empty(),
+            "at least one executable reflexive action",
+        )?;
+        let mut ability = json!({
+            "kind":"triggeredAbility", "source":self_ref(),
+            "event":{"kind":"reflexiveTriggerCreated", "object":self_ref()},
+            "effects":lowered.effects,
+        });
+        if !lowered.decisions.is_empty() {
+            ability["declaration"] =
+                json!({"kind":"castingDeclaration", "decisions":lowered.decisions});
+        }
+        modifier["reflexive"] = ability;
+    }
+    Ok(static_permission(
+        vec![modifier],
+        &[
+            "Read the source operand and the attack-declaration timing",
+            "Compose the optional reflexive program with the shared effect program",
+        ],
+    ))
+}
+
+/// CR 118.9: an alternative cost for each matching spell its controller
+/// casts from hand. The base cost is waived and the alternative mana is the
+/// cost the static permission names.
+fn lower_alternative_mana_cost_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    cost: &ManaCostNode,
+    spells: ObjectPredicate,
+) -> MachineResult<CanonicalRuleDraft> {
+    let filter = require_spell_predicate(
+        cursor,
+        &SpellCastQueryNode {
+            predicate: spells,
+            caster: None,
+        },
+    )?;
+    Ok(static_permission(
+        vec![json!({
+            "kind":"castingPermission", "players":controller(), "sourceZone":"hand",
+            "where":filter, "withoutPayingManaCost":true, "asThoughFlash":false,
+            "alternativeManaCost":cost.as_oracle_cost(),
+        })],
+        &[
+            "Read the alternative mana cost and the shared spell query of the controller's casts",
+            "Waive the printed mana cost and pay the named mana instead",
         ],
     ))
 }

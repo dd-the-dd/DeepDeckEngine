@@ -3,7 +3,7 @@
   "id": "costs/cost-quantity-slots",
   "cases": [
     {
-      "id": "known-gap-priest-of-forgotten-gods-sacrifice-of-their-choice",
+      "id": "exact-priest-of-forgotten-gods-sacrifice-of-their-choice",
       "request": {
         "cardName": "Priest of Forgotten Gods",
         "typeLine": "Creature — Human Cleric",
@@ -13,14 +13,26 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 1,
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "sequence.connector-or-end",
-            "found": "of"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "sacrificePermanents"
+              },
+              {
+                "pointer": "/effects/1/effects/0/performer/kind",
+                "equals": "boundValue"
+              }
+            ]
           }
         ]
       }

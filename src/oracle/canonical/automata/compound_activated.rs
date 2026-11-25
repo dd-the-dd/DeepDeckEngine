@@ -16,11 +16,12 @@ use crate::oracle::syntax::ResolvedNameLink;
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CollectionSelectionMethod, CostConnector, CostListGrammar, CounterHolderNode,
-    DiscardSelfCostNode, ExileSelfCostNode, ExileSelfSourceZone, ManaCostNode, NumericAtom,
-    ObjectPredicate, ObjectQueryNode, PayLifeCostNode, PaymentActionNode, PaymentObjectFilter,
-    PaymentObjectsNode, PaymentOriginZone, PaymentSourceNoun, PlayerCounterPaymentNode,
-    RemoveCountersPaymentNode, ResourcePaymentNode, SacrificeSelfCostNode, TapObjectsCostNode,
-    TapSelfCostNode, literal_quantity, object_predicate_uses_x, recognize_cost_sequence,
+    DesignatedPaymentObjects, DiscardSelfCostNode, ExileSelfCostNode, ExileSelfSourceZone,
+    ManaCostNode, NumericAtom, ObjectPredicate, ObjectQueryNode, PayLifeCostNode,
+    PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode, PaymentOriginZone,
+    PaymentSourceNoun, PlayerCounterPaymentNode, RemoveCountersPaymentNode, ResourcePaymentNode,
+    SacrificeSelfCostNode, TapObjectsCostNode, TapSelfCostNode, literal_quantity,
+    object_predicate_uses_x, recognize_cost_sequence,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -67,6 +68,26 @@ pub(in crate::oracle::canonical) enum LocalActivationCostNode {
     /// `blight N` (CR 701.65a): N -1/-1 counters on one creature the payer
     /// controls, chosen while paying.
     Blight(BlightActivationCostNode),
+    /// An action on objects the cost names by place, never chosen.
+    Designated(DesignatedActivationCost),
+}
+
+/// A cost whose objects the text fixes by place (CR 118.3: all of them must
+/// be there to pay it): the payer's whole hand, the payer's top library
+/// cards, the payer's top matching graveyard card, or the permanent the
+/// source is attached to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DesignatedActivationCost {
+    /// `discard your hand` (CR 701.9a); an empty hand pays it.
+    DiscardHand,
+    /// `exile the top N card(s) of your library`.
+    ExileLibraryTop { count: i64 },
+    /// `exile the top [PREDICATE] card of your graveyard`.
+    ExileGraveyardTop { filter: ObjectPredicate },
+    /// `tap enchanted|equipped NOUN`.
+    TapAttached,
+    /// `sacrifice enchanted|equipped NOUN`.
+    SacrificeAttached,
 }
 
 /// What a chosen-X cost does to each chosen object.
@@ -282,6 +303,11 @@ impl ActivationCostSequenceNode {
                         holder: CounterDistributionHolder::Source,
                         ..
                     },
+                )
+                // An attached source is a permanent on the battlefield.
+                | LocalActivationCostNode::Designated(
+                    DesignatedActivationCost::TapAttached
+                    | DesignatedActivationCost::SacrificeAttached,
                 ) => requirements.battlefield = true,
                 LocalActivationCostNode::PayMana(_)
                 | LocalActivationCostNode::PayLife(_)
@@ -297,7 +323,12 @@ impl ActivationCostSequenceNode {
                 | LocalActivationCostNode::RevealCards(_)
                 | LocalActivationCostNode::ChosenX(_)
                 | LocalActivationCostNode::Mill { .. }
-                | LocalActivationCostNode::Blight(_) => {}
+                | LocalActivationCostNode::Blight(_)
+                | LocalActivationCostNode::Designated(
+                    DesignatedActivationCost::DiscardHand
+                    | DesignatedActivationCost::ExileLibraryTop { .. }
+                    | DesignatedActivationCost::ExileGraveyardTop { .. },
+                ) => {}
             }
         }
         requirements
@@ -622,6 +653,60 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 amount,
                 cost_index,
             }))
+        }
+        // Objects named by place: each verb has the one projection its
+        // engine cost pays; any other pairing fails explicitly.
+        PaymentActionNode::Discard(PaymentObjectsNode::Designated(
+            DesignatedPaymentObjects::Hand,
+        )) => Ok(LocalActivationCostNode::Designated(
+            DesignatedActivationCost::DiscardHand,
+        )),
+        PaymentActionNode::Exile {
+            objects: PaymentObjectsNode::Designated(DesignatedPaymentObjects::LibraryTop { count }),
+            ..
+        } => Ok(LocalActivationCostNode::Designated(
+            DesignatedActivationCost::ExileLibraryTop { count },
+        )),
+        PaymentActionNode::Exile {
+            objects:
+                PaymentObjectsNode::Designated(DesignatedPaymentObjects::GraveyardTop { filter }),
+            ..
+        } => {
+            cursor.enter("activation.exile-graveyard-top.numeric-context");
+            cursor.require(
+                !object_predicate_uses_x(&filter),
+                "no {X} in the predicate of the exiled top graveyard card",
+            )?;
+            Ok(LocalActivationCostNode::Designated(
+                DesignatedActivationCost::ExileGraveyardTop { filter },
+            ))
+        }
+        PaymentActionNode::Tap(PaymentObjectsNode::Designated(
+            DesignatedPaymentObjects::Attached(_),
+        )) => Ok(LocalActivationCostNode::Designated(
+            DesignatedActivationCost::TapAttached,
+        )),
+        PaymentActionNode::Sacrifice(PaymentObjectsNode::Designated(
+            DesignatedPaymentObjects::Attached(_),
+        )) => Ok(LocalActivationCostNode::Designated(
+            DesignatedActivationCost::SacrificeAttached,
+        )),
+        PaymentActionNode::Tap(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Sacrifice(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Discard(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Exile {
+            objects: PaymentObjectsNode::Designated(_),
+            ..
+        }
+        | PaymentActionNode::ReturnToHand(PaymentObjectsNode::Designated(_))
+        | PaymentActionNode::Reveal {
+            objects: PaymentObjectsNode::Designated(_),
+            ..
+        } => {
+            cursor.enter("activation.designated-objects.action");
+            Err(cursor.fail(
+                "a designated cost object its verb acts on (discard your hand, exile a zone's top card, tap or sacrifice the attached permanent)",
+            ))
         }
         PaymentActionNode::ReturnToHand(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("activation.return-self.source-type");

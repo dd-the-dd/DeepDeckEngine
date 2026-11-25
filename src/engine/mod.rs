@@ -96,6 +96,7 @@ mod activated_rule_execution;
 mod adventure;
 mod attack_defender_restriction;
 mod attack_tax;
+mod attacking_entry;
 mod band_gate;
 mod battlefield_departure;
 mod battlefield_entry_batch;
@@ -106,6 +107,7 @@ mod casting_cost;
 mod casting_permission_modes;
 mod characteristic_observation;
 mod chosen_object_costs;
+mod city_blessing;
 mod copy_program;
 mod cost_payment;
 mod cost_query;
@@ -140,6 +142,7 @@ mod mana_ability_execution;
 mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
+mod myriad;
 mod regeneration;
 mod replacement_pipeline;
 mod trigger_multiplicity;
@@ -163,6 +166,7 @@ mod mana_discovery_session;
 mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
+mod static_player_permissions;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
 mod captured_binding;
@@ -195,6 +199,7 @@ mod object_predicate;
 mod object_predicate_eval;
 mod object_relation_eval;
 mod object_snapshot;
+mod offered_action;
 mod one_shot_modifier;
 mod opponent_extremum;
 mod optional_action;
@@ -234,13 +239,16 @@ mod source_lki;
 #[path = "spell_cast_event_tests.rs"]
 mod spell_cast_event_tests;
 mod state;
+mod state_condition_atoms;
 mod static_condition_capability;
 mod stored_choice_binding;
 mod subtypes;
 mod suspend_keyword;
 mod target_incarnation;
 
+mod candidate_numeric_operands;
 mod echo_upkeep;
+mod entering_attacking;
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
@@ -3128,6 +3136,9 @@ fn condition_supported(condition: &Value) -> bool {
             player_reference_supported(&condition["player"])
         }
         Some("sourceNeedsEcho") => true,
+        Some(kind) if state_condition_atoms::owns(kind) => {
+            state_condition_atoms::supported(condition)
+        }
         _ => false,
     }
 }
@@ -3230,6 +3241,7 @@ fn target_candidates_supported(candidates: &Value) -> bool {
         Some("stackObjects") => stack_filter_supported(&candidates["where"]),
         Some("stackItems") => {
             stack_item_filter_supported(&candidates["where"])
+                && candidates.get("singleTarget").is_none_or(Value::is_boolean)
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
                         || player_complement_reference_supported(controller)
@@ -3258,6 +3270,7 @@ fn target_reference_supported(reference: &Value) -> bool {
         || value_kind(reference) == Some("combatCounterpart")
         || (value_kind(reference) == Some("attachedPermanent")
             && value_kind(&reference["attachment"]) == Some("self"))
+        || damage_execution::attacked_recipient_reference_supported(reference)
 }
 
 fn move_operation_supported(operation: &Value) -> bool {
@@ -3356,6 +3369,7 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "intimidate"
                 | "lifelink"
                 | "menace"
+                | "myriad"
                 | "mustBeBlockedIfAble"
                 | "assignsNoCombatDamage"
                 | "canAttackAsThoughNoDefender"
@@ -4077,7 +4091,7 @@ fn mana_value_supported(value: &Value) -> bool {
         Some("chooseCommanderColor") => value["amount"]
             .as_i64()
             .is_none_or(|amount| (1..=10).contains(&amount)),
-        Some("manaTypesLandsYouControlCouldProduce") => {
+        Some("manaTypesLandsYouControlCouldProduce" | "manaTypesProducedByEvent") => {
             integer_value(&value["amount"]).is_some_and(|amount| (1..=10).contains(&amount))
         }
         Some("manaTypesOfSacrificedPermanent") => {
@@ -4561,7 +4575,16 @@ pub fn effect_supported(effect: &Value) -> bool {
     if let Some(supported) = effect_performer::performer_effect_supported(effect) {
         return supported;
     }
+    if let Some(supported) = offered_action::offered_action_supported(effect) {
+        return supported;
+    }
     if let Some(supported) = player_iteration::player_iteration_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = myriad::myriad_effect_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = city_blessing::ascend_effect_supported(effect) {
         return supported;
     }
     if let Some(supported) = ability_signals::ability_signal_effect_supported(effect) {
@@ -5900,7 +5923,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && numeric_expression_supported(&modifier["count"])
         }
         Some("nonbasicLandsBecomeMountains") => condition_supported(&modifier["condition"]),
-        _ => false,
+        _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }
 
@@ -8736,6 +8759,8 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == condition["mode"].as_str()
             }
+            Some(kind) if state_condition_atoms::owns(kind) => self
+                .state_condition_atom_at_resolution(condition, stack_object, bindings, decisions),
             _ => self.condition_value_with_source(
                 condition,
                 &stack_object.controller,
@@ -9094,24 +9119,18 @@ impl GameEngine {
                             && self.state.stack.is_empty()
                     })
             }
-            Some("ninjutsuTiming") => {
-                matches!(
-                    self.state.step,
-                    GameStep::DeclareBlockers | GameStep::CombatDamage
-                ) && self.state.combat.attackers.iter().any(|attacker| {
-                    self.permanent_position(&attacker.attacker_id).is_some_and(
-                        |(player_index, card_index)| {
-                            self.state.players[player_index].battlefield[card_index].controller
-                                == controller_id
-                        },
-                    ) && !self
-                        .state
-                        .combat
-                        .blockers
-                        .iter()
-                        .any(|blocker| blocker.attacker_id == attacker.attacker_id)
-                })
-            }
+            // CR 702.49a/509.1h: an unblocked attacker you control exists,
+            // read through the shared block-status atom.
+            Some("ninjutsuTiming") => self.state.combat.attackers.iter().any(|attacker| {
+                self.permanent_position(&attacker.attacker_id).is_some_and(
+                    |(player_index, card_index)| {
+                        let permanent = &self.state.players[player_index].battlefield[card_index];
+                        permanent.controller == controller_id
+                            && self.combat_block_status_matches(permanent, "isUnblockedAttacker")
+                                == Some(true)
+                    },
+                )
+            }),
             Some("duringControllerMainPhase") => {
                 self.state.players[self.state.active_player].id == controller_id
                     && matches!(
@@ -9258,6 +9277,9 @@ impl GameEngine {
                     })
                     .count()
                     == 1
+            }
+            Some(kind) if state_condition_atoms::owns(kind) => {
+                self.state_condition_atom_with_source(condition, controller_id, source)
             }
             _ => false,
         }
@@ -12265,6 +12287,7 @@ impl GameEngine {
         });
         controlled_permanent_permission
             || attacking_legendary_permission
+            || self.printed_self_flash_permission(player_id, card, source_zone)
             || self.one_shot_flash_permission(player_id, card)
             || self.state.rule_modifiers.iter().any(|modifier| {
                 value_kind(modifier) == Some("nextCreatureSpellModifier")
@@ -12964,6 +12987,9 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> Vec<String> {
         let mut costs = Vec::new();
+        costs.extend(static_player_permissions::static_permission_mana_costs(
+            decisions,
+        ));
         for (rule_index, rule) in card.printed_rules().iter().enumerate() {
             if value_kind(rule) == Some("spellAbility") {
                 self.collect_conditional_mana_costs(
@@ -14732,6 +14758,7 @@ impl GameEngine {
         stored_decisions: &BTreeMap<String, Value>,
         respect_targeting_restrictions: bool,
     ) -> Option<Vec<TargetRef>> {
+        let candidates: &Value = &self.bind_candidate_amounts(candidates, controller_id);
         let can_select_permanent = |card: &CardInstance| {
             !card.flags.get("phasedOut").copied().unwrap_or(false)
                 && (!respect_targeting_restrictions
@@ -15004,6 +15031,9 @@ impl GameEngine {
                         )
                     })
                     .filter(|object| matches_stack_item_filter(object, &candidates["where"]))
+                    .filter(|object| {
+                        candidates["singleTarget"] != true || object.targets.len() == 1
+                    })
                     .map(|object| TargetRef::StackObject {
                         stack_id: object.id.clone(),
                     })
@@ -17180,7 +17210,7 @@ impl GameEngine {
                         &declaration.decisions,
                         Some(card),
                         Vec::new(),
-                        Vec::new(),
+                        self.resolution_cast_command_tax(card, source_zone),
                         0,
                     )?
                 };
@@ -17621,7 +17651,12 @@ impl GameEngine {
                     ));
             let commander_conditional_flash = plotted_permission.is_none()
                 && has_keyword(&card.definition, "flashIfTargetsCommander");
-            let instant_timing = unconditional_instant_timing || commander_conditional_flash;
+            let timing_cost = (plotted_permission.is_none() && !unconditional_instant_timing)
+                .then(|| self.printed_self_flash_cost(&player.id, &card.definition, source_zone))
+                .flatten();
+            let instant_timing = unconditional_instant_timing
+                || commander_conditional_flash
+                || timing_cost.is_some();
             let sorcery_timing = active_main && self.state.stack.is_empty();
             if !instant_timing && !sorcery_timing && miracle_permission.is_none() {
                 continue;
@@ -17697,7 +17732,10 @@ impl GameEngine {
                 source_zone,
                 declarations,
                 permission,
-                sorcery_timing || unconditional_instant_timing || commander_conditional_flash,
+                sorcery_timing
+                    || unconditional_instant_timing
+                    || commander_conditional_flash
+                    || timing_cost.is_some(),
             )?;
             let mut prepared_declarations = Vec::new();
             for route in routes {
@@ -17750,6 +17788,15 @@ impl GameEngine {
                     })
                 {
                     continue;
+                }
+                if !sorcery_timing
+                    && !unconditional_instant_timing
+                    && let Some(cost) = &timing_cost
+                {
+                    declaration.decisions.insert(
+                        static_player_permissions::FLASH_TIMING_MANA_COST.to_string(),
+                        Value::String(cost.clone()),
+                    );
                 }
                 declaration.decisions.insert(
                     "castSourceZone".to_string(),
@@ -23795,6 +23842,7 @@ impl GameEngine {
     }
 
     fn enqueue_declared_attacker_triggers(&mut self, attacker_ids: &[String]) {
+        self.enqueue_myriad_triggers(attacker_ids);
         let mut triggers = Vec::new();
         // One typed record per declared attacker (event_model).
         let attack_records = self.attack_records(attacker_ids);
@@ -26722,7 +26770,11 @@ impl GameEngine {
                             exile_on_leave_stack: false,
                             ability_kind: Some("activatedAbility".to_string()),
                             ability_rule: Some(rule.clone()),
-                            decisions: action.decisions.clone(),
+                            decisions: attacking_entry::with_cost_attack_references(
+                                action.decisions.clone(),
+                                &rule,
+                                &action.targets,
+                            ),
                             targets: stack_targets.clone(),
                         });
                         engine.state.stack.extend(pending_cost_triggers);
@@ -27579,6 +27631,10 @@ impl GameEngine {
                         }
                     }
                 }
+                stack_decisions.extend(attacking_entry::cost_attack_references(
+                    &rule,
+                    &action.targets,
+                ));
                 let stack_targets = Self::activated_effect_targets(&rule, &action.targets);
                 let pending_activation = StackObject {
                     id: stack_id.clone(),
@@ -30596,6 +30652,9 @@ impl GameEngine {
         bindings: &BTreeMap<String, RuntimeBinding>,
     ) -> Option<TargetRef> {
         match value_kind(reference) {
+            Some("attackedRecipientOf") => {
+                self.resolve_attacked_recipient(reference, stack_object, bindings)
+            }
             Some("boundObject" | "singleBoundObject") => reference["binding"]
                 .as_str()
                 .and_then(|id| match bindings.get(id) {
@@ -30770,14 +30829,22 @@ impl GameEngine {
                 };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
-                        let (player_index, card_index) = self.permanent_position(&instance_id)?;
-                        Some(
-                            self.state.players[player_index].battlefield[card_index]
-                                .controller
-                                .clone(),
-                        )
-                    }),
+                    TargetRef::Permanent { instance_id } => departed()
+                        .or_else(|| {
+                            let (player_index, card_index) =
+                                self.permanent_position(&instance_id)?;
+                            Some(
+                                self.state.players[player_index].battlefield[card_index]
+                                    .controller
+                                    .clone(),
+                            )
+                        })
+                        .or_else(|| {
+                            self.departed_permanent_player(
+                                object_relation_lki::ObjectPlayerRelation::Controller,
+                                &instance_id,
+                            )
+                        }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
@@ -30816,14 +30883,22 @@ impl GameEngine {
                 };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
-                        let (player_index, card_index) = self.permanent_position(&instance_id)?;
-                        Some(
-                            self.state.players[player_index].battlefield[card_index]
-                                .owner
-                                .clone(),
-                        )
-                    }),
+                    TargetRef::Permanent { instance_id } => departed()
+                        .or_else(|| {
+                            let (player_index, card_index) =
+                                self.permanent_position(&instance_id)?;
+                            Some(
+                                self.state.players[player_index].battlefield[card_index]
+                                    .owner
+                                    .clone(),
+                            )
+                        })
+                        .or_else(|| {
+                            self.departed_permanent_player(
+                                object_relation_lki::ObjectPlayerRelation::Owner,
+                                &instance_id,
+                            )
+                        }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
@@ -31019,6 +31094,9 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        if let Some(value) = self.bound_object_numeric_read(expression, bindings, decisions) {
+            return value;
         }
         if let Some(count) =
             self.runtime_related_permanent_count(expression, stack_object, bindings, decisions)
@@ -33306,6 +33384,7 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         let materialized = self.materialize_resolution_choices(effect, decisions);
         let effect = materialized.as_ref();
+        let bound_lki = self.bound_object_lki_snapshot(effect);
         // One instruction is one simultaneous event (CR 603.2c).
         let scope = self.begin_event_batch();
         let result = self.execute_effect_in_batch(
@@ -33317,6 +33396,7 @@ impl GameEngine {
             provider,
         );
         self.end_event_batch(scope);
+        self.record_bound_object_lki(effect, bound_lki, bindings, decisions);
         result
     }
 
@@ -33340,6 +33420,15 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_player_iteration(effect, stack_object, bindings, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_offered_action(effect, stack_object, bindings, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_myriad_effect(effect, stack_object, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_ascend_effect(effect, stack_object, bindings)? {
             return Ok(());
         }
         if self.execute_ability_signal_effect(effect, stack_object, bindings)? {
@@ -33862,6 +33951,9 @@ impl GameEngine {
             .remove(card_index);
         self.confirm_target_numeric_departure(target_numeric_departure);
         let last_known = card.clone();
+        // CR 608.2h: the last-known creature status, read while the
+        // permanent's continuous effects still describe it.
+        let last_known_was_creature = self.permanent_is_creature(&last_known);
         card_zone_transition::reset_movement_card(&mut card, &movement_source)?;
         let owner_index = self.player_index(&card.owner)?;
         let destination = card_zone_transition::ObjectZone::Hand(card.owner.clone());
@@ -33878,15 +33970,7 @@ impl GameEngine {
             Some(instance_id.to_string()),
             json!({}),
         );
-        self.record_event(
-            "permanentLeftBattlefield",
-            Some(last_known.controller.clone()),
-            Some(instance_id.to_string()),
-            json!({
-                "destination": "hand",
-                "typeLine": last_known.definition.type_line,
-            }),
-        );
+        self.record_permanent_left_battlefield(&last_known, "hand", last_known_was_creature);
         self.enqueue_permanent_left_triggers_with_sources(&last_known, "hand", &observers, None);
         self.handle_attachment_target_left(instance_id);
         self.refresh_control_effects();
@@ -33916,6 +34000,9 @@ impl GameEngine {
             .remove(card_index);
         self.confirm_target_numeric_departure(target_numeric_departure);
         let last_known = card.clone();
+        // CR 608.2h: the last-known creature status, read while the
+        // permanent's continuous effects still describe it.
+        let last_known_was_creature = self.permanent_is_creature(&last_known);
         card_zone_transition::reset_movement_card(&mut card, &movement_source)?;
         let owner_index = self.player_index(&card.owner)?;
         let destination = card_zone_transition::ObjectZone::Library(card.owner.clone());
@@ -33948,15 +34035,7 @@ impl GameEngine {
             Some(instance_id.to_string()),
             json!({ "owner": last_known.owner, "position": position }),
         );
-        self.record_event(
-            "permanentLeftBattlefield",
-            Some(last_known.controller.clone()),
-            Some(instance_id.to_string()),
-            json!({
-                "destination": "library",
-                "typeLine": last_known.definition.type_line,
-            }),
-        );
+        self.record_permanent_left_battlefield(&last_known, "library", last_known_was_creature);
         self.enqueue_permanent_left_triggers_with_sources(&last_known, "library", &observers, None);
         self.handle_attachment_target_left(instance_id);
         self.refresh_control_effects();
@@ -36575,6 +36654,7 @@ impl GameEngine {
                 });
             }
         }
+        self.add_exert_attack_options(&mut actions);
         let required_attack_available = actions.iter().any(|action| {
             action
                 .attacker_id
@@ -36675,6 +36755,7 @@ impl GameEngine {
                 .flags
                 .insert("attacking".to_string(), true);
         }
+        self.apply_exert_attack_option(action, &attacker_id)?;
         let attacking_power = self
             .permanent_position(&attacker_id)
             .map(|(player_index, card_index)| {
@@ -37131,6 +37212,7 @@ impl GameEngine {
             self.enqueue_permanent_tapped_triggers(&source);
         }
         self.enqueue_declared_attacker_triggers(&attacker_ids);
+        self.enqueue_exert_reflexive_triggers();
         self.run_priority_window(provider)?;
         if self.state.outcome.is_some() || self.force_end_turn {
             self.clear_combat_state();
@@ -37506,6 +37588,12 @@ impl GameEngine {
             if blocker_ids.is_empty() {
                 continue;
             }
+            if let Some(unblocked) =
+                self.choose_unblocked_combat_damage(provider, &attacker, attacker_power)?
+            {
+                assignments.insert(attacker_id.clone(), unblocked);
+                continue;
+            }
 
             let mut attacker_assignments = BTreeMap::new();
             if self.permanent_has_keyword(&attacker, "trample") {
@@ -37680,6 +37768,18 @@ impl GameEngine {
             let attacker_deals_damage = self.deals_combat_damage_in_step(attacker, step);
             let attacker_has_trample = self.permanent_has_keyword(attacker, "trample");
             if let Some(blocker_ids) = blocks.get(attacker_id) {
+                // CR 510.1c-d: the attacker's damage goes to what it attacks;
+                // its blockers still deal theirs.
+                let as_though_unblocked = static_player_permissions::assigned_as_though_unblocked(
+                    assignments.get(attacker_id),
+                );
+                if attacker_deals_damage && as_though_unblocked {
+                    damage_instances.extend(self.as_though_unblocked_damage(
+                        attacker_id,
+                        &attack.defender,
+                        attacker_power,
+                    ));
+                }
                 let current_blockers = blocker_ids
                     .iter()
                     .filter_map(|blocker_id| {
@@ -37696,7 +37796,11 @@ impl GameEngine {
                     })
                     .collect::<Vec<_>>();
                 if current_blockers.is_empty() {
-                    if attacker_deals_damage && attacker_has_trample && attacker_power > 0 {
+                    if attacker_deals_damage
+                        && !as_though_unblocked
+                        && attacker_has_trample
+                        && attacker_power > 0
+                    {
                         match &attack.defender {
                             TargetRef::Player { player_id } => damage_instances.push((
                                 attacker_id.clone(),
@@ -37721,7 +37825,7 @@ impl GameEngine {
                     }
                     continue;
                 }
-                if attacker_deals_damage {
+                if attacker_deals_damage && !as_though_unblocked {
                     let attacker_assignments = assignments.get(attacker_id).ok_or_else(|| {
                         EngineError::new("blocked attacker has no combat damage assignment")
                     })?;

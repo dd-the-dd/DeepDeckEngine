@@ -31,6 +31,9 @@ fn library_position(position: LibraryPosition) -> &'static str {
     match position {
         LibraryPosition::Top => "top",
         LibraryPosition::Bottom => "bottom",
+        // The move-cards reader names only the top or the bottom; a position
+        // beneath the top cards has no draw-then-move writer.
+        LibraryPosition::BeneathTopCards(_) => "unsupportedBeneathTop",
     }
 }
 

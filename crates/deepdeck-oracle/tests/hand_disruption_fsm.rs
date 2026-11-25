@@ -138,6 +138,15 @@ fn shared_filter_and_target_machines_cover_sibling_phrasings() {
                 "operands": [card_type("Instant"), card_type("Sorcery")],
             }),
         ),
+        // `that opponent` names the targeted opponent like `that player`.
+        (
+            "Target opponent reveals their hand. You choose a noncreature, nonland card from it. That opponent discards that card.",
+            true,
+            json!({
+                "kind": "and",
+                "operands": [not(card_type("Creature")), not(card_type("Land"))],
+            }),
+        ),
     ] {
         let parsed = parse_card("Hand Interaction", oracle_text);
         assert_eq!(
@@ -155,20 +164,12 @@ fn shared_filter_and_target_machines_cover_sibling_phrasings() {
 
 #[test]
 fn malformed_claimed_family_members_fail_at_the_responsible_local_machine() {
-    for (oracle_text, automaton, state, found) in [
-        (
-            "Target opponent reveals their hand. You choose a noncreature or card from it. That player discards that card.",
-            "targeted-hand-disruption",
-            "hand-card-selector.rhs",
-            "card",
-        ),
-        (
-            "Target opponent reveals their hand. You choose a noncreature, nonland card from it. That opponent discards that card.",
-            "targeted-hand-disruption",
-            "player-subject.bound.reference",
-            "opponent",
-        ),
-    ] {
+    for (oracle_text, automaton, state, found) in [(
+        "Target opponent reveals their hand. You choose a noncreature or card from it. That player discards that card.",
+        "targeted-hand-disruption",
+        "hand-card-selector.rhs",
+        "card",
+    )] {
         let parsed = parse_card("Malformed Hand Interaction", oracle_text);
         let ability = &parsed.abilities[0];
         assert_eq!(

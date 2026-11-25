@@ -1,5 +1,10 @@
 //! A checked player/collection scope slice over the existing program tree.
 //! No JSON construction, Oracle reparsing, game-state evaluation or ID allocation.
+//!
+//! It also resolves action-result objects (CR 608.2c) over a lowered program:
+//! the reader of the one object an earlier action selected or moved is bound
+//! to the binding that action records. That resolution only rewrites lowered
+//! references and installs the producer's compiler-assigned `bind`.
 use super::super::*;
 
 pub(in crate::oracle::canonical) struct AbilityBodyNode {
@@ -59,6 +64,7 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::CountersOnRecipient { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
+        | NumericExpression::ColorsOfManaSpentToCastSource
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)
@@ -94,7 +100,8 @@ fn simple_operand(operand: &CardOperandNode) -> bool {
         | CardOperandNode::Targets(_)
         | CardOperandNode::LibraryTop(_)
         | CardOperandNode::CardCopies { .. }
-        | CardOperandNode::HiddenChoice(_) => false,
+        | CardOperandNode::HiddenChoice(_)
+        | CardOperandNode::CommandZone { .. } => false,
     }
 }
 
@@ -248,7 +255,8 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
         // two sentences of an outcome action keep the native lowering checks.
         EffectProgramNode::Steps(_)
         | EffectProgramNode::Outcome { .. }
-        | EffectProgramNode::Alternatives { .. } => false,
+        | EffectProgramNode::Alternatives { .. }
+        | EffectProgramNode::Offer { .. } => false,
     }
 }
 
@@ -328,7 +336,8 @@ impl CollectionScope {
             | CardOperandNode::Targets(_)
             | CardOperandNode::LibraryTop(_)
             | CardOperandNode::CardCopies { .. }
-            | CardOperandNode::HiddenChoice(_) => {
+            | CardOperandNode::HiddenChoice(_)
+            | CardOperandNode::CommandZone { .. } => {
                 unreachable!("outside the checked scope slice")
             }
         }
@@ -505,6 +514,349 @@ pub(in crate::oracle::canonical) fn resolve_ability_body_scopes(
     Ok(AbilityBodyResolution::ScopeChecked(
         ScopeCheckedAbilityBody(body),
     ))
+}
+
+/// How the lowered program names the one object an action of the sequence
+/// selected or moved on resolution (`automata::action_result_object`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ActionResultObjectPlan {
+    /// The producing action already names its object by this binding (a
+    /// recording action's own `bind`, the stop card of an exile-until, the
+    /// bound card set a reveal or a move acts on).
+    Bound(String),
+    /// The one recording action of the producer carries the pending marker:
+    /// a reader installs its `bind` (`actionResult:N`).
+    Marked,
+    /// The producer's object is the result of this resolution choice (a
+    /// card chosen at random and revealed): a numeric property read names
+    /// it by this id, any other reader as the decision's result.
+    Decision(String),
+}
+
+/// The plans of one lowered sequence, by producing action.
+pub(in crate::oracle::canonical) type ActionResultObjectPlans =
+    std::collections::BTreeMap<usize, ActionResultObjectPlan>;
+
+/// Marks the runtime action that records a producer's result until a reader
+/// of that result binds it; every marker is removed before the program is
+/// returned.
+const ACTION_RESULT_MARKER: &str = "pendingActionResultObject";
+
+/// Runtime actions whose `bind` records exactly the objects they selected
+/// or moved: sacrificed, destroyed, discarded, milled and exiled ones.
+const RECORDING_KINDS: [&str; 6] = [
+    "sacrificePermanents",
+    "sacrificePermanent",
+    "destroyPermanent",
+    "discardCards",
+    "mill",
+    "exileTargetCards",
+];
+
+/// The binding of a stable bound object set (`boundObjects`,
+/// `singleBoundObject`, `boundObject`), if `value` is one.
+fn stable_binding(value: &Value) -> Option<String> {
+    matches!(
+        value.get("kind").and_then(Value::as_str),
+        Some("boundObjects" | "singleBoundObject" | "boundObject")
+    )
+    .then(|| value.get("binding").and_then(Value::as_str))
+    .flatten()
+    .map(str::to_owned)
+}
+
+/// Every lowered action under `value` that puts cards onto the battlefield,
+/// at any depth (a manifest's face-down move inside its choice frame).
+fn battlefield_moves<'a>(value: &'a mut Value, found: &mut Vec<&'a mut Value>) {
+    let enters = value.get("kind").and_then(Value::as_str) == Some("moveCards")
+        && value
+            .get("to")
+            .and_then(|to| to.get("kind"))
+            .and_then(Value::as_str)
+            == Some("battlefield");
+    if enters {
+        found.push(value);
+        return;
+    }
+    match value {
+        Value::Object(map) => map
+            .values_mut()
+            .for_each(|child| battlefield_moves(child, found)),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| battlefield_moves(child, found)),
+        _ => {}
+    }
+}
+
+/// The plan of a producer whose object is a permanent it put onto the
+/// battlefield (a manifested card, CR 701.40a, 701.62a): the one move that
+/// enters it records it (its `bind`, else a marker).
+fn battlefield_producer_plan(
+    lowered: &mut [Value],
+    effect_index: usize,
+) -> Option<ActionResultObjectPlan> {
+    let mut moves = Vec::new();
+    lowered
+        .iter_mut()
+        .for_each(|effect| battlefield_moves(effect, &mut moves));
+    let [producer] = moves.as_mut_slice() else {
+        return None;
+    };
+    Some(match producer.get("bind").and_then(Value::as_str) {
+        Some(existing) => ActionResultObjectPlan::Bound(existing.to_owned()),
+        None => {
+            producer[ACTION_RESULT_MARKER] = json!(effect_index);
+            ActionResultObjectPlan::Marked
+        }
+    })
+}
+
+/// The plan of one producer from its lowered top-level actions: its one
+/// recording action (its `bind`, else a marker); else the stop card of an
+/// exile-until; else the one bound card set (or the one chosen card) its
+/// actions read. Anything else has no plan, and a reader of its result
+/// fails explicitly.
+fn producer_plan(lowered: &mut [Value], effect_index: usize) -> Option<ActionResultObjectPlan> {
+    let recording = (0..lowered.len())
+        .filter(|position| {
+            lowered[*position]
+                .get("kind")
+                .and_then(Value::as_str)
+                .is_some_and(|kind| RECORDING_KINDS.contains(&kind))
+        })
+        .collect::<Vec<_>>();
+    match recording.as_slice() {
+        [position] => {
+            let producer = &mut lowered[*position];
+            return Some(match producer.get("bind").and_then(Value::as_str) {
+                Some(existing) => ActionResultObjectPlan::Bound(existing.to_owned()),
+                None => {
+                    producer[ACTION_RESULT_MARKER] = json!(effect_index);
+                    ActionResultObjectPlan::Marked
+                }
+            });
+        }
+        [] => {}
+        _ => return None,
+    }
+    if let Some(stop) = lowered
+        .iter()
+        .find_map(|effect| effect.get("stopCardBind").and_then(Value::as_str))
+    {
+        return Some(ActionResultObjectPlan::Bound(stop.to_owned()));
+    }
+    let mut bound: Option<ActionResultObjectPlan> = None;
+    for effect in lowered.iter() {
+        for field in ["cards", "objects"] {
+            let Some(operand) = effect.get(field) else {
+                continue;
+            };
+            let plan = match stable_binding(operand) {
+                Some(binding) => ActionResultObjectPlan::Bound(binding),
+                None if operand.get("kind").and_then(Value::as_str) == Some("decisionResult") => {
+                    let Some(decision) = operand.get("decisionId").and_then(Value::as_str) else {
+                        continue;
+                    };
+                    ActionResultObjectPlan::Decision(decision.to_owned())
+                }
+                None => continue,
+            };
+            match &bound {
+                None => bound = Some(plan),
+                Some(existing) if *existing == plan => {}
+                Some(_) => return None,
+            }
+        }
+    }
+    bound
+}
+
+/// Records, where the program's top-level actions still have their written
+/// positions, how each action that selected or moved exactly one object
+/// names it (CR 608.2c). Only a reader's binding later makes the plan
+/// observable (`resolve_action_result_objects`); an unread plan changes
+/// nothing.
+pub(in crate::oracle::canonical) fn plan_action_result_objects(
+    sequence: &EffectSequenceNode,
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+) -> ActionResultObjectPlans {
+    let mut plans = ActionResultObjectPlans::new();
+    for (effect_index, effect) in sequence.effects.iter().enumerate() {
+        let Some(result) = action_result_object(effect, effect_index) else {
+            continue;
+        };
+        let (Some(&(from, _)), Some(&(to, _))) = (
+            action_starts.get(effect_index),
+            action_starts.get(effect_index + 1),
+        ) else {
+            continue;
+        };
+        if from > to || to > effects.len() {
+            continue;
+        }
+        let lowered = &mut effects[from..to];
+        let plan = if result.reference.permanent {
+            battlefield_producer_plan(lowered, effect_index)
+        } else {
+            producer_plan(lowered, effect_index)
+        };
+        if let Some(plan) = plan {
+            plans.insert(effect_index, plan);
+        }
+    }
+    plans
+}
+
+/// The producing action of every action-result reader under `value`.
+fn collect_action_result_readers(value: &Value, found: &mut Vec<usize>) {
+    match value {
+        Value::Object(map) => {
+            if map.get("kind").and_then(Value::as_str) == Some("singleBoundObject")
+                && let Some(index) = map
+                    .get("binding")
+                    .and_then(Value::as_str)
+                    .and_then(|binding| binding.strip_prefix("actionResult:"))
+                    .and_then(|index| index.parse::<usize>().ok())
+                && !found.contains(&index)
+            {
+                found.push(index);
+            }
+            map.values()
+                .for_each(|child| collect_action_result_readers(child, found));
+        }
+        Value::Array(items) => items
+            .iter()
+            .for_each(|child| collect_action_result_readers(child, found)),
+        _ => {}
+    }
+}
+
+/// Installs the `bind` of the marked recording action of `effect_index`,
+/// or reads the one it already has.
+fn bind_marked_producer(value: &mut Value, effect_index: usize, found: &mut Option<String>) {
+    match value {
+        Value::Object(map) => {
+            if map
+                .get(ACTION_RESULT_MARKER)
+                .and_then(Value::as_u64)
+                .is_some_and(|marked| marked == effect_index as u64)
+            {
+                let binding = match map.get("bind").and_then(Value::as_str) {
+                    Some(existing) => existing.to_owned(),
+                    None => {
+                        let binding = action_result_binding(effect_index);
+                        map.insert("bind".to_owned(), json!(binding));
+                        binding
+                    }
+                };
+                *found = Some(binding);
+            }
+            map.values_mut()
+                .for_each(|child| bind_marked_producer(child, effect_index, found));
+        }
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| bind_marked_producer(child, effect_index, found)),
+        _ => {}
+    }
+}
+
+/// True when `value` is a reader of the pending result `pending`.
+fn reads_pending(value: &Value, pending: &str) -> bool {
+    value.get("kind").and_then(Value::as_str) == Some("singleBoundObject")
+        && value.get("binding").and_then(Value::as_str) == Some(pending)
+}
+
+/// Replaces every reader of `pending`: the object of a numeric property
+/// read (`powerOf`, `toughnessOf`, `manaValueOf`) by `numeric`, any other
+/// reader by `object`.
+fn rewrite_action_result_reader(value: &mut Value, pending: &str, numeric: &Value, object: &Value) {
+    if reads_pending(value, pending) {
+        *value = object.clone();
+        return;
+    }
+    let property_read = matches!(
+        value.get("kind").and_then(Value::as_str),
+        Some("powerOf" | "toughnessOf" | "manaValueOf")
+    );
+    if property_read
+        && value
+            .get("object")
+            .is_some_and(|operand| reads_pending(operand, pending))
+    {
+        value["object"] = numeric.clone();
+    }
+    match value {
+        Value::Object(map) => map
+            .values_mut()
+            .for_each(|child| rewrite_action_result_reader(child, pending, numeric, object)),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| rewrite_action_result_reader(child, pending, numeric, object)),
+        _ => {}
+    }
+}
+
+fn clear_action_result_markers(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.remove(ACTION_RESULT_MARKER);
+            map.values_mut().for_each(clear_action_result_markers);
+        }
+        Value::Array(items) => items.iter_mut().for_each(clear_action_result_markers),
+        _ => {}
+    }
+}
+
+/// Binds every reader of an action result (`that creature's toughness`
+/// after `sacrifices a creature of their choice`, CR 608.2c) to the object
+/// its producing action recorded, once the whole program is lowered (a
+/// condition or a `where X` definition is placed after the producer was
+/// planned). A reader whose producer has no plan fails explicitly; the
+/// markers of unread plans are removed.
+pub(in crate::oracle::canonical) fn resolve_action_result_objects(
+    plans: &ActionResultObjectPlans,
+    effects: &mut [Value],
+) -> Result<(), &'static str> {
+    let mut readers = Vec::new();
+    effects
+        .iter()
+        .for_each(|effect| collect_action_result_readers(effect, &mut readers));
+    for effect_index in readers {
+        let plan = plans.get(&effect_index).ok_or(
+            "an earlier action of this program whose lowering records the one object it selected or moved",
+        )?;
+        let single = |binding: &str| json!({ "kind": "singleBoundObject", "binding": binding });
+        let (numeric, object) = match plan {
+            ActionResultObjectPlan::Bound(binding) => {
+                (single(binding.as_str()), single(binding.as_str()))
+            }
+            ActionResultObjectPlan::Marked => {
+                let mut found = None;
+                effects
+                    .iter_mut()
+                    .for_each(|effect| bind_marked_producer(effect, effect_index, &mut found));
+                let binding = found.ok_or("the lowered action that recorded the object")?;
+                (single(binding.as_str()), single(binding.as_str()))
+            }
+            // The engine reads a numeric property of the chosen card from
+            // the decision itself (`bound_object_numeric_read`).
+            ActionResultObjectPlan::Decision(decision) => (
+                single(decision.as_str()),
+                json!({ "kind": "decisionResult", "decisionId": decision }),
+            ),
+        };
+        let pending = action_result_binding(effect_index);
+        if object != single(pending.as_str()) || numeric != single(pending.as_str()) {
+            effects.iter_mut().for_each(|effect| {
+                rewrite_action_result_reader(effect, &pending, &numeric, &object)
+            });
+        }
+    }
+    effects.iter_mut().for_each(clear_action_result_markers);
+    Ok(())
 }
 
 #[cfg(test)]

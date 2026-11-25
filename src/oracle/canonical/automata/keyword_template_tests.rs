@@ -55,7 +55,32 @@ fn every_row_quotes_its_cached_rules_clause_and_matches_the_catalog_version() {
             .unwrap_or_else(|| panic!("{} cites a cached clause", template.canonical_id));
         assert_eq!(clause["sourceSection"], template.rules_section.as_str());
         let rules_text = normalized(clause["text"].as_str().unwrap());
-        assert!(!template.abilities.is_empty(), "{}", template.canonical_id);
+        // An intrinsic definition has no printed sentence of the shared
+        // grammar: its typed expansion replaces the quoted abilities, and the
+        // costs it quotes are still read from the cached clause.
+        assert_eq!(
+            template.abilities.is_empty(),
+            template.intrinsic.is_some(),
+            "{}",
+            template.canonical_id
+        );
+        assert!(
+            template.activation_costs.is_none()
+                || template
+                    .intrinsic
+                    .is_some_and(|intrinsic| intrinsic.keyword_kind().is_none()),
+            "{}: activation costs belong to an activated intrinsic",
+            template.canonical_id
+        );
+        for costs in &template.activation_costs {
+            let quoted = normalized(&render_rules_form(costs).expect("renderable costs"));
+            assert!(
+                rules_text.contains(&quoted),
+                "{}: `{quoted}` is not quoted from CR {}: {rules_text}",
+                template.canonical_id,
+                template.rules_section
+            );
+        }
         for ability in &template.abilities {
             let quoted = render_rules_form(ability).expect("a renderable template");
             let quoted = normalized(quoted.trim_end_matches('.'));
@@ -92,7 +117,12 @@ fn every_reminder_and_definition_instantiates_with_each_parameter_shape() {
             .then(|| "{1}{G}".to_string()),
             subtypes: vec!["Human".to_string(), "Warrior".to_string()],
         };
-        for text in template.abilities.iter().chain(&template.reminders) {
+        for text in template
+            .abilities
+            .iter()
+            .chain(&template.reminders)
+            .chain(&template.activation_costs)
+        {
             let rendered = instantiate(text, &arguments)
                 .unwrap_or_else(|error| panic!("{}: {error}", template.canonical_id));
             assert!(
@@ -265,4 +295,45 @@ fn a_reminder_restates_the_definition_with_the_face_subtypes() {
         .expect("claimed")
         .expect_err("a reminder naming another subtype");
     assert_eq!(wrong.state, "keyword.template.reminder.body");
+}
+
+#[test]
+fn an_intrinsic_row_instantiates_its_quoted_costs_and_checks_its_face() {
+    let text = "Ninjutsu {1}{U}";
+    let tokens = recognize_oracle_entities(text);
+    let invocation =
+        recognize_keyword_template_line(&tokens, text, "Creature \u{2014} Human Ninja")
+            .expect("a claimed ninjutsu line")
+            .expect("a readable ninjutsu line");
+    assert_eq!(
+        invocation.template.intrinsic,
+        Some(KeywordIntrinsic::Ninjutsu)
+    );
+    assert!(invocation.abilities.is_empty());
+    assert_eq!(
+        invocation.activation_costs.as_deref(),
+        Some(
+            "{1}{U}, Reveal this card from your hand, Return an unblocked attacking creature you control to its owner's hand"
+        )
+    );
+    // Without its cost the line is not a ninjutsu line at all.
+    assert!(line("Ninjutsu").is_none());
+
+    // CR 702.195a: storied is a static ability of a permanent.
+    let text = "Storied";
+    let tokens = recognize_oracle_entities(text);
+    let failure = recognize_keyword_template_line(&tokens, text, "Sorcery")
+        .expect("a claimed storied line")
+        .expect_err("a sorcery face has no storied definition");
+    assert_eq!(failure.state, "keyword.template.face-kind");
+    let permanent = recognize_keyword_template_line(&tokens, text, "Legendary Creature")
+        .expect("a claimed storied line")
+        .expect("a permanent face reads storied");
+    assert_eq!(
+        permanent
+            .template
+            .intrinsic
+            .and_then(KeywordIntrinsic::keyword_kind),
+        Some("storied")
+    );
 }

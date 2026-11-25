@@ -10,6 +10,10 @@ pub(in crate::oracle::canonical) enum ManaChoiceDomain {
     LandColorsControlledBy(ObjectControllerScope),
     /// Mana types include colorless; bounded to controller-owned lands.
     LandTypesControlledByAbilityController,
+    /// `any type that land produced`: the types of mana the permanent of the
+    /// triggering mana ability produced (CR 106.1b, 605.1b), read from the
+    /// event record when the triggered ability resolves.
+    EventProducedTypes,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

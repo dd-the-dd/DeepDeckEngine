@@ -150,6 +150,10 @@ mod conditional_static_runtime;
 mod condition_atom_language_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/state_condition_atoms_runtime.rs"]
+mod state_condition_atoms_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/static_characteristics_runtime.rs"]
 mod static_characteristics_runtime;
 
@@ -241,6 +245,10 @@ mod coordinated_static_subject_runtime;
 #[path = "tests/alternative_life_payment_runtime.rs"]
 mod alternative_life_payment_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/static_player_permissions_runtime.rs"]
+mod static_player_permissions_runtime;
+
 #[path = "tests/object_domain_inference_runtime.rs"]
 mod object_domain_inference_runtime;
 
@@ -286,6 +294,10 @@ mod optional_cost_outcome_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/optional_action_outcome_runtime.rs"]
 mod optional_action_outcome_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/player_performer_cells_runtime.rs"]
+mod player_performer_cells_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/tap_objects_cost_runtime.rs"]
@@ -335,6 +347,9 @@ mod graveyard_source_return_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_crew_runtime.rs"]
 mod keyword_template_crew_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/keyword_template_rows_runtime.rs"]
+mod keyword_template_rows_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_runtime.rs"]
 mod keyword_template_runtime;
@@ -33153,6 +33168,10 @@ mod granted_ability_runtime;
 #[path = "tests/quantified_player_sacrifice_runtime.rs"]
 mod quantified_player_sacrifice_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/resolution_object_choice_runtime.rs"]
+mod resolution_object_choice_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/quantity_result_reuse_runtime.rs"]
 mod quantity_result_reuse_runtime;
@@ -33210,6 +33229,8 @@ mod player_quantified_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_combat_restriction_runtime.rs"]
 mod source_combat_restriction_runtime;
+#[path = "tests/stack_and_damage_cells_runtime.rs"]
+mod stack_and_damage_cells_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/static_frame_runtime.rs"]
 mod static_frame_runtime;

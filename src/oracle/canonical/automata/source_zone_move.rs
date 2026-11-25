@@ -7,6 +7,32 @@ use super::{
     recognize_source_reference_with_antecedent,
 };
 
+/// Lookahead at `put OBJECT from your hand|graveyard`: the moved object names
+/// the card zone it leaves before its destination. Pure.
+pub(in crate::oracle::canonical) fn source_card_origin_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    for offset in 1..8 {
+        match cursor
+            .peek_ahead(offset)
+            .map(str::to_ascii_lowercase)
+            .as_deref()
+        {
+            Some("from") => {
+                return cursor
+                    .peek_ahead(offset + 1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+                    && cursor.peek_ahead(offset + 2).is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("hand") || raw.eq_ignore_ascii_case("graveyard")
+                    });
+            }
+            Some("on" | "onto" | "into" | "." | "," | ";") | None => return false,
+            Some(_) => {}
+        }
+    }
+    false
+}
+
 /// Recognizes one source-object zone move. A caller composes exile and return
 /// as two effects, so an intervening zone-change event remains observable.
 pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
@@ -201,7 +227,82 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 entering_counters: None,
             })
         }
-        _ => Err(cursor.fail("`exile` or `return` source-zone action")),
+        // `put this card from your hand|graveyard|exile onto the battlefield
+        // [tapped] [transformed]`: the object-to-zone frame of `put` over the
+        // source card, whose explicit origin proves where it is moved from.
+        Some(_)
+            if crate::oracle::canonical::automata::lemma_at(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Put,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            ) =>
+        {
+            crate::oracle::canonical::automata::consume_lemma(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Put,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            )?;
+            cursor.enter("effect.move-source.put.source");
+            let source = recognize_source_reference_with_antecedent(
+                cursor,
+                name_links,
+                name_failure,
+                context.source.as_ref(),
+            )?;
+            cursor.enter("effect.move-source.put.origin");
+            // The ability is activated where the card is (its activation
+            // zone follows the origin): the payer's hand or graveyard.
+            cursor.consume_phrase(&["from", "your"])?;
+            let from = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+                Some("hand") => {
+                    cursor.consume("hand")?;
+                    SourceZone::Hand
+                }
+                Some("graveyard") => {
+                    cursor.consume("graveyard")?;
+                    SourceZone::Graveyard
+                }
+                _ => return Err(cursor.fail("`hand` or `graveyard` after `from your`")),
+            };
+            cursor.enter("effect.move-source.put.destination");
+            cursor.consume_phrase(&["onto", "the", "battlefield"])?;
+            // The shared entry modifiers of a battlefield destination; the
+            // card enters under the control of the player putting it there
+            // (CR 110.2), the ability's controller.
+            let mut modifiers = super::EntryModifiers::new(super::CardMoveOwnerNode::Player(
+                super::LocalPlayerReference::Controller,
+            ));
+            super::recognize_entry_modifiers(
+                cursor,
+                super::CardZoneName::Battlefield,
+                &mut modifiers,
+            )?;
+            cursor.enter("effect.move-source.put.entry-support");
+            cursor.require(
+                !modifiers.face_down
+                    && modifiers.attached_to.is_none()
+                    && modifiers.attacking.is_none()
+                    && modifiers.controller
+                        == super::CardMoveOwnerNode::Player(super::LocalPlayerReference::Controller),
+                "a source entry tapped, transformed or with counters (face-down, attached, attacking and other-controller entries have no source-move writer)",
+            )?;
+            cursor.enter("effect.move-source.complete");
+            Ok(MoveSourceEffectNode {
+                source,
+                from,
+                to: SourceZone::Battlefield,
+                face_change: if modifiers.transformed {
+                    SourceFaceChange::Transform
+                } else {
+                    SourceFaceChange::Preserve
+                },
+                controller: SourceMoveController::Preserve,
+                tapped: modifiers.tapped,
+                attached_to: None,
+                entering_counters: modifiers.entering_counters,
+            })
+        }
+        _ => Err(cursor.fail("`exile`, `return` or `put` source-zone action")),
     }
 }
 

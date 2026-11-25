@@ -525,8 +525,31 @@ impl GameEngine {
                 );
             }
         }
-        self.record_event("permanentLeftBattlefield", Some(source.controller.clone()), Some(instance_id.clone()),
-            json!({ "destination": movement.destination, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "owner": source.owner.clone() }));
+        self.record_permanent_left_battlefield(source, movement.destination, was_creature);
+    }
+
+    /// The one `permanentLeftBattlefield` record every battlefield departure
+    /// writes (graveyard, exile, hand, library): the destination and the
+    /// permanent's last known information (CR 608.2h), including the state
+    /// atoms a later "if it was tapped / attacking / had a counter" reads.
+    pub(super) fn record_permanent_left_battlefield(
+        &mut self,
+        last_known: &CardInstance,
+        destination: &str,
+        was_creature: bool,
+    ) {
+        self.record_event(
+            "permanentLeftBattlefield",
+            Some(last_known.controller.clone()),
+            Some(last_known.instance_id.clone()),
+            json!({
+                "destination": destination,
+                "typeLine": last_known.definition.type_line.clone(),
+                "wasCreature": was_creature,
+                "owner": last_known.owner.clone(),
+                "lastKnownState": state_condition_atoms::departure_state_record(last_known),
+            }),
+        );
     }
 
     pub(super) fn publish_installed_battlefield_leave_triggers(

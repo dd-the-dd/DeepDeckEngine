@@ -275,7 +275,8 @@ fn lower_local_effect_sequence_with_collections(
                 ids.extend(operand_target_base_ids(&fight.second));
                 ids
             }
-            LocalEffectNode::PreventDamage(prevent) => [&prevent.recipient, &prevent.source]
+            LocalEffectNode::PreventDamage(prevent) => prevent
+                .parties()
                 .into_iter()
                 .filter_map(|party| damage_party_targets(party))
                 .filter_map(|targets| lower_target_slot_candidates(&targets.slots[0]))
@@ -359,6 +360,11 @@ fn lower_local_effect_sequence_with_collections(
     // player chosen on resolution is lowered as the value its choice binds.
     let mut color_chosen = false;
     let mut resolution_players = Vec::<String>::new();
+    // Permanents and numbers chosen on resolution, read through bindings;
+    // `the rest` of a choice is acted on once every chooser has chosen.
+    let mut chosen_object_bindings = Vec::<String>::new();
+    let mut chosen_numbers = Vec::<String>::new();
+    let mut pending_choice_remainder = Vec::<Value>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
         declare_query_possessor_targets(
@@ -374,6 +380,7 @@ fn lower_local_effect_sequence_with_collections(
             &target_bindings,
             &declared_player_targets,
         )?;
+        effects.append(&mut pending_choice_remainder);
         if let Some(Some(performer)) = performers.get(effect_index) {
             declare_performer_target(
                 cursor,
@@ -782,11 +789,29 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
+                let first_decision = decisions.len();
                 effects.extend(
                     collections
                         .lower_action(cursor, action, declarations, &mut decisions)
                         .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
                 );
+                // `look at target player's hand`: the declared zone owner is
+                // the player a later `that player` names (CR 115.1, 608.2c).
+                if let [id] = decisions[first_decision..]
+                    .iter()
+                    .filter_map(|decision| decision["id"].as_str())
+                    .filter(|id| id.starts_with("targetZonePlayer"))
+                    .collect::<Vec<_>>()
+                    .as_slice()
+                {
+                    let key = PlayerTargetBinding { effect_index };
+                    if !declared_player_targets
+                        .iter()
+                        .any(|(declared, _)| *declared == key)
+                    {
+                        declared_player_targets.push((key, (*id).to_string()));
+                    }
+                }
             }
             // `exile all graveyards`: the shared card mover over a zone query.
             LocalEffectNode::ZoneBatch(batch) => {
@@ -1116,6 +1141,33 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
+                // Listed or chosen kinds: every further placement's own
+                // count, lowered once for all recipients.
+                let further = match &node.kinds {
+                    CounterKindsNode::Single => Vec::new(),
+                    CounterKindsNode::Listed(placements)
+                    | CounterKindsNode::ChosenAmong(placements) => {
+                        cursor.enter("lower.put-counters.kinds");
+                        if recipient_count.is_some() {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail("one counter kind for a recipient-relative count"),
+                            ));
+                        }
+                        placements
+                            .iter()
+                            .map(|placement| {
+                                lower_sequence_bound_amount(
+                                    cursor,
+                                    &placement.count,
+                                    sequence,
+                                    &target_bindings,
+                                    context,
+                                )
+                                .map(|count| (placement.counter.as_str(), count))
+                            })
+                            .collect::<Result<Vec<_>, _>>()?
+                    }
+                };
                 for object in objects {
                     let count = match recipient_count {
                         Some(counter) => json!({
@@ -1123,7 +1175,31 @@ fn lower_local_effect_sequence_with_collections(
                         }),
                         None => amount.clone(),
                     };
-                    effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":count}));
+                    match &node.kinds {
+                        CounterKindsNode::Single => {
+                            effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":count}));
+                        }
+                        // CR 122.1: each placement on the same object, in
+                        // the written order.
+                        CounterKindsNode::Listed(_) => {
+                            effects.push(json!({"kind":"putCounters", "permanent":object.clone(), "counter":node.counter.as_str(), "count":count}));
+                            for (counter, count) in &further {
+                                effects.push(json!({"kind":"putCounters", "permanent":object.clone(), "counter":counter, "count":count}));
+                            }
+                        }
+                        // CR 608.2d: the controller chooses one placement
+                        // while the action resolves.
+                        CounterKindsNode::ChosenAmong(_) => {
+                            let mut options =
+                                vec![json!({"counter":node.counter.as_str(), "count":count})];
+                            options.extend(
+                                further.iter().map(
+                                    |(counter, count)| json!({"counter":counter, "count":count}),
+                                ),
+                            );
+                            effects.push(json!({"kind":"putChosenCounters", "permanent":object, "options":options}));
+                        }
+                    }
                 }
             }
             LocalEffectNode::ControllerLibrarySearch(search) => match &search.origin.holder {
@@ -1490,13 +1566,19 @@ fn lower_local_effect_sequence_with_collections(
             LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
                 // The spell the triggering cast record binds (CR 707.10);
                 // `twice` is two ordinary copies of it.
+                let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
+                    .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                 for _ in 0..copy.count {
-                    effects.push(json!({
+                    let mut action = json!({
                         "kind": "copyStackItem",
                         "object": {"kind": "triggeringStackObject"},
                         "controller": controller(),
                         "mayChooseNewTargets": copy.may_choose_new_targets,
-                    }));
+                    });
+                    if let Some(except) = &except {
+                        action["except"] = except.clone();
+                    }
+                    effects.push(action);
                 }
             }
             LocalEffectNode::CopyStackObject(copy) => {
@@ -1508,7 +1590,10 @@ fn lower_local_effect_sequence_with_collections(
                 };
                 // The stack-object target slot (id and candidates) is the one
                 // the counter action declares; only the action differs.
-                let (target_id, candidates, _) = lower_counter_action(slot, false);
+                let (target_id, mut candidates, _) = lower_counter_action(slot, false);
+                if let Some(scope) = copy.controller {
+                    candidates["controller"] = lower_object_controller_scope(scope);
+                }
                 if decisions
                     .iter()
                     .any(|decision| decision["id"].as_str() == Some(target_id))
@@ -1523,13 +1608,19 @@ fn lower_local_effect_sequence_with_collections(
                     i64::from(slot.cardinality.minimum),
                     i64::from(slot.cardinality.maximum),
                 ));
+                let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
+                    .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                 for _ in 0..copy.count {
-                    effects.push(json!({
+                    let mut action = json!({
                         "kind": "copyStackItem",
                         "object": chosen_target(target_id),
                         "controller": controller(),
                         "mayChooseNewTargets": copy.may_choose_new_targets,
-                    }));
+                    });
+                    if let Some(except) = &except {
+                        action["except"] = except.clone();
+                    }
+                    effects.push(action);
                 }
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
@@ -1658,11 +1749,8 @@ fn lower_local_effect_sequence_with_collections(
             }
             LocalEffectNode::PreventDamage(prevent) => {
                 cursor.enter("lower.prevent.parties");
-                let mut parties = Vec::with_capacity(2);
-                for (party_index, party) in [&prevent.recipient, &prevent.source]
-                    .into_iter()
-                    .enumerate()
-                {
+                let mut parties = Vec::with_capacity(3);
+                for (party_index, party) in prevent.parties().into_iter().enumerate() {
                     parties.push(match party {
                         None => None,
                         Some(DamagePartyNode::Targets(targets)) => {
@@ -1730,11 +1818,7 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail(error.expectation()),
                     )
                 })?;
-                let source = parties.pop().flatten();
-                let recipient = parties.pop().flatten();
-                effects.push(lower_prevent_damage_shield(
-                    prevent, amount, recipient, source,
-                ));
+                effects.push(lower_damage_shield_parties(prevent, amount, parties));
             }
             LocalEffectNode::Choose(choice) => {
                 // `choose target ...` is the target declaration itself (CR
@@ -1809,6 +1893,52 @@ fn lower_local_effect_sequence_with_collections(
                             domain,
                         ));
                     }
+                    ChoiceDomainNode::Objects(choice) => {
+                        // CR 608.2d: permanents chosen on resolution, not
+                        // targets (CR 115.1). A later `it` / `those
+                        // creatures` reads the binding the choice writes.
+                        cursor.enter("lower.choose.objects");
+                        let declarations = match context {
+                            EffectSequenceLoweringContext::NoExternalX => {
+                                TargetlessDeclarationSupport::None
+                            }
+                            EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                                TargetlessDeclarationSupport::XValue
+                            }
+                        };
+                        let lowered = super::resolution_object_choice::lower_object_choice(
+                            choice,
+                            effect_index,
+                            declarations,
+                        )
+                        .map_err(|expected| {
+                            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(expected),
+                            )
+                        })?;
+                        effects.extend(lowered.choice);
+                        pending_choice_remainder = lowered.remainder;
+                        if let Some(binding) = lowered.chosen {
+                            let key = resolution_choice_binding(effect_index);
+                            target_bindings.push((key, binding.clone()));
+                            target_bindings.push((
+                                super::permanent_subject::target_set_binding_key(key),
+                                binding.clone(),
+                            ));
+                            chosen_object_bindings.push(binding);
+                        }
+                    }
+                    ChoiceDomainNode::Number(node) => {
+                        // CR 608.2d: a number chosen on resolution; `that
+                        // many` binds it through the action-result quantity.
+                        cursor.enter("lower.choose.number");
+                        let id =
+                            super::resolution_object_choice::chosen_number_decision(effect_index);
+                        effects.push(super::resolution_object_choice::lower_number_choice(
+                            *node, &id,
+                        ));
+                        chosen_numbers.push(id);
+                    }
                     ChoiceDomainNode::Player(node) => {
                         // A player chosen on resolution, not a target (CR
                         // 115.1): a later `that player` reads its binding.
@@ -1830,25 +1960,36 @@ fn lower_local_effect_sequence_with_collections(
             }
             LocalEffectNode::ReferencedPermanentAction(destroy) => {
                 cursor.enter("lower.destroy-reference.permanent-binding");
-                let reference =
+                let mut reference =
                     lower_bound_permanent_reference(cursor, destroy.object, &target_bindings)?;
+                // The reference names one permanent (`it`, `that NOUN`): the
+                // one token a creation bound is read as that single object.
+                if reference["kind"] == "boundObjects" {
+                    reference["kind"] = json!("singleBoundObject");
+                }
                 let kind = match destroy.action {
                     ReferencedPermanentAction::Destroy => "destroyPermanent",
                     ReferencedPermanentAction::Exile => "exilePermanent",
                     ReferencedPermanentAction::Sacrifice => "sacrificePermanent",
                     // CR 400.3: the permanent goes to its owner's library.
                     ReferencedPermanentAction::PutOnOwnerLibrary(placement) => {
-                        effects.push(json!({
+                        let mut operation = json!({
                             "kind": "putPermanentOnOwnerLibrary",
                             "permanent": reference,
                             "position": match placement {
-                                OwnerLibraryPlacement::Top => "top",
+                                OwnerLibraryPlacement::Top
+                                | OwnerLibraryPlacement::BeneathTopCards(_) => "top",
                                 OwnerLibraryPlacement::Bottom => "bottom",
                                 OwnerLibraryPlacement::OwnerChoiceTopOrBottom => {
                                     "ownerChoiceTopOrBottom"
                                 }
                             },
-                        }));
+                        });
+                        // `ORDINAL from the top`: the cards that stay above it.
+                        if let OwnerLibraryPlacement::BeneathTopCards(above) = placement {
+                            operation["cardsAbove"] = lower_numeric_atom(above);
+                        }
+                        effects.push(operation);
                         continue;
                     }
                     // CR 701.24a: put into the owner's library, then that
@@ -1914,6 +2055,16 @@ fn lower_local_effect_sequence_with_collections(
                 let recipients = match &damage.recipient {
                     DamageRecipientNode::Targets(targets) => {
                         cursor.enter("lower.damage.object-source.recipient");
+                        // `other` names the object dealing the damage; the
+                        // shared slot marks exclude the ability source and
+                        // earlier targets, never an attached object.
+                        cursor
+                            .require(
+                                source["kind"].as_str() != Some("attachedPermanent")
+                                    || targets.slots.iter().all(|slot| !slot.exclude_source),
+                                "an `other` recipient relation to the attached damage source",
+                            )
+                            .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                         let (base_id, candidates, minimum, maximum) = lower_single_target(targets);
                         let ordinal = used_target_base_ids
                             .iter()
@@ -2456,6 +2607,7 @@ fn lower_local_effect_sequence_with_collections(
         &target_bindings,
         &declared_player_targets,
     )?;
+    effects.append(&mut pending_choice_remainder);
     conditional_scopes.at_boundary(
         cursor,
         sequence,
@@ -2469,6 +2621,7 @@ fn lower_local_effect_sequence_with_collections(
         },
     )?;
     action_starts.push((effects.len(), decisions.len()));
+    let result_object_plans = plan_action_result_objects(sequence, &action_starts, &mut effects);
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
     install_action_result_object_counts(&action_starts, &mut effects).map_err(|expected| {
@@ -2505,6 +2658,22 @@ fn lower_local_effect_sequence_with_collections(
     )?;
     for effect in &mut effects {
         super::resolution_choice::rebind_resolution_players(effect, &resolution_players);
+        super::resolution_object_choice::rebind_chosen_objects(effect, &chosen_object_bindings);
+    }
+    cursor.enter("lower.choose.objects.consumer");
+    if !super::resolution_object_choice::every_chosen_object_is_read(
+        &effects,
+        &chosen_object_bindings,
+    ) {
+        return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+            "an executable binding consumer for objects chosen on resolution",
+        )));
+    }
+    cursor.enter("lower.choose.number.consumer");
+    if !super::resolution_object_choice::every_chosen_number_is_read(&effects, &chosen_numbers) {
+        return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+            "a later `that many` / `that much` reading the number chosen on resolution",
+        )));
     }
     cursor.enter("lower.choose.player.consumer");
     if !super::resolution_choice::every_resolution_player_is_read(&effects, &resolution_players) {
@@ -2520,6 +2689,10 @@ fn lower_local_effect_sequence_with_collections(
     }
     super::resolve_relation_target_anchors(cursor, &mut effects, &target_bindings)
         .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
+    cursor.enter("lower.action-result.object");
+    resolve_action_result_objects(&result_object_plans, &mut effects).map_err(|expected| {
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+    })?;
 
     Ok(LoweredEffectSequence { decisions, effects })
 }
@@ -3003,7 +3176,10 @@ fn install_action_result_quantities(
             let producers = (from..to)
                 .filter_map(|position| {
                     let field = kind.produced_by(effects[position]["kind"].as_str()?)?;
-                    Some((position, field))
+                    // Only a number chosen as its own instruction is a quantity;
+                    // the count decision of another action is not.
+                    super::resolution_object_choice::number_choice_produces(&effects[position])
+                        .then_some((position, field))
                 })
                 .collect::<Vec<_>>();
             (!producers.is_empty()).then_some((index, producers))
@@ -3408,6 +3584,9 @@ fn lower_fixed_damage_recipient(
             return bound_permanent_reference_value(*reference, object_bindings)
                 .ok_or(TargetlessLoweringError::RequiresTarget);
         }
+        DamageRecipientNode::AttackedRecipient(attacker) => {
+            return lower_attacked_recipient(*attacker, object_bindings);
+        }
         _ => {}
     }
     let declarations = match context {
@@ -3446,6 +3625,14 @@ fn sequence_numeric_target_slots(
                     source: PermanentOperandNode::Targets(targets),
                     ..
                 }) => (targets, false),
+                // `This creature deals damage ... to target creature. That
+                // creature deals damage equal to its power ...`: a recipient
+                // slot declares the object when the source declares none.
+                LocalEffectNode::DealDamage(DamageEffectNode {
+                    source,
+                    recipient: DamageRecipientNode::Targets(targets),
+                    ..
+                }) if !matches!(source, PermanentOperandNode::Targets(_)) => (targets, false),
                 _ => return None,
             };
             let slot = targets.slots.get(binding.slot_index)?;
@@ -3597,6 +3784,12 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
     let Some(next) = sequence.effects.get(effect_index + 1) else {
         return false;
     };
+    // `Sacrifice it at the beginning of the next end step`: a zone action
+    // on the one created token.
+    if let LocalEffectNode::ReferencedPermanentAction(node) = next {
+        return node.object
+            == PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens);
+    }
     let operands: Vec<&PermanentOperandNode> = match next {
         LocalEffectNode::TemporaryKeywordGrant(node) => vec![&node.objects],
         LocalEffectNode::ModifyStats(node) => vec![&node.targets],
@@ -3730,10 +3923,58 @@ fn apply_performer(
                     effect
                 })
                 .collect::<Vec<_>>();
-            effects.push(json!({
+            let collect = super::resolution_object_choice::player_loop_collection(&body);
+            let mut lowered = json!({
                 "kind": "forEachPlayer",
                 "bind": bind,
                 "players": {"kind": "chosenTargets", "id": id},
+                "effects": body,
+            });
+            if let Some(collect) = collect {
+                lowered["collect"] = collect;
+            }
+            effects.push(lowered);
+            return Ok(());
+        }
+        // `For each OBJECT VERBed this way, its controller ACTION` (CR
+        // 608.2c, 608.2h): one pass per object the earlier action affected,
+        // each performed by that object's player (last known information).
+        PerformerNode::EachAffectedObject {
+            relation,
+            effect_index: producer,
+            filter,
+        } => {
+            let bind = format!("performedObject{effect_index}");
+            let bound = json!({
+                "kind": "boundObjects",
+                "binding": action_result_binding(*producer),
+            });
+            let objects = match filter {
+                ActionResultFilter::All => bound,
+                ActionResultFilter::Cards(predicate) => json!({
+                    "kind": "filterObjects",
+                    "objects": bound,
+                    "where": lower_card_object_predicate(predicate),
+                }),
+            };
+            let player = json!({
+                "kind": match relation {
+                    ObjectPlayerRelation::Controller => "controllerOf",
+                    ObjectPlayerRelation::Owner => "ownerOf",
+                },
+                "object": {"kind": "boundValue", "id": bind},
+            });
+            let body = effects
+                .drain(start..)
+                .map(|mut effect| {
+                    effect["performer"] = player.clone();
+                    effect
+                })
+                .collect::<Vec<_>>();
+            effects.push(json!({
+                "kind": "forEachObject",
+                "objects": objects,
+                "bind": bind,
                 "effects": body,
             }));
             return Ok(());
@@ -3757,12 +3998,19 @@ fn apply_performer(
                     effect
                 })
                 .collect::<Vec<_>>();
-            effects.push(json!({
+            // Each player's chosen permanents are republished after the
+            // loop: a later `those creatures` / `the rest` reads all of them.
+            let collect = super::resolution_object_choice::player_loop_collection(&body);
+            let mut lowered = json!({
                 "kind": "forEachPlayer",
                 "bind": bind,
                 "players": players,
                 "effects": body,
-            }));
+            });
+            if let Some(collect) = collect {
+                lowered["collect"] = collect;
+            }
+            effects.push(lowered);
             return Ok(());
         }
     };
@@ -4057,6 +4305,7 @@ fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSeque
                 | TypedObservedEventObject::CombatCounterpart,
             ) => true,
             PermanentEffectReference::Observed(_) => false,
+            PermanentEffectReference::ActionResult(result) => result.permanent,
         },
     }
 }

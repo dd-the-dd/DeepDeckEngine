@@ -7,7 +7,8 @@
 //! against that typed antecedent by the enclosing sequence.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    TargetCardinality, TargetListNode, recognize_target_list, stack_domain_selector_supported,
+    TargetCardinality, TargetListNode, TokenCopyExceptionsNode, recognize_copy_exceptions,
+    recognize_target_list, stack_domain_selector_supported,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -22,6 +23,73 @@ pub(in crate::oracle::canonical) struct CopyStackObjectEffectNode {
     /// `twice`, `three times`: how many copies one instruction creates,
     /// each an ordinary copy of the same object (CR 707.10).
     pub count: i64,
+    /// `, except the copy isn't legendary` (CR 707.9b, 707.10): the
+    /// copiable-value exceptions of every copy, read by the shared reader.
+    pub exceptions: TokenCopyExceptionsNode,
+    /// `target triggered ability you control`: the controller relation of
+    /// a stack-item target (CR 113.8, 115.1).
+    pub controller: Option<super::ObjectControllerScope>,
+}
+
+/// `you control` after a stack-ability target: the one relation the copy
+/// parent admits for a stack item. Any other relation stays unread.
+fn recognize_stack_item_controller(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &TargetListNode,
+) -> MachineResult<Option<super::ObjectControllerScope>> {
+    let stack_item = matches!(
+        target.slots.as_slice(),
+        [slot] if matches!(slot.selector, super::TargetSelector::StackItem(_))
+    );
+    if !(stack_item
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("control")))
+    {
+        return Ok(None);
+    }
+    cursor.enter("effect.copy-stack-object.controller");
+    cursor.consume_phrase(&["you", "control"])?;
+    Ok(Some(super::ObjectControllerScope::AbilityController))
+}
+
+/// `and you may choose new targets for the copy` coordinated with the copy
+/// instruction itself (CR 707.10c).
+fn recognize_coordinated_new_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &mut CopyStackObjectEffectNode,
+) -> MachineResult<()> {
+    let mut probe = cursor.clone();
+    if !(probe
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+        && probe.consume("and").is_ok()
+        && copy_new_targets_amendment_starts(&probe))
+    {
+        return Ok(());
+    }
+    cursor.enter("effect.copy-stack-object.coordinated-new-targets");
+    cursor.consume("and")?;
+    recognize_copy_new_targets_amendment(cursor, Some(node))
+}
+
+/// `, except ...` after the copied object and its count.
+fn recognize_stack_copy_exceptions(
+    cursor: &mut OracleTokenCursor<'_>,
+    count: i64,
+) -> MachineResult<TokenCopyExceptionsNode> {
+    if cursor.peek() == Some(",")
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("except"))
+    {
+        cursor.enter("effect.copy-stack-object.exceptions");
+        return recognize_copy_exceptions(cursor, count > 1);
+    }
+    Ok(TokenCopyExceptionsNode::default())
 }
 
 /// The largest literal number of copies one copy instruction creates.
@@ -102,12 +170,17 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
         cursor.enter("effect.copy-stack-object.event-spell");
         cursor.advance_to(cursor.position() + width)?;
         let count = recognize_copy_count(cursor)?;
-        return Ok(CopyStackObjectEffectNode {
+        let exceptions = recognize_stack_copy_exceptions(cursor, count)?;
+        let mut node = CopyStackObjectEffectNode {
             target: TargetListNode { slots: Vec::new() },
             event_spell: true,
             may_choose_new_targets: false,
             count,
-        });
+            exceptions,
+            controller: None,
+        };
+        recognize_coordinated_new_targets(cursor, &mut node)?;
+        return Ok(node);
     }
     cursor.enter("effect.copy-stack-object.target");
     let target = recognize_target_list(cursor)?;
@@ -123,13 +196,60 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
         stack_domain_selector_supported(&slot.selector),
         "a spell or stack-item selector",
     )?;
+    let controller = recognize_stack_item_controller(cursor, &target)?;
     let count = recognize_copy_count(cursor)?;
-    Ok(CopyStackObjectEffectNode {
+    let exceptions = recognize_stack_copy_exceptions(cursor, count)?;
+    let mut node = CopyStackObjectEffectNode {
         target,
         event_spell: false,
         may_choose_new_targets: false,
         count,
-    })
+        exceptions,
+        controller,
+    };
+    recognize_coordinated_new_targets(cursor, &mut node)?;
+    Ok(node)
+}
+
+/// The copy instruction a following new-targets sentence amends: the last
+/// action written before it, through the program wrappers that only gate
+/// that action (`you may copy it`, `If you do, copy that spell`, CR 608.2c).
+pub(in crate::oracle::canonical) fn last_copy_instruction_mut(
+    effects: &mut [super::LocalEffectNode],
+) -> Option<&mut CopyStackObjectEffectNode> {
+    match effects.last_mut()? {
+        super::LocalEffectNode::CopyStackObject(copy) => Some(copy),
+        super::LocalEffectNode::OptionalSequence(sequence) => {
+            last_copy_instruction_mut(&mut sequence.effects)
+        }
+        _ => None,
+    }
+}
+
+/// [`last_copy_instruction_mut`] over a program whose last written sentence
+/// holds the copy instruction.
+pub(in crate::oracle::canonical) fn last_program_copy_instruction_mut(
+    program: &mut super::EffectProgramNode,
+) -> Option<&mut CopyStackObjectEffectNode> {
+    match program {
+        super::EffectProgramNode::Sequence(sequence) => {
+            last_copy_instruction_mut(&mut sequence.effects)
+        }
+        super::EffectProgramNode::Optional { body, .. } => last_program_copy_instruction_mut(body),
+        // `If you don't, ...` is the last sentence of its block; only a
+        // block without one ends with its body.
+        super::EffectProgramNode::Outcome {
+            body,
+            otherwise: None,
+            ..
+        } => last_program_copy_instruction_mut(body),
+        super::EffectProgramNode::Steps(steps) => {
+            last_program_copy_instruction_mut(steps.last_mut()?)
+        }
+        super::EffectProgramNode::Outcome { .. }
+        | super::EffectProgramNode::Alternatives { .. }
+        | super::EffectProgramNode::Offer { .. } => None,
+    }
 }
 
 /// True at `you may choose new targets for`.

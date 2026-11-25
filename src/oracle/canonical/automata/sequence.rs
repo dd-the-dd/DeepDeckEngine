@@ -16,9 +16,9 @@ use super::{
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
     recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
     recognize_optional_card_deployment_effect_with_context, recognize_optional_library_search,
-    recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
-    recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
-    recognize_set_ability_loss_effect, recognize_source_zone_move_effect, recognize_surveil_effect,
+    recognize_ordinary_sacrifice_effect, recognize_quantified_player_action,
+    recognize_referenced_draw_effect, recognize_scry_effect, recognize_set_ability_loss_effect,
+    recognize_source_zone_move_effect, recognize_surveil_effect,
     recognize_target_card_zone_change_effect, recognize_transform_source_effect,
     recognize_untap_permanent_effect, recognize_zone_change_effect_with_policy,
     recognize_zone_change_with_regeneration_amendment_with_support,
@@ -879,6 +879,21 @@ fn recognize_effect_sequence_attempt_scoped(
                                 return Ok(LocalEffectNode::DealDamage(node));
                             }
                         }
+                        // `This creature gets +1/+0 until end of turn and
+                        // deals 1 damage to you`: a second predicate of the
+                        // same written subject (CR 608.2c).
+                        if memory.connectors.last() == Some(&EffectConnector::And)
+                            && let Some(source) =
+                                super::shared_damage_subject(memory.effects.last())
+                            && super::shared_subject_damage_starts(attempt)
+                        {
+                            return super::recognize_damage_predicate(
+                                attempt,
+                                source,
+                                super::SubjectVerbAgreement::Finite,
+                            )
+                            .map(LocalEffectNode::DealDamage);
+                        }
                         if memory.connectors.last() == Some(&EffectConnector::And)
                             && super::elided_sacrifice_operand_starts(
                                 attempt,
@@ -985,6 +1000,10 @@ fn recognize_effect_sequence_attempt_scoped(
                                     .selector
                                     .as_ref()
                                     .is_some_and(selector_names_permanents))
+                                    || super::permanent_subject::singular_created_token_antecedent(
+                                        antecedent.reference,
+                                        &memory.effects,
+                                    )
                             });
                         if permanent_antecedent {
                             match super::recognize_referenced_permanent_zone_action(
@@ -1055,7 +1074,11 @@ fn recognize_effect_sequence_attempt_scoped(
                             super::recognize_card_action(
                                 child,
                                 move_ellipsis,
-                                action_context.preposed_duration.as_ref(),
+                                super::CardActionReadContext::of(
+                                    &action_context,
+                                    name_links,
+                                    name_failure,
+                                ),
                             )
                         }) {
                             return Ok(LocalEffectNode::CardAction(action));
@@ -1103,13 +1126,40 @@ fn recognize_effect_sequence_attempt_scoped(
                             Err(failure) => Err(failure),
                         }
                     };
-                    let parsed = cursor.attempt(|attempt| {
-                        read_action(
-                            attempt,
-                            memory.current_player_subject.as_ref(),
-                            attempt_frame,
-                        )
-                    });
+                    // A subjectless verb coordinated by `and` with a clause
+                    // whose explicit performer opened the sentence shares
+                    // that subject (`Any number of target players each lose
+                    // 2 life and sacrifice a creature of their choice`): it is
+                    // never the controller's imperative (CR 608.2c).
+                    let continues_performer = !causative
+                        && memory.connectors.last() == Some(&EffectConnector::And)
+                        && memory.effects.len() > memory.sentence_start
+                        // Only a plural performer's base form reads like an
+                        // imperative; a singular performer's verb agrees
+                        // with it and its ordinary readers keep it.
+                        && memory
+                            .current_performer
+                            .as_ref()
+                            .is_some_and(|(_, agreement, sentence)| {
+                                *sentence == memory.sentence_start
+                                    && *agreement == super::VerbAgreement::Base
+                            })
+                        && cursor
+                            .peek()
+                            .and_then(|raw| super::lookup_verb(raw, &super::ALL_LEMMAS))
+                            .is_some_and(|(_, forms)| forms.contains(&VerbForm::Base));
+                    let parsed = if continues_performer {
+                        cursor.enter("sequence.performer.continued");
+                        Err(cursor.fail("the coordinated clause of the same performer"))
+                    } else {
+                        cursor.attempt(|attempt| {
+                            read_action(
+                                attempt,
+                                memory.current_player_subject.as_ref(),
+                                attempt_frame,
+                            )
+                        })
+                    };
                     // `you VERB ...`: the controller named as the explicit
                     // subject performs the same clause as the imperative
                     // (CR 109.5); every action reader takes it as the
@@ -1578,9 +1628,59 @@ fn recognize_effect_sequence_attempt_scoped(
                                 trial.enter("sequence.for-each.preposed-separator");
                                 trial.consume(",")?;
                                 *cursor = trial;
-                                preposed_for_each = Some(count);
                                 attempt_frame.clear();
                                 effect_start = cursor.position();
+                                // `For each OBJECT VERBed this way, its
+                                // controller|owner ACTION.`: one pass per
+                                // affected object, performed by that
+                                // object's player (CR 608.2c, 608.2h). The
+                                // action is that player's own instruction.
+                                if let PreposedForEach::ActionResult(reference) = &count
+                                    && let Some(relation) = super::affected_object_player_at(cursor)
+                                {
+                                    attempt_frame.commit();
+                                    cursor.enter("sequence.for-each.affected-object-player");
+                                    let mut written = memory.effects.clone();
+                                    written.extend(memory.effects.last().cloned());
+                                    let (producer, filter) = cursor.require_value(
+                                        super::resolve_action_result_antecedent(
+                                            &written, reference,
+                                        ),
+                                        "an earlier action of this program whose affected objects the phrase restates",
+                                    )?;
+                                    cursor.advance_to(cursor.position() + 2)?;
+                                    let performer = super::PerformerNode::EachAffectedObject {
+                                        relation,
+                                        effect_index: producer,
+                                        filter,
+                                    };
+                                    let tokens = super::person_shifted_tokens(
+                                        cursor,
+                                        super::VerbAgreement::ThirdPersonSingular,
+                                        super::performer_description(&performer),
+                                    )?;
+                                    let mut shifted = cursor.with_tokens(&tokens);
+                                    let controller = super::PlayerEffectSubject::Controller;
+                                    let action = read_action(
+                                        &mut shifted,
+                                        Some(&controller),
+                                        attempt_frame,
+                                    )?;
+                                    let end = shifted.position();
+                                    if let Some(ambiguous) = super::controller_reference_failure(
+                                        cursor,
+                                        cursor.position(),
+                                        end,
+                                    ) {
+                                        return Err(ambiguous);
+                                    }
+                                    cursor.advance_to(end)?;
+                                    break LocalEffectNode::Performed(super::PerformedEffectNode {
+                                        performer,
+                                        effect: Box::new(action),
+                                    });
+                                }
+                                preposed_for_each = Some(count);
                                 continue;
                             }
                             // `Until DURATION, EFFECTS.`: the introducer is read
@@ -1816,8 +1916,20 @@ fn recognize_effect_sequence_attempt_scoped(
                         // player antecedent; earlier antecedents remain.
                         super::ChoiceDomainNode::CreatureType
                         | super::ChoiceDomainNode::Color
-                        | super::ChoiceDomainNode::CardName(_) => {}
+                        | super::ChoiceDomainNode::CardName(_)
+                        | super::ChoiceDomainNode::Number(_) => {}
+                        // Permanents chosen on resolution are no declared
+                        // target: the permanent subject scope names them.
+                        super::ChoiceDomainNode::Objects(_) => memory.last_target = None,
                     }
+                }
+                // `look at target player's hand`, `reveal the top card of
+                // target opponent's library`: the declared zone owner is the
+                // player a later `that player` names (CR 115.1, 608.2c).
+                if let LocalEffectNode::CardAction(action) = &effect
+                    && card_action_declares_zone_owner(action)
+                {
+                    memory.last_player_target = Some(PlayerTargetBinding { effect_index });
                 }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect
                     && life.declares_target
@@ -2145,6 +2257,17 @@ fn recognize_effect_sequence_attempt_scoped(
                             };
                             super::recognize_copy_new_targets_amendment(cursor, antecedent)?;
                             cursor.enter("sequence.copy-new-targets.terminator");
+                            cursor.consume(".")?;
+                        }
+                        if super::type_retention_amendment_starts(cursor) {
+                            // CR 205.1b: the sentence amends the type change
+                            // of the sentence just closed.
+                            attempt_frame.commit();
+                            super::recognize_type_retention_amendment(
+                                cursor,
+                                memory.effects.last_mut(),
+                            )?;
+                            cursor.enter("sequence.type-retention.terminator");
                             cursor.consume(".")?;
                         }
                         if library_look_reminder_starts_at(cursor)
@@ -2553,6 +2676,18 @@ fn recognize_effect(
         }
         super::RetargetActionAttempt::NotClaimed => {}
     }
+    if super::damage_redirection_starts(cursor) {
+        // `AMOUNT damage that would be dealt ... is dealt to PARTY instead`
+        // (CR 614.9): the damage is the subject of the redirection shield.
+        attempt_frame.commit();
+        return super::recognize_damage_redirection_effect(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+        )
+        .map(LocalEffectNode::PreventDamage);
+    }
     if super::control_change_starts(cursor) {
         // `[you] gain control of` / `exchange control of` owns its verb frame;
         // `gain N life` never reaches this reader.
@@ -2818,8 +2953,7 @@ fn recognize_imperative_frame(
                 .map(LocalEffectNode::PermanentKeywordAction)
         }
         VerbLemma::Remove if super::claims_remove_counters_effect(cursor) => {
-            super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
-                .map(LocalEffectNode::PutCounters)
+            super::recognize_remove_counters_frame(cursor, name_links, name_failure, context)
         }
         VerbLemma::Put => recognize_put_frame(cursor, inputs),
         VerbLemma::Counter => recognize_counter_effect(cursor),
@@ -2937,8 +3071,18 @@ fn recognize_put_frame(
         return recognize_target_card_zone_change_effect(cursor)
             .map(LocalEffectNode::TargetCardZoneChange);
     }
+    // `put its|those counters on X`: the counters of a bound object.
+    if super::counter_copy_starts(cursor) {
+        return super::recognize_put_object_counters_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        );
+    }
     if claims_put_counters_effect(cursor) {
-        return recognize_put_counters_effect(
+        // The effect sequence lowers listed and chosen counter kinds.
+        return super::recognize_put_counter_placements_effect(
             cursor,
             inputs.name_links,
             inputs.name_failure,
@@ -2952,6 +3096,39 @@ fn recognize_put_frame(
         && let Ok(effect) = cursor.attempt(super::recognize_zone_change_effect)
     {
         return Ok(effect);
+    }
+    // The object-to-zone frame over one bound object: the source card from
+    // a named card zone onto the battlefield, else the source or a bound
+    // permanent into its owner's library (top, bottom, beneath the top).
+    if source_or_anaphor_reference_starts_at(
+        cursor.position() + 1,
+        cursor.peek_ahead(1),
+        inputs.name_links,
+        inputs.name_failure,
+    ) || (super::operand_determiner(cursor, 1) == super::OperandDeterminer::That
+        // `that card` names a card the program observed outside the
+        // battlefield; the card-move readers own it.
+        && !cursor
+            .peek_ahead(2)
+            .is_some_and(|noun| noun.eq_ignore_ascii_case("card")))
+    {
+        if super::source_card_origin_follows(cursor) {
+            return recognize_source_zone_move_effect(
+                cursor,
+                inputs.name_links,
+                inputs.name_failure,
+                inputs.context,
+            )
+            .map(LocalEffectNode::MoveSource);
+        }
+        return super::referenced_permanent_action::recognize_referenced_permanent_action(
+            cursor,
+            super::ReferencedPermanentAction::PutOnOwnerLibrary(super::OwnerLibraryPlacement::Top),
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::ReferencedPermanentAction);
     }
     recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards)
 }
@@ -2968,7 +3145,11 @@ fn recognize_destroy_frame(
                 cursor,
                 inputs.context.source_numeric_reads,
             )?;
-            collection.cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?;
+            collection.cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?
+                || super::recognize_restated_collection_regeneration_amendment(
+                    cursor,
+                    &collection.objects,
+                )?;
             Ok(LocalEffectNode::DestroyCollection(collection))
         }
         super::OperandDeterminer::Those => {
@@ -3373,6 +3554,26 @@ fn object_player_mention(
     }
     super::other_player_controlled_antecedent(antecedent)
         .map(|object| (super::ObjectPlayerRelation::Controller, object))
+}
+
+/// True when a card action declares the one player whose hand or library it
+/// reads (`target player's hand`, `target opponent's library`).
+fn card_action_declares_zone_owner(action: &super::CardActionNode) -> bool {
+    let operand = match action {
+        super::CardActionNode::LookAt(operand)
+        | super::CardActionNode::Reveal(operand)
+        | super::CardActionNode::Move { cards: operand, .. } => operand,
+        _ => return false,
+    };
+    match operand {
+        super::CardOperandNode::ZoneCollection(zone) => {
+            matches!(zone.owner, super::CardZoneOwnerNode::TargetPlayer(_))
+        }
+        super::CardOperandNode::LibraryTop(top) => {
+            matches!(top.owner, super::CardLibraryOwnerNode::TargetPlayer(_))
+        }
+        _ => false,
+    }
 }
 
 /// The agreement of a performer's continued verb: plural after `they`, else

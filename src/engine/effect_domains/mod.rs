@@ -195,6 +195,7 @@ fn domain(effect: &Value) -> Option<Domain> {
         ) => Some(Domain::DamageCombat),
         Some(
             "putCounters"
+            | "putChosenCounters"
             | "putDividedCounters"
             | "putCountersOnCreaturesOfTargetPlayer"
             | "putSameCountersAs"
@@ -677,7 +678,170 @@ impl GameEngine {
 #[path = "tests.rs"]
 mod tests;
 
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "bound_object_lki_tests.rs"]
+mod bound_object_lki_tests;
+
 /// Movement owned by complete child frames must not be published again by a control parent.
 pub(super) fn movement_is_owned_by_child_frames(effect: &Value) -> bool {
     control::movement_is_owned_by_child_frames(effect)
+}
+
+/// The decision key holding the last known information (CR 608.2h) of the
+/// permanents one producing action bound under `binding` and removed from
+/// the battlefield, keyed by object id (as `#identities` keys a capture).
+fn bound_object_lki_key(binding: &str) -> String {
+    format!("{binding}#lki")
+}
+
+/// Runtime actions whose `bind` records permanents they themselves remove
+/// from the battlefield: their values must be read before the removal.
+fn removes_bound_permanents(effect: &Value) -> bool {
+    matches!(
+        value_kind(effect),
+        Some("sacrificePermanent" | "sacrificePermanents" | "destroyPermanent" | "exilePermanent")
+    ) && effect["bind"].is_string()
+}
+
+/// A printed power or toughness of a card outside the battlefield (CR
+/// 208.1); a card without one reads 0.
+fn printed_stat(value: &Option<String>) -> i32 {
+    value
+        .as_deref()
+        .and_then(|stat| stat.trim().parse::<i32>().ok())
+        .unwrap_or(0)
+}
+
+impl GameEngine {
+    /// The characteristics every battlefield permanent has before a
+    /// producing action that removes the permanents it binds (sacrifice,
+    /// destruction, exile). `None` for any other action: nothing to keep.
+    pub(super) fn bound_object_lki_snapshot(
+        &self,
+        effect: &Value,
+    ) -> Option<BTreeMap<String, Value>> {
+        if !removes_bound_permanents(effect) {
+            return None;
+        }
+        Some(
+            self.state
+                .players
+                .iter()
+                .flat_map(|player| player.battlefield.iter())
+                .map(|permanent| {
+                    (
+                        permanent.instance_id.clone(),
+                        json!({
+                            "power": self.current_power(permanent),
+                            "toughness": self.current_toughness(permanent),
+                            "manaValue": mana_value(&permanent.definition),
+                            "controller": permanent.controller,
+                            "owner": permanent.owner,
+                        }),
+                    )
+                })
+                .collect(),
+        )
+    }
+
+    /// After the producing action ran: the last known information of each
+    /// bound object that left the battlefield, as it last existed there
+    /// (CR 608.2h), recorded for the readers of the same resolution.
+    pub(super) fn record_bound_object_lki(
+        &self,
+        effect: &Value,
+        snapshot: Option<BTreeMap<String, Value>>,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &mut BTreeMap<String, Value>,
+    ) {
+        let (Some(snapshot), Some(binding)) = (snapshot, effect["bind"].as_str()) else {
+            return;
+        };
+        let Some(RuntimeBinding::Objects(objects)) = bindings.get(binding) else {
+            return;
+        };
+        let departed = objects
+            .iter()
+            .filter(|instance_id| self.permanent_position(instance_id).is_none())
+            .filter_map(|instance_id| {
+                snapshot
+                    .get(instance_id)
+                    .map(|values| (instance_id.clone(), values.clone()))
+            })
+            .collect::<serde_json::Map<String, Value>>();
+        if !departed.is_empty() {
+            decisions.insert(bound_object_lki_key(binding), Value::Object(departed));
+        }
+    }
+
+    /// `powerOf|toughnessOf|manaValueOf` of the one object a producing
+    /// action bound (CR 608.2c): its recorded last known information once
+    /// it left the battlefield (CR 608.2h), else the printed values of the
+    /// card it is outside the battlefield; 0 when the action bound nothing
+    /// (no object was sacrificed, discarded or revealed). `None` when this
+    /// reader does not own the expression (a live permanent, another
+    /// object kind, an unbound or captured binding).
+    pub(super) fn bound_object_numeric_read(
+        &self,
+        expression: &Value,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Option<Option<i32>> {
+        let field = match value_kind(expression)? {
+            "powerOf" => "power",
+            "toughnessOf" => "toughness",
+            "manaValueOf" => "manaValue",
+            _ => return None,
+        };
+        let object = &expression["object"];
+        if !matches!(
+            value_kind(object),
+            Some("singleBoundObject" | "boundObject")
+        ) {
+            return None;
+        }
+        let binding = object["binding"].as_str()?;
+        let objects = match bindings.get(binding) {
+            Some(RuntimeBinding::Objects(objects)) => objects.clone(),
+            Some(_) => return None,
+            // The card a resolution choice of this resolution selected (a
+            // card revealed at random): the decision records its id. A
+            // delayed trigger's captured binding keeps its own reader.
+            None if !decisions
+                .contains_key(&super::captured_binding::captured_identities_key(binding)) =>
+            {
+                decisions
+                    .get(binding)?
+                    .as_array()?
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            }
+            None => return None,
+        };
+        let Some(instance_id) = objects.first() else {
+            return Some(Some(0));
+        };
+        if let Some(value) = decisions
+            .get(&bound_object_lki_key(binding))
+            .and_then(|records| records.get(instance_id.as_str()))
+            .and_then(|record| record.get(field))
+            .and_then(Value::as_i64)
+        {
+            return Some(i32::try_from(value).ok());
+        }
+        if self.permanent_position(instance_id).is_some() {
+            return None;
+        }
+        let card = self.card_outside_battlefield(instance_id)?;
+        Some(Some(match field {
+            "manaValue" => mana_value(&card.definition),
+            "power" => printed_stat(&card.definition.power),
+            _ => printed_stat(&card.definition.toughness),
+        }))
+    }
 }
