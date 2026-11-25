@@ -18,6 +18,9 @@ pub(super) use contexts::SourceLkiContexts;
 const SOURCE_LEFT_BATTLEFIELD: &str = "sourceLkiDeparted";
 const SOURCE_LAST_KNOWN_POWER: &str = "sourceLkiPower";
 const SOURCE_LAST_KNOWN_TOUGHNESS: &str = "sourceLkiToughness";
+/// The event record's object and the incarnation it saw (`event_object.rs`).
+const EVENT_OBJECT_ID: &str = "triggeringPermanentId";
+const EVENT_OBJECT_IDENTITY: &str = "triggeringPermanentIdentity";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum SourceNumericProperty {
@@ -198,6 +201,42 @@ impl GameEngine {
         self.source_lki_contexts
             .departed
             .get(&format!("{instance_id}@{identity}"))
+    }
+
+    /// The triggering event's object as it last existed on the battlefield,
+    /// once the incarnation the event saw has left it (CR 400.7, 608.2h): a
+    /// reader of its characteristics, such as a copy (CR 707.2), uses this
+    /// authenticated departure capture. `None` while that incarnation is
+    /// still on the battlefield, for any reference other than
+    /// `triggeringPermanent`, or when no capture was recorded; nothing is
+    /// guessed from the card it became.
+    pub(super) fn departed_event_object_capture(
+        &self,
+        reference: &serde_json::Value,
+        stack_object: &StackObject,
+    ) -> Option<&CardInstance> {
+        if super::value_kind(reference) != Some("triggeringPermanent")
+            || self.event_object_target(stack_object).is_some()
+        {
+            return None;
+        }
+        let decisions = &stack_object.decisions;
+        let instance_id = decisions
+            .get(EVENT_OBJECT_ID)
+            .and_then(serde_json::Value::as_str)?;
+        let identity = [
+            EVENT_OBJECT_IDENTITY,
+            super::damage_preparation::DEPARTED_EVENT_OBJECT_IDENTITY,
+        ]
+        .iter()
+        .find_map(|key| {
+            decisions
+                .get(*key)
+                .and_then(serde_json::Value::as_str)
+                .filter(|identity| !identity.is_empty())
+        })?;
+        self.departed_incarnation(instance_id, identity)
+            .map(|capture| &capture.card)
     }
 
     /// CR 602.2a/602.2h: an activated ability exists before its costs are

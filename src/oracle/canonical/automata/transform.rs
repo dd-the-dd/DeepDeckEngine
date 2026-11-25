@@ -1,7 +1,7 @@
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{TransformPermanentEffectNode, recognize_source_reference};
+use super::{TransformPermanentEffectNode, recognize_source_reference_with_antecedent};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TransformState {
@@ -14,7 +14,11 @@ enum TransformState {
 ///
 /// Double-faced eligibility and the CR 701.27g once-per-stack guard belong to
 /// runtime validation. This machine only resolves the grammatical source
-/// reference and never infers eligibility from Oracle prose.
+/// reference and never infers eligibility from Oracle prose. A pronoun
+/// (`untap Cecil and transform it`) names the source only when the one
+/// binding environment proves the source is its antecedent; a pronoun whose
+/// antecedent is another object keeps the shared reader's distinct
+/// diagnostic (`reference.source-or-anaphor.object-antecedent`).
 pub(in crate::oracle::canonical) fn recognize_transform_source_effect(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -35,10 +39,11 @@ pub(in crate::oracle::canonical) fn recognize_transform_source_effect(
             }
             TransformState::Object => {
                 cursor.enter("effect.transform.object");
-                permanent = Some(recognize_source_reference(
+                permanent = Some(recognize_source_reference_with_antecedent(
                     cursor,
                     name_links,
                     name_failure,
+                    None,
                 )?);
                 TransformState::Complete
             }

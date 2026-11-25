@@ -2658,16 +2658,28 @@ fn lower_local_effect_sequence_with_collections(
                             )
                         })?;
                 cursor.enter("lower.token-copy.object");
-                let objects = lower_ordinary_permanent_subject(
-                    cursor,
-                    operand,
-                    effect_index,
-                    false,
-                    &permanent_target_base_ids,
-                    &mut used_target_base_ids,
-                    &mut decisions,
-                    &mut target_bindings,
-                )?;
+                let objects = match operand {
+                    // A copy reads copiable values in any zone (CR 707.2): a
+                    // bound copied object may be a card target an earlier card
+                    // action of this program declared.
+                    PermanentOperandNode::BoundReference(reference) => {
+                        vec![lower_bound_permanent_reference(
+                            cursor,
+                            *reference,
+                            &[target_bindings.as_slice(), card_target_bindings.as_slice()].concat(),
+                        )?]
+                    }
+                    _ => lower_ordinary_permanent_subject(
+                        cursor,
+                        operand,
+                        effect_index,
+                        false,
+                        &permanent_target_base_ids,
+                        &mut used_target_base_ids,
+                        &mut decisions,
+                        &mut target_bindings,
+                    )?,
+                };
                 let [object] = <[Value; 1]>::try_from(objects)
                     .map_err(|_| cursor.fail("one copied object"))?;
                 let mut creation = lower_token_creation_with_object(

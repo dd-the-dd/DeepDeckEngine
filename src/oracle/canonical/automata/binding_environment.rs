@@ -157,6 +157,26 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// instead` restates that recipient (CR 608.2c); the program parent
     /// publishes it (`publish_program_antecedents`).
     pub restated_damage_recipient: Option<super::DamageRecipientNode>,
+    /// The latest singular card target a card zone change of the program
+    /// declared (`exile target creature card from your graveyard`, CR
+    /// 115.1). It is no permanent: only a reader of the card's
+    /// characteristics (`a copy of that card`, CR 707.2) names it. The
+    /// program parent publishes it (`publish_program_antecedents`).
+    pub card_target: Option<DeclaredTargetAntecedent>,
+    /// The player who could pay the cost of the latest `unless` frame of the
+    /// program (CR 118.12): `that player` of a later sentence names that
+    /// payer, whether the cost was paid or refused. The program parent
+    /// publishes it (`publish_installed_unless_payer`).
+    pub unless_payer: Option<UnlessPayerAntecedent>,
+}
+
+/// The payer of an `unless` frame as a later reference to that player: the
+/// first action the frame guards (a player declared after it is nearer) and
+/// the player reference the payer is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct UnlessPayerAntecedent {
+    pub first_effect: usize,
+    pub payer: BoundPlayerReference,
 }
 
 /// A singular declared target that need not be a battlefield permanent: the
@@ -228,8 +248,70 @@ pub(in crate::oracle::canonical) fn publish_program_antecedents(
     environment.result_object = super::permanent_subject::program_action_result(effects);
     environment.declared_target = program_declared_target(effects);
     environment.restated_damage_recipient = restated_damage_recipient(effects);
+    environment.card_target = program_card_target(effects);
     retype_moved_object(&mut environment, effects);
     environment
+}
+
+/// The latest card zone change of the program that declared card targets,
+/// when it declared exactly one card (`exile target creature card from your
+/// graveyard`): the card a later characteristic reader (`a copy of that
+/// card`) names (CR 115.1, 608.2c). A nearer declaration of several cards
+/// ends the antecedent; the lowering binds the singular slot under the same
+/// key (`card_target_bindings`).
+fn program_card_target(effects: &[super::LocalEffectNode]) -> Option<DeclaredTargetAntecedent> {
+    for (effect_index, effect) in effects.iter().enumerate().rev() {
+        if let super::LocalEffectNode::TargetCardZoneChange(change) = effect {
+            return (change.cardinality == super::ExpressedTargetCardinality::EXACTLY_ONE).then(
+                || DeclaredTargetAntecedent {
+                    binding: super::TargetBinding {
+                        effect_index,
+                        slot_index: 0,
+                    },
+                    selector: TargetSelector::Object(change.predicate.clone()),
+                },
+            );
+        }
+    }
+    None
+}
+
+/// Publishes the payer of the latest `unless` frame of the program on the
+/// environment the program parent installed for the action it reads next
+/// (CR 118.12). The parent owns the frames; nothing here reads tokens.
+pub(in crate::oracle::canonical) fn publish_installed_unless_payer(
+    cursor: &mut OracleTokenCursor<'_>,
+    frames: &[super::UnlessFrameNode],
+) {
+    let mut environment = installed_binding_environment(cursor);
+    environment.unless_payer = frames.last().and_then(unless_payer_antecedent);
+    cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+}
+
+/// The one player a payment frame names as its payer: the controller of the
+/// guarded action's declared target, or a declared player. The ability's
+/// controller is `you`, never `that player`; a population has no single
+/// payer.
+fn unless_payer_antecedent(frame: &super::UnlessFrameNode) -> Option<UnlessPayerAntecedent> {
+    let super::UnlessClauseNode::Payment { payer, .. } = &frame.clause else {
+        return None;
+    };
+    let payer = match payer {
+        super::UnlessPayerNode::ControllerOf(binding) => BoundPlayerReference::ObjectRelation {
+            relation: ObjectPlayerRelation::Controller,
+            object: PermanentEffectReference::Target(*binding),
+        },
+        super::UnlessPayerNode::BoundPlayer(binding) => {
+            BoundPlayerReference::Bound(PlayerBinding(binding.effect_index))
+        }
+        super::UnlessPayerNode::Controller | super::UnlessPayerNode::QuantifiedPlayer => {
+            return None;
+        }
+    };
+    Some(UnlessPayerAntecedent {
+        first_effect: frame.first_effect,
+        payer,
+    })
 }
 
 /// Zone-crossing retyping (CR 400.7): the permanent a move put onto the
@@ -680,6 +762,8 @@ impl BindingEnvironment {
             result_object: None,
             declared_target: None,
             restated_damage_recipient: None,
+            card_target: None,
+            unless_payer: None,
         }
     }
 }
@@ -1151,11 +1235,15 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
     cursor.consume_phrase(&["that", "player"])?;
     cursor.enter("player-subject.bound.resolve");
     // The latest lexical declaration wins (CR 608.2c): a target that admits
-    // a player, unless a player declared later is the program's antecedent.
+    // a player, unless a player declared later, or the payer of a later
+    // `unless` frame, is the program's antecedent.
     if let Some(target) = environment.player_target.as_ref().filter(|target| {
         environment
             .player
             .is_none_or(|player| target.binding.effect_index > player.0)
+            && environment
+                .unless_payer
+                .is_none_or(|payer| target.binding.effect_index >= payer.first_effect)
     }) {
         return recognize_player_target_reference(cursor, target);
     }
@@ -1164,6 +1252,18 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
         return Err(cursor.fail(
             "a declared target that may be a player or a permanent for `that player or that NOUN's controller`",
         ));
+    }
+    // `Counter target spell unless its controller pays {1}. That player
+    // discards a card.`: the payer the `unless` frame named (CR 118.12),
+    // unless a player declared after that frame is nearer.
+    if let Some(payer) = environment.unless_payer.filter(|payer| {
+        environment
+            .player
+            .is_none_or(|player| player.0 < payer.first_effect)
+    }) {
+        cursor.enter("player-subject.unless-payer");
+        cursor.enter("player-subject.complete");
+        return Ok(payer.payer);
     }
     if let Some(binding) = environment.player {
         cursor.enter("player-subject.complete");
@@ -1690,6 +1790,106 @@ pub(in crate::oracle::canonical) fn resolve_pronoun_antecedent(
         return Err(PLURAL_SET_FOR_SINGULAR);
     }
     Err("a source binding or preceding singular permanent subject in this lexical scope")
+}
+
+/// The diagnostic of a copied card without a producer in the program.
+pub(in crate::oracle::canonical) const COPIED_CARD_MISSING: &str = "a card this program declared as its one target or moved or selected on resolution, as the copied object (CR 707.2)";
+
+/// The diagnostic of a copied card two antecedents of the same action name.
+pub(in crate::oracle::canonical) const COPIED_CARD_AMBIGUOUS: &str = "exactly one antecedent for the copied card; a declared card target and the card the same action moved both match";
+
+/// The diagnostic of `the exiled card` without an exile of this program: the
+/// card a linked ability exiled (CR 607.2a) has no copy reference yet.
+pub(in crate::oracle::canonical) const COPIED_LINKED_EXILE: &str = "an exile of this program for `the exiled card`; a card a linked ability exiled (CR 607.2a) is not a copied object here";
+
+/// The diagnostic of a copy of a permanent that left the battlefield whose
+/// copiable values as it last existed are not recorded (CR 400.7, 608.2h).
+pub(in crate::oracle::canonical) const COPIED_DEPARTED_UNRECORDED: &str = "an object whose copiable values as it last existed are recorded (CR 608.2h, 707.2); only the triggering event's object and cards keep them";
+
+/// The one resolver of a copied card (CR 707.2): a copy reads only the
+/// copiable values of its object, in whatever zone it is, so a card the
+/// program declared or moved is a legal antecedent although it is no
+/// permanent. The nearest of the program's singular card target and of the
+/// one card an earlier action moved or selected wins (CR 608.2c); `verb`
+/// restricts the result to its producing verb (`the exiled card`). A
+/// sacrificed permanent is not the card it became (CR 400.7) and keeps no
+/// copiable values as it last existed. Missing and ambiguous antecedents
+/// keep distinct diagnostics.
+pub(in crate::oracle::canonical) fn resolve_copied_card_antecedent(
+    environment: &BindingEnvironment,
+    verb: Option<super::ActionResultVerb>,
+) -> Result<PermanentEffectReference, &'static str> {
+    let target = environment
+        .card_target
+        .as_ref()
+        .filter(|_| verb.is_none())
+        .map(|target| target.binding);
+    let result = environment.result_object.as_ref().filter(|result| {
+        result.number == GrammaticalNumber::Singular
+            && !result.reference.permanent
+            && verb.is_none_or(|verb| result.verb == Some(verb))
+    });
+    match (target, result) {
+        (Some(target), Some(result)) if target.effect_index == result.reference.effect_index => {
+            Err(COPIED_CARD_AMBIGUOUS)
+        }
+        (Some(target), Some(result)) if target.effect_index > result.reference.effect_index => {
+            Ok(PermanentEffectReference::Target(target))
+        }
+        (_, Some(result)) => {
+            if result.verb == Some(super::ActionResultVerb::Sacrificed) {
+                return Err(COPIED_DEPARTED_UNRECORDED);
+            }
+            Ok(result.permanent_reference())
+        }
+        (Some(target), None) => Ok(PermanentEffectReference::Target(target)),
+        (None, None) if verb == Some(super::ActionResultVerb::Exiled) => Err(COPIED_LINKED_EXILE),
+        (None, None) => Err(COPIED_CARD_MISSING),
+    }
+}
+
+/// The object a copy names with a pronoun (`a copy of it`): the proven
+/// pronoun antecedent, else, when that antecedent is a card an earlier
+/// action moved or no permanent antecedent exists, the copied card the
+/// program declared or moved (`resolve_copied_card_antecedent`).
+pub(in crate::oracle::canonical) fn resolve_copied_pronoun_antecedent(
+    environment: &BindingEnvironment,
+) -> Result<PermanentEffectReference, &'static str> {
+    match resolve_pronoun_antecedent(environment) {
+        Ok(reference) => Ok(reference),
+        Err(expected) if expected == DEPARTED_ACTION_RESULT_OPERAND => {
+            resolve_copied_card_antecedent(environment, None)
+        }
+        Err(expected) => resolve_copied_card_antecedent(environment, None).map_err(|_| expected),
+    }
+}
+
+/// Whether a copy may read `reference` (CR 707.2): every object it names
+/// for its copiable values, except an event object that left the
+/// battlefield whose departure the runtime does not capture for this
+/// reference kind, and a sacrificed permanent read as an action result.
+pub(in crate::oracle::canonical) fn copied_reference_admitted(
+    environment: &BindingEnvironment,
+    reference: PermanentEffectReference,
+) -> Result<(), &'static str> {
+    if environment
+        .frame
+        .event_object
+        .as_ref()
+        .is_some_and(|slot| slot.departed && slot.reference == reference)
+        && reference != PermanentEffectReference::Observed(TypedObservedEventObject::EventPermanent)
+    {
+        return Err(COPIED_DEPARTED_UNRECORDED);
+    }
+    if let PermanentEffectReference::ActionResult(produced) = reference
+        && !produced.permanent
+        && environment.result_object.as_ref().is_some_and(|result| {
+            result.reference == produced && result.verb == Some(super::ActionResultVerb::Sacrificed)
+        })
+    {
+        return Err(COPIED_DEPARTED_UNRECORDED);
+    }
+    Ok(())
 }
 
 /// The one resolver of a singular nominal anaphor (`that creature`, `the
@@ -2227,7 +2427,9 @@ fn object_set_head(cursor: &OracleTokenCursor<'_>) -> Option<ObjectSetHead> {
     let (prefix, determiner) = match (first.as_str(), word(1).as_deref(), word(2).as_deref()) {
         ("each", Some("of"), Some("them")) => return Some(plural_pronoun(3)),
         ("each", Some("of"), Some("those")) => (2, "those"),
-        ("they", _, _) => return Some(plural_pronoun(1)),
+        // `they` and its object form `them` (`Untap them.`, `gain control
+        // of them`) name the same set (CR 608.2c).
+        ("they" | "them", _, _) => return Some(plural_pronoun(1)),
         ("those", _, _) => (0, "those"),
         ("that", _, _) => (0, "that"),
         ("the", _, _) => (0, "the"),
@@ -2671,3 +2873,7 @@ pub(in crate::oracle::canonical) fn installed_binding_environment(
 #[cfg(test)]
 #[path = "binding_environment_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "antecedent_environment_tests.rs"]
+mod antecedent_environment_tests;
