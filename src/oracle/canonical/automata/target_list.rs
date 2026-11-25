@@ -1,8 +1,9 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ExpressedTargetCardinality, NumericAtom, NumericExpression, PlayerPredicate, TargetCardinality,
-    TargetListNode, TargetSelector, TargetSlot, recognize_numeric_atom,
-    recognize_numeric_expression, recognize_target_slot_selector,
+    ExpressedTargetCardinality, NumericAtom, NumericExpression, ObjectKind, ObjectPredicate,
+    PlayerPredicate, StackItemPredicate, TargetCardinality, TargetListNode, TargetSelector,
+    TargetSlot, recognize_numeric_atom, recognize_numeric_expression,
+    recognize_target_slot_selector,
 };
 
 /// One bound of a declared target count (CR 601.2c, 115.1): an amount the
@@ -474,7 +475,8 @@ fn recognize_target_slot(
             }
             TargetSlotState::Selector => {
                 cursor.enter("target-list.slot.selector");
-                selector = Some(recognize_target_slot_selector(cursor)?);
+                let first = recognize_target_slot_selector(cursor)?;
+                selector = Some(recognize_heterogeneous_selector_list(cursor, first)?);
                 TargetSlotState::Complete
             }
             TargetSlotState::Complete => {
@@ -489,6 +491,193 @@ fn recognize_target_slot(
             }
         };
     }
+}
+
+/// The kind of object or player one selector branch of a target slot
+/// names. Branches of different kinds are heterogeneous (CR 115.1: one
+/// target may be a player, a permanent or a stack object).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SelectorBranchKind {
+    AnyTarget,
+    Player,
+    Object,
+    StackItem,
+}
+
+fn selector_branch_kinds(selector: &TargetSelector, kinds: &mut Vec<SelectorBranchKind>) {
+    let kind = match selector {
+        TargetSelector::Any => SelectorBranchKind::AnyTarget,
+        TargetSelector::Player(_) => SelectorBranchKind::Player,
+        TargetSelector::Object(_) | TargetSelector::ControlledObject { .. } => {
+            SelectorBranchKind::Object
+        }
+        TargetSelector::StackItem(_) => SelectorBranchKind::StackItem,
+        TargetSelector::Union(branches) => {
+            for branch in branches {
+                selector_branch_kinds(branch, kinds);
+            }
+            return;
+        }
+    };
+    if !kinds.contains(&kind) {
+        kinds.push(kind);
+    }
+}
+
+/// `spell` alone: the stack-object domain with no other characteristic,
+/// which the stack-item predicate names exactly (CR 112.1).
+fn bare_spell_selector(selector: &TargetSelector) -> bool {
+    let TargetSelector::Object(predicate) = selector else {
+        return false;
+    };
+    match predicate {
+        ObjectPredicate::ObjectKind(ObjectKind::Spell) => true,
+        ObjectPredicate::Intersection(operands) => {
+            matches!(
+                operands.as_slice(),
+                [ObjectPredicate::ObjectKind(ObjectKind::Spell)]
+            )
+        }
+        _ => false,
+    }
+}
+
+fn flatten_selector_union(selector: TargetSelector, branches: &mut Vec<TargetSelector>) {
+    match selector {
+        TargetSelector::Union(inner) => {
+            for branch in inner {
+                flatten_selector_union(branch, branches);
+            }
+        }
+        other => branches.push(other),
+    }
+}
+
+fn flatten_stack_item_union(predicate: StackItemPredicate, operands: &mut Vec<StackItemPredicate>) {
+    match predicate {
+        StackItemPredicate::Union(inner) => {
+            for operand in inner {
+                flatten_stack_item_union(operand, operands);
+            }
+        }
+        other => {
+            if !operands.contains(&other) {
+                operands.push(other);
+            }
+        }
+    }
+}
+
+/// Reads `[, SELECTOR]* [,] or SELECTOR` after the first selector of one
+/// target slot, when the selectors name targets of different kinds: `target
+/// spell, activated ability, or triggered ability`, `target opponent,
+/// creature an opponent controls, or planeswalker an opponent controls`,
+/// `target creature token, player, or planeswalker`. Each branch is the
+/// shared slot selector with its own qualifiers; the slot is one target
+/// whose legal objects are the union of the branches (CR 115.1, 601.2c).
+///
+/// A coordination of object heads alone is the object query's own grammar
+/// (`target artifact, creature, or enchantment`): this reader makes no claim
+/// on it and consumes nothing, so the query child keeps its diagnostic.
+/// Stack branches merge into one stack-item predicate (`spell` alone is the
+/// stack spell domain). A trailing controller written on the last object
+/// branch only is refused explicitly: whether it scopes the earlier
+/// unqualified object branches is not decided by this reader.
+fn recognize_heterogeneous_selector_list(
+    cursor: &mut OracleTokenCursor<'_>,
+    first: TargetSelector,
+) -> MachineResult<TargetSelector> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw == "," || raw.eq_ignore_ascii_case("or"))
+    {
+        return Ok(first);
+    }
+    let mut trial = cursor.clone();
+    trial.enter("target-list.selector-list.branch");
+    let mut read = Vec::new();
+    let complete = loop {
+        let comma = trial.peek() == Some(",");
+        if comma && trial.consume(",").is_err() {
+            break false;
+        }
+        let last = trial
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("or"));
+        if last && trial.consume("or").is_err() {
+            break false;
+        }
+        if !comma && !last {
+            break false;
+        }
+        match trial.attempt(recognize_target_slot_selector) {
+            Ok(branch) => read.push(branch),
+            Err(_) => break false,
+        }
+        if last {
+            break true;
+        }
+        // A middle branch is followed by the next comma.
+        if trial.peek() != Some(",") {
+            break false;
+        }
+    };
+    if !complete {
+        return Ok(first);
+    }
+    let mut kinds = Vec::new();
+    for branch in std::iter::once(&first).chain(read.iter()) {
+        selector_branch_kinds(branch, &mut kinds);
+    }
+    if kinds.len() < 2 {
+        // Homogeneous object coordination: the query child's grammar.
+        return Ok(first);
+    }
+    let mut branches = Vec::new();
+    flatten_selector_union(first, &mut branches);
+    for branch in read {
+        flatten_selector_union(branch, &mut branches);
+    }
+    *cursor = trial;
+    cursor.enter("target-list.selector-list.scope");
+    let object_branches = branches
+        .iter()
+        .filter(|branch| {
+            matches!(
+                branch,
+                TargetSelector::Object(_) | TargetSelector::ControlledObject { .. }
+            ) && !bare_spell_selector(branch)
+        })
+        .collect::<Vec<_>>();
+    let trailing_controller_only = object_branches.last().is_some_and(|last| {
+        matches!(last, TargetSelector::ControlledObject { .. })
+            && object_branches
+                .iter()
+                .any(|branch| matches!(branch, TargetSelector::Object(_)))
+    });
+    cursor.require(
+        !trailing_controller_only,
+        "separately qualified object branches; a controller on the last branch does not scope earlier unqualified branches",
+    )?;
+    cursor.enter("target-list.selector-list.complete");
+    let stack_only = branches.iter().all(|branch| {
+        matches!(branch, TargetSelector::StackItem(_)) || bare_spell_selector(branch)
+    });
+    if stack_only {
+        let mut operands = Vec::new();
+        for branch in branches {
+            let predicate = match branch {
+                TargetSelector::StackItem(predicate) => predicate,
+                _ => StackItemPredicate::Spell,
+            };
+            flatten_stack_item_union(predicate, &mut operands);
+        }
+        return Ok(TargetSelector::StackItem(match operands.len() {
+            1 => operands.pop().expect("one stack-item operand"),
+            _ => StackItemPredicate::Union(operands),
+        }));
+    }
+    Ok(TargetSelector::Union(branches))
 }
 
 /// Lowers `another target X` / `up to N other target X` onto a target slot's

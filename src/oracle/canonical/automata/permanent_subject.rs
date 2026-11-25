@@ -795,7 +795,12 @@ pub(in crate::oracle::canonical) fn action_result_object(
 fn singular_card_operand(operand: &CardOperandNode) -> Option<Option<ObjectPredicate>> {
     let one = NumericExpression::from(1);
     match operand {
-        CardOperandNode::LibraryTop(top) if top.count == one => Some(None),
+        // `the top card of each player's library` is one card per library.
+        CardOperandNode::LibraryTop(top)
+            if top.count == one && !matches!(top.owner, CardLibraryOwnerNode::Players(_)) =>
+        {
+            Some(None)
+        }
         CardOperandNode::Selection(selection)
             if selection.quantity == CardSelectionQuantityNode::Exactly(one.clone()) =>
         {

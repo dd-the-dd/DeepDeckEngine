@@ -31,9 +31,9 @@
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
     CardSupertype, ExpressedTargetCardinality, GrammaticalNumber, LocalEffectNode, NumericAtom,
-    ObjectCardType, ObjectPredicate, ObjectQueryNode, ObjectSetAntecedent, ObjectSetDenotation,
-    PerformerNode, PermanentEffectReference, PlayerPredicate, TargetBinding, TargetCountSupport,
-    TargetListNode, TargetSelector, VerbForm, VerbLemma, lookup_verb,
+    ObjectCardType, ObjectKind, ObjectPredicate, ObjectQueryNode, ObjectSetAntecedent,
+    ObjectSetDenotation, PerformerNode, PermanentEffectReference, PlayerPredicate, TargetBinding,
+    TargetCountSupport, TargetListNode, TargetSelector, VerbForm, VerbLemma, lookup_verb,
     recognize_expressed_target_cardinality, recognize_object_collection,
     recognize_object_predicate_atom, recognize_object_query, recognize_target_list_with_counts,
     selector_guarantees_permanent,
@@ -477,9 +477,24 @@ fn recognize_object_domain(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
         "one counted query; one object of each coordinated head is a choice per head",
     )?;
     cursor.enter("choose.domain.object.zone");
+    if !query.denotes_battlefield_permanents()
+        && query.predicate.is_in_domain(ObjectKind::Card)
+        && (word_at(cursor, 0, "in")
+            || word_at(cursor, 0, "from")
+            || super::card_location_starts(cursor))
+    {
+        // The controller's own choice of located cards (`choose a card in
+        // your graveyard`, `choose a card exiled with this artifact`) is the
+        // card action's chosen-card binding; this frame is reached for a
+        // performer's choice or a location the card action does not read.
+        cursor.enter("choose.domain.object.zone.card-location");
+        return Err(cursor.fail(
+            "a card choice the card-action frame binds: the controller choosing cards in a named zone or a linked exile",
+        ));
+    }
     cursor.require(
         query.denotes_battlefield_permanents(),
-        "permanents on the battlefield; a choice among cards in another zone has no chosen-card binding",
+        "permanents on the battlefield; a card choice names its zone (`in your graveyard`, `exiled with this artifact`)",
     )?;
     cursor.enter("choose.domain.object.selection");
     cursor.require(

@@ -1,0 +1,212 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "disallow-counters-a-triggered-ability",
+  "seed": 7,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetStackObject",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "stackItems",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "isSpell"
+                },
+                {
+                  "kind": "isActivatedAbility"
+                },
+                {
+                  "kind": "isTriggeredAbility"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "counterStackObject",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetStackObject"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Trigger pilot",
+        "manaPool": [
+          "G",
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "trigger-bear",
+            "name": "Trigger Bear",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{G}{G}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Disallow pilot",
+        "manaPool": [
+          "U",
+          "U",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "disallow",
+            "name": "Disallow",
+            "typeLine": "Instant",
+            "manaCost": "{1}{U}{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetStackObject",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "stackItems",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "isSpell"
+                            },
+                            {
+                              "kind": "isActivatedAbility"
+                            },
+                            {
+                              "kind": "isTriggeredAbility"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "counterStackObject",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetStackObject"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "trigger-bear"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "disallow"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "trigger-bear",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "disallow",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

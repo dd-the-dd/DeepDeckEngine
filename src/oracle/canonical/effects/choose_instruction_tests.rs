@@ -220,8 +220,10 @@ fn unsupported_choices_and_unproved_bindings_fail_at_their_own_state() {
             "Choose any target. Draw a card.",
             "choose.domain.target.kind",
         ),
+        // A graveyard card target is the card action's declaration; a card
+        // target in a hidden zone has no declaration domain (CR 115.1).
         (
-            "Choose target creature card in your graveyard. Return it to your hand.",
+            "Choose target creature card in your library. Return it to your hand.",
             "choose.domain.target.kind",
         ),
     ] {

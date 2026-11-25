@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-choice-total-mana-value-is-a-set-constraint",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "chosenZoneCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "cardsInZone",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 2
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "cardsInZone",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                "zone": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "setConstraints": [
+          {
+            "kind": "totalAtMost",
+            "property": "manaValue",
+            "value": {
+              "kind": "integer",
+              "value": 4
+            }
+          }
+        ]
+      },
+      {
+        "kind": "moveCards",
+        "bind": "movedOntoBattlefield",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "chosenZoneCards"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Dirge pilot",
+        "hand": [
+          {
+            "id": "lively-dirge",
+            "name": "Lively Dirge",
+            "typeLine": "Sorcery",
+            "manaCost": "{4}{B}"
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "small-creature",
+            "name": "Small Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{W}",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "middle-creature",
+            "name": "Middle Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{2}{W}",
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "big-creature",
+            "name": "Big Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{3}{W}",
+            "power": "4",
+            "toughness": "4"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "lively-dirge"
+  },
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 2,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "small-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "middle-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "big-creature",
+      "equals": true
+    }
+  ]
+}

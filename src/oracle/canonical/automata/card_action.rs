@@ -252,6 +252,19 @@ pub(in crate::oracle::canonical) enum CardActionNode {
     /// an observed collection while the effect resolves. The choice is the
     /// singular or plural antecedent of a later `that card`, `it` or `them`.
     Choose(CardSelectionOperandNode),
+    /// `[you] choose QUANTITY QUERY card(s) in|from ZONE` (CR 608.2d): the
+    /// controller chooses cards of a named zone while the effect resolves.
+    /// The chosen cards are the observed collection (the chosen-card binding)
+    /// a later `that card`, `it` or `them` names, in that zone.
+    ChooseFromZone(CardZoneCollectionNode),
+    /// `choose target QUERY card(s) in ZONE` (CR 115.1, 601.2c): the
+    /// instruction is the card target declaration itself; the declared
+    /// cards are the collection a later `that card`, `it`, `them` or `the
+    /// chosen card(s)` names, in that zone.
+    ChooseTargetCards(CardTargetOperandNode),
+    /// `CARDS gain(s) flashback until end of turn` (CR 702.34a): a keyword
+    /// the cards have where they are, fixed on resolution (CR 611.2c).
+    GrantKeyword(CardKeywordGrantNode),
     /// `shuffle [your library]` (CR 701.20a).
     Shuffle {
         owner: LocalPlayerReference,
@@ -395,6 +408,28 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     let Some(head) = cursor.peek() else {
         return Ok(None);
     };
+    if card_keyword_grant_follows(cursor) {
+        // `target instant card in your graveyard gains flashback until end
+        // of turn`: the card operand is the clause subject. Committed once
+        // the keyword is read; an unread subject leaves the clause to others.
+        let mut trial = cursor.clone();
+        let start = trial.position();
+        match recognize_card_keyword_grant(&mut trial, operand) {
+            Ok(node) => {
+                *cursor = trial;
+                return Ok(Some(CardActionNode::GrantKeyword(node)));
+            }
+            Err(failure)
+                if trial
+                    .token_slice(start, trial.position())
+                    .iter()
+                    .any(|token| token.raw.eq_ignore_ascii_case("flashback")) =>
+            {
+                return Err(failure);
+            }
+            Err(_) => {}
+        }
+    }
     if permission_head_starts(cursor) || imperative_cast_starts(cursor) {
         return recognize_card_permission(cursor, frame, None)
             .map(|node| Some(CardActionNode::Permit(node)));
@@ -434,15 +469,41 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
             trial.consume("you")?;
         }
         trial.consume("choose")?;
+        // `choose target artifact card in your graveyard`: a card target
+        // declaration; a permanent target stays with the choose frame.
+        trial.enter("card-action.choose.target-cards");
+        match try_recognize_card_target_operand(&mut trial) {
+            CollectionOperandAttempt::Recognized(fragment) => {
+                *cursor = trial;
+                return Ok(Some(CardActionNode::ChooseTargetCards(fragment.node)));
+            }
+            CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+            CollectionOperandAttempt::NotClaimed
+            | CollectionOperandAttempt::RejectedCandidate(_) => {}
+        }
         trial.enter("card-action.choose.selection");
-        return match try_recognize_card_selection_operand(&mut trial) {
+        match try_recognize_card_selection_operand(&mut trial) {
             CardSelectionOperandAttempt::Recognized(fragment) => {
                 *cursor = trial;
-                Ok(Some(CardActionNode::Choose(fragment.node)))
+                return Ok(Some(CardActionNode::Choose(fragment.node)));
             }
-            CardSelectionOperandAttempt::FailedCommitted(failure) => Err(failure),
+            CardSelectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
             CardSelectionOperandAttempt::NotClaimed
-            | CardSelectionOperandAttempt::RejectedCandidate(_) => Ok(None),
+            | CardSelectionOperandAttempt::RejectedCandidate(_) => {}
+        }
+        // `choose an instant or sorcery card in your graveyard`: a chosen
+        // quantity of a named zone's cards, read by the shared zone
+        // collection. `all cards in ZONE` chooses nothing and stays unread.
+        trial.enter("card-action.choose.zone");
+        return match try_recognize_card_zone_collection(&mut trial) {
+            CollectionOperandAttempt::Recognized(fragment) if fragment.node.quantity.is_some() => {
+                *cursor = trial;
+                Ok(Some(CardActionNode::ChooseFromZone(fragment.node)))
+            }
+            CollectionOperandAttempt::FailedCommitted(failure) => Err(failure),
+            CollectionOperandAttempt::Recognized(_)
+            | CollectionOperandAttempt::NotClaimed
+            | CollectionOperandAttempt::RejectedCandidate(_) => Ok(None),
         };
     }
     if head.eq_ignore_ascii_case("shuffle") {

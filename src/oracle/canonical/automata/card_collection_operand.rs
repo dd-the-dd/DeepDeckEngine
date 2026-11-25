@@ -212,6 +212,28 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
                     }
                     CardCollectionReferenceNode::Exiled
                 }
+                // `the chosen card(s)`: the cards a choice or a target
+                // declaration of this program bound, as `that card` / `those
+                // cards` name them; the lowerer proves the binding.
+                Some("chosen") => {
+                    let noun = trial.peek_ahead(1).map(str::to_ascii_lowercase);
+                    let node = match noun.as_deref() {
+                        Some("card") => CardCollectionReferenceNode::Selected,
+                        Some("cards") => CardCollectionReferenceNode::Antecedent,
+                        _ => {
+                            return CollectionOperandAttempt::RejectedCandidate(
+                                trial.fail("`card` or `cards` after `the chosen`"),
+                            );
+                        }
+                    };
+                    if let Err(f) = trial
+                        .consume("chosen")
+                        .and_then(|()| trial.consume(noun.as_deref().unwrap_or("card")))
+                    {
+                        return CollectionOperandAttempt::FailedCommitted(f);
+                    }
+                    node
+                }
                 _ => {
                     return CollectionOperandAttempt::RejectedCandidate(
                         trial.fail("rest, other or cards after the collection article"),

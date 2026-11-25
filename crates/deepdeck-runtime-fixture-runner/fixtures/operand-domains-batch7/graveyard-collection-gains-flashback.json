@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "graveyard-collection-gains-flashback-until-end-of-turn",
+  "seed": 19,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "grantAbility",
+        "object": {
+          "kind": "cardsInZone",
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Instant"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Sorcery"
+              }
+            ]
+          }
+        },
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "ability": {
+          "kind": "flashback",
+          "cost": {
+            "kind": "manaCostOf",
+            "card": {
+              "kind": "abilitySource"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Flames pilot",
+        "manaPool": [
+          "R"
+        ],
+        "hand": [
+          {
+            "id": "past-in-flames",
+            "name": "Past in Flames",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{R}"
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "graveyard-instant",
+            "name": "Graveyard Instant",
+            "typeLine": "Instant",
+            "manaCost": "{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "graveyard-sorcery",
+            "name": "Graveyard Sorcery",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "graveyard-creature",
+            "name": "Graveyard Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{R}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "past-in-flames"
+      }
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "graveyard-instant",
+      "sourceZone": "graveyard"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "flashbackPermissionGranted",
+      "equals": 2
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 23
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "graveyard-instant",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "graveyard-creature",
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "graveyard-creature",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

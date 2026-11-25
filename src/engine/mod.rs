@@ -2910,10 +2910,7 @@ fn object_expression_supported(expression: &Value) -> bool {
         }
         Some("cardsExiledWithSource" | "triggeringCard") => true,
         Some("referencedObject") => referenced_object::referenced_object_supported(expression),
-        Some("libraryTopCards") => {
-            library_zone_supported(&expression["zone"])
-                && numeric_expression_supported(&expression["count"])
-        }
+        Some("libraryTopCards") => card_selection::library_top_cards_supported(expression),
         Some("boundObjects") => expression["binding"].is_string(),
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("setDifference") => {
@@ -2935,7 +2932,7 @@ fn object_expression_supported(expression: &Value) -> bool {
                     // is refused here, not at resolution.
                     card_filter_supported(predicate)
                         && object_predicate::try_map_predicate_leaves(predicate, 0, &mut |leaf| {
-                            if object_predicate::definition_atom_supported(leaf) {
+                            if card_selection::card_zone_query_atom_supported(leaf) {
                                 Ok(leaf.clone())
                             } else {
                                 Err(EngineError::new("not a definition atom"))
@@ -32063,31 +32060,10 @@ impl GameEngine {
                 )
             }
             Some("self" | "abilitySource") => Some(vec![stack_object.card.instance_id.clone()]),
-            // The top N cards of a library, top first (CR 401.2). The set is
-            // identified when evaluated; a `bind` fixes it for later verbs.
+            // The top N cards of a library or of each library of a player
+            // population, top first (CR 401.2): `card_selection`.
             Some("libraryTopCards") => {
-                let player_id =
-                    self.resolve_player(&expression["zone"]["player"], stack_object, bindings)?;
-                let player_index = self.player_index(&player_id).ok()?;
-                let count = self
-                    .checked_runtime_numeric_expression(
-                        &expression["count"],
-                        stack_object,
-                        bindings,
-                        decisions,
-                        "libraryTopCards.count",
-                    )
-                    .ok()?
-                    .max(0) as usize;
-                Some(
-                    self.state.players[player_index]
-                        .library
-                        .iter()
-                        .rev()
-                        .take(count)
-                        .map(|card| card.instance_id.clone())
-                        .collect(),
-                )
+                self.library_top_card_ids(expression, stack_object, bindings, decisions)
             }
             Some("attachedObject") if value_kind(&expression["attachment"]) == Some("self") => {
                 stack_object
