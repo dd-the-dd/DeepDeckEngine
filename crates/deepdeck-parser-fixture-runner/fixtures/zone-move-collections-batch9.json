@@ -475,6 +475,66 @@
           }
         ]
       }
+    },
+    {
+      "id": "alora-merry-thief-exact-return-that-creature-delayed",
+      "request": {
+        "cardName": "Alora, Merry Thief",
+        "typeLine": "Legendary Creature — Halfling Rogue",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you attack, up to one target attacking creature can't be blocked this turn. Return that creature to its owner's hand at the beginning of the next end step.\nChoose a Background (You can have a Background as a second commander.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wall-of-tears-exact-return-that-creature-end-of-combat",
+      "request": {
+        "cardName": "Wall of Tears",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{1}{U}",
+        "oracleText": "Defender (This creature can't attack.)\nWhenever this creature blocks a creature, return that creature to its owner's hand at end of combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "scrappy-bruiser-exact-return-that-creature-end-of-combat",
+      "request": {
+        "cardName": "Scrappy Bruiser",
+        "typeLine": "Creature — Raccoon Warrior",
+        "manaCost": "{3}{R}",
+        "oracleText": "Whenever this creature attacks, up to one target attacking creature gets +2/+0 and gains trample until end of turn. Return that creature to its owner's hand at end of combat. (Return it only if it's on the battlefield.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-block-trigger-return-that-creature-now",
+      "request": {
+        "cardName": "Zone Move Bound Return Probe",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{2}{U}",
+        "oracleText": "Defender\nWhenever this creature blocks a creature, return that creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
     }
   ]
 }

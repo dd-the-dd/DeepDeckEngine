@@ -945,6 +945,22 @@ fn recognize_untargeted_zone_change(
                 },
             ))
         }
+        // `return that creature to its owner's hand` (CR 400.3): the bound
+        // permanent the program or its event named, never a declaration.
+        (
+            ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand),
+            VerbObjectOperandNode::Reference(object),
+        ) => {
+            cursor.enter("effect.zone-change.reference.return");
+            recognize_owner_hand_destination(cursor, false)?;
+            Ok(LocalEffectNode::ReferencedPermanentAction(
+                super::ReferencedPermanentActionNode {
+                    object,
+                    cannot_regenerate: false,
+                    action: Referenced::ReturnToOwnerHand,
+                },
+            ))
+        }
         (ZoneChangeAction::Exile, VerbObjectOperandNode::Reference(object)) => {
             cursor.enter("effect.zone-change.reference.exile");
             Ok(LocalEffectNode::ReferencedPermanentAction(

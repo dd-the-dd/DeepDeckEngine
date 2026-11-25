@@ -2137,6 +2137,14 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(operation);
                         continue;
                     }
+                    // CR 400.3: the permanent goes to its owner's hand.
+                    ReferencedPermanentAction::ReturnToOwnerHand => {
+                        effects.push(json!({
+                            "kind": "returnToOwnersHand",
+                            "permanent": reference,
+                        }));
+                        continue;
+                    }
                     // CR 701.24a: put into the owner's library, then that
                     // library is shuffled (its owner by last known
                     // information once the permanent has left).
