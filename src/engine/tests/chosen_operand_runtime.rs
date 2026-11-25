@@ -10,7 +10,6 @@ use super::*;
 #[derive(Default)]
 struct LastChoice {
     players: Vec<String>,
-    options: Vec<usize>,
 }
 
 impl DecisionProvider for LastChoice {
@@ -20,7 +19,6 @@ impl DecisionProvider for LastChoice {
         request: &EngineDecisionRequest,
     ) -> Result<usize, EngineError> {
         self.players.push(request.player_id.clone());
-        self.options.push(request.options.len());
         Ok(request.options.len().saturating_sub(1))
     }
 }
