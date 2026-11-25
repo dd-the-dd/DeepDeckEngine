@@ -144,6 +144,7 @@ mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
 mod myriad;
+mod observed_state_events;
 mod regeneration;
 mod replacement_pipeline;
 mod trigger_multiplicity;
@@ -4916,6 +4917,9 @@ fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
     }
+    if let Some(supported) = observed_state_events::observed_state_event_supported(event) {
+        return supported;
+    }
     if let Some(supported) = player_event_matchers::player_outcome_event_supported(event) {
         return supported;
     }
@@ -5178,6 +5182,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 && event
                     .get("resultingCount")
                     .is_none_or(|count| integer_value(count).is_some_and(|count| count > 0))
+                && counter_placement::counter_occurrence_supported(event)
         }
         Some("controlledObjectBecameTarget") => player_reference_supported(&event["player"]),
         Some("stateConditionMet") => condition_supported(&event["condition"]),
@@ -22621,6 +22626,7 @@ impl GameEngine {
     }
 
     fn enqueue_individual_permanent_tapped_triggers(&mut self, source: &CardInstance) {
+        self.publish_observed_permanent_tapped(source);
         let triggers = self
             .effective_rules(&source)
             .iter()

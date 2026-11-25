@@ -6,7 +6,9 @@
 //!              | "another" Query               -- singular, source excluded
 //!              | NUMBER "or" "more" ["other"] Collection  -- plural, once per event
 //! Verb        := leave(s) ("your graveyard" | "the battlefield") | attack(s)
-//!              | block(s) | become(s) "blocked"
+//!              | block(s) | become(s) ("blocked" | "tapped" | "untapped")
+//!              | ("is" | "are") "tapped" "for" "mana"
+//!              | KEYWORD-ACTION                -- `explores`, `connives`
 //!              | DealClause (active: the event complement; passive:
 //!                `is|are dealt [combat|noncombat] damage`, `clause.rs`)
 //!              | enter(s) | die(s)
@@ -68,6 +70,17 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
     BeDealtDamage(DamageKind),
     /// `is|are turned face up` (CR 708.8).
     TurnedFaceUp,
+    /// `become(s) tapped` (CR 701.26a): a tapped transition, whatever
+    /// tapped the permanent. Entering the battlefield tapped is no tap.
+    BecomeTapped,
+    /// `become(s) untapped` (CR 701.26b): an untapped transition.
+    BecomeUntapped,
+    /// `is tapped for mana` (CR 106.11a, 605.1a): a mana ability of the
+    /// permanent whose cost taps it was activated.
+    TappedForMana,
+    /// `explores`, `connives` (CR 701.44, 701.50): the permanent performed
+    /// a keyword action whose program signals its completion.
+    PerformedKeywordAction(super::PermanentKeywordAction),
 }
 
 /// Whose graveyard a card arrives in, relative to the ability controller.
@@ -171,6 +184,34 @@ pub(in crate::oracle::canonical) fn object_event_frame_starts(
             .into_iter()
             .chain([VerbLemma::Deal])
             .any(|lemma| lemma_at(cursor, lemma, agreement))
+        || keyword_action_verb_at(cursor, agreement).is_some()
+}
+
+/// A keyword-action verb whose grammatical subject is the acting permanent
+/// (`explores`, `connives`, CR 701.44, 701.50), in the third-person form of
+/// the shared keyword-action vocabulary. Only the singular agreement has
+/// such a form; a plural subject reads no keyword-action verb.
+fn keyword_action_verb_at(
+    cursor: &OracleTokenCursor<'_>,
+    agreement: VerbAgreement,
+) -> Option<super::PermanentKeywordAction> {
+    if agreement != VerbAgreement::ThirdPersonSingular {
+        return None;
+    }
+    cursor
+        .peek()
+        .and_then(super::PermanentKeywordAction::from_subject_verb)
+}
+
+/// `AUXILIARY tapped for mana` at the cursor: the passive participle of the
+/// `tap` lemma with its mana purpose (CR 106.11a). A lexical probe.
+fn tapped_for_mana_starts(cursor: &OracleTokenCursor<'_>, auxiliary: &str) -> bool {
+    peek_word(cursor, 0, auxiliary)
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            super::is_verb_form(raw, VerbLemma::Tap, super::VerbForm::PastParticiple)
+        })
+        && peek_word(cursor, 2, "for")
+        && peek_word(cursor, 3, "mana")
 }
 
 /// The verb frame of an object event after its (already read) subject. A
@@ -227,6 +268,9 @@ pub(in crate::oracle::canonical) fn recognize_object_event_frame(
         }
         ObjectEventVerb::LeaveBattlefield => cursor.consume_phrase(&["the", "battlefield"])?,
         ObjectEventVerb::BecomeBlocked => cursor.consume("blocked")?,
+        // The state complement of `become` (CR 701.26).
+        ObjectEventVerb::BecomeTapped => cursor.consume("tapped")?,
+        ObjectEventVerb::BecomeUntapped => cursor.consume("untapped")?,
         ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
             cursor.consume_phrase(&["put", "into"])?;
             cursor.enter("event.object.graveyard-owner");
@@ -285,6 +329,8 @@ pub(in crate::oracle::canonical) fn recognize_object_event_frame(
         | ObjectEventVerb::Enter
         | ObjectEventVerb::Die
         | ObjectEventVerb::TurnedFaceUp
+        | ObjectEventVerb::TappedForMana
+        | ObjectEventVerb::PerformedKeywordAction(_)
         | ObjectEventVerb::PutIntoGraveyard(..) => {}
     }
     // The attacked player or permanent is the attack's own argument (CR
@@ -348,6 +394,23 @@ fn recognize_object_event_verb(
         super::consume_turned_face_up(cursor, passive_auxiliary(agreement))?;
         return Ok(ObjectEventVerb::TurnedFaceUp);
     }
+    if tapped_for_mana_starts(cursor, passive_auxiliary(agreement)) {
+        cursor.enter("event.object.tapped-for-mana");
+        cursor.consume(passive_auxiliary(agreement))?;
+        let participle = cursor
+            .peek()
+            .map(str::to_string)
+            .ok_or_else(|| cursor.fail("the passive participle of `tap`"))?;
+        cursor.consume(&participle)?;
+        cursor.consume_phrase(&["for", "mana"])?;
+        return Ok(ObjectEventVerb::TappedForMana);
+    }
+    if let Some(action) = keyword_action_verb_at(cursor, agreement) {
+        cursor.enter("event.object.keyword-action");
+        let raw = cursor.peek().map(str::to_string).unwrap_or_default();
+        cursor.consume(&raw)?;
+        return Ok(ObjectEventVerb::PerformedKeywordAction(action));
+    }
     if let Some(lemma) = OBJECT_EVENT_LEMMAS
         .into_iter()
         .find(|lemma| lemma_at(cursor, *lemma, agreement))
@@ -358,6 +421,12 @@ fn recognize_object_event_verb(
             VerbLemma::Leave => ObjectEventVerb::LeaveControllerGraveyard,
             VerbLemma::Attack => ObjectEventVerb::Attack,
             VerbLemma::Block => ObjectEventVerb::Block,
+            // The state complement of `become` selects the transition; the
+            // complement itself is consumed with the event's operands.
+            VerbLemma::Become if peek_word(cursor, 0, "tapped") => ObjectEventVerb::BecomeTapped,
+            VerbLemma::Become if peek_word(cursor, 0, "untapped") => {
+                ObjectEventVerb::BecomeUntapped
+            }
             VerbLemma::Become => ObjectEventVerb::BecomeBlocked,
             VerbLemma::Enter => ObjectEventVerb::Enter,
             _ => ObjectEventVerb::Die,
@@ -372,7 +441,7 @@ fn recognize_object_event_verb(
         return Err(cursor.fail("a verb agreeing in number with its subject"));
     }
     Err(cursor.fail(
-        "leave, attack, block, become blocked, deal combat damage, enter, die, be put into a graveyard or be dealt damage",
+        "leave, attack, block, become blocked|tapped|untapped, deal combat damage, enter, die, be put into a graveyard, be tapped for mana, be dealt damage or perform a keyword action",
     ))
 }
 

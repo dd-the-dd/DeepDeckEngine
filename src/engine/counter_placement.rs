@@ -4,6 +4,17 @@
 use super::quantity_replacement::{QuantityEvent, QuantityOrigin, QuantityRecipient};
 use super::*;
 
+/// The singular occurrence fields of a `countersPlaced` pattern: one
+/// occurrence per counter put (`perCounter`) or the placement crossing a
+/// rank (`reachesCount`), never both.
+pub(super) fn counter_occurrence_supported(event: &Value) -> bool {
+    event.get("perCounter").is_none_or(Value::is_boolean)
+        && event
+            .get("reachesCount")
+            .is_none_or(|rank| integer_value(rank).is_some_and(|rank| rank > 0))
+        && !(event.get("perCounter").is_some() && event.get("reachesCount").is_some())
+}
+
 impl GameEngine {
     pub(super) fn counter_placement_is_prohibited(
         &self,
@@ -201,6 +212,12 @@ impl GameEngine {
                                         == expected as i32
                                 })
                             })
+                            // `the Nth COUNTER counter is put on`: this
+                            // placement put the counter of rank N.
+                            && rule["event"].get("reachesCount").is_none_or(|rank| {
+                                integer_value(rank)
+                                    .is_some_and(|rank| old_count < rank && rank <= new_count)
+                            })
                             && rule["event"].get("where").is_none_or(|filter| {
                                 matches_card_filter(
                                     object_predicate::DefinitionView::for_permanent(&permanent),
@@ -225,6 +242,23 @@ impl GameEngine {
             ),
         ]);
         for (source, rule) in triggers {
+            // `a COUNTER counter is put on` triggers once per counter put
+            // (CR 122.6, 603.2c), each occurrence naming one counter.
+            if rule["event"]["perCounter"].as_bool() == Some(true) {
+                let mut per_counter = decisions.clone();
+                per_counter.insert("counterCount".to_string(), Value::from(1));
+                for _ in 0..actual {
+                    self.put_triggered_ability_on_stack_with_decisions(
+                        &source,
+                        rule.clone(),
+                        per_counter.clone(),
+                    );
+                    if self.check_quantity_failure().is_err() {
+                        return;
+                    }
+                }
+                continue;
+            }
             self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions.clone());
             if self.check_quantity_failure().is_err() {
                 return;

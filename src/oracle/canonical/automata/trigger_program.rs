@@ -447,7 +447,14 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 | ObjectEventVerb::BeDealtDamage(_)
                 | ObjectEventVerb::DealCombatDamageToPlayer
                 // The permanent turned face up (CR 708.8).
-                | ObjectEventVerb::TurnedFaceUp => subject_slot(false),
+                | ObjectEventVerb::TurnedFaceUp
+                // The permanent that became tapped or untapped (CR 701.26),
+                // was tapped for mana (CR 106.11a) or performed a keyword
+                // action (CR 701.44, 701.50).
+                | ObjectEventVerb::BecomeTapped
+                | ObjectEventVerb::BecomeUntapped
+                | ObjectEventVerb::TappedForMana
+                | ObjectEventVerb::PerformedKeywordAction(_) => subject_slot(false),
                 ObjectEventVerb::DealDamage => match damage.as_ref()?.recipient.as_ref()? {
                     DamageRecipient::Permanent(recipient) => {
                         permanent(recipient.predicate.clone(), false, false)

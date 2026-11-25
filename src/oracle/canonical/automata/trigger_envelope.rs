@@ -195,8 +195,13 @@ impl GenericTriggerEventNode {
             {
                 Some(EventNumericBinding::LifeLost)
             }
-            // The counters one placement put (CR 122.6).
-            Self::CounterPlacement(_) => Some(EventNumericBinding::CountersPut),
+            // The counters one placement put (CR 122.6); a singular counter
+            // occurrence names one counter, not an amount.
+            Self::CounterPlacement(event)
+                if event.occurrence == super::CounterPlacementOccurrence::Placement =>
+            {
+                Some(EventNumericBinding::CountersPut)
+            }
             // `one or more CREATURES you control attack`: the attackers the
             // one batch occurrence matched (CR 508.1, 603.2c).
             Self::Object(super::ObjectEventNode {
