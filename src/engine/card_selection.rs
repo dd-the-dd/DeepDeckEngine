@@ -18,6 +18,28 @@ pub(super) fn card_zone_query_atom_supported(leaf: &Value) -> bool {
             && leaf["decisionId"].is_string())
 }
 
+/// Declared card targets in the zone of the player a trigger's event
+/// recorded (`target card from that player's graveyard`, CR 603.2): the
+/// zone owner is resolved once from the trigger's event, as the controller
+/// relation of permanent candidates is, so the candidate enumeration never
+/// falls back to the ability controller's zone. `None` when the event
+/// recorded no player: the trigger has no legal declaration.
+pub(super) fn resolve_triggering_zone_owner(
+    candidates: &mut Value,
+    trigger_decisions: &BTreeMap<String, Value>,
+) -> Option<()> {
+    if value_kind(candidates) != Some("cards")
+        || value_kind(&candidates["zone"]["player"]) != Some("triggeringPlayer")
+    {
+        return Some(());
+    }
+    let player = trigger_decisions
+        .get("triggeringPlayerId")
+        .and_then(Value::as_str)?;
+    candidates["resolvedZonePlayerId"] = Value::String(player.to_string());
+    Some(())
+}
+
 /// `libraryTopCards`: the top cards of one player's library (`player`) or
 /// of each library of a player population (`players`: `the top card of
 /// each player's library`, CR 401.2), with a supported count.
