@@ -4,6 +4,7 @@
 //! or rematch an Oracle sentence and they emit typed semantic values rather
 //! than card-shaped JSON.
 
+mod ability_history;
 mod ability_loss;
 mod ability_word_envelope;
 mod action_result;
@@ -55,6 +56,7 @@ mod color_set;
 mod color_set_mana;
 mod color_set_query;
 mod combat_restriction;
+mod comparison_difference;
 mod compound_activated;
 mod compound_exile;
 mod condition;
@@ -272,6 +274,7 @@ mod zone_change_until;
 mod zone_list;
 mod zone_prohibition;
 
+pub(super) use ability_history::*;
 pub(super) use ability_loss::*;
 pub(super) use ability_word_envelope::*;
 pub(super) use action_result::*;
@@ -326,6 +329,7 @@ pub(super) use color_set::*;
 pub(super) use color_set_mana::*;
 pub(super) use color_set_query::*;
 pub(super) use combat_restriction::*;
+pub(super) use comparison_difference::*;
 pub(super) use compound_activated::*;
 pub(super) use compound_exile::*;
 pub(super) use condition::*;
@@ -1042,6 +1046,9 @@ pub(super) enum PlayerNumericFact {
     /// The counters of one kind the player has (CR 122.1: experience,
     /// poison, energy).
     Counters(crate::oracle::counter_name::CounterName),
+    /// The player's speed (CR 702.179, Start your engines!): a player value,
+    /// not a counter.
+    Speed,
 }
 
 /// A fact about one opponent of the ability controller that a count reads.

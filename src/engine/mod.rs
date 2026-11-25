@@ -231,6 +231,7 @@ mod resolution_checkpoint;
 mod resolution_costs;
 mod resolution_permissions;
 mod resolution_preflight;
+mod resolution_records;
 mod riot;
 mod rule_execution;
 mod runtime_collections;
@@ -26902,6 +26903,7 @@ impl GameEngine {
                                 "objectKind": "activatedAbility",
                                 "sourceZone": zone_name,
                                 "stackId": stack_id,
+                                "abilityDigest": resolution_records::ability_digest(&rule),
                             }),
                         );
                         engine.enqueue_nonmana_ability_activated_triggers(
@@ -27796,6 +27798,7 @@ impl GameEngine {
                         "cardName": source.definition.name,
                         "objectKind": "activatedAbility",
                         "stackId": stack_id,
+                        "abilityDigest": resolution_records::ability_digest(&rule),
                         "loyalty": rule["costs"].as_array().is_some_and(|costs| {
                             costs.iter().any(|cost| value_kind(cost) == Some("payLoyalty"))
                         }),
@@ -30113,6 +30116,7 @@ impl GameEngine {
             json!({
                 "objectKind": stack_object.ability_kind.as_deref().unwrap_or("spell"),
                 "stackId": stack_id,
+                "abilityDigest": resolution_records::stack_ability_digest(&stack_object),
             }),
         );
         let has_targets = !stack_object.targets.is_empty();
@@ -31227,6 +31231,11 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        if let Some(value) =
+            self.resolution_record_numeric(expression, stack_object, bindings, decisions)
+        {
+            return value;
         }
         if let Some(value) = self.runtime_numeric_quantity(expression, stack_object, bindings) {
             return value;

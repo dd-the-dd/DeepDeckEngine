@@ -1,0 +1,1050 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "numeric-condition-reads-batch9",
+  "cases": [
+    {
+      "id": "exact-inner-flame-igniter-third-resolution",
+      "request": {
+        "cardName": "Inner-Flame Igniter",
+        "typeLine": "Creature — Elemental Warrior",
+        "manaCost": "{2}{R}",
+        "oracleText": "{2}{R}: Creatures you control get +1/+0 until end of turn. If this is the third time this ability has resolved this turn, creatures you control gain first strike until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/effects/1/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "abilityResolutionsThisTurn"
+              },
+              {
+                "pointer": "/effects/1/condition/right/value",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-teething-wurmlet-first-resolution",
+      "request": {
+        "cardName": "Teething Wurmlet",
+        "typeLine": "Creature — Wurm",
+        "manaCost": "{G}",
+        "oracleText": "This creature has deathtouch as long as you control three or more artifacts.\nWhenever an artifact you control enters, you gain 1 life. If this is the first time this ability has resolved this turn, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "abilityResolutionsThisTurn"
+              },
+              {
+                "pointer": "/effects/1/condition/right/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tannuk-second-resolution",
+      "request": {
+        "cardName": "Tannuk, Memorial Ensign",
+        "typeLine": "Legendary Creature — Kavu Pilot",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "Landfall — Whenever a land you control enters, Tannuk deals 1 damage to each opponent. If this is the second time this ability has resolved this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "abilityResolutionsThisTurn"
+              },
+              {
+                "pointer": "/effects/1/condition/right/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-first-or-second-resolution-postposed",
+      "request": {
+        "cardName": "Resolution Range Probe",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever another creature you control enters, you gain 2 life if this is the first or second time this ability has resolved this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/condition/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/effects/0/condition/left/kind",
+                "equals": "abilityResolutionsThisTurn"
+              },
+              {
+                "pointer": "/effects/0/condition/right/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-elided-second-time-restored-from-earlier-sentence",
+      "request": {
+        "cardName": "Elided Resolution Probe",
+        "typeLine": "Creature — Halfling",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever a token you control enters, you gain 1 life if this is the first time this ability has resolved this turn. If it's the second time, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "abilityResolutionsThisTurn"
+              },
+              {
+                "pointer": "/effects/1/condition/right/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-activated-four-or-more-times",
+      "request": {
+        "cardName": "Activation Count Probe",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "{R}: This creature gets +1/+0 until end of turn. If this ability has been activated four or more times this turn, you lose 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/operator",
+                "equals": ">="
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "abilityActivationsThisTurn"
+              },
+              {
+                "pointer": "/effects/1/condition/right/value",
+                "equals": 4
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-resolution-count-as-where-x-definition",
+      "request": {
+        "cardName": "Resolution Total Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{2}: You gain X life, where X is the number of times this ability has resolved this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ordinal-list-with-a-gap",
+      "request": {
+        "cardName": "Ordinal Gap Probe",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever another creature you control enters, if this is the first or third time this ability has resolved this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "condition.ability-history.ordinal-list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-elided-ordinal-without-a-stated-record",
+      "request": {
+        "cardName": "Unstated Record Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{1}: Draw a card. If it's the second time, discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-uro-sacrifice-unless-escaped",
+      "request": {
+        "cardName": "Uro, Titan of Nature's Wrath",
+        "typeLine": "Legendary Creature — Elder Giant",
+        "manaCost": "{1}{G}{U}",
+        "oracleText": "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-phlage-sacrifice-unless-escaped",
+      "request": {
+        "cardName": "Phlage, Titan of Fire's Fury",
+        "typeLine": "Legendary Creature — Elder Giant",
+        "manaCost": "{1}{R}{W}",
+        "oracleText": "When Phlage enters, sacrifice it unless it escaped.\nWhenever Phlage enters or attacks, it deals 3 damage to any target and you gain 3 life.\nEscape—{R}{R}{W}{W}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-desolation-giant-it-was-kicked",
+      "request": {
+        "cardName": "Desolation Giant",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Kicker {W}{W} (You may pay an additional {W}{W} as you cast this spell.)\nWhen this creature enters, destroy all other creatures you control. If it was kicked, destroy all other creatures instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cinderclasm-it-was-kicked",
+      "request": {
+        "cardName": "Cinderclasm",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Kicker {R} (You may pay an additional {R} as you cast this spell.)\nCinderclasm deals 1 damage to each creature. If it was kicked, it deals 2 damage to each creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-convert-to-slime-total-mana-value-destroyed",
+      "request": {
+        "cardName": "Convert to Slime",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{G}",
+        "oracleText": "Destroy up to one target artifact, up to one target creature, and up to one target enchantment.\nDelirium — Then if there are four or more card types among cards in your graveyard, create an X/X green Ooze creature token, where X is the total mana value of permanents destroyed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-total-power-of-destroyed-permanents",
+      "request": {
+        "cardName": "Destroyed Total Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Destroy all creatures. You gain life equal to the total power of permanents destroyed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-total-mana-value-of-the-exiled-cards",
+      "request": {
+        "cardName": "Exiled Total Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Exile up to two target cards from graveyards. You gain life equal to the total mana value of the exiled cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-total-toughness-of-creatures-you-control",
+      "request": {
+        "cardName": "Collection Total Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "You gain life equal to the total toughness of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "sumPermanentProperty"
+              },
+              {
+                "pointer": "/effects/0/amount/property",
+                "equals": "toughness"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-total-without-a-collection",
+      "request": {
+        "cardName": "Bare Total Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "You gain life equal to the total power of.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-total-of-results-without-a-producer",
+      "request": {
+        "cardName": "Missing Producer Total Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card. You gain life equal to the total power of permanents destroyed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-oreskos-explorer-players-with-more-lands",
+      "request": {
+        "cardName": "Oreskos Explorer",
+        "typeLine": "Creature — Cat Scout",
+        "manaCost": "{1}{W}",
+        "oracleText": "When this creature enters, search your library for up to X Plains cards, where X is the number of players who control more lands than you. Reveal those cards, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-voice-of-many-opponents-with-fewer-creatures",
+      "request": {
+        "cardName": "Voice of Many",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "When this creature enters, draw a card for each opponent who controls fewer creatures than you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-priest-of-the-blessed-graf",
+      "request": {
+        "cardName": "Priest of the Blessed Graf",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{2}{W}",
+        "oracleText": "At the beginning of your end step, create X 1/1 white Spirit creature tokens with flying, where X is the number of opponents who control more lands than you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponents-with-less-life-than-you",
+      "request": {
+        "cardName": "Life Comparison Probe",
+        "typeLine": "Creature — Demon",
+        "manaCost": "{4}{B}",
+        "oracleText": "At the beginning of your end step, draw a card for each opponent who has less life than you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-player-with-more-life-than-each-other-player",
+      "request": {
+        "cardName": "Unique Leader Probe",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{G}",
+        "oracleText": "At the beginning of your upkeep, if a player has more life than each other player, you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-population-compared-with-each-other-player",
+      "request": {
+        "cardName": "Population Other Probe",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{1}{W}",
+        "oracleText": "When this creature enters, draw a card for each opponent who controls more lands than each other player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.player-count.comparative.other"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-smashing-success-artifact-destroyed-this-way",
+      "request": {
+        "cardName": "Smashing Success",
+        "typeLine": "Instant",
+        "manaCost": "{3}{R}",
+        "oracleText": "Destroy target artifact or land. If an artifact is destroyed this way, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "countBoundObjectsLastKnown"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-restated-sacrifice-of-a-subtype",
+      "request": {
+        "cardName": "Restated Sacrifice Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Sacrifice a creature. If a Zombie was sacrificed this way, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-restated-destroy-without-a-destroy-action",
+      "request": {
+        "cardName": "Missing Destroy Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Draw a card. If a land was destroyed this way, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pure-reflection-mana-value-of-that-spell",
+      "request": {
+        "cardName": "Pure Reflection",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever a player casts a creature spell, destroy all Reflections. Then that player creates an X/X white Reflection creature token, where X is the mana value of that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-power-of-that-creature-after-a-target",
+      "request": {
+        "cardName": "Postposed Genitive Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}",
+        "oracleText": "Destroy target creature. You gain life equal to the power of that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-postposed-genitive-without-an-antecedent",
+      "request": {
+        "cardName": "Unbound Genitive Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw cards equal to the mana value of that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.of-genitive.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-postposed-genitive-of-a-new-target",
+      "request": {
+        "cardName": "Declared Genitive Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Draw cards equal to the power of target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-damia-draw-the-difference",
+      "request": {
+        "cardName": "Damia, Sage of Stone",
+        "typeLine": "Legendary Creature — Gorgon Wizard",
+        "manaCost": "{4}{B}{G}{U}",
+        "oracleText": "Deathtouch\nSkip your draw step.\nAt the beginning of your upkeep, if you have fewer than seven cards in hand, draw cards equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-krang-draw-the-difference",
+      "request": {
+        "cardName": "Krang, Master Mind",
+        "typeLine": "Legendary Artifact Creature — Utrom Warrior",
+        "manaCost": "{6}{U}{U}",
+        "oracleText": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nWhen Krang enters, if you have fewer than four cards in hand, draw cards equal to the difference.\nKrang gets +1/+0 for each other artifact you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-doctor-octopus-draw-the-difference",
+      "request": {
+        "cardName": "Doctor Octopus, Master Planner",
+        "typeLine": "Legendary Creature — Human Scientist Villain",
+        "manaCost": "{5}{U}{B}",
+        "oracleText": "Other Villains you control get +2/+2.\nYour maximum hand size is eight.\nAt the beginning of your end step, if you have fewer than eight cards in hand, draw cards equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-difference-of-more-than-n-life",
+      "request": {
+        "cardName": "Life Difference Probe",
+        "typeLine": "Creature — Cleric",
+        "manaCost": "{2}{W}",
+        "oracleText": "At the beginning of your upkeep, if you have more than twenty life, you gain life equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-difference-of-an-n-or-fewer-threshold",
+      "request": {
+        "cardName": "Threshold Difference Probe",
+        "typeLine": "Creature — Sphinx",
+        "manaCost": "{3}{U}",
+        "oracleText": "At the beginning of your upkeep, if you have six or fewer cards in hand, draw cards equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.difference.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tax-draw-highest-commander-tax",
+      "request": {
+        "cardName": "Tax Draw",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Draw cards equal to your highest commander tax among your commanders. (For example, if you've cast your one commander from your command zone twice, draw four cards.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/count/kind",
+                "equals": "highestCommanderTax"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tax-bolt-highest-commander-tax",
+      "request": {
+        "cardName": "Tax Bolt",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Tax Bolt deals damage to any target equal to your highest commander tax among your commanders. (For example, if you've cast your one commander from your command zone twice, it deals 4 damage.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tax-hounds-highest-commander-tax",
+      "request": {
+        "cardName": "Tax Hounds",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Create X 1/1 white Dog creature tokens, where X is your highest commander tax among your commanders. (For example, if you've cast your one commander from your command zone twice, create four tokens.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-commander-tax-of-one-commander",
+      "request": {
+        "cardName": "Single Tax Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Draw cards equal to your commander tax.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gain-life-equal-to-your-speed",
+      "request": {
+        "cardName": "Speed Amount Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: You gain life equal to your speed.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "playerSpeed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-static-condition-speed-or-higher",
+      "request": {
+        "cardName": "Speed Condition Probe",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "As long as your speed is 3 or higher, this creature gets +2/+0.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kroxa-sacrifice-unless-escaped-first-ability",
+      "request": {
+        "cardName": "Kroxa, Titan of Death's Hunger",
+        "typeLine": "Legendary Creature — Elder Giant",
+        "manaCost": "{B}{R}",
+        "oracleText": "When Kroxa enters, sacrifice it unless it escaped.\nWhenever Kroxa enters or attacks, each opponent discards a card, then each opponent who didn't discard a nonland card this way loses 3 life.\nEscape—{B}{B}{R}{R}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

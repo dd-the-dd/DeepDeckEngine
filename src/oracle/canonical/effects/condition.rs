@@ -126,6 +126,7 @@ fn lower_cast_choice(node: &CastChoiceNode) -> Value {
     match &node.choice {
         CastChoice::GiftPromised => atom["choice"] = json!("gift"),
         CastChoice::Teamwork => atom["choice"] = json!("teamwork"),
+        CastChoice::Escaped => atom["choice"] = json!("escape"),
         CastChoice::AlternativeMode(mode) => {
             atom["choice"] = json!("alternativeCost");
             atom["mode"] = json!(mode.ir_name());

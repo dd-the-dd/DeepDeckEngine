@@ -280,6 +280,12 @@ fn recognize_primary(
         let environment = super::installed_binding_environment(cursor);
         return super::recognize_bound_object_property(cursor, &environment);
     }
+    // `the power of that creature`, `the mana value of the exiled card`:
+    // the postposed genitive of the same bound object.
+    if super::of_genitive_property_starts(cursor) {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_of_genitive_property(cursor, &environment);
+    }
     // `that number`: a number the enclosing frame already read, resolved
     // by the binding environment like every other anaphor.
     if super::prior_number_reference_starts(cursor) {
@@ -354,6 +360,32 @@ fn recognize_primary(
             && super::greatest_property_among_starts(cursor)
         {
             return super::recognize_greatest_property_among(cursor);
+        }
+        // `your highest commander tax among your commanders` (CR 903.8).
+        if query_context.kind.reads_definition_families()
+            && super::highest_commander_tax_starts(cursor)
+        {
+            return super::recognize_highest_commander_tax(cursor);
+        }
+        // `the difference`: the amount by which the preceding condition's
+        // comparison holds (`comparison_difference.rs`).
+        if query_context.kind == NumericReadKind::Definition
+            && super::comparison_difference_starts(cursor)
+        {
+            return super::recognize_comparison_difference(cursor);
+        }
+        // `the number of times this ability has resolved this turn`: the
+        // resolving ability's own record, before the collection count.
+        if query_context.kind == NumericReadKind::Definition
+            && super::ability_history_count_starts(cursor)
+        {
+            return super::recognize_ability_history_count(cursor);
+        }
+        if query_context.kind.reads_definition_families() && super::property_total_starts(cursor) {
+            return super::recognize_property_total(
+                cursor,
+                query_context.kind == NumericReadKind::Definition,
+            );
         }
         if query_context.kind.reads_definition_families()
             && super::number_of_count_starts(cursor)

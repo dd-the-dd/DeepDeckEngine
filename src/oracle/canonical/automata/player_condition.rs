@@ -491,8 +491,8 @@ pub(in crate::oracle::canonical) fn recognize_count_threshold(
     cursor.enter("condition.threshold.direction");
     cursor.consume("or")?;
     let operator = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-        Some("more" | "greater") => ThresholdOperator::AtLeast,
-        Some("fewer" | "less") => ThresholdOperator::AtMost,
+        Some("more" | "greater" | "higher") => ThresholdOperator::AtLeast,
+        Some("fewer" | "less" | "lower") => ThresholdOperator::AtMost,
         _ => return Err(cursor.fail("`more`, `greater`, `fewer` or `less`")),
     };
     consume_current(cursor)?;
@@ -509,6 +509,168 @@ fn recognize_threshold_value(cursor: &mut OracleTokenCursor<'_>) -> MachineResul
     cursor.require(value >= 0, "a fixed nonnegative threshold")?;
     consume_current(cursor)?;
     Ok(value)
+}
+
+/// The players a comparative measure is compared with: `than you` (the
+/// ability's controller) or `than each other player` (every other player
+/// of the game, CR 102.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ComparedPlayers {
+    Controller,
+    EachOtherPlayer,
+}
+
+/// `controls more QUERY than PLAYERS`, `has less life than PLAYERS`: one
+/// measure of the subject compared with the same measure of other players,
+/// a dynamic threshold rather than a fixed one.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ComparativeProposition {
+    pub measure: PlayerStateMeasure,
+    pub operator: super::NumericComparisonOperator,
+    pub other: ComparedPlayers,
+}
+
+/// Lexical lookahead at a player verb (`controls`, `control`, `has`,
+/// `have`) followed by a comparative (`more`, `fewer`, `less`) that is not
+/// a fixed threshold (`more than three`).
+pub(in crate::oracle::canonical) fn comparative_proposition_starts(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> bool {
+    ["controls", "control", "has", "have"]
+        .iter()
+        .any(|verb| word_is(cursor, offset, verb))
+        && ["more", "fewer", "less"]
+            .iter()
+            .any(|comparative| word_is(cursor, offset + 1, comparative))
+        && !word_is(cursor, offset + 2, "than")
+}
+
+/// Reads `VERB more|fewer|less MEASURE than (you | each other player)`.
+/// `controls` measures permanents of the shared object query; `has`
+/// measures life or cards in a zone of the subject.
+pub(in crate::oracle::canonical) fn recognize_comparative_proposition(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ComparativeProposition> {
+    cursor.enter("condition.player.comparative-proposition.verb");
+    let possession = word_is(cursor, 0, "has") || word_is(cursor, 0, "have");
+    cursor.require(
+        possession || word_is(cursor, 0, "controls") || word_is(cursor, 0, "control"),
+        "`controls` or `has` before a comparative",
+    )?;
+    consume_current(cursor)?;
+    cursor.enter("condition.player.comparative-proposition.direction");
+    let operator = if word_is(cursor, 0, "more") {
+        super::NumericComparisonOperator::GreaterThan
+    } else if word_is(cursor, 0, "fewer") || word_is(cursor, 0, "less") {
+        super::NumericComparisonOperator::LessThan
+    } else {
+        return Err(cursor.fail("`more`, `fewer` or `less`"));
+    };
+    consume_current(cursor)?;
+    cursor.enter("condition.player.comparative-proposition.measure");
+    let measure = if possession {
+        recognize_comparative_possession(cursor)?
+    } else {
+        let query = recognize_object_query(cursor)?;
+        cursor.require(
+            query.controller.is_none(),
+            "a permanent query without its own controller relation",
+        )?;
+        cursor.require(
+            query.predicate.supports_domain(ObjectKind::Permanent),
+            "a predicate valid for a battlefield permanent",
+        )?;
+        PlayerStateMeasure::ControlledPermanents {
+            predicate: query.predicate,
+            exclude_source: false,
+        }
+    };
+    cursor.enter("condition.player.comparative-proposition.than");
+    cursor.consume("than")?;
+    cursor.enter("condition.player.comparative-proposition.other");
+    let other = if word_is(cursor, 0, "you") {
+        cursor.consume("you")?;
+        ComparedPlayers::Controller
+    } else {
+        cursor.consume_phrase(&["each", "other", "player"])?;
+        ComparedPlayers::EachOtherPlayer
+    };
+    Ok(ComparativeProposition {
+        measure,
+        operator,
+        other,
+    })
+}
+
+/// `life`, `cards in hand`, `cards in their hand|graveyard`: a measure a
+/// comparative possession reads for every compared player.
+fn recognize_comparative_possession(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<PlayerStateMeasure> {
+    if word_is(cursor, 0, "life") {
+        cursor.consume("life")?;
+        return Ok(PlayerStateMeasure::Life);
+    }
+    cursor.consume("cards")?;
+    cursor.consume("in")?;
+    if word_is(cursor, 0, "their") {
+        cursor.consume("their")?;
+    }
+    let zone = if word_is(cursor, 0, "hand") {
+        PlayerCardZone::Hand
+    } else if word_is(cursor, 0, "graveyard") {
+        PlayerCardZone::Graveyard
+    } else {
+        return Err(cursor.fail("`hand` or `graveyard`"));
+    };
+    consume_current(cursor)?;
+    Ok(PlayerStateMeasure::CardsInZone {
+        zone,
+        predicate: ObjectPredicate::ObjectKind(ObjectKind::Card),
+    })
+}
+
+/// True at `a player has|controls more|fewer ... than each other player`.
+pub(in crate::oracle::canonical) fn extremum_comparative_condition_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    word_is(cursor, 0, "a")
+        && word_is(cursor, 1, "player")
+        && comparative_proposition_starts(cursor, 2)
+}
+
+/// `a player has more life than each other player`: some player's measure
+/// exceeds every other player's, which holds exactly when one single player
+/// has the greatest measure (the least for `fewer`/`less`). The atom
+/// compares the number of players at that extremum with one.
+pub(in crate::oracle::canonical) fn recognize_extremum_comparative_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::ConditionAtom> {
+    cursor.enter("condition.player.extremum-comparative.subject");
+    cursor.consume_phrase(&["a", "player"])?;
+    let proposition = recognize_comparative_proposition(cursor)?;
+    cursor.enter("condition.player.extremum-comparative.other");
+    cursor.require(
+        proposition.other == ComparedPlayers::EachOtherPlayer,
+        "`than each other player` after a quantified player subject",
+    )?;
+    let extremum = if proposition.operator == super::NumericComparisonOperator::GreaterThan {
+        super::PlayerExtremum::Greatest
+    } else {
+        super::PlayerExtremum::Least
+    };
+    Ok(super::ConditionAtom::Compare(super::ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: super::ConditionNumber::Expression(super::NumericExpression::Quantity(Box::new(
+            super::NumericQuantity::PlayersAtExtremum {
+                measure: proposition.measure,
+                extremum,
+            },
+        ))),
+        operator: super::NumericComparisonOperator::Equal,
+        right: super::ConditionNumber::Integer(1),
+    }))
 }
 
 #[cfg(test)]

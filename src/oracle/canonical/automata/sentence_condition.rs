@@ -376,6 +376,12 @@ fn read_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
+    // Compare over the resolving ability's own record: `this is the third
+    // time this ability has resolved this turn`, `this ability has been
+    // activated four or more times this turn` (`ability_history.rs`).
+    if super::ability_history_condition_starts(cursor) {
+        return super::recognize_ability_history_condition(cursor);
+    }
     // Compare over the latest random or contested outcome: `you win the
     // flip`, `it comes up heads`, `you roll a 6`, `you win` (a clash).
     if let Some(atom) = super::try_recognize_random_outcome_condition(cursor, context.scope)? {
@@ -453,6 +459,11 @@ fn read_condition_atom(
         && (word_is(cursor, 2, "controls") || word_is(cursor, 2, "has"))
     {
         return recognize_bound_player_state_atom(cursor);
+    }
+    // Compare: one player's measure against every other player's (`a
+    // player has more life than each other player`).
+    if super::extremum_comparative_condition_starts(cursor) {
+        return super::recognize_extremum_comparative_condition(cursor);
     }
     // Compare: a player population's state.
     if super::collective_opponents_condition_starts(cursor) {
@@ -562,6 +573,12 @@ fn read_condition_atom(
         let object = recognize_participle_subject(cursor, context)?;
         let phrase = recognize_object_verb_phrase(cursor, false)?;
         return finish_object_verb_phrase(cursor, context, object, phrase);
+    }
+    // CastFact / CastChoice of the ability's own source named by `it`: `it
+    // was kicked`, `it escaped` (CR 702.33d, 702.138c). Only a spell or the
+    // permanent it became has such a record.
+    if word_is(cursor, 0, "it") && source_cast_record_width(cursor, 1).is_some() {
+        return recognize_pronoun_cast_record(cursor, context);
     }
     // ObjectSatisfies with a referenced object as subject.
     if contraction_is(cursor, 0, "it", "s")
@@ -995,6 +1012,20 @@ fn recognize_source_condition_atom(
             fact: CastFact::Kicked,
         }));
     }
+    // `this creature escaped`, `NAME didn't escape` (CR 702.138c).
+    if let Some((width, negated)) = escape_record_width(cursor, 0) {
+        for _ in 0..width {
+            consume_current(cursor)?;
+        }
+        cursor.require(
+            spell == LocalObjectReference::SourceSelf,
+            "the ability's own source, whose cast record keeps whether it escaped",
+        )?;
+        return Ok(ConditionAtom::CastChoice(CastChoiceNode {
+            choice: CastChoice::Escaped,
+            negated,
+        }));
+    }
     if word_is(cursor, 0, "was") && word_is(cursor, 1, "cast") {
         cursor.consume("was")?;
         cursor.consume("cast")?;
@@ -1036,6 +1067,96 @@ fn recognize_source_condition_atom(
     }
     let phrase = recognize_object_verb_phrase(cursor, false)?;
     finish_object_verb_phrase(cursor, context, ConditionObjectReference::SOURCE, phrase)
+}
+
+/// `escaped`, `didn't escape`, `did not escape` at `offset`: its width and
+/// whether it is negated.
+fn escape_record_width(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(usize, bool)> {
+    if word_is(cursor, offset, "escaped") {
+        return Some((1, false));
+    }
+    if contraction_is(cursor, offset, "didn", "t") && word_is(cursor, offset + 1, "escape") {
+        return Some((2, true));
+    }
+    (word_is(cursor, offset, "did")
+        && word_is(cursor, offset + 1, "not")
+        && word_is(cursor, offset + 2, "escape"))
+    .then_some((3, true))
+}
+
+/// The cast-record predicate of a pronoun at `offset`: `was kicked`,
+/// `escaped`, `didn't escape`. Its width only.
+fn source_cast_record_width(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    if word_is(cursor, offset, "was") && word_is(cursor, offset + 1, "kicked") {
+        return Some(2);
+    }
+    escape_record_width(cursor, offset).map(|(width, _)| width)
+}
+
+/// `it was kicked`, `it escaped`: the cast record of the object `it`
+/// names. The pronoun's proven antecedent is read as for every object
+/// predicate. A record of kicker or escape belongs only to a spell or the
+/// permanent it became (CR 702.33d, 702.138c), so a pronoun with no proven
+/// antecedent at all names the ability's own source; several candidates
+/// stay ambiguous and fail.
+fn recognize_pronoun_cast_record(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.cast-record.subject");
+    cursor.consume("it")?;
+    let object = resolve_cast_record_pronoun(cursor, context)?;
+    cursor.enter("condition.cast-record.predicate");
+    if let Some((width, negated)) = escape_record_width(cursor, 0) {
+        for _ in 0..width {
+            consume_current(cursor)?;
+        }
+        cursor.require(
+            object == ConditionObjectReference::SOURCE,
+            "the ability's own source, whose cast record keeps whether it escaped",
+        )?;
+        return Ok(ConditionAtom::CastChoice(CastChoiceNode {
+            choice: CastChoice::Escaped,
+            negated,
+        }));
+    }
+    // `was kicked`: the kicked status the object keeps (CR 702.33d), read
+    // by the shared object verb phrase.
+    let phrase = recognize_object_verb_phrase(cursor, false)?;
+    finish_object_verb_phrase(cursor, context, object, phrase)
+}
+
+/// The object `it` names before a cast-record predicate: the proven
+/// antecedent when there is one, else the ability's own source.
+fn resolve_cast_record_pronoun(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionObjectReference> {
+    let Some(program) = context.program else {
+        cursor.enter("condition.cast-record.antecedent");
+        return Ok(context
+            .subject_object
+            .unwrap_or(ConditionObjectReference::SOURCE));
+    };
+    let mut trial = cursor.clone();
+    match resolve_object_anaphor(&mut trial, context) {
+        Ok(object) => {
+            *cursor = trial;
+            Ok(object)
+        }
+        Err(failure) => {
+            let no_candidate = super::permanent_subject::proven_read_antecedent(program.effects)
+                .is_none()
+                && program.card_target.is_none()
+                && !program.card_focus;
+            if no_candidate {
+                cursor.enter("condition.cast-record.source");
+                Ok(ConditionObjectReference::SOURCE)
+            } else {
+                Err(failure)
+            }
+        }
+    }
 }
 
 /// The token before the cursor is a genitive (`NAME's`, `creature's`).
