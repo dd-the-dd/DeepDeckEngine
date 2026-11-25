@@ -842,6 +842,8 @@ impl NumericComparisonOperator {
 pub(in crate::oracle::canonical) enum NumericObjectProperty {
     Power,
     Toughness,
+    /// CR 202.3: read only where a producer records it (a paid cost).
+    ManaValue,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -998,6 +1000,9 @@ pub(super) enum NumericExpression {
         object: PermanentEffectReference,
         property: SelectorNumericProperty,
     },
+    /// A record or collection aggregate of the shared quantity language
+    /// (`numeric::NumericQuantity`).
+    Quantity(Box<NumericQuantity>),
 }
 
 /// How a numeric property is aggregated over a collection.
@@ -1033,6 +1038,9 @@ pub(super) enum OpponentFact {
     /// combat (CR 506.2, 702.121a); attacking its planeswalkers or battles
     /// is not attacking the player.
     AttackedByControllerThisCombat,
+    /// The controller attacked that player with a creature during this
+    /// turn (any combat of the turn, CR 506.2).
+    AttackedByControllerThisTurn,
     /// Every opponent of the controller still in the game (`the number of
     /// opponents you have`, CR 102.3).
     Any,
@@ -1086,6 +1094,7 @@ impl NumericExpression {
     pub(super) fn requires_target_binding(&self) -> bool {
         match self {
             Self::CountQuery(query) => query.requires_target_binding(),
+            Self::Quantity(quantity) => quantity.requires_target_binding(),
             Self::PowerOf(_) | Self::ManaValueOf(_) | Self::QualifiedTargetProperty { .. } => true,
             Self::Add { left, right }
             | Self::Subtract { left, right }
@@ -1165,6 +1174,7 @@ impl NumericExpression {
             } => object_predicate_uses_x(required_nominal),
             Self::PermanentCount(count) => object_predicate_uses_x(&count.predicate),
             Self::GreatestPropertyAmong { predicate, .. } => object_predicate_uses_x(predicate),
+            Self::Quantity(quantity) => quantity.uses_x(),
             Self::Add { left, right }
             | Self::Subtract { left, right }
             | Self::Multiply { left, right }

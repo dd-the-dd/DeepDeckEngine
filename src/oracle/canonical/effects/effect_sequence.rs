@@ -743,13 +743,15 @@ fn lower_local_effect_sequence_with_collections(
                         continue;
                     }
                 };
-                let amount = lower_sequence_bound_amount(
+                let mut amount = lower_sequence_bound_amount(
                     cursor,
                     amount,
                     sequence,
                     &target_bindings,
                     context,
                 )?;
+                // `mills half their library`: the acting player's zone.
+                bind_acting_player(&mut amount, &lowered.player);
                 let mut effect = json!({"kind": kind, "player": lowered.player});
                 effect[field] = amount;
                 if let SingularPlayerAction::Counters(node) = &action.action {

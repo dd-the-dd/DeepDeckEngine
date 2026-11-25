@@ -145,6 +145,26 @@ fn recognize_counted_collection(
     if counter_operand_starts(cursor) {
         return recognize_source_counter_operand(cursor);
     }
+    // `counter(s) on Kyler`: counters of every kind on the holder.
+    if any_counter_operand_starts(cursor) {
+        return recognize_counter_quantity(cursor, None);
+    }
+    // `time(s) you've cast your commander from the command zone this game`.
+    if commander_cast_count_starts(cursor) {
+        return recognize_commander_cast_count(cursor);
+    }
+    // `1 life your opponents have lost this turn`: one per point of life.
+    if life_point_history_starts(cursor) {
+        return recognize_life_point_history(cursor);
+    }
+    // `different mana value among CARDS`, `black mana symbols in the mana
+    // costs of CARDS`: aggregates over a card collection.
+    if distinct_card_value_starts(cursor) {
+        return recognize_distinct_card_values(cursor);
+    }
+    if mana_symbols_among_cards_starts(cursor) {
+        return recognize_mana_symbols_among_cards(cursor);
+    }
     if opponent_count_starts(cursor) {
         return recognize_opponent_count(cursor);
     }
@@ -313,18 +333,23 @@ fn mana_spent_colors_starts(cursor: &OracleTokenCursor<'_>, color_noun: &str) ->
 
 /// `the number of colors of mana spent to cast this spell` / `for each color
 /// of mana spent to cast this spell` (CR 601.2h, 105.1): the distinct colors
-/// among the mana paid for the spell's own cast. Only `this spell` is read;
-/// the card-context validation keeps the amount in the spell ability whose
-/// payment records it. A permanent or another object (`this creature`,
-/// `it`) has no recorded payment here and fails.
+/// among the mana paid for the spell's own cast. The spell is the ability's
+/// own source (`this spell`, `it` naming the entering source, its name); the
+/// card-context validation keeps the amount where that payment is recorded
+/// (the spell's resolution, or the replacement applied as the cast permanent
+/// enters). The spell a cast event observed has no colors record and fails.
 fn recognize_mana_spent_colors(
     cursor: &mut OracleTokenCursor<'_>,
     color_noun: &str,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.mana-spent-colors.measure");
     cursor.consume_phrase(&[color_noun, "of", "mana", "spent", "to", "cast"])?;
+    let spell = recognize_cast_record_spell(cursor)?;
     cursor.enter("numeric.mana-spent-colors.spell");
-    cursor.consume_phrase(&["this", "spell"])?;
+    cursor.require(
+        spell == CastSpellReference::Source(LocalObjectReference::SourceSelf),
+        "the ability's own source, whose cast payment records its colors",
+    )?;
     Ok(NumericExpression::ColorsOfManaSpentToCastSource)
 }
 
@@ -437,7 +462,20 @@ pub(in crate::oracle::canonical) fn recognize_history_count_collection(
     let (width, player, lemma) =
         history_relative_at(cursor, offset).expect("the relative clause was checked");
     let (event, domain) = history_count_event(lemma).expect("a history count lemma");
-    let end = cursor.position() + offset;
+    // `other spells you've cast this turn`: the cast record of the ability's
+    // own source is not counted (CR 601.2i records every cast).
+    let exclude_source = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("other"));
+    if exclude_source {
+        cursor.enter("numeric.history-count.other");
+        cursor.require(
+            event == HistoryEvent::SpellCast,
+            "`other` before a cast history, whose record names the source",
+        )?;
+        cursor.consume("other")?;
+    }
+    let end = cursor.position() + offset - usize::from(exclude_source);
     let predicate = if domain == ObjectKind::Spell {
         let query = cursor.bounded(end, |cursor| {
             recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)?
@@ -474,7 +512,10 @@ pub(in crate::oracle::canonical) fn recognize_history_count_collection(
                 player,
                 object: (predicate != ObjectPredicate::ObjectKind(domain)).then_some(predicate),
                 measure: HistoryMeasure::Occurrences,
-                qualifiers: HistoryQualifiers::default(),
+                qualifiers: HistoryQualifiers {
+                    exclude_source,
+                    ..HistoryQualifiers::default()
+                },
             },
             scope: HistoryScope::ThisTurn,
             aggregate: HistoryAggregate::Total,
@@ -529,7 +570,18 @@ fn recognize_opponent_count(
         }
     }
     cursor.enter("numeric.for-each.opponent.period");
-    cursor.consume_phrase(&["this", "combat"])?;
+    cursor.consume("this")?;
+    // CR 506.2: one combat, or every combat of the turn.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("turn"))
+    {
+        cursor.consume("turn")?;
+        return Ok(NumericExpression::OpponentCount(
+            OpponentFact::AttackedByControllerThisTurn,
+        ));
+    }
+    cursor.consume("combat")?;
     Ok(NumericExpression::OpponentCount(
         OpponentFact::AttackedByControllerThisCombat,
     ))
@@ -560,6 +612,7 @@ pub(in crate::oracle::canonical) fn count_excludes_source(count: &NumericExpress
         | NumericExpression::Divide { left, right, .. } => {
             count_excludes_source(left) || count_excludes_source(right)
         }
+        NumericExpression::Quantity(quantity) => quantity.excludes_source(),
         NumericExpression::Atom(_)
         | NumericExpression::ObjectProperty { .. }
         | NumericExpression::PowerOf(_)

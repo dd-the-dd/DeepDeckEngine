@@ -1,0 +1,712 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "numeric-atoms-history-aggregates/batch7",
+  "cases": [
+    {
+      "id": "exact-skanos-red-dragon-vassal",
+      "request": {
+        "cardName": "Skanos, Red Dragon Vassal",
+        "typeLine": "Legendary Creature — Dragon Ranger",
+        "manaCost": "{4}{R}{G}",
+        "oracleText": "First strike\nWhenever Skanos, Red Dragon Vassal attacks, another target attacking creature gains first strike and gets +X/+0 until end of turn, where X is Skanos's power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-storm-queen-of-wakanda",
+      "request": {
+        "cardName": "Storm, Queen of Wakanda",
+        "typeLine": "Legendary Creature — Mutant Noble Hero",
+        "manaCost": "{3}{G}{W}",
+        "oracleText": "Flying\nWhenever Storm attacks, until end of turn, another target attacking creature gains flying and gets +X/+0, where X is Storm's power.\nWhenever a creature with flying attacks you, Storm deals damage equal to her power to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-alesha-who-laughs-at-fate",
+      "request": {
+        "cardName": "Alesha, Who Laughs at Fate",
+        "typeLine": "Legendary Creature — Human Warrior",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it.\nRaid — At the beginning of your end step, if you attacked this turn, return target creature card with mana value less than or equal to Alesha's power from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-bosh-iron-golem",
+      "request": {
+        "cardName": "Bosh, Iron Golem",
+        "typeLine": "Legendary Artifact Creature — Golem",
+        "manaCost": "{8}",
+        "oracleText": "Trample\n{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the sacrificed artifact's mana value to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-birthing-pod",
+      "request": {
+        "cardName": "Birthing Pod",
+        "typeLine": "Artifact",
+        "manaCost": "{3}{G/P}",
+        "oracleText": "({G/P} can be paid with either {G} or 2 life.)\n{1}{G/P}, {T}, Sacrifice a creature: Search your library for a creature card with mana value equal to 1 plus the sacrificed creature's mana value, put that card onto the battlefield, then shuffle. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-morbid-curiosity",
+      "request": {
+        "cardName": "Morbid Curiosity",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw cards equal to the mana value of the sacrificed permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-manaform-hellkite",
+      "request": {
+        "cardName": "Manaform Hellkite",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Flying\nWhenever you cast a noncreature spell, create an X/X red Dragon Illusion creature token with flying and haste, where X is the amount of mana spent to cast that spell. Exile that token at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-molten-note",
+      "request": {
+        "cardName": "Molten Note",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}{W}",
+        "oracleText": "Molten Note deals damage to target creature equal to the amount of mana spent to cast this spell. Untap all creatures you control.\nFlashback {6}{R}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-commander-s-insignia",
+      "request": {
+        "cardName": "Commander's Insignia",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Creatures you control get +1/+1 for each time you've cast your commander from the command zone this game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-kyler-sigardian-emissary",
+      "request": {
+        "cardName": "Kyler, Sigardian Emissary",
+        "typeLine": "Legendary Creature — Human Cleric",
+        "manaCost": "{3}{G}{W}",
+        "oracleText": "Whenever another Human you control enters, put a +1/+1 counter on Kyler.\nOther Humans you control get +1/+1 for each counter on Kyler.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-savanti-romero-time-s-exile",
+      "request": {
+        "cardName": "Savanti Romero, Time's Exile",
+        "typeLine": "Legendary Creature — Demon Wizard",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Trample\nAt the beginning of combat on your turn, put a +1/+1 counter on Savanti Romero. Then you draw X cards and lose X life, where X is the number of counters on Savanti Romero.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-toph-the-blind-bandit",
+      "request": {
+        "cardName": "Toph, the Blind Bandit",
+        "typeLine": "Legendary Creature — Human Warrior Ally",
+        "manaCost": "{2}{G}",
+        "oracleText": "When Toph enters, earthbend 2. (Target land you control becomes a 0/0 creature with haste that's still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)\nToph's power is equal to the number of +1/+1 counters on lands you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-sudden-insight",
+      "request": {
+        "cardName": "Sudden Insight",
+        "typeLine": "Instant",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Draw a card for each different mana value among nonland cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-umbra-stalker",
+      "request": {
+        "cardName": "Umbra Stalker",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{4}{B}{B}{B}",
+        "oracleText": "Chroma — Umbra Stalker's power and toughness are each equal to the number of black mana symbols in the mana costs of cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-lock-and-load",
+      "request": {
+        "cardName": "Lock and Load",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw a card, then draw a card for each other instant and sorcery spell you've cast this turn.\nPlot {3}{U} (You may pay {3}{U} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-militant-angel",
+      "request": {
+        "cardName": "Militant Angel",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Flying, lifelink\nWhen this creature enters, create a number of 2/2 white Knight creature tokens with vigilance equal to the number of opponents you attacked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-children-of-korlis",
+      "request": {
+        "cardName": "Children of Korlis",
+        "typeLine": "Creature — Human Rebel Cleric",
+        "manaCost": "{W}",
+        "oracleText": "Sacrifice this creature: You gain life equal to the life you've lost this turn. (Damage causes loss of life.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-florian-voldaren-scion",
+      "request": {
+        "cardName": "Florian, Voldaren Scion",
+        "typeLine": "Legendary Creature — Vampire Noble",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "First strike\nAt the beginning of each of your postcombat main phases, look at the top X cards of your library, where X is the total amount of life your opponents lost this turn. Exile one of those cards and put the rest on the bottom of your library in a random order. You may play the exiled card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-venerable-warsinger",
+      "request": {
+        "cardName": "Venerable Warsinger",
+        "typeLine": "Creature — Spirit Cleric",
+        "manaCost": "{1}{R}{W}",
+        "oracleText": "Vigilance, trample\nWhenever this creature deals combat damage to a player, you may return target creature card with mana value X or less from your graveyard to the battlefield, where X is the amount of damage this creature dealt to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-crystalline-crawler",
+      "request": {
+        "cardName": "Crystalline Crawler",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}",
+        "oracleText": "Converge — This creature enters with a +1/+1 counter on it for each color of mana spent to cast it.\nRemove a +1/+1 counter from this creature: Add one mana of any color.\n{T}: Put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-prophet-of-the-scarab",
+      "request": {
+        "cardName": "Prophet of the Scarab",
+        "typeLine": "Creature — Zombie Wizard",
+        "manaCost": "{4}{U}",
+        "oracleText": "Vigilance\nWhen this creature enters, draw cards equal to the number of Zombies you control or the number of Zombie cards in your graveyard, whichever is greater.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-thunder-salvo",
+      "request": {
+        "cardName": "Thunder Salvo",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Thunder Salvo deals X damage to target creature, where X is 2 plus the number of other spells you've cast this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-half-distinct-mana-values-rounded-up",
+      "request": {
+        "cardName": "Numeric Probe Alpha",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Draw X cards, where X is half the number of different mana values among cards in your graveyard, rounded up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-red-mana-spent-to-cast-this-spell",
+      "request": {
+        "cardName": "Numeric Probe Beta",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature gets +X/+0 until end of turn, where X is the amount of red mana spent to cast this spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-commander-casts-as-life-amount",
+      "request": {
+        "cardName": "Numeric Probe Gamma",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "You gain life equal to the number of times you've cast your commander from the command zone this game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-life-gained-history-as-loss-amount",
+      "request": {
+        "cardName": "Numeric Probe Delta",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Each opponent loses life equal to the life you've gained this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrificed-artifact-mana-value-draw",
+      "request": {
+        "cardName": "Numeric Probe Epsilon",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Sacrifice another artifact: Draw cards equal to the sacrificed artifact's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-counters-on-controlled-creatures-static",
+      "request": {
+        "cardName": "Numeric Probe Zeta",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "This creature gets +1/+1 for each +1/+1 counter on creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-mana-spent-on-observed-spell-life",
+      "request": {
+        "cardName": "Numeric Probe Eta",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever you cast a noncreature spell, you gain life equal to the amount of mana spent to cast that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponents-attacked-this-turn-draw",
+      "request": {
+        "cardName": "Numeric Probe Theta",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Draw cards equal to the number of opponents you attacked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-source-name-toughness-life",
+      "request": {
+        "cardName": "Numeric Probe Iota",
+        "typeLine": "Legendary Creature — Giant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Whenever Numeric Probe Iota attacks, you gain life equal to Numeric Probe Iota's toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-each-time-kicked-without-history",
+      "request": {
+        "cardName": "Numeric Probe Kappa",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{W}",
+        "oracleText": "When this creature enters, you gain 2 life for each time it was kicked.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-half-without-stated-rounding",
+      "request": {
+        "cardName": "Numeric Probe Lambda",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "You lose half your life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-spell-without-cast-event",
+      "request": {
+        "cardName": "Numeric Probe Mu",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "At the beginning of your upkeep, you gain life equal to the amount of mana spent to cast that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-snow-mana-not-recorded",
+      "request": {
+        "cardName": "Numeric Probe Nu",
+        "typeLine": "Instant",
+        "manaCost": "{X}{G}",
+        "oracleText": "Target creature gets +X/+0 until end of turn, where X is the amount of {S} spent to cast this spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-counters-among-target-player-creatures",
+      "request": {
+        "cardName": "Numeric Probe Xi",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Create a number of 1/1 green Saproling creature tokens equal to the number of counters among creatures target player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    }
+  ]
+}

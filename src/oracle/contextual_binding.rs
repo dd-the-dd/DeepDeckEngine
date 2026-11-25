@@ -31,9 +31,10 @@ pub(crate) const RESOLUTION_CARD_NAME_DECISION: &str = "resolutionCardName";
 
 /// Stack values bound when a sacrifice cost is paid, keyed by the cost field
 /// that asks the engine to record them (CR 608.2h last known information).
-const SACRIFICED_COST_OBJECT_BINDINGS: [(&str, &str); 2] = [
+const SACRIFICED_COST_OBJECT_BINDINGS: [(&str, &str); 3] = [
     ("sacrificedPermanentPower", "bindPowerAs"),
     ("sacrificedPermanentToughness", "bindToughnessAs"),
+    ("sacrificedPermanentManaValue", "bindManaValueAs"),
 ];
 
 pub(crate) fn validate_native_contextual_bindings(
@@ -52,7 +53,13 @@ pub(crate) fn validate_native_contextual_bindings(
         // CR 601.2h: the colors of mana spent to cast a spell are recorded
         // with that spell's own payment. Another ability of the card (an
         // enters trigger reading `this spell`) resolves without it.
+        // The source's own entry replacement applies while its spell
+        // resolves (CR 614.12), with that cast's payment.
+        let own_entry_replacement = rule["kind"].as_str() == Some("replacementEffect")
+            && rule["event"]["kind"].as_str() == Some("wouldEnterBattlefield")
+            && rule["event"]["object"]["kind"].as_str() == Some("self");
         if rule["kind"].as_str() != Some("spellAbility")
+            && !own_entry_replacement
             && references_kind(rule, "colorsOfManaSpentToCastSource")
         {
             let found = rule["kind"].as_str().unwrap_or("unknown rule").to_string();
