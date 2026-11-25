@@ -298,12 +298,8 @@ fn exiled_card_visibility_this_turn_expires_after_the_turn() {
 fn static_face_down_look_follows_its_source_controller() {
     let mut engine = engine(3);
     let hidden = put_face_down(&mut engine, "player-1");
-    let mut keeper = card_instance(
-        "player-0",
-        &definition("lens-keeper", "Creature - Human"),
-        3,
-    );
-    keeper.definition.rules = vec![json!({
+    let mut keeper_definition = definition("lens-keeper", "Creature - Human");
+    keeper_definition.rules = vec![json!({
         "kind": "staticAbility",
         "source": {"kind": "self"},
         "activeWhile": {"kind": "inZone", "object": {"kind": "self"}, "zone": {"kind": "battlefield"}},
@@ -318,8 +314,9 @@ fn static_face_down_look_follows_its_source_controller() {
         }],
     })];
     assert!(face_down_look_modifier_supported(
-        &keeper.definition.rules[0]["modifiers"][0]
+        &keeper_definition.rules[0]["modifiers"][0]
     ));
+    let keeper = card_instance("player-0", &keeper_definition, 3);
     let index = engine.player_index("player-0").expect("player-0 exists");
     engine.state.players[index].battlefield.push(keeper);
     assert!(engine.face_down_permanent_visible_to("player-0", &hidden));
