@@ -206,6 +206,26 @@ fn distinct_mana_values_and_mana_symbols_read_the_graveyard_collection() {
     assert_eq!(engine.numeric_expression(&symbols, "player-0"), Some(6));
     // Another player's graveyard is empty: zero, not the controller's.
     assert_eq!(engine.numeric_expression(&symbols, "player-1"), Some(0));
+    // Primalcrux: the same count over the permanents the player controls.
+    for (index, mana_cost) in ["{G}{G}{G}", "{1}{G/W}", "{U}"].into_iter().enumerate() {
+        let permanent = card_instance(
+            "player-1",
+            &definition("permanent", "Creature - Elemental", mana_cost),
+            700 + index,
+        );
+        engine.state.players[1].battlefield.push(permanent);
+    }
+    let green_permanents = json!({
+        "kind": "countManaSymbolsAmongCards",
+        "zone": { "kind": "battlefield", "player": controller() },
+        "where": null,
+        "color": "G",
+    });
+    assert!(numeric_expression_supported(&green_permanents));
+    assert_eq!(
+        engine.numeric_expression(&green_permanents, "player-1"),
+        Some(4)
+    );
 }
 
 #[test]

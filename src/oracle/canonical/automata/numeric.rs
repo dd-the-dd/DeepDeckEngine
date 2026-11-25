@@ -409,7 +409,7 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// graveyard`, CR 202.3).
     DistinctCardValues {
         measure: DistinctCardMeasure,
-        cards: Box<super::ScopedObjectQueryNode>,
+        collection: AggregateCollection,
     },
     /// The mana symbols of one color among the mana costs of a card
     /// collection (`black mana symbols in the mana costs of cards in your
@@ -417,7 +417,7 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// counts once.
     ManaSymbolsAmongCards {
         color: crate::oracle::characteristic_vocabulary::CardColor,
-        cards: Box<super::ScopedObjectQueryNode>,
+        collection: AggregateCollection,
     },
     /// The greater of several quantities (`A or B, whichever is greater`).
     Greatest(Vec<NumericExpression>),
@@ -436,6 +436,31 @@ pub(in crate::oracle::canonical) enum CounterHolder {
     Permanents(super::ObjectQueryNode),
 }
 
+/// The objects an aggregate reads: cards in a zone of the shared scoped
+/// query (`cards in your graveyard`), or the permanents the ability's
+/// controller controls (`nonland permanents you control`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AggregateCollection {
+    Cards(Box<super::ScopedObjectQueryNode>),
+    Permanents(super::ObjectQueryNode),
+}
+
+impl AggregateCollection {
+    fn uses_x(&self) -> bool {
+        match self {
+            Self::Cards(cards) => cards.uses_x(),
+            Self::Permanents(query) => super::object_predicate_uses_x(&query.predicate),
+        }
+    }
+
+    fn requires_target_binding(&self) -> bool {
+        match self {
+            Self::Cards(cards) => cards.requires_target_binding(),
+            Self::Permanents(_) => false,
+        }
+    }
+}
+
 /// A characteristic whose distinct values a card collection aggregates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum DistinctCardMeasure {
@@ -451,9 +476,8 @@ impl NumericQuantity {
                 holder: CounterHolder::Permanents(query),
                 ..
             } => super::object_predicate_uses_x(&query.predicate),
-            Self::DistinctCardValues { cards, .. } | Self::ManaSymbolsAmongCards { cards, .. } => {
-                cards.uses_x()
-            }
+            Self::DistinctCardValues { collection, .. }
+            | Self::ManaSymbolsAmongCards { collection, .. } => collection.uses_x(),
             Self::ManaSpentToCast { .. }
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
@@ -469,8 +493,9 @@ impl NumericQuantity {
             Self::Greatest(operands) => operands
                 .iter()
                 .any(NumericExpression::requires_target_binding),
-            Self::DistinctCardValues { cards, .. } | Self::ManaSymbolsAmongCards { cards, .. } => {
-                cards.requires_target_binding()
+            Self::DistinctCardValues { collection, .. }
+            | Self::ManaSymbolsAmongCards { collection, .. } => {
+                collection.requires_target_binding()
             }
             Self::ManaSpentToCast { .. }
             | Self::CommanderCastsFromCommandZone
@@ -852,17 +877,40 @@ pub(in crate::oracle::canonical) fn recognize_distinct_card_values(
     cursor.consume(&noun)?;
     cursor.consume("among")?;
     cursor.enter("numeric.distinct-values.collection");
-    let cards = super::recognize_scoped_object_query(cursor)?;
-    cursor.require(
-        cards.domain == super::ObjectKind::Card && cards.departures.is_none(),
-        "a card collection in a zone",
-    )?;
+    let collection = recognize_aggregate_collection(cursor)?;
     Ok(NumericExpression::Quantity(Box::new(
         NumericQuantity::DistinctCardValues {
             measure: DistinctCardMeasure::ManaValue,
-            cards: Box::new(cards),
+            collection,
         },
     )))
+}
+
+/// The collection an aggregate reads: cards in a zone of the shared scoped
+/// query, else a battlefield collection the ability's controller controls.
+/// Another controller, a source exclusion or a declared operand has no
+/// aggregate evaluator and fails.
+fn recognize_aggregate_collection(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<AggregateCollection> {
+    let mut trial = cursor.clone();
+    if let Ok(cards) = super::recognize_scoped_object_query(&mut trial)
+        && cards.domain == super::ObjectKind::Card
+        && cards.departures.is_none()
+    {
+        *cursor = trial;
+        return Ok(AggregateCollection::Cards(Box::new(cards)));
+    }
+    cursor.enter("numeric.aggregate.permanents");
+    let query = super::recognize_object_collection(cursor)?;
+    cursor.require(
+        query.denotes_battlefield_permanents()
+            && query.controller == Some(super::ObjectControllerScope::AbilityController)
+            && !query.exclude_source
+            && !super::object_predicate_uses_x(&query.predicate),
+        "cards in a zone, or permanents you control",
+    )?;
+    Ok(AggregateCollection::Permanents(query))
 }
 
 /// Lexical lookahead for `COLOR mana symbols in the mana costs of`.
@@ -898,16 +946,9 @@ pub(in crate::oracle::canonical) fn recognize_mana_symbols_among_cards(
     cursor.enter("numeric.mana-symbols.costs");
     cursor.consume_phrase(&["mana", "symbols", "in", "the", "mana", "costs", "of"])?;
     cursor.enter("numeric.mana-symbols.collection");
-    let cards = super::recognize_scoped_object_query(cursor)?;
-    cursor.require(
-        cards.domain == super::ObjectKind::Card && cards.departures.is_none(),
-        "a card collection in a zone",
-    )?;
+    let collection = recognize_aggregate_collection(cursor)?;
     Ok(NumericExpression::Quantity(Box::new(
-        NumericQuantity::ManaSymbolsAmongCards {
-            color,
-            cards: Box::new(cards),
-        },
+        NumericQuantity::ManaSymbolsAmongCards { color, collection },
     )))
 }
 

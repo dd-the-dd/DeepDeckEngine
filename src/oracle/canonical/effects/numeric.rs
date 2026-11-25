@@ -676,14 +676,14 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
         NumericQuantity::Counters { .. } => None,
         NumericQuantity::DistinctCardValues {
             measure: DistinctCardMeasure::ManaValue,
-            cards,
+            collection,
         } => {
-            let mut count = lower_scoped_object_query_amount(cards)?;
+            let mut count = lower_aggregate_collection(collection)?;
             count["kind"] = json!("countDistinctManaValues");
             Some(count)
         }
-        NumericQuantity::ManaSymbolsAmongCards { color, cards } => {
-            let mut count = lower_scoped_object_query_amount(cards)?;
+        NumericQuantity::ManaSymbolsAmongCards { color, collection } => {
+            let mut count = lower_aggregate_collection(collection)?;
             count["kind"] = json!("countManaSymbolsAmongCards");
             count["color"] = json!(color.ir_symbol());
             Some(count)
@@ -703,6 +703,18 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
             "where": Value::Null,
         })),
         NumericQuantity::Greatest(_) => None,
+    }
+}
+
+/// The zone and filter of an aggregate's collection: the scoped card query's
+/// zone, or the battlefield of the ability's controller.
+fn lower_aggregate_collection(collection: &AggregateCollection) -> Option<Value> {
+    match collection {
+        AggregateCollection::Cards(cards) => lower_scoped_object_query_amount(cards),
+        AggregateCollection::Permanents(query) => Some(json!({
+            "zone": { "kind": "battlefield", "player": controller() },
+            "where": lower_permanent_object_predicate(&query.predicate),
+        })),
     }
 }
 

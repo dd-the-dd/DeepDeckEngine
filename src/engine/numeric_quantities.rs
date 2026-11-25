@@ -8,6 +8,7 @@
 //! { kind: commanderCastsFromCommandZone, player }   CR 903.8 record
 //! { kind: countOpponentsAttackedThisTurn, player }  CR 506.2, every combat
 //! { kind: countDistinctManaValues, zone, where, allPlayers? }  CR 202.3
+//!   zone: graveyard | hand | library (printed card filter) | battlefield
 //! { kind: countManaSymbolsAmongCards, zone, where, color, allPlayers? }
 //! ```
 //!
@@ -19,13 +20,16 @@
 //! information when the cost is paid.
 use super::*;
 
-/// The card zones a collection quantity reads.
+/// The zones a collection quantity reads: a card zone filtered on printed
+/// characteristics, or the battlefield filtered on permanent state.
 fn zone_collection_supported(expression: &Value) -> bool {
-    matches!(
-        value_kind(&expression["zone"]),
-        Some("graveyard" | "hand" | "library")
-    ) && player_reference_supported(&expression["zone"]["player"])
-        && card_filter_supported(&expression["where"])
+    let filter = match value_kind(&expression["zone"]) {
+        Some("graveyard" | "hand" | "library") => card_filter_supported(&expression["where"]),
+        Some("battlefield") => permanent_filter_supported(&expression["where"]),
+        _ => false,
+    };
+    filter
+        && player_reference_supported(&expression["zone"]["player"])
         && expression.get("allPlayers").is_none_or(Value::is_boolean)
 }
 
@@ -84,17 +88,20 @@ impl GameEngine {
             } else if player.id != player_id {
                 continue;
             }
-            let zone_cards = match zone {
-                "hand" => &player.hand,
-                "graveyard" => &player.graveyard,
-                "library" => &player.library,
+            let (zone_cards, battlefield) = match zone {
+                "hand" => (&player.hand, false),
+                "graveyard" => (&player.graveyard, false),
+                "library" => (&player.library, false),
+                "battlefield" => (&player.battlefield, true),
                 _ => return None,
             };
-            cards.extend(
-                zone_cards
-                    .iter()
-                    .filter(|card| matches_card_filter(&card.definition, &expression["where"])),
-            );
+            cards.extend(zone_cards.iter().filter(|card| {
+                if battlefield {
+                    self.permanent_state_matches(card, &expression["where"])
+                } else {
+                    matches_card_filter(&card.definition, &expression["where"])
+                }
+            }));
         }
         if !all_players && self.player_index(player_id).is_err() {
             return None;
