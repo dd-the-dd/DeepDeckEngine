@@ -51,6 +51,18 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
             )?;
             cursor.enter("effect.move-source.exile.source");
             let source = recognize_source_reference(cursor, name_links, name_failure)?;
+            // `Exile NAME with N KIND counters on it` (CR 702.62a): the
+            // shared entry-counter reader of every object-to-zone frame;
+            // the source is exiled with them.
+            let entering_counters = if cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
+            {
+                cursor.enter("effect.move-source.exile.counters");
+                Some(super::recognize_entering_counters(cursor)?)
+            } else {
+                None
+            };
             cursor.enter("effect.move-source.complete");
             Ok(MoveSourceEffectNode {
                 source,
@@ -60,7 +72,8 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 controller: SourceMoveController::Preserve,
                 tapped: false,
                 attached_to: None,
-                entering_counters: None,
+                entering_counters,
+                attacking: None,
             })
         }
         Some("return") => {
@@ -108,6 +121,21 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 if tapped {
                     cursor.consume("tapped")?;
                 }
+                // `tapped and attacking [DEFENDER]` (CR 508.4): the shared
+                // attacking-entry reader of every battlefield destination.
+                let attacking = if tapped
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("attacking"))
+                {
+                    cursor.consume("and")?;
+                    Some(super::recognize_entering_attack(cursor)?)
+                } else {
+                    None
+                };
                 // `with N COUNTER counter(s) on it`: the shared entry-counter
                 // reader of card moves; the source enters with them (CR
                 // 122.6), it does not receive them after entering.
@@ -147,6 +175,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     tapped,
                     attached_to,
                     entering_counters,
+                    attacking,
                 });
             }
             if origin == Some(SourceZone::Graveyard) {
@@ -162,6 +191,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     tapped: false,
                     attached_to: None,
                     entering_counters: None,
+                    attacking: None,
                 });
             }
             if origin.is_none()
@@ -193,6 +223,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     tapped: false,
                     attached_to: None,
                     entering_counters: None,
+                    attacking: None,
                 });
             }
             cursor.consume_phrase(&["the", "battlefield"])?;
@@ -225,6 +256,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 tapped: false,
                 attached_to: None,
                 entering_counters: None,
+                attacking: None,
             })
         }
         // `put this card from your hand|graveyard|exile onto the battlefield
@@ -299,6 +331,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 tapped: modifiers.tapped,
                 attached_to: None,
                 entering_counters: modifiers.entering_counters,
+                attacking: modifiers.attacking,
             })
         }
         _ => Err(cursor.fail("`exile`, `return` or `put` source-zone action")),

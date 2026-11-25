@@ -1548,11 +1548,23 @@ fn recognize_effect_sequence_attempt_scoped(
                                     effect_start = cursor.position();
                                     continue;
                                 }
+                                // `Then, if ...`: the comma punctuates the
+                                // sentence connector, not a clause boundary.
                                 let follows_clause_comma = cursor.position() > 0
                                     && cursor
                                         .token_slice(cursor.position() - 1, cursor.position())
                                         .first()
-                                        .is_some_and(|token| token.raw == ",");
+                                        .is_some_and(|token| token.raw == ",")
+                                    && !(cursor.position() > 1
+                                        && cursor
+                                            .token_slice(
+                                                cursor.position() - 2,
+                                                cursor.position() - 1,
+                                            )
+                                            .first()
+                                            .is_some_and(|token| {
+                                                token.raw.eq_ignore_ascii_case("then")
+                                            }));
                                 if super::sentence_condition_starts(cursor) && !follows_clause_comma
                                 {
                                     let departed = memory.departed_permanent_targets();
@@ -2396,6 +2408,11 @@ fn recognize_effect_sequence_attempt_scoped(
                                 .is_some_and(|raw| raw.eq_ignore_ascii_case("then"));
                             if explicit_then {
                                 cursor.consume("then")?;
+                                // `Then, ACTION.`: the punctuated variant of
+                                // the same sentence connector (CR 608.2c).
+                                if cursor.peek() == Some(",") {
+                                    cursor.consume(",")?;
+                                }
                                 if cursor.peek().is_none() || cursor.peek() == Some(".") {
                                     attempt_frame.commit();
                                     cursor.enter("sequence.connector.effect");

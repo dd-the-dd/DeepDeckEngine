@@ -1775,6 +1775,9 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     /// `to the battlefield with N COUNTER counters on it` (CR 122.6): the
     /// source enters with these counters.
     pub entering_counters: Option<EnteringCountersNode>,
+    /// `to the battlefield tapped and attacking` (CR 508.4): the source
+    /// enters attacking without being declared as an attacker.
+    pub attacking: Option<EnteringAttackNode>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
