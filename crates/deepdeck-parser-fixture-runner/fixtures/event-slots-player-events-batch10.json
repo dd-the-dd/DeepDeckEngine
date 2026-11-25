@@ -954,7 +954,7 @@
             "ruleAssertions": [
               {
                 "pointer": "/event/kind",
-                "equals": "cardCycled"
+                "equals": "sourceCycled"
               }
             ]
           }
