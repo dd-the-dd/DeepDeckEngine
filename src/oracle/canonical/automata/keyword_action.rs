@@ -429,7 +429,16 @@ fn outcome_condition_shape(cursor: &OracleTokenCursor<'_>) -> Option<OutcomeCond
     {
         return Some(OutcomeConditionShape::Face);
     }
-    if word_at(cursor, 0, "you") && lemma_at(1, &[VerbLemma::Roll]) {
+    // `you rolled a die this turn` is the event history of rolling, not an
+    // outcome: only a written face (`you roll a 6`) is claimed here.
+    let article = usize::from(word_at(cursor, 2, "a") || word_at(cursor, 2, "an"));
+    if word_at(cursor, 0, "you")
+        && lemma_at(1, &[VerbLemma::Roll])
+        && cursor
+            .peek_ahead(2 + article)
+            .and_then(parse_number_word)
+            .is_some_and(|face| face > 0)
+    {
         return Some(OutcomeConditionShape::Roll);
     }
     if word_at(cursor, 0, "you") && lemma_at(1, &[VerbLemma::Win]) && word_at(cursor, 2, ",") {

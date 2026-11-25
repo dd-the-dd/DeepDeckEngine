@@ -149,6 +149,10 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     /// `recruit` (CR 701.70a): draw, discard, then a Human Soldier token
     /// when the discarded card was a nonland card.
     Recruit,
+    /// `manifest the top card of your library` / `manifest dread` (CR
+    /// 701.40a, 701.62a): a performed row, so `its controller manifests the
+    /// top card of their library` is that player's own instruction.
+    Manifest,
     /// `win the flip` (CR 705.2), `win` a clash (CR 701.30d): the outcome
     /// a condition or an event reads; no instruction performs it.
     Win,
@@ -867,6 +871,18 @@ const VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "recruiting",
         },
         frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Manifest,
+        forms: VerbForms {
+            base: "manifest",
+            third_person_singular: "manifests",
+            past: "manifested",
+            past_participle: "manifested",
+            present_participle: "manifesting",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
         voices: &[Voice::Active],
     },
 ];
