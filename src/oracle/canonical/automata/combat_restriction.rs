@@ -309,12 +309,23 @@ pub(in crate::oracle::canonical) fn recognize_source_combat_restriction(
     }
     let mut clauses = Vec::new();
     loop {
-        recognize_combat_clause(
+        // The source is the clause subject: an anchorless comparative of its
+        // arguments (`can't be blocked by creatures with greater power`)
+        // compares with it.
+        super::with_clause_subject(
             cursor,
-            CombatClauseContext::Static,
-            committed,
-            &mut clauses,
-            &mut None,
+            Some(super::PermanentEffectReference::Source(
+                super::LocalObjectReference::SourceSelf,
+            )),
+            |cursor| {
+                recognize_combat_clause(
+                    cursor,
+                    CombatClauseContext::Static,
+                    committed,
+                    &mut clauses,
+                    &mut None,
+                )
+            },
         )?;
         cursor.enter("static.combat-restriction.connector");
         if word_at(cursor, 0, "and") {

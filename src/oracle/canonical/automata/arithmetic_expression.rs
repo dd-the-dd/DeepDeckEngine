@@ -122,6 +122,11 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
         || super::greatest_property_among_starts(cursor)
         || super::number_of_count_starts(cursor)
         || super::action_result_quantity_starts(cursor)
+        || super::mana_spent_amount_starts(cursor)
+        || super::history_life_amount_starts(cursor)
+        || super::event_damage_amount_starts(cursor)
+        || super::excess_damage_result_starts(cursor)
+        || super::random_result_starts(cursor)
         || devotion_starts(cursor)
         || cursor
             .peek()
@@ -174,6 +179,15 @@ fn recognize_arithmetic_with_event_binding(
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.arithmetic.start");
     let expression = recognize_sum(cursor, antecedent, event_binding, query_context)?;
+    // `A or B, whichever is greater` (CR 107.1): the greater operand.
+    if super::whichever_is_greater_follows(cursor) {
+        cursor.enter("numeric.arithmetic.greatest-of");
+        cursor.consume("or")?;
+        let right = recognize_sum(cursor, antecedent, event_binding, query_context)?;
+        let expression = super::recognize_whichever_is_greater_close(cursor, expression, right)?;
+        cursor.enter("numeric.arithmetic.complete");
+        return Ok(expression);
+    }
     cursor.enter("numeric.arithmetic.complete");
     Ok(expression)
 }
@@ -320,6 +334,12 @@ fn recognize_primary(
         query_context.kind,
         NumericReadKind::Query | NumericReadKind::Definition | NumericReadKind::Comparison
     ) {
+        // The latest random outcome (`the result`, `the number of coins
+        // that came up heads`) before the generic `the number of` count.
+        if query_context.kind == NumericReadKind::Definition && super::random_result_starts(cursor)
+        {
+            return super::recognize_random_result(cursor);
+        }
         if query_context.kind.reads_definition_families()
             && super::player_numeric_fact_starts(cursor)
         {
@@ -352,6 +372,22 @@ fn recognize_primary(
         if query_context.kind.reads_definition_families() && devotion_starts(cursor) {
             return recognize_devotion(cursor);
         }
+        // Cast records, turn history and event amounts (CR 601.2h, 119.3,
+        // 120.1): definition quantities of one shared reader each.
+        if query_context.kind == NumericReadKind::Definition {
+            if super::mana_spent_amount_starts(cursor) {
+                return super::recognize_mana_spent_to_cast_amount(cursor);
+            }
+            if super::history_life_amount_starts(cursor) {
+                return super::recognize_history_life_amount(cursor);
+            }
+            if super::event_damage_amount_starts(cursor) {
+                return super::recognize_event_damage_amount(cursor);
+            }
+            if super::excess_damage_result_starts(cursor) {
+                return super::recognize_excess_damage_result(cursor);
+            }
+        }
     }
     if cursor
         .peek()
@@ -381,6 +417,9 @@ fn recognize_half(
     // domain of the shared scoped query.
     let operand = if super::number_of_count_starts(cursor) {
         super::recognize_number_of_count(cursor)?
+    } else if super::acting_player_zone_starts(cursor) {
+        // `half their library`: the acting player's cards in that zone.
+        super::recognize_acting_player_zone(cursor)?
     } else if super::player_numeric_fact_starts(cursor) {
         super::recognize_player_numeric_fact(cursor)?
     } else {

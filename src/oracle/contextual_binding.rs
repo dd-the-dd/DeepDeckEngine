@@ -29,11 +29,54 @@ pub(crate) const RESOLUTION_COLOR_DECISION: &str = "resolutionColor";
 /// from a name stored on a permanent by an `As ... enters` choice.
 pub(crate) const RESOLUTION_CARD_NAME_DECISION: &str = "resolutionCardName";
 
-/// Stack values bound when a sacrifice cost is paid, keyed by the cost field
-/// that asks the engine to record them (CR 608.2h last known information).
-const SACRIFICED_COST_OBJECT_BINDINGS: [(&str, &str); 2] = [
-    ("sacrificedPermanentPower", "bindPowerAs"),
-    ("sacrificedPermanentToughness", "bindToughnessAs"),
+/// The cost that records a cost-paid object binding when it is paid.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CostObjectProducer {
+    /// A `sacrificePermanent` cost (CR 601.2h, 602.2b).
+    Sacrifice,
+    /// A `tap` cost of a chosen permanent (`Tap another untapped creature
+    /// you control`, CR 702.184a); the source's own `{T}` taps no other
+    /// object.
+    TapChosen,
+}
+
+impl CostObjectProducer {
+    fn produces(self, cost: &Value) -> bool {
+        match self {
+            Self::Sacrifice => cost["kind"].as_str() == Some("sacrificePermanent"),
+            Self::TapChosen => {
+                cost["kind"].as_str() == Some("tap")
+                    && cost["object"]["kind"].as_str() == Some("chosenTarget")
+            }
+        }
+    }
+}
+
+/// Stack values bound when a cost is paid, keyed by the cost field that asks
+/// the engine to record them (CR 608.2h last known information). A tapped
+/// cost object records only its power: the runtime tap cost has no
+/// toughness or mana-value binding, so the reader refuses those reads.
+const COST_OBJECT_BINDINGS: [(&str, &str, CostObjectProducer); 4] = [
+    (
+        "sacrificedPermanentPower",
+        "bindPowerAs",
+        CostObjectProducer::Sacrifice,
+    ),
+    (
+        "sacrificedPermanentToughness",
+        "bindToughnessAs",
+        CostObjectProducer::Sacrifice,
+    ),
+    (
+        "sacrificedPermanentManaValue",
+        "bindManaValueAs",
+        CostObjectProducer::Sacrifice,
+    ),
+    (
+        "tappedPermanentPower",
+        "bindPowerAs",
+        CostObjectProducer::TapChosen,
+    ),
 ];
 
 pub(crate) fn validate_native_contextual_bindings(
@@ -41,7 +84,7 @@ pub(crate) fn validate_native_contextual_bindings(
     abilities: &mut [ParsedOracleAbility],
 ) {
     crate::oracle::entry_choice_binding::bind_entry_choices(abilities);
-    bind_sacrificed_cost_objects(abilities);
+    bind_cost_paid_objects(abilities);
     for ability in abilities {
         if ability.status != "canonical" || ability.recognizer != RecognizerProvenance::Native {
             continue;
@@ -52,7 +95,13 @@ pub(crate) fn validate_native_contextual_bindings(
         // CR 601.2h: the colors of mana spent to cast a spell are recorded
         // with that spell's own payment. Another ability of the card (an
         // enters trigger reading `this spell`) resolves without it.
+        // The source's own entry replacement applies while its spell
+        // resolves (CR 614.12), with that cast's payment.
+        let own_entry_replacement = rule["kind"].as_str() == Some("replacementEffect")
+            && rule["event"]["kind"].as_str() == Some("wouldEnterBattlefield")
+            && rule["event"]["object"]["kind"].as_str() == Some("self");
         if rule["kind"].as_str() != Some("spellAbility")
+            && !own_entry_replacement
             && references_kind(rule, "colorsOfManaSpentToCastSource")
         {
             let found = rule["kind"].as_str().unwrap_or("unknown rule").to_string();
@@ -462,40 +511,56 @@ fn reject_binding(ability: &mut ParsedOracleAbility, state: &str, expected: &str
         span_start: Some(0),
         span_end: Some(source_span_end),
         expected: Some(expected.to_string()),
-        found: Some("a sacrificed cost object reference".to_string()),
+        found: Some("a cost-paid object reference".to_string()),
         trace: Vec::new(),
         owner: None,
     });
 }
 
-/// Paths (`costs` of an activated rule, or a spell declaration's
-/// `additionalCosts`) to the sacrifice costs a rule pays itself.
-fn sacrifice_cost_count(rule: &Value) -> usize {
+/// The `costs` of an activated rule and a spell declaration's
+/// `additionalCosts`: the costs a rule pays itself.
+fn own_costs_mut(rule: &mut Value) -> Vec<&mut Value> {
+    let mut costs = Vec::new();
+    let Some(fields) = rule.as_object_mut() else {
+        return costs;
+    };
+    let mut declaration_costs = None;
+    let mut activation_costs = None;
+    for (key, value) in fields.iter_mut() {
+        match key.as_str() {
+            "costs" => activation_costs = Some(value),
+            "declaration" => declaration_costs = value.get_mut("additionalCosts"),
+            _ => {}
+        }
+    }
+    for list in [activation_costs, declaration_costs].into_iter().flatten() {
+        if let Some(list) = list.as_array_mut() {
+            costs.extend(list.iter_mut());
+        }
+    }
+    costs
+}
+
+/// The number of own costs of `rule` that `producer` names.
+fn producing_cost_count(rule: &Value, producer: CostObjectProducer) -> usize {
     let count = |costs: &Value| {
         costs
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|cost| cost["kind"].as_str() == Some("sacrificePermanent"))
+            .filter(|cost| producer.produces(cost))
             .count()
     };
     count(&rule["costs"]) + count(&rule["declaration"]["additionalCosts"])
 }
 
-fn install_sacrifice_bindings(rule: &mut Value, fields: &[(&str, &str)]) {
-    for key in ["costs", "additionalCosts"] {
-        let costs = if key == "costs" {
-            rule.get_mut("costs")
-        } else {
-            rule.get_mut("declaration")
-                .and_then(|declaration| declaration.get_mut("additionalCosts"))
-        };
-        for cost in costs
-            .and_then(Value::as_array_mut)
-            .into_iter()
-            .flatten()
-            .filter(|cost| cost["kind"].as_str() == Some("sacrificePermanent"))
-        {
+fn install_cost_object_bindings(
+    rule: &mut Value,
+    producer: CostObjectProducer,
+    fields: &[(&str, &str)],
+) {
+    for cost in own_costs_mut(rule) {
+        if producer.produces(cost) {
             for (binding, field) in fields {
                 cost[*field] = Value::String((*binding).to_string());
             }
@@ -503,12 +568,139 @@ fn install_sacrifice_bindings(rule: &mut Value, fields: &[(&str, &str)]) {
     }
 }
 
-/// A rule reading `the sacrificed NOUN's power|toughness` (CR 601.2h, 602.2b)
-/// needs exactly one sacrifice cost producer: its own activation cost, or the
-/// additional cost of the same spell face (a separate spell rule). The
-/// producing cost records the value when it is paid; a missing or ambiguous
-/// producer is a binding failure, never a zero.
-fn bind_sacrificed_cost_objects(abilities: &mut [ParsedOracleAbility]) {
+/// The cost-object bindings a rule reads, grouped by producing cost kind.
+type CostObjectReads = Vec<(CostObjectProducer, Vec<(&'static str, &'static str)>)>;
+
+fn read_cost_object_bindings(rule: &Value) -> CostObjectReads {
+    let mut groups: CostObjectReads = Vec::new();
+    for (binding, field, producer) in COST_OBJECT_BINDINGS {
+        if !references_decision(rule, binding) {
+            continue;
+        }
+        match groups.iter_mut().find(|(kind, _)| *kind == producer) {
+            Some((_, fields)) => fields.push((binding, field)),
+            None => groups.push((producer, vec![(binding, field)])),
+        }
+    }
+    groups
+}
+
+/// `the power of the card you exiled` (CR 702.97a) reads the source card an
+/// own `exileSource` cost exiled: once exactly one such cost is proven, the
+/// symbolic read becomes the source's characteristic (the exiled card keeps
+/// its printed characteristics). Returns false when a read has no unique
+/// producing cost.
+fn resolve_exiled_source_card_reads(rule: &mut Value) -> bool {
+    const READS: [(&str, &str); 2] = [
+        ("exiledSourceCardPower", "powerOf"),
+        ("exiledSourceCardToughness", "toughnessOf"),
+    ];
+    fn rewrite(value: &mut Value, decision: &str, kind: &str) {
+        if value["kind"].as_str() == Some("decisionResult")
+            && value["decisionId"].as_str() == Some(decision)
+        {
+            *value = serde_json::json!({ "kind": kind, "object": { "kind": "self" } });
+            return;
+        }
+        match value {
+            Value::Array(values) => values
+                .iter_mut()
+                .for_each(|value| rewrite(value, decision, kind)),
+            Value::Object(values) => values
+                .values_mut()
+                .for_each(|value| rewrite(value, decision, kind)),
+            _ => {}
+        }
+    }
+    let read = READS
+        .iter()
+        .any(|(decision, _)| references_decision(rule, decision));
+    if !read {
+        return true;
+    }
+    let exiles_source = rule["costs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|cost| {
+            cost["kind"].as_str() == Some("exileSource")
+                && cost["object"]["kind"].as_str() == Some("self")
+        })
+        .count()
+        == 1;
+    if !exiles_source {
+        return false;
+    }
+    for (decision, kind) in READS {
+        rewrite(rule, decision, kind);
+    }
+    true
+}
+
+/// A keyword expansion (CR 702) carries its compiled rules: each one reads
+/// only its own costs, like a printed activated ability. Returns whether
+/// every read binding found its unique own producer.
+fn bind_keyword_expansion_cost_objects(rule: &mut Value) -> bool {
+    let Some(parts) = rule.get_mut("rules").and_then(Value::as_array_mut) else {
+        return true;
+    };
+    for part in parts {
+        if !resolve_exiled_source_card_reads(part) {
+            return false;
+        }
+        for (producer, fields) in read_cost_object_bindings(part) {
+            if producing_cost_count(part, producer) != 1 {
+                return false;
+            }
+            install_cost_object_bindings(part, producer, &fields);
+        }
+    }
+    true
+}
+
+/// The unique other spell rule of the same face whose additional costs
+/// produce the sacrificed object a spell ability reads.
+fn same_face_spell_producer(
+    abilities: &[ParsedOracleAbility],
+    index: usize,
+    producer: CostObjectProducer,
+) -> Option<usize> {
+    let face = &abilities[index].source.face_id;
+    let producers = abilities
+        .iter()
+        .enumerate()
+        .filter(|(other, candidate)| {
+            *other != index
+                && &candidate.source.face_id == face
+                && candidate.status == "canonical"
+                && candidate.rule.as_ref().is_some_and(|rule| {
+                    rule["kind"].as_str() == Some("spellAbility")
+                        && producing_cost_count(rule, producer) > 0
+                })
+        })
+        .map(|(other, candidate)| {
+            (
+                other,
+                candidate
+                    .rule
+                    .as_ref()
+                    .map_or(0, |rule| producing_cost_count(rule, producer)),
+            )
+        })
+        .collect::<Vec<_>>();
+    match producers.as_slice() {
+        [(other, 1)] => Some(*other),
+        _ => None,
+    }
+}
+
+/// A rule reading `the sacrificed NOUN's power|toughness` or `the tapped
+/// NOUN's power` (CR 601.2h, 602.2b) needs exactly one producing cost: its
+/// own activation cost, or for a sacrifice the additional cost of the same
+/// spell face (a separate spell rule). The producing cost records the value
+/// when it is paid; a missing or ambiguous producer is a binding failure,
+/// never a zero.
+fn bind_cost_paid_objects(abilities: &mut [ParsedOracleAbility]) {
     for index in 0..abilities.len() {
         let ability = &abilities[index];
         if ability.status != "canonical" || ability.recognizer != RecognizerProvenance::Native {
@@ -517,57 +709,62 @@ fn bind_sacrificed_cost_objects(abilities: &mut [ParsedOracleAbility]) {
         let Some(rule) = ability.rule.as_ref() else {
             continue;
         };
-        let fields = SACRIFICED_COST_OBJECT_BINDINGS
-            .iter()
-            .copied()
-            .filter(|(binding, _)| references_decision(rule, binding))
-            .collect::<Vec<_>>();
-        if fields.is_empty() {
+        if rule["kind"].as_str() == Some("keywordExpansion") {
+            let bound = abilities[index]
+                .rule
+                .as_mut()
+                .is_some_and(bind_keyword_expansion_cost_objects);
+            if !bound {
+                reject_binding(
+                    &mut abilities[index],
+                    "binding.cost-object.source",
+                    "exactly one producing cost of the same expanded ability",
+                    "The keyword definition reads a cost-paid object, but no unique cost of the same expanded ability produces it.",
+                );
+            }
             continue;
         }
-        let own = sacrifice_cost_count(rule);
-        let producer = if own > 0 {
-            (own == 1).then_some(index)
-        } else if rule["kind"].as_str() == Some("spellAbility") {
-            let face = ability.source.face_id.clone();
-            let producers = abilities
-                .iter()
-                .enumerate()
-                .filter(|(other, candidate)| {
-                    *other != index
-                        && candidate.source.face_id == face
-                        && candidate.status == "canonical"
-                        && candidate.rule.as_ref().is_some_and(|rule| {
-                            rule["kind"].as_str() == Some("spellAbility")
-                                && sacrifice_cost_count(rule) > 0
-                        })
-                })
-                .map(|(other, candidate)| {
-                    (
-                        other,
-                        candidate.rule.as_ref().map_or(0, sacrifice_cost_count),
-                    )
-                })
-                .collect::<Vec<_>>();
-            match producers.as_slice() {
-                [(other, 1)] => Some(*other),
-                _ => None,
-            }
-        } else {
-            None
-        };
-        match producer {
-            Some(producer) => {
-                if let Some(rule) = abilities[producer].rule.as_mut() {
-                    install_sacrifice_bindings(rule, &fields);
-                }
-            }
-            None => reject_binding(
+        let spell = rule["kind"].as_str() == Some("spellAbility");
+        let exiled_reads_resolved = abilities[index]
+            .rule
+            .as_mut()
+            .is_some_and(resolve_exiled_source_card_reads);
+        if !exiled_reads_resolved {
+            reject_binding(
                 &mut abilities[index],
-                "binding.sacrificed-cost-object.source",
-                "exactly one sacrifice cost of this ability or of the same spell face",
-                "The canonical rule reads the sacrificed permanent, but no unique same-face sacrifice cost produces it.",
-            ),
+                "binding.exiled-source-card.source",
+                "exactly one cost of this ability exiling its source card",
+                "The canonical rule reads the card a cost exiled, but no unique exile-this-card cost of the same ability produces it.",
+            );
+            continue;
+        }
+        let Some(rule) = abilities[index].rule.as_ref() else {
+            continue;
+        };
+        for (producer, fields) in read_cost_object_bindings(rule) {
+            let own = abilities[index]
+                .rule
+                .as_ref()
+                .map_or(0, |rule| producing_cost_count(rule, producer));
+            let target = if own > 0 {
+                (own == 1).then_some(index)
+            } else if spell && producer == CostObjectProducer::Sacrifice {
+                same_face_spell_producer(abilities, index, producer)
+            } else {
+                None
+            };
+            let Some(target) = target else {
+                reject_binding(
+                    &mut abilities[index],
+                    "binding.sacrificed-cost-object.source",
+                    "exactly one producing cost of this ability or, for a sacrifice, of the same spell face",
+                    "The canonical rule reads a cost-paid permanent, but no unique same-face cost produces it.",
+                );
+                break;
+            };
+            if let Some(rule) = abilities[target].rule.as_mut() {
+                install_cost_object_bindings(rule, producer, &fields);
+            }
         }
     }
 }

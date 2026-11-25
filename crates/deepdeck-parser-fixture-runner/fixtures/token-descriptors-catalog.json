@@ -71,7 +71,7 @@
       }
     },
     {
-      "id": "known-gap-manaform-hellkite-mana-spent-amount",
+      "id": "manaform-hellkite-mana-spent-amount",
       "request": {
         "cardName": "Manaform Hellkite",
         "typeLine": "Creature — Dragon",
@@ -81,14 +81,26 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "numeric.atom.start",
-            "found": "the"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/value/kind",
+                "equals": "manaSpentToCast"
+              },
+              {
+                "pointer": "/effects/0/value/spell/kind",
+                "equals": "triggeringSpell"
+              },
+              {
+                "pointer": "/effects/1/token/power/id",
+                "equals": "whereX"
+              }
+            ]
           }
         ]
       }
@@ -244,7 +256,7 @@
       }
     },
     {
-      "id": "known-gap-militant-angel-opponents-attacked-this-turn",
+      "id": "militant-angel-opponents-attacked-this-turn",
       "request": {
         "cardName": "Militant Angel",
         "typeLine": "Creature — Angel",
@@ -254,14 +266,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "numeric.for-each.opponent.period",
-            "found": "turn"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/quantity/kind",
+                "equals": "countOpponentsAttackedThisTurn"
+              }
+            ]
           }
         ]
       }

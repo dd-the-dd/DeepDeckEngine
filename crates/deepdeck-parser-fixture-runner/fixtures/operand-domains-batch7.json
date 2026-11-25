@@ -1,0 +1,930 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "operand-domains-batch7",
+  "cases": [
+    {
+      "id": "disallow-exact-stack-item-union",
+      "request": {
+        "cardName": "Disallow",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Counter target spell, activated ability, or triggered ability. (Mana abilities can't be targeted.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "voidslime-exact-stack-item-union",
+      "request": {
+        "cardName": "Voidslime",
+        "typeLine": "Instant",
+        "manaCost": "{G}{U}{U}",
+        "oracleText": "Counter target spell, activated ability, or triggered ability. (Mana abilities can't be targeted.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "deny-the-witch-exact-stack-item-union-then-controller",
+      "request": {
+        "cardName": "Deny the Witch",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}{U}{B}",
+        "oracleText": "Counter target spell, activated ability, or triggered ability. Its controller loses life equal to the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "overcharged-amalgam-exact-exploit-counter-union",
+      "request": {
+        "cardName": "Overcharged Amalgam",
+        "typeLine": "Creature — Zombie Horror",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flash\nFlying\nExploit (When this creature enters, you may sacrifice a creature.)\nWhen this creature exploits a creature, counter target spell, activated ability, or triggered ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "jeska-and-kamahl-exact-player-battle-planeswalker",
+      "request": {
+        "cardName": "Jeska and Kamahl",
+        "typeLine": "Legendary Creature — Human Barbarian Warrior",
+        "manaCost": "{3}{R}",
+        "oracleText": "Haste, first strike\n{T}: Jeska and Kamahl deals 2 damage to target opponent, battle, or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "coalborn-entity-exact-token-player-planeswalker",
+      "request": {
+        "cardName": "Coalborn Entity",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{4}{R}",
+        "oracleText": "{2}{R}: This creature deals 1 damage to target creature token, player, or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "nicol-bolas-god-pharaoh-exact-qualified-branches",
+      "request": {
+        "cardName": "Nicol Bolas, God-Pharaoh",
+        "typeLine": "Legendary Planeswalker — Bolas",
+        "manaCost": "{4}{U}{B}{R}",
+        "oracleText": "+2: Target opponent exiles cards from the top of their library until they exile a nonland card. Until end of turn, you may cast that card without paying its mana cost.\n+1: Each opponent exiles two cards from their hand.\n−4: Nicol Bolas deals 7 damage to target opponent, creature an opponent controls, or planeswalker an opponent controls.\n−12: Exile each nonland permanent your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "known-gap-muse-vessel-exact-linked-exile-choice",
+      "request": {
+        "cardName": "Muse Vessel",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "{3}, {T}: Target player exiles a card from their hand. Activate only as a sorcery.\n{1}: Choose a card exiled with this artifact. You may play that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-chaos-shrines-black-crystal-exact-linked-exile-put",
+      "request": {
+        "cardName": "Chaos Shrine's Black Crystal",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever a nontoken creature you control dies, exile it.\nAt the beginning of your upkeep, you may put a creature card exiled with Chaos Shrine's Black Crystal onto the battlefield under your control with a finality counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-nautiloid-ship-exact-linked-exile-put",
+      "request": {
+        "cardName": "Nautiloid Ship",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{4}",
+        "oracleText": "Flying\nWhen this Vehicle enters, exile target player's graveyard.\nWhenever this Vehicle deals combat damage to a player, you may put a creature card exiled with this Vehicle onto the battlefield under your control.\nCrew 3",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-mission-briefing-exact-graveyard-card-choice",
+      "request": {
+        "cardName": "Mission Briefing",
+        "typeLine": "Instant",
+        "manaCost": "{U}{U}",
+        "oracleText": "Surveil 2, then choose an instant or sorcery card in your graveyard. You may cast it this turn. If that spell would be put into your graveyard, exile it instead. (To surveil 2, look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.permission-window"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lidless-gaze-exact-each-player-library-top",
+      "request": {
+        "cardName": "Lidless Gaze",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{R}",
+        "oracleText": "Exile the top card of each player's library. Until the end of your next turn, you may play those cards, and mana of any type can be spent to cast those spells.\nFlashback {2}{B}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "etali-primal-storm-exact-each-player-library-top",
+      "request": {
+        "cardName": "Etali, Primal Storm",
+        "typeLine": "Legendary Creature — Elder Dinosaur",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Whenever Etali attacks, exile the top card of each player's library, then you may cast any number of spells from among those cards without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "lively-dirge-exact-total-mana-value-set-constraint",
+      "request": {
+        "cardName": "Lively Dirge",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Spree (Choose one or more additional costs.)\n+ {1} — Search your library for a card, put it into your graveyard, then shuffle.\n+ {2} — Return up to two creature cards with total mana value 4 or less from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/then/0/setConstraints/0/kind",
+                "equals": "totalAtMost"
+              },
+              {
+                "pointer": "/effects/1/then/0/from/where/kind",
+                "equals": "cardTypeContains"
+              },
+              {
+                "pointer": "/effects/1/then/0/maximum/operands/1/objects/where/kind",
+                "equals": "cardTypeContains"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "seasons-past-exact-distinct-mana-values-set-constraint",
+      "request": {
+        "cardName": "Seasons Past",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{G}{G}",
+        "oracleText": "Return any number of cards with different mana values from your graveyard to your hand. Put Seasons Past on the bottom of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/setConstraints/0/kind",
+                "equals": "distinctValues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-stack-union-reordered",
+      "request": {
+        "cardName": "Stack Sibling",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Counter target activated ability, spell, or triggered ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-damage-player-first-union",
+      "request": {
+        "cardName": "Damage Sibling",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}",
+        "oracleText": "{T}: This creature deals 1 damage to target player, creature token, or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-object-then-player-or",
+      "request": {
+        "cardName": "Ember Sibling",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}",
+        "oracleText": "{T}: This creature deals 1 damage to target creature or player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "known-gap-sibling-linked-exile-choice-cast",
+      "request": {
+        "cardName": "Vault Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{3}, {T}: Target player exiles a card from their hand. Activate only as a sorcery.\n{2}, {T}: Choose a creature card exiled with this artifact. You may cast that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_card_composition_failure",
+            "state": "composition.linked-exile.relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-up-to-two-graveyard-cards-chosen-then-returned",
+      "request": {
+        "cardName": "Graveyard Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose up to two creature cards in your graveyard. Return them to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-each-opponent-library-top-cast",
+      "request": {
+        "cardName": "Library Sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, exile the top card of each opponent's library. You may cast a spell from among those cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-card-choice-without-zone",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose a creature card. You may play that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "choose.domain.object.zone"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-linked-exile-of-another-object",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}: Choose a card exiled with another creature. You may play that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "choose.domain.object.zone.card-location"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-stack-union-with-qualified-spell",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Counter target activated ability, triggered ability, or legendary spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-player-then-coordinated-heads-share-controller",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Near Miss deals 2 damage to target player, creature, or planeswalker an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/kind",
+                "equals": "union"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/sets/0/kind",
+                "equals": "players"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/sets/1/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-trailing-controller-on-last-branch",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Near Miss deals 2 damage to target creature, player, or planeswalker an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "target-list.selector-list.scope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-any-number-with-fixed-count",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Tap any number of three target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-look-at-each-library",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Look at the top card of each player's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "snapcaster-mage-exact-declared-graveyard-card-gains-flashback",
+      "request": {
+        "cardName": "Snapcaster Mage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Flash\nWhen this creature enters, target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. (You may cast that card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "past-in-flames-exact-graveyard-collection-gains-flashback",
+      "request": {
+        "cardName": "Past in Flames",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.\nFlashback {4}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "recoup-exact-sorcery-card-gains-flashback",
+      "request": {
+        "cardName": "Recoup",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. (Mana cost includes color.)\nFlashback {3}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "backdraft-hellkite-exact-attack-trigger-collection-flashback",
+      "request": {
+        "cardName": "Backdraft Hellkite",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Flying\nWhenever this creature attacks, each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sphinx-of-forgotten-lore-exact-that-cards-mana-cost",
+      "request": {
+        "cardName": "Sphinx of Forgotten Lore",
+        "typeLine": "Creature — Sphinx",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flash (You may cast this spell any time you could cast an instant.)\nFlying\nWhenever this creature attacks, target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to that card's mana cost. (You may cast that card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "past-in-flames-grant-ir",
+      "request": {
+        "cardName": "Past in Flames",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.\nFlashback {4}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantAbility"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "cardsInZone"
+              },
+              {
+                "pointer": "/effects/0/ability/kind",
+                "equals": "flashback"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-creature-card-gains-flashback",
+      "request": {
+        "cardName": "Flame Sibling",
+        "typeLine": "Creature — Phoenix",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature attacks, each creature card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-flashback-grant-without-cost",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains flashback until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.grant-keyword.cost"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-flashback-grant-in-hidden-hand",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your hand gains flashback until end of turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-preposed-duration-flashback-grant-then-cost-sentence",
+      "request": {
+        "cardName": "Preposed Sibling",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Until end of turn, target instant card in your graveyard gains flashback. The flashback cost is equal to that card's mana cost. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantAbility"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/0/ability/cost/kind",
+                "equals": "manaCostOf"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-flashback-grant-until-next-turn",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains flashback until your next turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.grant-keyword.duration"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cost-sentence-names-another-keyword",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains flashback until end of turn. The kicker cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.granted-keyword-cost.subject"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-kicker-granted-to-graveyard-card",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains kicker until end of turn. The kicker cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cost-sentence-without-a-grant",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.granted-keyword-cost.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "silas-renn-exact-chosen-target-card-cast",
+      "request": {
+        "cardName": "Silas Renn, Seeker Adept",
+        "typeLine": "Legendary Artifact Creature — Human",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "Deathtouch\nWhenever Silas Renn deals combat damage to a player, choose target artifact card in your graveyard. You may cast that card this turn.\nPartner (You can have two commanders if both have partner.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "emry-exact-chosen-target-card-cast",
+      "request": {
+        "cardName": "Emry, Lurker of the Loch",
+        "typeLine": "Legendary Creature — Merfolk Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nWhen Emry enters, mill four cards.\n{T}: Choose target artifact card in your graveyard. You may cast that card this turn. (You still pay its costs. Timing rules still apply.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "daretti-rocketeer-exact-the-chosen-card",
+      "request": {
+        "cardName": "Daretti, Rocketeer Engineer",
+        "typeLine": "Legendary Creature — Goblin Artificer",
+        "manaCost": "{4}{R}",
+        "oracleText": "Daretti's power is equal to the greatest mana value among artifacts you control.\nWhenever Daretti enters or attacks, choose target artifact card in your graveyard. You may sacrifice an artifact. If you do, return the chosen card to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "known-gap-victimize-exact-the-chosen-cards",
+      "request": {
+        "cardName": "Victimize",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Choose two target creature cards in your graveyard. Sacrifice a creature. If you do, return the chosen cards to the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-chosen-target-card-returned-to-hand",
+      "request": {
+        "cardName": "Target Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose up to one target instant card in your graveyard. Return it to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-chosen-target-card-in-hidden-library",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose target creature card in your library. Return that card to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

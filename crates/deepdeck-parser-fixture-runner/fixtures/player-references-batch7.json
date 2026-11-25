@@ -1,0 +1,501 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "player-references-batch7",
+  "cases": [
+    {
+      "id": "depopulate-exact-each-player-who-controls-draws",
+      "request": {
+        "cardName": "Depopulate",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Each player who controls a multicolored creature draws a card. Then destroy all creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/players/kind",
+                "equals": "filterPlayers"
+              },
+              {
+                "pointer": "/effects/0/players/players/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/effects/0/players/where/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/effects/0/players/where/operator",
+                "equals": ">="
+              },
+              {
+                "pointer": "/effects/0/players/where/left/player/kind",
+                "equals": "quantifiedPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "shatter-the-sky-exact-numeric-predicate-population",
+      "request": {
+        "cardName": "Shatter the Sky",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Each player who controls a creature with power 4 or greater draws a card. Then destroy all creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/players/kind",
+                "equals": "filterPlayers"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "fade-from-history-exact-population-creates-token",
+      "request": {
+        "cardName": "Fade from History",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Each player who controls an artifact or enchantment creates a 2/2 green Bear creature token. Then destroy all artifacts and enchantments.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/players/kind",
+                "equals": "filterPlayers"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tectonic-hellion-exact-superlative-most-lands",
+      "request": {
+        "cardName": "Tectonic Hellion",
+        "typeLine": "Creature — Hellion",
+        "manaCost": "{5}{R}{R}",
+        "oracleText": "Haste\nWhenever this creature attacks, each player who controls the most lands sacrifices two lands of their choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gor-muldrak-sibling-superlative-fewest",
+      "request": {
+        "cardName": "Superlative Probe",
+        "typeLine": "Creature — Human Scout",
+        "manaCost": "{1}{G}{U}",
+        "oracleText": "At the beginning of your end step, each player who controls the fewest creatures creates a 4/3 blue Salamander Warrior creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "thornbow-archer-exact-negated-opponent-predicate",
+      "request": {
+        "cardName": "Thornbow Archer",
+        "typeLine": "Creature — Elf Archer",
+        "manaCost": "{B}",
+        "oracleText": "Whenever this creature attacks, each opponent who doesn't control an Elf loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fractured-identity-exact-population-exclusion",
+      "request": {
+        "cardName": "Fractured Identity",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{U}",
+        "oracleText": "Exile target nonland permanent. Each player other than its controller creates a token that's a copy of it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/1/players/kind",
+                "equals": "filterPlayers"
+              },
+              {
+                "pointer": "/effects/1/players/except/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-triskaidekaphobia-exact-with-life-predicate",
+      "request": {
+        "cardName": "Triskaidekaphobia",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{B}",
+        "oracleText": "At the beginning of your upkeep, choose one —\n• Each player with exactly 13 life loses the game, then each player gains 1 life.\n• Each player with exactly 13 life loses the game, then each player loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-possession-predicate-then-life-population",
+      "request": {
+        "cardName": "Population Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Each opponent who has seven or more cards in their hand loses 2 life. Each player with 10 or less life gains 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-continued-verb-of-a-restricted-population",
+      "request": {
+        "cardName": "Continued Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Each opponent who has seven or more cards in their hand discards a card, then draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.performer.restricted-population.continued"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-hithlain-rope-exact-player-to-your-right",
+      "request": {
+        "cardName": "Hithlain Rope",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "This artifact can't be sacrificed.\n{1}, {T}: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. The player to your right gains control of this artifact.\n{2}, {T}: Draw a card. The player to your right gains control of this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.predicate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "elusen-sibling-player-to-your-left",
+      "request": {
+        "cardName": "Seat Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Draw a card. The player to your left gains control of this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/performer/direction",
+                "equals": "left"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-thada-adel-exact-search-event-players-library",
+      "request": {
+        "cardName": "Thada Adel, Acquisitor",
+        "typeLine": "Legendary Creature — Merfolk Rogue",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Islandwalk (This creature can't be blocked as long as defending player controls an Island.)\nWhenever Thada Adel deals combat damage to a player, search that player's library for an artifact card and exile it. Then that player shuffles. Until end of turn, you may play that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.permit.window"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rootwater-thief-exact-search-then-the-player-shuffles",
+      "request": {
+        "cardName": "Rootwater Thief",
+        "typeLine": "Creature — Merfolk Rogue",
+        "manaCost": "{1}{U}",
+        "oracleText": "{U}: This creature gains flying until end of turn.\nWhenever this creature deals combat damage to a player, you may pay {2}. If you do, search that player's library for a card and exile it, then the player shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-search-target-creatures-controller-zones",
+      "request": {
+        "cardName": "Holder Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Exile target creature. Search its controller's graveyard, hand, and library for up to two cards and exile them. Then that player shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-whose-predicate-is-refused-distinctly",
+      "request": {
+        "cardName": "Whose Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Each player whose life total is 10 or less draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "player-set.relative.whose"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-who-history-verb-is-refused-distinctly",
+      "request": {
+        "cardName": "Who Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Each player who attacked this turn draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "player-set.relative.who.verb"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponent-superlative-is-refused",
+      "request": {
+        "cardName": "Superlative Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Each opponent who controls the most lands sacrifices a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "player-set.relative.superlative"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exclusion-of-a-declared-target",
+      "request": {
+        "cardName": "Death by Dragons",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Each player other than target player creates a 5/5 red Dragon creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "player-set.relative.exclusion.player"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-you-library-misprint-is-refused",
+      "request": {
+        "cardName": "Misprint Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}, Sacrifice this artifact: Search you library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.library-search.possessive-library.misprint"
+          }
+        ]
+      }
+    }
+  ]
+}

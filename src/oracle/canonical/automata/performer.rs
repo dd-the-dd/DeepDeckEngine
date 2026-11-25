@@ -29,6 +29,15 @@ pub(in crate::oracle::canonical) enum PerformerNode {
         players: PlayerSetReferenceNode,
         excluding_controller: bool,
     },
+    /// `each player who controls the most lands`, `each opponent who
+    /// doesn't control an Elf`, `each player other than its controller`:
+    /// every member of the restricted population performs the action in turn
+    /// order (CR 101.4, 102.1-102.3). The members are the population's
+    /// players satisfying the relative predicate when the action begins.
+    FilteredPopulation(Box<super::PlayerPopulationQueryNode>),
+    /// `the player to your left|right` (CR 101.4, 800.4j): the nearest
+    /// player still in the game in that direction of the seating order.
+    SeatNeighbor(SeatDirection),
     /// `an opponent`: one player of the population, chosen by the ability's
     /// controller on resolution (CR 608.2d). `binding` names the choice: every
     /// later verb the same subject continues reads the same chosen player.
@@ -56,6 +65,14 @@ pub(in crate::oracle::canonical) enum PerformerNode {
         effect_index: usize,
         filter: super::ActionResultFilter,
     },
+}
+
+/// A direction of the seating order (CR 101.4: turn order passes to the
+/// left).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SeatDirection {
+    Left,
+    Right,
 }
 
 impl PerformerNode {
@@ -191,23 +208,22 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
         } else {
             PlayerSetReferenceNode::OpponentsOfAbilityController
         };
-        return Some(cursor.advance_to(cursor.position() + 2).map(|()| {
-            (
-                PerformerNode::Population {
-                    players,
-                    excluding_controller: false,
-                },
-                VerbAgreement::ThirdPersonSingular,
-            )
-        }));
+        return Some(
+            cursor
+                .advance_to(cursor.position() + 2)
+                .and_then(|()| restricted_population(cursor, context, players, false)),
+        );
     }
     if is(0, "each") && is(1, "other") && is(2, "player") {
-        return Some(cursor.advance_to(cursor.position() + 3).map(|()| {
+        return Some(cursor.advance_to(cursor.position() + 3).and_then(|()| {
+            restricted_population(cursor, context, PlayerSetReferenceNode::EachPlayer, true)
+        }));
+    }
+    if let Some(direction) = seat_neighbor_at(cursor) {
+        cursor.enter("clause.performer.seat-neighbor");
+        return Some(cursor.advance_to(cursor.position() + 5).map(|()| {
             (
-                PerformerNode::Population {
-                    players: PlayerSetReferenceNode::EachPlayer,
-                    excluding_controller: true,
-                },
+                PerformerNode::SeatNeighbor(direction),
                 VerbAgreement::ThirdPersonSingular,
             )
         }));
@@ -302,6 +318,66 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
         )));
     }
     None
+}
+
+/// The population read so far, restricted by a relative clause when one
+/// follows (`each player who controls the most lands`, `each player other
+/// than its controller`). The restriction is the shared player-set grammar
+/// (`player_set.rs`); a restriction it does not type is the clause's failure.
+fn restricted_population(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &PerformerContext,
+    players: PlayerSetReferenceNode,
+    excluding_controller: bool,
+) -> MachineResult<(PerformerNode, VerbAgreement)> {
+    if !super::player_relative_clause_starts(cursor) {
+        return Ok((
+            PerformerNode::Population {
+                players,
+                excluding_controller,
+            },
+            VerbAgreement::ThirdPersonSingular,
+        ));
+    }
+    cursor.enter("clause.performer.restricted-population");
+    let relative = super::PlayerRelativeContext {
+        player_antecedent: context.player_antecedent,
+        event_player: context.event_player,
+        object_antecedent: context.object_antecedent.clone(),
+    };
+    let query = super::recognize_player_population_restriction(
+        cursor,
+        players,
+        excluding_controller,
+        &relative,
+    )?;
+    Ok((
+        PerformerNode::FilteredPopulation(Box::new(query)),
+        VerbAgreement::ThirdPersonSingular,
+    ))
+}
+
+/// `the player to your left|right` at the cursor (five tokens). Only the
+/// ability controller's neighbor is a performer here; `to their left` names
+/// a member of an enclosing iteration and is not read.
+pub(in crate::oracle::canonical) fn seat_neighbor_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<SeatDirection> {
+    let is = |offset: usize, word: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    };
+    if !(is(0, "the") && is(1, "player") && is(2, "to") && is(3, "your")) {
+        return None;
+    }
+    if is(4, "left") {
+        Some(SeatDirection::Left)
+    } else if is(4, "right") {
+        Some(SeatDirection::Right)
+    } else {
+        None
+    }
 }
 
 /// True when the cursor starts a counted player target list followed by
@@ -564,6 +640,10 @@ pub(in crate::oracle::canonical) fn performer_description(
         PerformerNode::EachAffectedObject { .. } => {
             "the player of each affected object (`its controller` after `for each`)"
         }
+        PerformerNode::FilteredPopulation(_) => {
+            "a restricted player population (`each player who ...`)"
+        }
+        PerformerNode::SeatNeighbor(_) => "a seat neighbor (`the player to your left`)",
     }
 }
 

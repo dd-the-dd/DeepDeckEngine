@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "each-player-library-top-card-is-exiled",
+  "seed": 0,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "topCards",
+        "value": {
+          "kind": "libraryTopCards",
+          "zone": {
+            "kind": "library",
+            "players": {
+              "kind": "eachPlayer"
+            }
+          },
+          "count": {
+            "kind": "integer",
+            "value": 1
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "topCards"
+        },
+        "to": {
+          "kind": "exile",
+          "faceDown": false,
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Gazer",
+        "hand": [
+          {
+            "id": "lidless-gaze",
+            "name": "Lidless Gaze",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{B}{R}"
+          }
+        ],
+        "library": [
+          {
+            "id": "own-bottom",
+            "name": "Own Bottom",
+            "typeLine": "Land"
+          },
+          {
+            "id": "own-top",
+            "name": "Own Top",
+            "typeLine": "Instant"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "library": [
+          {
+            "id": "opp-bottom",
+            "name": "Opponent Bottom",
+            "typeLine": "Land"
+          },
+          {
+            "id": "opp-top",
+            "name": "Opponent Top",
+            "typeLine": "Sorcery"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "lidless-gaze"
+  },
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "own-top",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "opp-top",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "libraryTopIs",
+      "playerId": "player-0",
+      "definitionId": "own-bottom"
+    },
+    {
+      "kind": "libraryTopIs",
+      "playerId": "player-1",
+      "definitionId": "opp-bottom"
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

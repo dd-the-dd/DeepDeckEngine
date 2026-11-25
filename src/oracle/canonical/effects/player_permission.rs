@@ -56,6 +56,31 @@ fn lower_temporary_rule_modifiers(
                 "firstEachTurn": false,
             })])
         }
+        // CR 704.5j: the legend rule ignores the waived permanents while the
+        // effect lasts, including permanents that enter later (CR 611.2c).
+        TemporaryRuleNode::LegendRuleWaiver(waiver) => {
+            let cursor = OracleTokenCursor::new("temporary-rule.lowering", &[]);
+            Ok(vec![
+                lower_legend_rule_waiver(&cursor, waiver)
+                    .map_err(|_| TargetlessLoweringError::UnsupportedEffect)?,
+            ])
+        }
+        // CR 614.1c: each matching permanent enters tapped while it lasts.
+        TemporaryRuleNode::EntersTapped { objects } => {
+            let cursor = OracleTokenCursor::new("temporary-rule.lowering", &[]);
+            let objects = lower_static_permanent_query(&cursor, objects)
+                .map_err(|_| TargetlessLoweringError::UnsupportedEffect)?;
+            // The entry replacement reads the filter and controller only.
+            if objects.get("ownership").is_some() || objects.get("excludeSource").is_some() {
+                return Err(TargetlessLoweringError::UnsupportedEffect);
+            }
+            Ok(vec![
+                json!({"kind": "permanentsEnterTapped", "objects": objects}),
+            ])
+        }
+        // CR 601.3: the allowance's actor holds it while the rule lasts.
+        TemporaryRuleNode::Casting(node) => lower_casting_permission_modifiers(node)
+            .map_err(|_| TargetlessLoweringError::UnsupportedEffect),
         TemporaryRuleNode::Players { subject, predicate } => {
             let players = match subject {
                 StaticPlayerSubjectNode::You => controller(),

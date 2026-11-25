@@ -66,7 +66,7 @@
       }
     },
     {
-      "id": "other-entering-object-not-owner",
+      "id": "other-entering-object-is-the-damage-source",
       "request": {
         "cardName": "Source Binding Witness",
         "typeLine": "Artifact",
@@ -76,12 +76,44 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/source/kind",
+                "equals": "observedEventObject"
+              },
+              {
+                "pointer": "/effects/0/recipient/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-player-event-has-no-object-for-it",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a player draws a card, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "reference.source-or-anaphor.start"
           }
         ]
       }
@@ -106,9 +138,18 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/1/kind", "equals": "dealDamage" },
-              { "pointer": "/effects/1/source/kind", "equals": "chosenTarget" },
-              { "pointer": "/effects/1/source/id", "equals": "targetPermanent" }
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/source/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/1/source/id",
+                "equals": "targetPermanent"
+              }
             ]
           }
         ]
@@ -134,9 +175,18 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/1/kind", "equals": "dealDamage" },
-              { "pointer": "/effects/1/source/kind", "equals": "chosenTarget" },
-              { "pointer": "/effects/1/source/id", "equals": "targetPermanent" }
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/source/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/1/source/id",
+                "equals": "targetPermanent"
+              }
             ]
           }
         ]

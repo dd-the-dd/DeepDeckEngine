@@ -144,11 +144,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                     || keyword_rule_supported(&effect["ability"])
                     || value_kind(&effect["ability"]) == Some("staticAbility")
                         && rule_supported(&effect["ability"]));
-            let flashback_supported = target_reference_supported(&effect["object"])
-                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
-                && value_kind(&effect["ability"]) == Some("flashback")
-                && value_kind(&effect["ability"]["cost"]) == Some("manaCostOf")
-                && value_kind(&effect["ability"]["cost"]["card"]) == Some("abilitySource");
+            let flashback_supported =
+                card_selection::flashback_grant_objects_supported(&effect["object"])
+                    && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+                    && value_kind(&effect["ability"]) == Some("flashback")
+                    && value_kind(&effect["ability"]["cost"]) == Some("manaCostOf")
+                    && value_kind(&effect["ability"]["cost"]["card"]) == Some("abilitySource");
             // The source or one target gains a triggered ability until end
             // of turn (CR 611.2a); execution appends it to that object.
             let temporary_trigger_supported = (matches!(
@@ -380,29 +381,12 @@ impl GameEngine {
             }
             Some("grantAbility") => {
                 if value_kind(&effect["ability"]) == Some("flashback") {
-                    if let Some(TargetRef::Card { instance_id }) =
-                        self.resolve_target(&effect["object"], stack_object, bindings)
-                        && let Some(card) = self.card_outside_battlefield(&instance_id).cloned()
-                    {
-                        let permission = json!({
-                            "action": "cast",
-                            "alternativeManaCost": card.definition.mana_cost,
-                            "cardInstanceId": instance_id,
-                            "exileOnLeaveStack": true,
-                            "expiresAfterTurn": self.state.turn_number,
-                            "normalCostsApply": true,
-                            "normalTimingApplies": true,
-                            "playerId": stack_object.controller,
-                            "sourceCardInstanceId": stack_object.card.instance_id,
-                        });
-                        self.state.permissions.push(permission.clone());
-                        self.record_event(
-                            "flashbackPermissionGranted",
-                            Some(stack_object.controller.clone()),
-                            Some(card.instance_id),
-                            permission,
-                        );
-                    }
+                    self.grant_flashback_until_end_of_turn(
+                        effect,
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )?;
                 } else if value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn") {
                     let instance_ids = if matches!(
                         value_kind(&effect["object"]),

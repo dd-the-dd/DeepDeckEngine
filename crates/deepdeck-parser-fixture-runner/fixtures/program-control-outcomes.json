@@ -603,7 +603,7 @@
       }
     },
     {
-      "id": "near-miss-medial-instead-in-own-paragraph",
+      "id": "labeled-medial-instead-replaces-the-previous-paragraph",
       "request": {
         "cardName": "Synthetic Threshold",
         "typeLine": "Sorcery",
@@ -613,13 +613,49 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/count/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/0/else/0/count/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-labeled-instead-without-an-earlier-instruction",
+      "request": {
+        "cardName": "Synthetic Threshold",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Threshold — If seven or more cards are in your graveyard, instead draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
-        "abilityCount": 2,
         "diagnostics": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure"
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.instead"
           }
         ]
       }

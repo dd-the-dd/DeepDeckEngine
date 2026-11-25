@@ -1,0 +1,656 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/keyword-template-batch7",
+  "cases": [
+    {
+      "id": "exact-borg-scout-sphere-station-creature-band",
+      "request": {
+        "cardName": "Borg Scout Sphere",
+        "typeLine": "Artifact — Spacecraft",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this Spacecraft enters, draw a card.\nStation (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 6+.)\n6+ | Artifact creatures you control have flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "station"
+              },
+              {
+                "pointer": "/parameters/threshold",
+                "equals": 6
+              },
+              {
+                "pointer": "/definition/rulesSection",
+                "equals": "702.184a"
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/costs/0",
+                "equals": {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "activationCostTap0"
+                  },
+                  "bindPowerAs": "tappedPermanentPower"
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/0/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/rules/0/effects/0/counter",
+                "equals": "charge"
+              },
+              {
+                "pointer": "/rules/0/effects/0/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "tappedPermanentPower"
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/0/permanent",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "sorceryTiming"
+                }
+              },
+              {
+                "pointer": "/rules/1/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/rules/1/modifiers/0",
+                "equals": {
+                  "kind": "addCardType",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "cardType": "Creature"
+                }
+              },
+              {
+                "pointer": "/rules/1/bandGate",
+                "equals": {
+                  "kind": "counterRange",
+                  "counter": "charge",
+                  "minimum": 6
+                }
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/bandGate",
+                "equals": {
+                  "kind": "counterRange",
+                  "counter": "charge",
+                  "minimum": 6
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lumen-class-frigate-band-before-creature-band",
+      "request": {
+        "cardName": "Lumen-Class Frigate",
+        "typeLine": "Artifact — Spacecraft",
+        "manaCost": "{1}{W}",
+        "oracleText": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 12+.)\n2+ | Other creatures you control get +1/+1.\n12+ | Flying, lifelink",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "station"
+              },
+              {
+                "pointer": "/parameters/threshold",
+                "equals": 12
+              },
+              {
+                "pointer": "/rules/1/bandGate",
+                "equals": {
+                  "kind": "counterRange",
+                  "counter": "charge",
+                  "minimum": 12
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kavaron-planet-station-without-creature-band",
+      "request": {
+        "cardName": "Kavaron, Memorial World",
+        "typeLine": "Land — Planet",
+        "manaCost": null,
+        "oracleText": "This land enters tapped.\n{T}: Add {R}.\nStation (Tap another creature you control: Put charge counters equal to its power on this Planet. Station only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "station"
+              },
+              {
+                "pointer": "/parameters",
+                "equals": {}
+              },
+              {
+                "pointer": "/rules/0/costs/0",
+                "equals": {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "activationCostTap0"
+                  },
+                  "bindPowerAs": "tappedPermanentPower"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-printed-tapped-cost-object-power",
+      "request": {
+        "cardName": "Tapped Power Fixture",
+        "typeLine": "Artifact — Contraption",
+        "manaCost": "{3}",
+        "oracleText": "Tap another untapped creature you control: Put a number of +1/+1 counters equal to the tapped creature's power on target creature. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0",
+                "equals": {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "activationCostTap0"
+                  },
+                  "bindPowerAs": "tappedPermanentPower"
+                }
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "tappedPermanentPower"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-station-spacecraft-without-reminder",
+      "request": {
+        "cardName": "Reminderless Station Fixture",
+        "typeLine": "Artifact — Spacecraft",
+        "manaCost": "{3}",
+        "oracleText": "Station\n6+ | Flying",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.template.threshold-band",
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-station-on-a-sorcery-face",
+      "request": {
+        "cardName": "Station Sorcery Fixture",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Station",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.template.face-kind",
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-tapped-cost-object-toughness",
+      "request": {
+        "cardName": "Tapped Toughness Fixture",
+        "typeLine": "Artifact — Contraption",
+        "manaCost": "{3}",
+        "oracleText": "Tap another untapped creature you control: You gain life equal to the tapped creature's toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "numeric.cost-object.tapped-property",
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sacred-cat-embalm",
+      "request": {
+        "cardName": "Sacred Cat",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "Lifelink\nEmbalm {W} ({W}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie Cat with no mana cost. Embalm only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "embalm"
+              },
+              {
+                "pointer": "/rules/0/costs/1",
+                "equals": {
+                  "kind": "exileSource",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": "graveyard"
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/0/token/object",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/0/token/except",
+                "equals": [
+                  {
+                    "kind": "addSubtypes",
+                    "subtypes": [
+                      "Zombie"
+                    ]
+                  },
+                  {
+                    "kind": "setColors",
+                    "colors": [
+                      "W"
+                    ]
+                  },
+                  {
+                    "kind": "removeManaCost"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "keyword-line-champion-of-wits-eternalize",
+      "request": {
+        "cardName": "Champion of Wits",
+        "typeLine": "Creature — Snake Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Eternalize {5}{U}{U} ({5}{U}{U}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a 4/4 black Zombie Snake Wizard with no mana cost. Eternalize only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "eternalize"
+              },
+              {
+                "pointer": "/rules/0/effects/0/token/except",
+                "equals": [
+                  {
+                    "kind": "addSubtypes",
+                    "subtypes": [
+                      "Zombie"
+                    ]
+                  },
+                  {
+                    "kind": "setColors",
+                    "colors": [
+                      "B"
+                    ]
+                  },
+                  {
+                    "kind": "setBasePowerToughness",
+                    "power": {
+                      "kind": "integer",
+                      "value": 4
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 4
+                    }
+                  },
+                  {
+                    "kind": "removeManaCost"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-printed-token-copy-one-one-spirit",
+      "request": {
+        "cardName": "Spirit Copy Fixture",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "{W}: Create a token that's a copy of this creature, except it's a 1/1 and it's a Spirit in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/except",
+                "equals": [
+                  {
+                    "kind": "addSubtypes",
+                    "subtypes": [
+                      "Spirit"
+                    ]
+                  },
+                  {
+                    "kind": "setBasePowerToughness",
+                    "power": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-serial-copy-exceptions-with-other-creature-types",
+      "request": {
+        "cardName": "Serial Copy Fixture",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "{W}: Create a token that's a copy of this creature, except it's 2/2, it has no mana cost, and it's a Ninja in addition to its other creature types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/except",
+                "equals": [
+                  {
+                    "kind": "addSubtypes",
+                    "subtypes": [
+                      "Ninja"
+                    ]
+                  },
+                  {
+                    "kind": "setBasePowerToughness",
+                    "power": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "removeManaCost"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-exception-outside-the-typed-list",
+      "request": {
+        "cardName": "Untyped Exception Fixture",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "{W}: Create a token that's a copy of this creature, except it's legendary.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "token.copy.except.complement",
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-creature-types-retention-after-a-card-type",
+      "request": {
+        "cardName": "Retention Fixture",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "{W}: Create a token that's a copy of this creature, except it's an artifact in addition to its other creature types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "token.copy.except.retention.creature-types",
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-deadbridge-goliath-scavenge",
+      "request": {
+        "cardName": "Deadbridge Goliath",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Scavenge {4}{G}{G} ({4}{G}{G}, Exile this card from your graveyard: Put a number of +1/+1 counters equal to this card's power on target creature. Scavenge only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "scavenge"
+              },
+              {
+                "pointer": "/rules/0/activationZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/rules/0/effects/0/count",
+                "equals": {
+                  "kind": "powerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exiled-card-without-an-exile-source-cost",
+      "request": {
+        "cardName": "Exiled Card Fixture",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Put a number of +1/+1 counters equal to the power of the card you exiled on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "binding.exiled-source-card.source",
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

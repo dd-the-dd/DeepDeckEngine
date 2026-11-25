@@ -21,16 +21,13 @@ pub(in crate::oracle::canonical) fn lower_target_cardinality_bound(atom: Numeric
     }
 }
 
-/// Stack value bound when the sacrifice cost is paid (`bindPowerAs` /
-/// `bindToughnessAs` on the producing cost). Card composition installs the
-/// binding on the same-face cost that produces it.
+/// Stack value bound when the producing cost is paid (`bindPowerAs` /
+/// `bindToughnessAs` on that cost). Card composition installs the binding
+/// on the same-face cost that produces it (`cost_paid_object.rs`).
 pub(in crate::oracle::canonical) fn sacrificed_cost_object_binding(
-    property: NumericObjectProperty,
+    property: CostPaidObjectProperty,
 ) -> &'static str {
-    match property {
-        NumericObjectProperty::Power => "sacrificedPermanentPower",
-        NumericObjectProperty::Toughness => "sacrificedPermanentToughness",
-    }
+    property.binding()
 }
 
 /// Compiler-assigned identifier of the objects action `effect_index` of a
@@ -378,6 +375,9 @@ fn lower_numeric_expression_in_context(
             "kind": match property {
                 NumericObjectProperty::Power => "powerOf",
                 NumericObjectProperty::Toughness => "toughnessOf",
+                // The source's own mana value has no source-relative
+                // evaluator; it is never lowered as another object's.
+                NumericObjectProperty::ManaValue => return None,
             },
             "object": self_ref(),
         })),
@@ -429,6 +429,11 @@ fn lower_numeric_expression_in_context(
             pending["reader"] = json!(reader_effect);
             Some(pending)
         }
+        // The latest random or contested outcome: its definite binding.
+        NumericExpression::ActionResultQuantity {
+            quantity: ActionResultQuantity::RandomResult(outcome),
+            ..
+        } => Some(lower_random_result_quantity(*outcome)),
         NumericExpression::ActionResultQuantity {
             reader_effect,
             quantity,
@@ -453,6 +458,25 @@ fn lower_numeric_expression_in_context(
         NumericExpression::OpponentCount(OpponentFact::Any) => {
             Some(json!({ "kind": "countOpponents", "player": controller() }))
         }
+        NumericExpression::OpponentCount(OpponentFact::AttackedByControllerThisTurn) => {
+            Some(json!({ "kind": "countOpponentsAttackedThisTurn", "player": controller() }))
+        }
+        NumericExpression::Quantity(quantity) => match quantity.as_ref() {
+            // The greater of several quantities, each lowered in this context.
+            NumericQuantity::Greatest(operands) => Some(json!({
+                "kind": "maximum",
+                "operands": operands
+                    .iter()
+                    .map(|operand| lower_numeric_expression_in_context(
+                        operand,
+                        event_binding,
+                        target_binding,
+                        query_support,
+                    ))
+                    .collect::<Option<Vec<_>>>()?,
+            })),
+            other => lower_numeric_quantity(other),
+        },
         NumericExpression::CountDistinctCardTypes { zone, predicate } => {
             let mut count = json!({
                 "kind": "countDistinctCardTypes",
@@ -598,6 +622,121 @@ fn lower_numeric_expression_in_context(
                 SelectorNumericProperty::ManaValue => "manaValueOf",
             }, "object":target_binding?(*object)?,
         })),
+    }
+}
+
+/// The runtime expression of one record or collection aggregate
+/// (`NumericQuantity`); `None` when no engine evaluator reads that shape.
+fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
+    match quantity {
+        NumericQuantity::ManaSpentToCast { spell, symbol } => {
+            let mut amount = json!({
+                "kind": "manaSpentToCast",
+                "spell": match spell {
+                    CastSpellReference::Source(LocalObjectReference::SourceSelf) => self_ref(),
+                    CastSpellReference::EventSpell => json!({ "kind": "triggeringSpell" }),
+                    CastSpellReference::Source(_) => return None,
+                },
+            });
+            if let Some(symbol) = symbol {
+                amount["symbol"] = json!(symbol);
+            }
+            Some(amount)
+        }
+        NumericQuantity::CommanderCastsFromCommandZone => Some(json!({
+            "kind": "commanderCastsFromCommandZone",
+            "player": controller(),
+        })),
+        // The source's counters of one kind, or of every kind.
+        NumericQuantity::Counters {
+            counter,
+            holder: CounterHolder::Source,
+        } => {
+            let mut count = json!({ "kind": "countCounters", "object": self_ref() });
+            if let Some(counter) = counter {
+                count["counter"] = json!(counter.as_str());
+            }
+            Some(count)
+        }
+        // The engine sums one counter kind over the permanents one player
+        // controls; every kind, another player or a source exclusion has no
+        // evaluator.
+        NumericQuantity::Counters {
+            counter: Some(counter),
+            holder: CounterHolder::Permanents(query),
+        } if query.controller == Some(ObjectControllerScope::AbilityController)
+            && !query.exclude_source =>
+        {
+            Some(json!({
+                "kind": "countCountersOnPermanents",
+                "player": controller(),
+                "where": lower_card_object_predicate(&query.predicate),
+                "counter": counter.as_str(),
+            }))
+        }
+        NumericQuantity::Counters { .. } => None,
+        NumericQuantity::DistinctCardValues {
+            measure: DistinctCardMeasure::ManaValue,
+            collection,
+        } => {
+            let mut count = lower_aggregate_collection(collection)?;
+            count["kind"] = json!("countDistinctManaValues");
+            Some(count)
+        }
+        NumericQuantity::ManaSymbolsAmongCards { color, collection } => {
+            let mut count = lower_aggregate_collection(collection)?;
+            count["kind"] = json!("countManaSymbolsAmongCards");
+            count["color"] = json!(color.ir_symbol());
+            Some(count)
+        }
+        // The acting player is a placeholder the singular action's own
+        // player replaces (`bind_acting_player`); left in place it names no
+        // player and the engine refuses the amount.
+        NumericQuantity::ActingPlayerCards { zone } => Some(json!({
+            "kind": "countCards",
+            "zone": {
+                "kind": match zone {
+                    LocalZone::Library => "library",
+                    LocalZone::Hand => "hand",
+                },
+                "player": { "kind": ACTING_PLAYER },
+            },
+            "where": Value::Null,
+        })),
+        NumericQuantity::Greatest(_) => None,
+    }
+}
+
+/// The zone and filter of an aggregate's collection: the scoped card query's
+/// zone, or the battlefield of the ability's controller.
+fn lower_aggregate_collection(collection: &AggregateCollection) -> Option<Value> {
+    match collection {
+        AggregateCollection::Cards(cards) => lower_scoped_object_query_amount(cards),
+        AggregateCollection::Permanents(query) => Some(json!({
+            "zone": { "kind": "battlefield", "player": controller() },
+            "where": lower_permanent_object_predicate(&query.predicate),
+        })),
+    }
+}
+
+/// The player an acting-player quantity (`half their library`) reads until
+/// the enclosing singular action supplies it.
+pub(in crate::oracle::canonical) const ACTING_PLAYER: &str = "pendingActingPlayer";
+
+/// Replaces every acting-player placeholder under `value` by the single
+/// player that performs the enclosing action (CR 109.5: `their` names it).
+pub(in crate::oracle::canonical) fn bind_acting_player(value: &mut Value, player: &Value) {
+    match value {
+        Value::Object(map) if map.get("kind").and_then(Value::as_str) == Some(ACTING_PLAYER) => {
+            *value = player.clone();
+        }
+        Value::Object(map) => map
+            .values_mut()
+            .for_each(|child| bind_acting_player(child, player)),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| bind_acting_player(child, player)),
+        _ => {}
     }
 }
 

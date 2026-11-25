@@ -293,6 +293,11 @@ fn keyword_action_position(tokens: &[RecognizedEntity], matched: AbilityLexemeMa
     }
 
     let previous = &tokens[matched.start_token - 1];
+    // A results-table row (`10—19 | Scry 2.`) begins its instruction after
+    // the row separator, like a sentence start.
+    if previous.raw == "|" {
+        return true;
+    }
     // A player role (`its controller scries 2`, `its owner investigates`) is
     // a player subject before its verb like a player type word (CR 109.5).
     matches!(

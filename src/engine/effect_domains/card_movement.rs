@@ -110,6 +110,14 @@ fn supports_known_effect(effect: &Value) -> bool {
                         (player_reference_supported(&effect["to"]["player"])
                             || destination_uses_each_owner(&effect["to"]))
                             && effect["to"]["faceDown"].is_boolean()
+                            // `exile it with N KIND counters on it` (CR
+                            // 702.62a): the counters are placed as it is
+                            // exiled, face up only (a face-down card keeps
+                            // no visible counters this frame can name).
+                            && effect["to"].get("enterWithCounters").is_none_or(|counters| {
+                                effect["to"]["faceDown"].as_bool() == Some(false)
+                                    && exile_counters_supported(counters)
+                            })
                     }
                     _ => false,
                 }
@@ -192,8 +200,15 @@ impl GameEngine {
                     .into_iter()
                     .filter(|id| self.nonbattlefield_card_can_change_zone(id))
                     .collect::<Vec<_>>();
+                // The exile counters are counted once, before the move.
+                let resolved_to = self.resolved_exile_counters_destination(
+                    &effect["to"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                );
                 let objects =
-                    self.claim_resolving_spell_movement(&effect["to"], stack_object, objects);
+                    self.claim_resolving_spell_movement(&resolved_to, stack_object, objects);
                 let source_constraint = if let Some(from) = effect.get("from") {
                     let zone_name = value_kind(from)
                         .ok_or_else(|| EngineError::new("missing movement source zone"))?;
@@ -320,6 +335,15 @@ impl GameEngine {
                             );
                         }
                         self.exile_permanent(object)?;
+                        self.place_exile_counters(object, &resolved_to);
+                        moved_ids.push(object.clone());
+                        continue;
+                    }
+                    // A permanent named by a typed reference leaves the
+                    // battlefield through its zone-specific lifecycle.
+                    if source_constraint.is_none()
+                        && self.move_referenced_permanent(object, &effect["to"])?
+                    {
                         moved_ids.push(object.clone());
                         continue;
                     }
@@ -555,6 +579,9 @@ impl GameEngine {
                                 &super::super::card_zone_transition::ObjectZone::Exile,
                                 super::super::card_zone_transition::ObjectTransitionReason::Reexile,
                             )?;
+                            for (counter, count) in exile_counter_amounts(&resolved_to) {
+                                *card.card.counters.entry(counter).or_default() += count;
+                            }
                             self.state.players[destination_index].exile.push(card.card);
                             // Shared event path: owner selection changes only
                             // the destination, never whether a move is recorded.
@@ -983,5 +1010,87 @@ impl GameEngine {
             }
         }
         Ok(())
+    }
+}
+
+/// `with N KIND counters on it` after an exile destination: whether every
+/// placement names a counter kind and a supported amount.
+fn exile_counters_supported(counters: &Value) -> bool {
+    counters.as_array().is_some_and(|counters| {
+        !counters.is_empty()
+            && counters.iter().all(|counter| {
+                counter["counter"].is_string() && numeric_expression_supported(&counter["count"])
+            })
+    })
+}
+
+/// The counter placements of a destination whose amounts were already
+/// counted (`resolved_exile_counters_destination`).
+fn exile_counter_amounts(destination: &Value) -> Vec<(String, i32)> {
+    destination["enterWithCounters"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|counter| {
+            let name = counter["counter"].as_str()?;
+            let count = integer_value(&counter["count"])?;
+            (count > 0).then(|| (name.to_string(), count))
+        })
+        .collect()
+}
+
+impl GameEngine {
+    /// The exile destination with each counter amount counted once, before
+    /// any card moves (CR 608.2h); other destinations are returned unchanged.
+    fn resolved_exile_counters_destination(
+        &self,
+        destination: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Value {
+        let mut resolved = destination.clone();
+        if value_kind(destination) != Some("exile") {
+            return resolved;
+        }
+        if let Some(counters) = resolved
+            .get_mut("enterWithCounters")
+            .and_then(Value::as_array_mut)
+        {
+            for counter in counters {
+                let count = self
+                    .runtime_numeric_expression(
+                        &counter["count"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )
+                    .unwrap_or(0)
+                    .max(0);
+                counter["count"] = json!(count);
+            }
+        }
+        resolved
+    }
+
+    /// Puts the destination's counters on a permanent that was just exiled
+    /// (CR 702.62a): the exiled card is a new object (CR 400.7) that gets
+    /// them as it is exiled.
+    fn place_exile_counters(&mut self, instance_id: &str, destination: &Value) {
+        let amounts = exile_counter_amounts(destination);
+        if amounts.is_empty() {
+            return;
+        }
+        if let Some(card) = self
+            .state
+            .players
+            .iter_mut()
+            .flat_map(|player| player.exile.iter_mut())
+            .find(|card| card.instance_id == instance_id)
+        {
+            for (counter, count) in amounts {
+                *card.counters.entry(counter).or_default() += count;
+            }
+        }
     }
 }

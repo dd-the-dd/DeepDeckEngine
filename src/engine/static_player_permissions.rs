@@ -11,6 +11,19 @@
 //! - `assignCombatDamageAsThoughUnblocked` (CR 510.1c-d).
 //! - `castingPermission.alternativeManaCost` (CR 118.9): a static alternative
 //!   cost whose mana is paid instead of the waived printed cost.
+//!
+//! Global rule modifiers of a static ability or of a created continuous
+//! effect (CR 611.2a) live here too, each read by the one procedure it
+//! changes:
+//!
+//! - `legendRuleDoesNotApply` (CR 704.5j): the state-based action ignores the
+//!   permanents of a static object selector.
+//! - `combatParticipantLimit` (CR 508.1c, 509.1c): no more than N creatures
+//!   attack (or block) in one declaration.
+//! - `activateAsThoughHaste` (CR 302.6): a tap-symbol cost of the selected
+//!   creatures may be paid despite summoning sickness.
+//! - `cantWinGame` (CR 104.2a), `prohibitDraw` (CR 121.1), `skipUntapStep`
+//!   (CR 500.11) and `revealLibraryTop` (CR 401.2) over a player population.
 use super::zone_of_function::{ZoneOfFunction, static_zone_of_function};
 use super::*;
 
@@ -40,6 +53,16 @@ pub(super) fn static_player_permission_modifier_supported(modifier: &Value) -> b
                 })
         }
         Some("assignCombatDamageAsThoughUnblocked") => names_self(modifier),
+        Some("legendRuleDoesNotApply" | "activateAsThoughHaste") => {
+            static_object_selector_supported(&modifier["objects"])
+        }
+        Some("combatParticipantLimit") => {
+            matches!(modifier["role"].as_str(), Some("attack" | "block"))
+                && integer_value(&modifier["maximum"]).is_some_and(|maximum| maximum > 0)
+        }
+        Some("cantWinGame" | "prohibitDraw" | "skipUntapStep" | "revealLibraryTop") => {
+            super::player_static_modifiers::static_player_population_supported(&modifier["player"])
+        }
         Some("exertAsAttacks") => {
             names_self(modifier)
                 && modifier.get("reflexive").is_none_or(|ability| {
@@ -371,5 +394,99 @@ impl GameEngine {
             }
             _ => None,
         }
+    }
+}
+
+impl GameEngine {
+    /// CR 704.5j: the permanents the legend rule ignores, by the static
+    /// object selector of each active waiver.
+    pub(super) fn legend_rule_waived_permanents(&self) -> BTreeSet<String> {
+        let waivers = self
+            .battlefield_static_modifiers()
+            .into_iter()
+            .filter(|(_, modifier)| value_kind(modifier) == Some("legendRuleDoesNotApply"))
+            .collect::<Vec<_>>();
+        if waivers.is_empty() {
+            return BTreeSet::new();
+        }
+        self.state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .filter(|permanent| {
+                waivers.iter().any(|(source, modifier)| {
+                    Self::static_selector_matches(source, &modifier["objects"], permanent)
+                })
+            })
+            .map(|permanent| permanent.instance_id.clone())
+            .collect()
+    }
+
+    /// The fewest creatures one declaration may hold for `role` (`attack` or
+    /// `block`), or `usize::MAX` without a limit (CR 508.1c, 509.1c).
+    pub(super) fn combat_participant_limit(&self, role: &str) -> usize {
+        self.battlefield_static_modifiers()
+            .iter()
+            .filter(|(_, modifier)| {
+                value_kind(modifier) == Some("combatParticipantLimit")
+                    && modifier["role"].as_str() == Some(role)
+            })
+            .filter_map(|(_, modifier)| integer_value(&modifier["maximum"]))
+            .filter_map(|maximum| usize::try_from(maximum).ok())
+            .min()
+            .unwrap_or(usize::MAX)
+    }
+
+    /// CR 302.6: the controller of an `activateAsThoughHaste` permission may
+    /// pay the tap-symbol costs of the selected creatures it controls despite
+    /// summoning sickness.
+    pub(super) fn activates_as_though_haste(&self, permanent: &CardInstance) -> bool {
+        self.battlefield_static_modifiers()
+            .iter()
+            .any(|(source, modifier)| {
+                value_kind(modifier) == Some("activateAsThoughHaste")
+                    && source.controller == permanent.controller
+                    && Self::static_selector_matches(source, &modifier["objects"], permanent)
+            })
+    }
+
+    /// CR 104.2a: the last player in the game wins unless a rule says that
+    /// player can't win the game.
+    pub(super) fn player_can_win(&self, player_id: &str) -> bool {
+        !self.player_static_modifier_present(player_id, "cantWinGame")
+    }
+
+    /// CR 121.1: a draw of this player is prohibited.
+    pub(super) fn player_draw_prohibited(&self, player_id: &str) -> bool {
+        self.player_static_modifier_present(player_id, "prohibitDraw")
+    }
+
+    /// CR 500.11: the active player skips the untap step about to begin;
+    /// none of their permanents untap in it.
+    pub(super) fn skip_untap_step_by_static_rule(
+        &self,
+        active: usize,
+        remain_tapped: &mut BTreeSet<String>,
+    ) {
+        let player = &self.state.players[active];
+        if self.player_static_modifier_present(&player.id, "skipUntapStep") {
+            remain_tapped.extend(
+                player
+                    .battlefield
+                    .iter()
+                    .map(|permanent| permanent.instance_id.clone()),
+            );
+        }
+    }
+
+    /// CR 401.2: the players whose top library card is public.
+    pub(super) fn players_with_revealed_library_top(&self) -> BTreeSet<String> {
+        self.state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .filter(|player| self.player_static_modifier_present(&player.id, "revealLibraryTop"))
+            .map(|player| player.id.clone())
+            .collect()
     }
 }

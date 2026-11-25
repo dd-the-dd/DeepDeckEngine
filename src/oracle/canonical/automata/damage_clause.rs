@@ -243,18 +243,22 @@ pub(in crate::oracle::canonical) fn recognize_relative_damage_clause(
 pub(in crate::oracle::canonical) fn shared_damage_subject(
     previous: Option<&super::LocalEffectNode>,
 ) -> Option<super::PermanentOperandNode> {
-    match previous? {
-        super::LocalEffectNode::ModifyStats(change) => match &change.targets {
-            source @ super::PermanentOperandNode::Reference(_) => Some(source.clone()),
-            // `it gets +2/+2 until end of turn and deals 2 damage to ...`:
-            // one bound object, never a declared set.
-            source @ super::PermanentOperandNode::BoundReference(reference)
-                if !matches!(reference, super::PermanentEffectReference::TargetSet(_)) =>
-            {
-                Some(source.clone())
-            }
-            _ => None,
-        },
+    // The written subject of the previous predicate, whichever verb read it
+    // (`gets +1/+0`, `gains forestwalk`): the coordinated `deals` shares it.
+    let subject = match previous? {
+        super::LocalEffectNode::ModifyStats(change) => &change.targets,
+        super::LocalEffectNode::TemporaryKeywordGrant(grant) => &grant.objects,
+        _ => return None,
+    };
+    match subject {
+        source @ super::PermanentOperandNode::Reference(_) => Some(source.clone()),
+        // `it gets +2/+2 until end of turn and deals 2 damage to ...`:
+        // one bound object, never a declared set.
+        source @ super::PermanentOperandNode::BoundReference(reference)
+            if !matches!(reference, super::PermanentEffectReference::TargetSet(_)) =>
+        {
+            Some(source.clone())
+        }
         _ => None,
     }
 }

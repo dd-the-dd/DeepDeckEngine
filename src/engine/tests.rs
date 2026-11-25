@@ -40,10 +40,17 @@ mod rebound_runtime;
 #[path = "tests/object_to_zone_frame_runtime.rs"]
 mod object_to_zone_frame_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/effect_coordination_runtime.rs"]
+mod effect_coordination_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/reference_anaphora_runtime.rs"]
 mod reference_anaphora_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/antecedent_continuation_runtime.rs"]
+mod antecedent_continuation_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/binding_environment_runtime.rs"]
 mod binding_environment_runtime;
@@ -345,6 +352,9 @@ mod event_count_runtime;
 #[path = "tests/graveyard_source_return_runtime.rs"]
 mod graveyard_source_return_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/keyword_template_batch7_runtime.rs"]
+mod keyword_template_batch7_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_crew_runtime.rs"]
 mod keyword_template_crew_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
@@ -363,6 +373,9 @@ mod plural_effect_subject_runtime;
 mod runtime_smoke;
 #[path = "tests/target_collection_runtime.rs"]
 mod target_collection_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/temporary_continuous_rules_runtime.rs"]
+mod temporary_continuous_rules_runtime;
 
 #[path = "tests/alternative_additional_cost_runtime.rs"]
 mod alternative_additional_cost_runtime;
@@ -33169,6 +33182,10 @@ mod granted_ability_runtime;
 mod quantified_player_sacrifice_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_population_designation_runtime.rs"]
+mod player_population_designation_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/resolution_object_choice_runtime.rs"]
 mod resolution_object_choice_runtime;
 
@@ -33196,6 +33213,10 @@ mod extra_turn_runtime;
 #[path = "tests/player_designations_runtime.rs"]
 mod player_designations_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/random_outcome_runtime.rs"]
+mod random_outcome_runtime;
+
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
@@ -33211,6 +33232,9 @@ mod equal_amount_reflexive_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/event_replacement_runtime.rs"]
 mod event_replacement_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/guard_other_exclusion_runtime.rs"]
+mod guard_other_exclusion_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/intervening_if_condition_runtime.rs"]
 mod intervening_if_condition_runtime;

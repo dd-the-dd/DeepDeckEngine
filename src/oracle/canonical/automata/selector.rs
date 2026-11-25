@@ -851,6 +851,23 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(form) = qualifiers::comparative_with_form(cursor) {
+                    // `with greater power`, `with equal or lesser mana value
+                    // than that creature`, `with that spell's mana value`,
+                    // `with the same name as that creature`: the candidate
+                    // compared with an anchor object (CR 107.1, 201.2). Read
+                    // before the keyword reader, so `with` + comparative
+                    // never reads as a keyword.
+                    let predicate = qualifiers::recognize_comparative_with(
+                        cursor,
+                        form,
+                        context.comparison_admission(),
+                    )?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate,
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if let Some(form) = qualifiers::with_qualifier_form(cursor) {
                     // `with different names`, `with total mana value 8 or
                     // less`, `with the greatest power among ...`, `with {X}
@@ -1062,7 +1079,9 @@ fn recognize_object_query_frame(
                             let relative = recognize_object_query_frame(
                                 cursor,
                                 ObjectQueryContext {
-                                    quota: context.quota,
+                                    // A characteristic complement states no
+                                    // quantity: its articles are not quotas.
+                                    quota: QueryQuota::ExistingQuery,
                                     source_available: query_source_available,
                                     stack_targets: context.stack_targets,
                                 },
@@ -1098,10 +1117,15 @@ fn recognize_object_query_frame(
                 }) {
                     let relative_word = cursor.peek().expect("checked relative word").to_string();
                     cursor.consume(&relative_word)?;
+                    // `that's a Wolf or a Werewolf`: the copula's complement
+                    // takes its article, as after `that is`; each further
+                    // member repeats it inside the logical list.
+                    cursor.enter("selector.relative-clause.contracted-copula");
+                    consume_optional_selector_article(cursor)?;
                     let relative = recognize_object_query_frame(
                         cursor,
                         ObjectQueryContext {
-                            quota: context.quota,
+                            quota: QueryQuota::ExistingQuery,
                             source_available: query_source_available,
                             stack_targets: context.stack_targets,
                         },
@@ -2451,6 +2475,11 @@ fn resolution_amount(expression: &super::NumericExpression, source_available: bo
         NumericExpression::CountQuery(query) => {
             crate::oracle::canonical::effects::lower_scoped_object_query_amount(query).is_some()
         }
+        // One property of an object the resolving ability binds (`that
+        // creature's power`, the triggering spell's mana value), read from
+        // its bindings or the event it records (CR 608.2h).
+        NumericExpression::BoundObjectProperty { .. }
+        | NumericExpression::EventValue(super::EventNumericBinding::CastSpellManaValue) => true,
         // The spell's own payment, read from the resolving spell (the card
         // context keeps it in spell abilities).
         NumericExpression::SacrificedCostObjectProperty(_)
@@ -3046,6 +3075,10 @@ mod search_card_selector_tests;
 #[path = "selector_state_qualifier_tests.rs"]
 mod state_qualifier_tests;
 
+#[cfg(test)]
+#[path = "selector_comparative_tests.rs"]
+mod comparative_tests;
+
 fn player_predicate(raw: &str) -> Option<PlayerPredicate> {
     match lookup_player_role_any_number(raw)? {
         PlayerRole::Any => Some(PlayerPredicate::Any),
@@ -3125,7 +3158,26 @@ fn recognize_search_card_adjective(cursor: &mut OracleTokenCursor<'_>) -> Option
         return None;
     }
     *cursor = trial;
-    Some(atom)
+    // `a red or green card`: `or` joins another adjective sharing the same
+    // following noun; any other `or` is the parent's.
+    let mut alternatives = vec![atom];
+    loop {
+        let mut trial = cursor.clone();
+        if trial.consume("or").is_err() {
+            break;
+        }
+        match recognize_object_predicate_atom(&mut trial, AcceptedForms::SingularOnly) {
+            Ok(next) if adjective(&next) => {
+                *cursor = trial;
+                alternatives.push(next);
+            }
+            _ => break,
+        }
+    }
+    Some(match alternatives.len() {
+        1 => alternatives.pop().expect("one adjective"),
+        _ => ObjectPredicate::Union(alternatives),
+    })
 }
 
 fn recognize_search_subtype(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectPredicate> {
@@ -3279,6 +3331,15 @@ fn recognize_search_card_selector_with(
                     cursor.consume(CardSupertype::Basic.oracle_singular())?;
                     predicates.push(ObjectPredicate::Supertype(CardSupertype::Basic));
                     SearchCardSelectorState::Predicate
+                } else if cursor
+                    .peek()
+                    .and_then(|raw| lookup_supertype(raw, AcceptedForms::SingularOnly))
+                    == Some(CardSupertype::Snow)
+                {
+                    // `a snow land card` (CR 205.4a): the snow supertype.
+                    cursor.consume(CardSupertype::Snow.oracle_singular())?;
+                    predicates.push(ObjectPredicate::Supertype(CardSupertype::Snow));
+                    SearchCardSelectorState::Predicate
                 } else if let Some(adjective) = recognize_search_card_adjective(cursor) {
                     predicates.push(adjective);
                     SearchCardSelectorState::Predicate
@@ -3299,6 +3360,16 @@ fn recognize_search_card_selector_with(
             }
             SearchCardSelectorState::Subtype => {
                 predicates.push(recognize_search_subtype_union(cursor)?);
+                // `an Assembly-Worker creature card`: the subtype modifies
+                // the card type noun that follows it (CR 205.3).
+                if cursor
+                    .peek()
+                    .and_then(|raw| lookup_card_type(raw, AcceptedForms::SingularOnly))
+                    .is_some()
+                {
+                    cursor.enter("selector.search-card.subtype-card-type");
+                    predicates.push(recognize_search_card_type_union(cursor)?);
+                }
                 SearchCardSelectorState::CardNoun
             }
             SearchCardSelectorState::CardNoun => {
@@ -3327,6 +3398,15 @@ fn recognize_search_card_selector_with(
                     cursor.enter("selector.search-card.chosen-card-name-qualifier");
                     cursor.advance_to(cursor.position() + length)?;
                     predicates.push(ObjectPredicate::Relation(super::ObjectRelation::ChosenName));
+                    SearchCardSelectorState::QualifierOrComplete
+                } else if let Some(form) = qualifiers::comparative_with_form(cursor) {
+                    // `a creature card with lesser mana value`, `a card with
+                    // the same name as that creature`: the shared comparative
+                    // qualifier, under this search's admission.
+                    cursor.enter("selector.search-card.comparative");
+                    predicates.push(qualifiers::recognize_comparative_with(
+                        cursor, form, admission,
+                    )?);
                     SearchCardSelectorState::QualifierOrComplete
                 } else if let Some(form) = qualifiers::with_qualifier_form(cursor).filter(|form| {
                     matches!(

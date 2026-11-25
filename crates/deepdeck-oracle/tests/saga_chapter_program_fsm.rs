@@ -150,33 +150,36 @@ fn die_roll_result_rows_are_never_unconditional_abilities() {
         .join()
         .expect("parser");
     assert_ne!(parsed.status, "canonical");
+    // CR 706.2: the rows are results of the roll that names the die, so they
+    // join that ability instead of standing as unconditional abilities.
     for row in [
         "1\u{2014}14 | Draw X cards.",
         "15+ | Scry X, then draw X cards.",
     ] {
-        let ability = parsed
-            .abilities
-            .iter()
-            .find(|ability| ability.source.text == row)
-            .unwrap_or_else(|| panic!("{row}: {:#?}", parsed.abilities));
-        assert_ne!(ability.status, "canonical", "{row}");
-        assert!(ability.rule.is_none(), "{row}");
-        // The row's result number is not an effect subject.
-        assert_eq!(
-            ability.diagnostics[0].state.as_deref(),
-            Some("effect.start"),
-            "{row}: {:#?}",
-            ability.diagnostics
-        );
-        // Not mislabelled as a station band body either.
         assert!(
-            ability
-                .diagnostics
+            parsed
+                .abilities
                 .iter()
-                .all(|diagnostic| diagnostic.code != "ungated_band_body"),
-            "{row}"
+                .all(|ability| ability.source.text != row),
+            "{row}: {:#?}",
+            parsed.abilities
         );
     }
+    assert_eq!(parsed.abilities.len(), 1, "{:#?}", parsed.abilities);
+    let ability = &parsed.abilities[0];
+    assert!(ability.source.text.contains("15+ | Scry X"), "{ability:#?}");
+    // `add the number of cards in your hand` to a roll is not read: the
+    // whole table stays unsupported rather than accepting its rows.
+    assert_ne!(ability.status, "canonical", "{ability:#?}");
+    assert!(ability.rule.is_none(), "{ability:#?}");
+    // Not mislabelled as a station band body either.
+    assert!(
+        ability
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code != "ungated_band_body"),
+        "{ability:#?}"
+    );
 }
 
 fn parse_card(name: &str, type_line: &str, oracle_text: &str) -> OracleCardParseResult {

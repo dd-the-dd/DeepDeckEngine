@@ -74,6 +74,7 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::BoundObjectProperty { .. }
+        | NumericExpression::Quantity(_)
         | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::ActionResultCount { .. }
         | NumericExpression::CardsInZone { .. } => false,
@@ -82,7 +83,8 @@ fn independent_number(amount: &NumericExpression) -> bool {
 
 fn simple_operand(operand: &CardOperandNode) -> bool {
     match operand {
-        CardOperandNode::Reference(reference) => matches!(
+        CardOperandNode::Reference(reference)
+        | CardOperandNode::ObjectAntecedent { reference, .. } => matches!(
             reference,
             CardCollectionReferenceNode::Antecedent | CardCollectionReferenceNode::Selected
         ),
@@ -169,6 +171,9 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             | CardActionNode::LookAt(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
+            | CardActionNode::ChooseFromZone(_)
+            | CardActionNode::GrantKeyword(_)
+            | CardActionNode::ChooseTargetCards(_)
             | CardActionNode::Shuffle { .. } => false,
             CardActionNode::Move { cards, destination } => {
                 simple_operand(cards)
@@ -321,6 +326,21 @@ impl CollectionScope {
                 self.mention(maximum);
                 Ok(())
             }
+            // The observed collection is the nearer antecedent of a card
+            // pronoun; without one the pronoun names its typed object (one
+            // object for `it` / `that card`, a set for `them`).
+            CardOperandNode::ObjectAntecedent { reference, .. } => {
+                let maximum = if self.observation {
+                    self.reference(*reference)?
+                } else {
+                    match reference {
+                        CardCollectionReferenceNode::Selected => Some(1),
+                        _ => None,
+                    }
+                };
+                self.mention(maximum);
+                Ok(())
+            }
             CardOperandNode::Selection(selection) => {
                 self.reference(selection.from)?;
                 let maximum = match &selection.quantity {
@@ -425,6 +445,9 @@ fn resolve_sequence(
                 | CardActionNode::LookAt(_)
                 | CardActionNode::RevealUntil { .. }
                 | CardActionNode::Choose(_)
+                | CardActionNode::ChooseFromZone(_)
+                | CardActionNode::GrantKeyword(_)
+                | CardActionNode::ChooseTargetCards(_)
                 | CardActionNode::Shuffle { .. } => {
                     unreachable!("a permission window is outside the checked scope slice")
                 }

@@ -202,6 +202,75 @@ fn prepare_ability(
     }
 }
 
+/// The labeled spell paragraph `paragraph` read as the continuation of the
+/// spell paragraph `previous` (CR 207.2c: its label has no rules meaning;
+/// CR 608.2c: one spell's instructions in written order). `None` unless the
+/// joined text is one canonical spell ability.
+#[allow(clippy::too_many_arguments)]
+fn compile_continued_spell_paragraph(
+    face_name: &str,
+    face_type_line: &str,
+    previous: &ParsedOracleAbility,
+    paragraph: &AbilitySource,
+    body_offset: usize,
+    ability_index: usize,
+    name_context: &NameResolutionContext,
+    named_cards: &CatalogNamedCardIndex,
+    named_tokens: &CatalogNamedTokenIndex,
+    card_structure: &CardStructurePlan,
+) -> Option<ParsedOracleAbility> {
+    let body = paragraph.text.get(body_offset..)?.trim_start();
+    let source = AbilitySource {
+        face_id: previous.source.face_id.clone(),
+        text: format!("{} {body}", previous.source.text.trim_end()),
+        line_start: previous.source.line_start,
+        line_end: paragraph.line_end,
+    };
+    let PreparedAbility {
+        entities,
+        name_links,
+        name_resolution_failure,
+    } = prepare_ability(
+        &source.text,
+        recognize_oracle_entities(&source.text),
+        name_context,
+        named_cards,
+        named_tokens,
+    );
+    let input = AbilityInput {
+        face_name,
+        face_type_line,
+        source: &source,
+        tokens: &entities,
+        name_links: &name_links,
+        name_resolution_failure: name_resolution_failure.as_ref(),
+    };
+    let kind = classify_promoted_ability_from_tokens(&input);
+    let CanonicalParseOutcome::Parsed {
+        mut draft,
+        recognizer,
+    } = parse_canonical_rule_native(&input, kind)
+    else {
+        return None;
+    };
+    let ability_type = semantic_kind(&draft.rule)?.to_string();
+    if ability_type != "spellAbility" {
+        return None;
+    }
+    apply_room_door_index(card_structure, source.face_id.as_deref(), &mut draft.rule);
+    let iterations = iterations_for_rule(&input, ability_index, &ability_type, &draft);
+    Some(ParsedOracleAbility {
+        source,
+        ability_type,
+        status: "canonical".to_string(),
+        recognizer,
+        rule: Some(draft.rule),
+        entities,
+        iterations,
+        diagnostics: Vec::new(),
+    })
+}
+
 /// A band line whose meaning is structural rather than an ability: an empty
 /// body after its introducer, or a printed power/toughness box (CR 711.2,
 /// 722.2b). Any other band line is compiled by the ordinary parser.
@@ -377,6 +446,37 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
                 ),
                 other => (other, None),
             };
+
+            // CR 207.2c, 608.2c: a labeled paragraph of a spell whose
+            // reference has no antecedent of its own continues the spell
+            // paragraph before it; read together, the earlier paragraph's
+            // objects are its antecedents. The continuation replaces both
+            // only when the whole reading succeeds; otherwise each keeps its
+            // own result.
+            if band.is_none()
+                && let CanonicalParseOutcome::Failed { failure, .. } = &parse_outcome
+                && let Some(body_offset) =
+                    super::canonical::spell_paragraph_continuation(&entities, failure.state)
+                && let Some(previous) = abilities.last()
+                && previous.status == "canonical"
+                && previous.ability_type == "spellAbility"
+                && previous.source.face_id == source.face_id
+                && let Some(continued) = compile_continued_spell_paragraph(
+                    document.face_name,
+                    document.face_type_line,
+                    previous,
+                    &source,
+                    body_offset,
+                    abilities.len() - 1,
+                    &name_context,
+                    &named_cards,
+                    &named_tokens,
+                    &card_structure,
+                )
+            {
+                *abilities.last_mut().expect("a previous spell paragraph") = continued;
+                continue;
+            }
 
             match parse_outcome {
                 CanonicalParseOutcome::Parsed {

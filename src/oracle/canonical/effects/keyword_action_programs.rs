@@ -523,7 +523,166 @@ pub(in crate::oracle::canonical) fn lower_controller_keyword_action(
             quantity.ok_or("a bolster quantity")?,
             scope,
         )),
+        // CR 705.1-705.3: the acting player flips the coins; the outcome is
+        // the definite antecedent of `the flip` (`lower_random_result_quantity`).
+        ControllerKeywordAction::FlipCoins => Ok(vec![json!({
+            "kind": "flipCoins",
+            "player": controller(),
+            "count": quantity.ok_or("a number of coins flipped")?,
+            "bind": COIN_FLIP_BINDING,
+        })]),
+        // CR 706.1-706.2: the acting player rolls the dice; `the result`
+        // reads their total.
+        ControllerKeywordAction::RollDice(DieSides(sides)) => {
+            if sides < 2 {
+                return Err("a die with at least two faces (CR 706.1)".to_string());
+            }
+            Ok(vec![json!({
+                "kind": "rollDice",
+                "player": controller(),
+                "count": quantity.ok_or("a number of dice rolled")?,
+                "sides": sides,
+                "bind": DIE_ROLL_BINDING,
+            })])
+        }
+        ControllerKeywordAction::Clash => Ok(lower_clash_program(scope)),
+        ControllerKeywordAction::Recruit => Ok(lower_recruit_program(scope)),
+        ControllerKeywordAction::ExchangeZones(ZoneExchange(Some((first, second)))) => {
+            Ok(lower_zone_exchange_program(first, second, scope))
+        }
+        ControllerKeywordAction::ExchangeZones(ZoneExchange(None)) => {
+            Err("the two zones of an exchange (CR 701.12a)".to_string())
+        }
     }
+}
+
+/// CR 701.12a: the cards of both zones trade places at once. Each zone's
+/// cards are bound before either moves, so no card moves twice; every card
+/// goes to its owner's zone (CR 400.3).
+fn lower_zone_exchange_program(
+    first: CardZoneName,
+    second: CardZoneName,
+    scope: &str,
+) -> Vec<Value> {
+    let zone = |name: CardZoneName| json!({ "kind": name.ir_name(), "player": controller() });
+    let first_id = format!("{scope}:exchangedFirst");
+    let second_id = format!("{scope}:exchangedSecond");
+    vec![
+        json!({
+            "kind": "bind", "id": first_id,
+            "value": { "kind": "cardsInZone", "zone": zone(first) },
+        }),
+        json!({
+            "kind": "bind", "id": second_id,
+            "value": { "kind": "cardsInZone", "zone": zone(second) },
+        }),
+        json!({
+            "kind": "moveCards",
+            "cards": { "kind": "boundObjects", "binding": first_id },
+            "from": zone(first),
+            "to": zone(second),
+        }),
+        json!({
+            "kind": "moveCards",
+            "cards": { "kind": "boundObjects", "binding": second_id },
+            "from": zone(second),
+            "to": zone(first),
+        }),
+    ]
+}
+
+/// CR 701.70a: "Recruit" means "Draw a card, then discard a card. If you
+/// discarded a nonland card this way, create a 1/1 white Human Soldier
+/// creature token." The same primitives as connive (CR 701.50a).
+fn lower_recruit_program(scope: &str) -> Vec<Value> {
+    let discarded_id = format!("{scope}:recruitDiscarded");
+    vec![
+        json!({ "kind": "drawCards", "player": controller(), "count": integer(1) }),
+        json!({
+            "kind": "discardCards", "player": controller(), "count": integer(1),
+            "bind": discarded_id,
+        }),
+        json!({
+            "kind": "conditional",
+            "condition": {
+                "kind": "compare",
+                "left": {
+                    "kind": "countObjects",
+                    "objects": {
+                        "kind": "filterObjects",
+                        "objects": { "kind": "boundObjects", "binding": discarded_id },
+                        "where": { "kind": "not", "operand": card_type("Land") },
+                    },
+                },
+                "operator": ">",
+                "right": integer(0),
+            },
+            "then": [{
+                "kind": "createTokens", "controller": controller(), "quantity": integer(1),
+                "token": {
+                    // The subtypes plus "Token" are its CR 111.4 name.
+                    "name": "Human Soldier Token", "colors": ["White"],
+                    "types": ["Creature"], "subtypes": ["Human", "Soldier"],
+                    "power": 1, "toughness": 1,
+                },
+            }],
+            "else": [],
+        }),
+    ]
+}
+
+/// Definite bindings of the latest random or contested outcome of a
+/// program (CR 705, 706, 701.30). The runtime `flipCoins`, `rollDice` and
+/// `clash` primitives (`engine/random_outcome.rs`) write them; a later
+/// outcome of the same kind rebinds them, as `the flip` and `the result`
+/// then name that later outcome. The suffixes are the same runtime contract.
+pub(in crate::oracle::canonical) const COIN_FLIP_BINDING: &str = "randomOutcome:coinFlip";
+pub(in crate::oracle::canonical) const DIE_ROLL_BINDING: &str = "randomOutcome:dieRoll";
+pub(in crate::oracle::canonical) const CLASH_BINDING: &str = "randomOutcome:clash";
+
+/// The runtime reader of one quantity of the latest outcome. It reads 0 when
+/// no outcome of that kind happened while the program resolves (an optional
+/// flip that was declined won and lost no flip, CR 705.2; no die showed a
+/// face, and every face of a die is at least 1, CR 706.1).
+pub(in crate::oracle::canonical) fn lower_random_result_quantity(
+    quantity: RandomResultQuantity,
+) -> Value {
+    let id = match quantity {
+        RandomResultQuantity::DieResult => DIE_ROLL_BINDING.to_string(),
+        RandomResultQuantity::CoinFlipsWon => COIN_FLIP_BINDING.to_string(),
+        RandomResultQuantity::CoinFlipsLost => format!("{COIN_FLIP_BINDING}:lost"),
+        RandomResultQuantity::CoinsHeads => format!("{COIN_FLIP_BINDING}:heads"),
+        RandomResultQuantity::CoinsTails => format!("{COIN_FLIP_BINDING}:tails"),
+        RandomResultQuantity::ClashWon => CLASH_BINDING.to_string(),
+    };
+    json!({ "kind": "randomOutcomeValue", "binding": id })
+}
+
+/// CR 701.30b: `clash with an opponent` means "choose an opponent; you and
+/// that opponent each clash". The opponent is the shared resolution-time
+/// player choice; the clash itself (reveal, top-or-bottom, winner) is one
+/// runtime primitive over both players.
+fn lower_clash_program(scope: &str) -> Vec<Value> {
+    let opponent_id = format!("{scope}:clashOpponent");
+    vec![
+        json!({
+            "kind": "choosePlayers",
+            "id": opponent_id,
+            "player": controller(),
+            "candidates": lower_player_set_reference(
+                PlayerSetReferenceNode::OpponentsOfAbilityController,
+            ),
+            "minimum": integer(1),
+            "maximum": integer(1),
+            "bindAs": opponent_id,
+        }),
+        json!({
+            "kind": "clash",
+            "player": controller(),
+            "opponent": bound(&opponent_id),
+            "bind": CLASH_BINDING,
+        }),
+    ]
 }
 
 /// CR 701.16a: "Investigate" means "Create a Clue token."

@@ -9,10 +9,13 @@
 //! Predicate     := HAVE PLAYER-KEYWORD-LIST
 //!                | PROHIBITION Action ("or" Action)*
 //!                | PLAY "with" POSSESSIVE ("hand" | "hands") "revealed"
+//!                | PLAY "with" "the" "top" "card" "of" POSSESSIVE
+//!                  ("library" | "libraries") "revealed"
 //!                | "may play an additional land on each of" POSSESSIVE "turns"
-//!                | SKIP POSSESSIVE "draw" ("step" | "steps")
+//!                | SKIP POSSESSIVE ("draw" | "untap") ("step" | "steps")
 //! Possessed     := "maximum hand size is" (N | ("increased" | "reduced") "by" N)
-//! Action        := "gain life" | "lose the game" | "play lands"
+//! Action        := "gain life" | "lose the game" | "win the game"
+//!                | "play lands" | "draw cards"
 //!                | "cast" SPELL-COLLECTION [CastWindow]
 //!                | "cast more than" N SPELL-COLLECTION "each turn"
 //!                | "activate abilities" ["of" OBJECT-COLLECTION]
@@ -88,6 +91,10 @@ pub(in crate::oracle::canonical) enum ProhibitedPlayerActionNode {
     GainLife,
     /// CR 104.3.
     LoseGame,
+    /// CR 104.2: `win the game`.
+    WinGame,
+    /// CR 121.1: `draw cards`, every draw of the player.
+    DrawCards,
     /// CR 305.1.
     PlayLands,
     /// `cast SPELLS [during …]`; a bare `spells` has no qualifier.
@@ -127,6 +134,9 @@ pub(in crate::oracle::canonical) enum StaticPlayerPredicateNode {
     Prohibited(Vec<ProhibitedPlayerActionNode>),
     /// `play with their hands revealed` (CR 402.3 exception).
     PlayWithHandsRevealed,
+    /// `play with the top card of their libraries revealed` (CR 401.2
+    /// exception): each player's own top card is public.
+    PlayWithLibraryTopRevealed,
     MaximumHandSize(HandSizeChangeNode),
     /// `may play an additional land on each of their turns` (CR 305.2).
     AdditionalLandPlay {
@@ -134,6 +144,8 @@ pub(in crate::oracle::canonical) enum StaticPlayerPredicateNode {
     },
     /// `skip your draw step` (CR 500.11).
     SkipDrawStep,
+    /// `skip your untap step` (CR 500.11, 502).
+    SkipUntapStep,
 }
 
 fn word_is(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
@@ -234,14 +246,17 @@ pub(in crate::oracle::canonical) fn static_player_predicate_starts(
         || player_prohibition_word_at(cursor, 0)
         || ((word_is(cursor, 0, "play") || word_is(cursor, 0, "plays"))
             && word_is(cursor, 1, "with")
-            && (word_is(cursor, 2, "their") || word_is(cursor, 2, "your"))
-            && (word_is(cursor, 3, "hand") || word_is(cursor, 3, "hands")))
+            && (((word_is(cursor, 2, "their") || word_is(cursor, 2, "your"))
+                && (word_is(cursor, 3, "hand") || word_is(cursor, 3, "hands")))
+                || (word_is(cursor, 2, "the")
+                    && word_is(cursor, 3, "top")
+                    && word_is(cursor, 4, "card"))))
         || (word_is(cursor, 0, "may")
             && word_is(cursor, 1, "play")
             && word_is(cursor, 3, "additional")
             && word_is(cursor, 4, "land"))
         || ((word_is(cursor, 0, "skip") || word_is(cursor, 0, "skips"))
-            && word_is(cursor, 2, "draw"))
+            && (word_is(cursor, 2, "draw") || word_is(cursor, 2, "untap")))
         || word_is(cursor, 0, "maximum")
 }
 
@@ -389,6 +404,19 @@ pub(in crate::oracle::canonical) fn recognize_static_player_predicate(
         cursor.enter("static.player.revealed-hands");
         consume_agreeing_verb(cursor, number, "play", "plays")?;
         cursor.consume("with")?;
+        if word_is(cursor, 0, "the") {
+            // CR 401.2: the top card of each affected player's own library.
+            cursor.enter("static.player.revealed-library-top");
+            cursor.consume_phrase(&["the", "top", "card", "of"])?;
+            consume_possessive(cursor, subject)?;
+            cursor.require(
+                word_is(cursor, 0, "library") || word_is(cursor, 0, "libraries"),
+                "`library` or `libraries`",
+            )?;
+            consume_current(cursor)?;
+            cursor.consume("revealed")?;
+            return Ok(StaticPlayerPredicateNode::PlayWithLibraryTopRevealed);
+        }
         consume_possessive(cursor, subject)?;
         cursor.require(
             word_is(cursor, 0, "hand") || word_is(cursor, 0, "hands"),
@@ -413,16 +441,21 @@ pub(in crate::oracle::canonical) fn recognize_static_player_predicate(
         cursor.enter("static.player.skip-step");
         consume_agreeing_verb(cursor, number, "skip", "skips")?;
         consume_possessive(cursor, subject)?;
-        cursor.consume("draw")?;
+        let untap = word_is(cursor, 0, "untap");
+        cursor.consume(if untap { "untap" } else { "draw" })?;
         cursor.require(
             word_is(cursor, 0, "step") || word_is(cursor, 0, "steps"),
             "`step` or `steps`",
         )?;
         consume_current(cursor)?;
-        return Ok(StaticPlayerPredicateNode::SkipDrawStep);
+        return Ok(if untap {
+            StaticPlayerPredicateNode::SkipUntapStep
+        } else {
+            StaticPlayerPredicateNode::SkipDrawStep
+        });
     }
     Err(cursor.fail(
-        "a player predicate: `have` a keyword, `can't` an action, `play with hands revealed`, an additional land play, or a skipped draw step",
+        "a player predicate: `have` a keyword, `can't` an action, `play with hands` or `the top card` `revealed`, an additional land play, or a skipped draw or untap step",
     ))
 }
 
@@ -466,6 +499,15 @@ fn recognize_prohibited_player_action(
     if word_is(cursor, 0, "lose") && word_is(cursor, 1, "the") && word_is(cursor, 2, "game") {
         cursor.consume_phrase(&["lose", "the", "game"])?;
         return Ok(ProhibitedPlayerActionNode::LoseGame);
+    }
+    if word_is(cursor, 0, "win") && word_is(cursor, 1, "the") && word_is(cursor, 2, "game") {
+        cursor.consume_phrase(&["win", "the", "game"])?;
+        return Ok(ProhibitedPlayerActionNode::WinGame);
+    }
+    // `draw cards`: every draw; `draw more than N cards` is the quota.
+    if word_is(cursor, 0, "draw") && word_is(cursor, 1, "cards") {
+        cursor.consume_phrase(&["draw", "cards"])?;
+        return Ok(ProhibitedPlayerActionNode::DrawCards);
     }
     if word_is(cursor, 0, "play") && word_is(cursor, 1, "lands") {
         cursor.consume_phrase(&["play", "lands"])?;
@@ -540,7 +582,7 @@ fn recognize_prohibited_player_action(
         return Ok(ProhibitedPlayerActionNode::UntapMoreThan { maximum, objects });
     }
     Err(cursor.fail(
-        "a prohibited player action: gain life, lose the game, play lands, cast spells, activate abilities, draw or untap more than N",
+        "a prohibited player action: gain life, lose or win the game, play lands, draw cards, cast spells, activate abilities, draw or untap more than N",
     ))
 }
 

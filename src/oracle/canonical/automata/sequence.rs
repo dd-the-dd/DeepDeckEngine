@@ -292,6 +292,23 @@ struct SequenceMemory {
     /// Where the connector after the previous action began; the gapped
     /// conjunct writes the elided verb in the conjunction's slot.
     connector_start: Option<super::super::machine::MachineCheckpoint>,
+    /// The finite verb of the previous action of the sentence when an
+    /// explicit player subject performed it (`target player sacrifices an
+    /// artifact and a land`): a gapped conjunct elides this verb in the
+    /// written form and continues the same performer.
+    finite_gap: Option<FiniteGap>,
+    /// The tokens of the previous action, the antecedent whose library a
+    /// gapped conjunct's elided library position restates.
+    last_effect_span: Option<(usize, usize)>,
+}
+
+/// The elided verb of a finite clause: its lemma, the written form its
+/// subject gave it, and the sentence it belongs to.
+#[derive(Clone, Copy)]
+struct FiniteGap {
+    lemma: VerbLemma,
+    form: VerbForm,
+    sentence: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1439,20 +1456,121 @@ fn recognize_effect_sequence_attempt_scoped(
                         Err(failure)
                             if !causative
                                 && !attempt_frame.is_committed()
-                                && memory.connectors.last() == Some(&EffectConnector::And)
+                                && matches!(
+                                    memory.connectors.last(),
+                                    Some(EffectConnector::And | EffectConnector::Or)
+                                )
                                 && memory.effects.len() > memory.sentence_start
                                 && cursor.position() > 0
-                                // The slot is the written conjunction (`and`
-                                // or a coordinating comma) the connector read.
+                                // The slot is the written coordinator (`and`,
+                                // `or` or a coordinating comma) the connector read.
                                 && cursor
                                     .token_slice(cursor.position() - 1, cursor.position())
                                     .first()
                                     .is_some_and(|token| {
-                                        token.raw == "," || token.raw.eq_ignore_ascii_case("and")
+                                        token.raw == ","
+                                            || token.raw.eq_ignore_ascii_case("and")
+                                            || token.raw.eq_ignore_ascii_case("or")
                                     }) =>
                         {
-                            match (memory.elided_lemma, memory.connector_start) {
-                                (Some(lemma), Some(connector_start)) => {
+                            let finite_gap = memory
+                                .finite_gap
+                                .filter(|gap| gap.sentence == memory.sentence_start);
+                            match (memory.elided_lemma, memory.connector_start, finite_gap) {
+                                // `PLAYER VERBs A and B` (finite gapping): the
+                                // elided verb in its written form continues the
+                                // same performer, read by the same subjectless
+                                // continuation readers as a written verb.
+                                (None, Some(connector_start), Some(gap)) => {
+                                    let slot = cursor.position() - 1;
+                                    let mut at_slot = cursor.clone();
+                                    at_slot.rollback(connector_start);
+                                    if at_slot.position() > slot
+                                        || at_slot.advance_to(slot).is_err()
+                                    {
+                                        Err(failure)
+                                    } else {
+                                        let tokens = super::elided_verb_tokens_in_form(
+                                            &at_slot, slot, gap.lemma, gap.form,
+                                        );
+                                        let mut gapped = at_slot.with_tokens(&tokens);
+                                        gapped.enter("sequence.gapped-conjunct.finite");
+                                        let mut gapped_frame = SequenceAttemptFrame::default();
+                                        let continued = memory.current_performer.clone().filter(
+                                            |(_, _, sentence)| *sentence == memory.sentence_start,
+                                        );
+                                        let mut ambiguity = None;
+                                        let read = match continued {
+                                            // The performer path of a written
+                                            // subjectless verb: its predicate in
+                                            // the performer's person.
+                                            Some((performer, agreement, _)) => {
+                                                let description =
+                                                    super::performer_description(&performer);
+                                                super::person_shifted_tokens(
+                                                    &gapped,
+                                                    agreement,
+                                                    description,
+                                                )
+                                                .and_then(|shifted_tokens| {
+                                                    let mut shifted =
+                                                        gapped.with_tokens(&shifted_tokens);
+                                                    let controller =
+                                                        super::PlayerEffectSubject::Controller;
+                                                    read_action(
+                                                        &mut shifted,
+                                                        Some(&controller),
+                                                        &mut gapped_frame,
+                                                    )
+                                                    .map(|effect| {
+                                                        let end = shifted.position();
+                                                        // The gapped conjunct is the
+                                                        // performer's clause too: its
+                                                        // written `you` (`or your
+                                                        // graveyard`) is ambiguous
+                                                        // exactly as in a written verb.
+                                                        ambiguity =
+                                                            super::controller_reference_failure(
+                                                                &gapped, slot, end,
+                                                            );
+                                                        (
+                                                            LocalEffectNode::Performed(
+                                                                super::PerformedEffectNode {
+                                                                    performer,
+                                                                    effect: Box::new(effect),
+                                                                },
+                                                            ),
+                                                            end,
+                                                        )
+                                                    })
+                                                })
+                                            }
+                                            // An ordinary player-subject reader's
+                                            // implicit subject continues instead.
+                                            None => read_action(
+                                                &mut gapped,
+                                                memory.current_player_subject.as_ref(),
+                                                &mut gapped_frame,
+                                            )
+                                            .map(|effect| (effect, gapped.position())),
+                                        };
+                                        match (read, ambiguity) {
+                                            (Ok((_, end)), Some(ambiguous))
+                                                if end > cursor.position() =>
+                                            {
+                                                Err(ambiguous)
+                                            }
+                                            (Ok((effect, end)), None)
+                                                if end > cursor.position() =>
+                                            {
+                                                from_ellipsis = true;
+                                                cursor.advance_to(end).map(|()| effect)
+                                            }
+                                            _ => Err(failure),
+                                        }
+                                    }
+                                }
+                                (Some(lemma), Some(connector_start), _) => {
                                     let slot = cursor.position() - 1;
                                     let mut at_slot = cursor.clone();
                                     at_slot.rollback(connector_start);
@@ -1466,9 +1584,53 @@ fn recognize_effect_sequence_attempt_scoped(
                                         let mut gapped = at_slot.with_tokens(&tokens);
                                         gapped.enter("sequence.gapped-conjunct");
                                         let mut gapped_frame = SequenceAttemptFrame::default();
-                                        match read_action(&mut gapped, None, &mut gapped_frame) {
-                                            Ok(effect) if gapped.position() > cursor.position() => {
-                                                let end = gapped.position();
+                                        let read =
+                                            read_action(&mut gapped, None, &mut gapped_frame)
+                                                .map(|effect| (effect, gapped.position()));
+                                        // `... and the rest on the bottom`: the
+                                        // conjunct's library is its antecedent's;
+                                        // the same reading with that library
+                                        // restated, positions mapped back.
+                                        let read = match (read, memory.last_effect_span) {
+                                            (Ok(read), _) => Ok(read),
+                                            (Err(error), Some((start, end))) => {
+                                                match super::elided_library_tokens(
+                                                    &tokens,
+                                                    slot + 1,
+                                                    cursor.token_slice(start, end),
+                                                ) {
+                                                    Some((view, inserted_at, inserted)) => {
+                                                        let mut restated =
+                                                            at_slot.with_tokens(&view);
+                                                        restated.enter(
+                                                            "sequence.gapped-conjunct.library",
+                                                        );
+                                                        let mut restated_frame =
+                                                            SequenceAttemptFrame::default();
+                                                        match read_action(
+                                                            &mut restated,
+                                                            None,
+                                                            &mut restated_frame,
+                                                        ) {
+                                                            Ok(effect)
+                                                                if restated.position()
+                                                                    >= inserted_at + inserted =>
+                                                            {
+                                                                Ok((
+                                                                    effect,
+                                                                    restated.position() - inserted,
+                                                                ))
+                                                            }
+                                                            _ => Err(error),
+                                                        }
+                                                    }
+                                                    None => Err(error),
+                                                }
+                                            }
+                                            (Err(error), None) => Err(error),
+                                        };
+                                        match read {
+                                            Ok((effect, end)) if end > cursor.position() => {
                                                 from_ellipsis = true;
                                                 cursor.advance_to(end).map(|()| effect)
                                             }
@@ -1548,11 +1710,23 @@ fn recognize_effect_sequence_attempt_scoped(
                                     effect_start = cursor.position();
                                     continue;
                                 }
+                                // `Then, if ...`: the comma punctuates the
+                                // sentence connector, not a clause boundary.
                                 let follows_clause_comma = cursor.position() > 0
                                     && cursor
                                         .token_slice(cursor.position() - 1, cursor.position())
                                         .first()
-                                        .is_some_and(|token| token.raw == ",");
+                                        .is_some_and(|token| token.raw == ",")
+                                    && !(cursor.position() > 1
+                                        && cursor
+                                            .token_slice(
+                                                cursor.position() - 2,
+                                                cursor.position() - 1,
+                                            )
+                                            .first()
+                                            .is_some_and(|token| {
+                                                token.raw.eq_ignore_ascii_case("then")
+                                            }));
                                 if super::sentence_condition_starts(cursor) && !follows_clause_comma
                                 {
                                     let departed = memory.departed_permanent_targets();
@@ -1757,6 +1931,12 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         LocalEffectNode::CardAction(super::CardActionNode::Permit(node)) => {
                             node.duration.as_ref() == Some(duration)
+                        }
+                        LocalEffectNode::CardAction(super::CardActionNode::GrantKeyword(node)) => {
+                            &node.duration == duration
+                        }
+                        LocalEffectNode::TemporaryPlayerPermission(node) => {
+                            node.duration == super::TemporaryRuleDuration::Effect(duration.clone())
                         }
                         LocalEffectNode::ControlChange(super::ControlChangeEffectNode {
                             change:
@@ -2044,7 +2224,73 @@ fn recognize_effect_sequence_attempt_scoped(
                 // (`A, B, and C`); any other action names its own.
                 if !from_ellipsis {
                     memory.elided_lemma = super::imperative_lemma_at(cursor, effect_start);
+                    // A finite clause of an explicit player subject names its
+                    // written verb for a later gapped conjunct of its sentence.
+                    let agreement = memory
+                        .current_performer
+                        .as_ref()
+                        .filter(|(_, _, sentence)| *sentence == memory.sentence_start)
+                        .map(|(_, agreement, _)| *agreement)
+                        .or_else(|| {
+                            memory
+                                .current_player_subject
+                                .as_ref()
+                                .map(|_| performed_agreement_of_player(cursor, effect_start))
+                        });
+                    memory.finite_gap = match (memory.elided_lemma, agreement) {
+                        (None, Some(agreement)) => super::finite_clause_verb(
+                            cursor,
+                            effect_start,
+                            cursor.position(),
+                            agreement,
+                        )
+                        .map(|(lemma, form)| FiniteGap {
+                            lemma,
+                            form,
+                            sentence: memory.sentence_start,
+                        }),
+                        _ => None,
+                    };
                 }
+                // `Destroy all lands or all creatures. Creatures destroyed
+                // this way can't be regenerated.`: the amendment after the
+                // last alternative restates the destruction of whichever
+                // alternative is chosen (CR 701.19c), so it covers the run.
+                if let LocalEffectNode::DestroyCollection(amended) = &effect
+                    && amended.cannot_regenerate
+                {
+                    let run_start = memory
+                        .connectors
+                        .iter()
+                        .rposition(|connector| *connector != EffectConnector::Or)
+                        .map_or(0, |index| index + 1);
+                    if memory.connectors.last() == Some(&EffectConnector::Or) {
+                        for earlier in &mut memory.effects[run_start..] {
+                            if let LocalEffectNode::DestroyCollection(collection) = earlier {
+                                collection.cannot_regenerate = true;
+                            }
+                        }
+                    }
+                }
+                // CR 608.2d: the player who performs the alternatives chooses
+                // among them. Each alternative names that player explicitly:
+                // the controller's imperative, or a written performer.
+                if memory.connectors.last() == Some(&EffectConnector::Or) {
+                    let run_start = memory
+                        .connectors
+                        .iter()
+                        .rposition(|connector| *connector != EffectConnector::Or)
+                        .map_or(0, |index| index + 1);
+                    cursor.enter("sequence.alternative.chooser");
+                    cursor.require(
+                        alternative_chooser_is_explicit(&effect)
+                            && memory.effects[run_start..]
+                                .iter()
+                                .all(alternative_chooser_is_explicit),
+                        "alternatives the controller or one written performer chooses between",
+                    )?;
+                }
+                memory.last_effect_span = Some((effect_start, cursor.position()));
                 memory.effects.push(effect);
                 if !matches!(memory.open_branch, Some(ConditionalBranch::Else(_))) {
                     memory.else_candidate = None;
@@ -2122,7 +2368,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         });
                         SequenceState::ConnectorOrEnd
                     }
-                    Some("and" | "then" | ",") => {
+                    Some("and" | "then" | "," | "or") => {
                         if matches!(
                             memory.effects.last(),
                             Some(
@@ -2192,6 +2438,9 @@ fn recognize_effect_sequence_attempt_scoped(
                             card_focus: false,
                             departed_targets: &departed,
                         };
+                        // Targets are declared as the spell is cast (CR
+                        // 601.2c): the condition may read its own action's.
+                        super::publish_installed_declared_target(cursor, &memory.effects);
                         let condition = super::recognize_postposed_sentence_condition(
                             cursor,
                             &condition_context,
@@ -2268,6 +2517,17 @@ fn recognize_effect_sequence_attempt_scoped(
                                 memory.effects.last_mut(),
                             )?;
                             cursor.enter("sequence.type-retention.terminator");
+                            cursor.consume(".")?;
+                        }
+                        if super::granted_keyword_cost_amendment_starts(cursor) {
+                            // CR 702.34a: the sentence states the cost of the
+                            // keyword the sentence just closed granted.
+                            attempt_frame.commit();
+                            super::recognize_granted_keyword_cost_amendment(
+                                cursor,
+                                memory.effects.last_mut(),
+                            )?;
+                            cursor.enter("sequence.granted-keyword-cost.terminator");
                             cursor.consume(".")?;
                         }
                         if library_look_reminder_starts_at(cursor)
@@ -2396,6 +2656,11 @@ fn recognize_effect_sequence_attempt_scoped(
                                 .is_some_and(|raw| raw.eq_ignore_ascii_case("then"));
                             if explicit_then {
                                 cursor.consume("then")?;
+                                // `Then, ACTION.`: the punctuated variant of
+                                // the same sentence connector (CR 608.2c).
+                                if cursor.peek() == Some(",") {
+                                    cursor.consume(",")?;
+                                }
                                 if cursor.peek().is_none() || cursor.peek() == Some(".") {
                                     attempt_frame.commit();
                                     cursor.enter("sequence.connector.effect");
@@ -2576,6 +2841,33 @@ fn recognize_effect_sequence_attempt_scoped(
                 return Ok(memory.into_sequence());
             }
         };
+    }
+}
+
+/// Whether an `or` alternative names the player who chooses it (CR 608.2d):
+/// an action of the controller, or one a written performer performs. An
+/// ordinary reader's other player subject (`target player gains 3 life or
+/// draws a card`) has no performer this frame can make the chooser.
+fn alternative_chooser_is_explicit(effect: &LocalEffectNode) -> bool {
+    match effect {
+        LocalEffectNode::Performed(_) => true,
+        LocalEffectNode::PlayerAction(action) => {
+            action.player == super::PlayerEffectSubject::Controller
+        }
+        LocalEffectNode::DiscardCards(discard) => {
+            discard.player == super::PlayerEffectSubject::Controller
+        }
+        LocalEffectNode::GainLife(life) => life.player == super::LocalPlayerReference::Controller,
+        LocalEffectNode::LoseLife(life) => life.player == super::LocalPlayerReference::Controller,
+        LocalEffectNode::DrawCards(draw) => draw.player == super::LocalPlayerReference::Controller,
+        LocalEffectNode::QuantifiedPlayerAction(_)
+        | LocalEffectNode::TargetPlayerLife(_)
+        | LocalEffectNode::MillCards(_)
+        | LocalEffectNode::OptionalSequence(_)
+        | LocalEffectNode::OptionalDrawCards(_)
+        | LocalEffectNode::OptionalLibrarySearch(_)
+        | LocalEffectNode::OptionalCardDeployment(_) => false,
+        _ => true,
     }
 }
 
@@ -3329,7 +3621,7 @@ fn recognize_subject_frame(
         object_set_antecedent: _,
         context,
     } = *inputs;
-    match try_recognize_temporary_player_permission(cursor) {
+    match try_recognize_temporary_player_permission(cursor, context.preposed_duration.as_ref()) {
         TemporaryPlayerPermissionParseAttempt::Parsed(node) => {
             return Ok(LocalEffectNode::TemporaryPlayerPermission(node));
         }
@@ -3537,6 +3829,16 @@ fn object_player_mention(
     effects: &[LocalEffectNode],
     antecedent: Option<&super::ObjectSubjectAntecedent>,
 ) -> Option<(super::ObjectPlayerRelation, super::PermanentEffectReference)> {
+    // `Search its controller's library ... . Then that player shuffles.`:
+    // the searched zones' holder named through its object.
+    if let Some(LocalEffectNode::ControllerLibrarySearch(search)) = effects.last()
+        && let super::SearchedPlayer::Bound(super::PlayerEffectSubject::ObjectRelation {
+            relation,
+            object,
+        }) = &search.origin.holder
+    {
+        return Some((*relation, *object));
+    }
     let antecedent = antecedent?;
     let super::PermanentEffectReference::Target(binding) = antecedent.reference else {
         return None;

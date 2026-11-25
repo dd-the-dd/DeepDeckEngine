@@ -101,6 +101,14 @@ pub(in crate::oracle::canonical) fn try_parse_static_continuous_effect(
             if let Some(condition) = &condition {
                 rule["condition"] = lower_condition(condition);
             }
+            // CR 702.103b: an attachment subject read on a bestow face waits
+            // for card composition to prove that face's bestow keyword.
+            if attachment_subject_source(input.face_type_line, false, true)
+                == Some(AttachmentSubjectSource::Bestow)
+                && value_mentions_attached_permanent(&rule["modifiers"])
+            {
+                rule[BESTOW_SUBJECT_DIRECTIVE] = json!("bestow");
+            }
             StaticContinuousParseAttempt::Parsed(draft(
                 rule,
                 &[
@@ -171,6 +179,35 @@ fn read_static_continuous_effect(
         // subject is read after the requirement's blockers.
         let modifier = read_block_requirement_sentence(cursor, input, committed)?;
         return Ok((vec![modifier], condition));
+    }
+    if legend_rule_waiver_starts(cursor) {
+        // `The "legend rule" doesn't apply [to OBJECTS].` (CR 704.5j).
+        let modifier = read_legend_rule_waiver(cursor, committed)?;
+        cursor.enter("static.continuous.legend-rule.terminator");
+        cursor.consume(".")?;
+        cursor.enter("static.continuous.complete");
+        cursor.finish()?;
+        return Ok((vec![modifier], condition));
+    }
+    if combat_participant_limit_starts(cursor) {
+        // `No more than N creatures can attack|block each combat.`
+        let modifier = read_combat_participant_limit(cursor, committed)?;
+        cursor.enter("static.continuous.combat-limit.terminator");
+        cursor.consume(".")?;
+        cursor.enter("static.continuous.complete");
+        cursor.finish()?;
+        return Ok((vec![modifier], condition));
+    }
+    if imperative_player_predicate_starts(cursor) {
+        // `Play with the top card of your library revealed.` / `Skip your
+        // draw step.`: an imperative rule of the ability's controller, the
+        // implied subject `you` (CR 604.1).
+        let reading = StaticPlayerSubjectReading {
+            subject: StaticPlayerSubjectNode::You,
+            number: PlayerSubjectNumber::Base,
+            possessive: false,
+        };
+        return read_player_predicates(cursor, input, reading, condition, committed);
     }
     let subjects = read_static_subject_list(cursor, input, condition.as_ref())?;
     if let [subject] = subjects.as_slice() {
@@ -662,7 +699,11 @@ fn read_object_predicates(
                     }));
                 } else {
                     let delta = recognize_signed_power_toughness_delta(cursor)?;
-                    let scale = read_optional_for_each_count(cursor, source_subject)?;
+                    // The count may name the source (`for each counter on NAME`).
+                    let names = cursor.replace_source_names(Some(input.name_links.into()));
+                    let scale = read_optional_for_each_count(cursor, source_subject);
+                    cursor.replace_source_names(names);
+                    let scale = scale?;
                     let scaled = |amount: i64| match &scale {
                         None => integer(amount),
                         Some(_) if amount == 0 => integer(0),
@@ -1410,6 +1451,82 @@ fn read_block_requirement_sentence(
     Ok(block_requirement_modifier(&subject.objects))
 }
 
+/// `Play with ...` / `Skip your ...` opening the ability: an imperative
+/// player predicate whose subject is the controller.
+fn imperative_player_predicate_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    (word_in(cursor.peek(), &["play"]) && word_in(cursor.peek_ahead(1), &["with"]))
+        || (word_in(cursor.peek(), &["skip"]) && word_in(cursor.peek_ahead(1), &["your"]))
+}
+
+/// `the "legend rule" doesn't apply [to OBJECTS]` (CR 704.5j): the shared
+/// waiver reader; the state-based action ignores the permanents of its
+/// collection, or every permanent without one.
+fn read_legend_rule_waiver(
+    cursor: &mut OracleTokenCursor<'_>,
+    committed: &mut bool,
+) -> MachineResult<Value> {
+    cursor.enter("static.continuous.legend-rule");
+    let waiver = recognize_legend_rule_waiver(cursor)?;
+    *committed = true;
+    lower_legend_rule_waiver(cursor, &waiver)
+}
+
+/// The `legendRuleDoesNotApply` modifier of a waiver, static or created.
+pub(in crate::oracle::canonical) fn lower_legend_rule_waiver(
+    cursor: &OracleTokenCursor<'_>,
+    waiver: &LegendRuleWaiverNode,
+) -> MachineResult<Value> {
+    let objects = match &waiver.objects {
+        Some(query) => lower_static_permanent_query(cursor, query)?,
+        None => json!({ "kind": "permanents" }),
+    };
+    Ok(json!({ "kind": "legendRuleDoesNotApply", "objects": objects }))
+}
+
+fn combat_participant_limit_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_in(cursor.peek(), &["no"])
+        && word_in(cursor.peek_ahead(1), &["more"])
+        && word_in(cursor.peek_ahead(2), &["than"])
+}
+
+/// `No more than N creature(s) can attack|block each combat` (CR 508.1c,
+/// 509.1c): a restriction on the whole declaration, counted over every
+/// declared attacker or blocker.
+fn read_combat_participant_limit(
+    cursor: &mut OracleTokenCursor<'_>,
+    committed: &mut bool,
+) -> MachineResult<Value> {
+    cursor.enter("static.continuous.combat-limit");
+    cursor.consume_phrase(&["no", "more", "than"])?;
+    let maximum = match recognize_numeric_atom(cursor)? {
+        NumericAtom::Integer(value) if value > 0 => value,
+        _ => return Err(cursor.fail("a positive literal number of creatures")),
+    };
+    cursor.enter("static.continuous.combat-limit.creatures");
+    cursor.consume(if maximum == 1 {
+        "creature"
+    } else {
+        "creatures"
+    })?;
+    cursor.consume("can")?;
+    *committed = true;
+    cursor.enter("static.continuous.combat-limit.role");
+    let role = if word_in(cursor.peek(), &["attack"]) {
+        "attack"
+    } else {
+        cursor.require(word_in(cursor.peek(), &["block"]), "`attack` or `block`")?;
+        "block"
+    };
+    cursor.consume(role)?;
+    cursor.enter("static.continuous.combat-limit.period");
+    cursor.consume_phrase(&["each", "combat"])?;
+    Ok(json!({
+        "kind": "combatParticipantLimit",
+        "role": role,
+        "maximum": integer(maximum),
+    }))
+}
+
 /// The head of one continuous predicate (S3): a lexicon lemma in a present
 /// form, the copula, a modal or negated auxiliary, or the shared combat
 /// clause. The predicate reader matches on it instead of a verb word.
@@ -1935,6 +2052,13 @@ pub(in crate::oracle::canonical) fn read_static_subject(
     input: &AbilityInput<'_>,
 ) -> MachineResult<(Value, Option<ObjectPredicate>, TypeChangeNumber)> {
     let subject = read_static_subject_reading(cursor, input, false)?;
+    // Only this frame's rule carries the bestow composition directive.
+    cursor.require(
+        !(subject.objects["kind"] == "attachedPermanent"
+            && attachment_subject_source(input.face_type_line, false, true)
+                == Some(AttachmentSubjectSource::Bestow)),
+        "an attachment subject on an Aura or Equipment source",
+    )?;
     Ok((subject.objects, subject.predicate, subject.number))
 }
 
@@ -1976,25 +2100,43 @@ fn read_static_subject_reading(
             noun == "permanent"
                 || lookup_permanent_card_type(noun, AcceptedForms::SingularOnly).is_some()
         });
+    // `enchanted Wall` / `enchanted Mountain`: a capitalized subtype noun
+    // names the enchanted permanent and proves its subtype (CR 205.3).
+    let enchanted_subtype = (attachment.as_deref() == Some("enchanted") && !possessive)
+        .then(|| cursor.peek_ahead(1))
+        .flatten()
+        .and_then(attached_subtype_noun);
     if (matches!(attachment.as_deref(), Some("equipped" | "enchanted"))
         && attached_noun.as_deref() == Some("creature"))
         || enchanted_permanent
+        || enchanted_subtype.is_some()
     {
         // The attachment subject is meaningful only on the matching
-        // attachment subtype (CR 301.5, 303.4).
-        let required = if attachment.as_deref() == Some("equipped") {
-            "Equipment"
-        } else {
-            "Aura"
-        };
+        // attachment subtype (CR 301.5, 303.4), or on a bestow creature
+        // whose Aura form enchants a creature (CR 702.103b): card
+        // composition proves that face's bestow keyword.
         cursor.enter("static.continuous.subject.attachment");
         cursor.require(
-            input
-                .face_type_line
-                .split(|ch: char| !ch.is_alphanumeric())
-                .any(|word| word == required),
-            "an attachment subject on the matching Equipment or Aura source",
+            attachment_subject_source(
+                input.face_type_line,
+                attachment.as_deref() == Some("equipped"),
+                attached_noun.as_deref() == Some("creature"),
+            )
+            .is_some(),
+            "an attachment subject on the matching Equipment or Aura source, or on a bestow creature",
         )?;
+        if let Some(subtype) = enchanted_subtype {
+            let word = attachment.expect("checked attachment word");
+            cursor.consume(&word)?;
+            let raw = cursor.peek().unwrap_or_default().to_string();
+            cursor.consume(&raw)?;
+            return Ok(StaticObjectSubject {
+                objects: json!({ "kind": "attachedPermanent", "attachment": self_ref() }),
+                predicate: Some(ObjectPredicate::Subtype(subtype)),
+                number: TypeChangeNumber::Singular,
+                possessive: false,
+            });
+        }
         let word = attachment.expect("checked attachment word");
         cursor.consume(&word)?;
         let noun = attached_noun.expect("checked attached noun");
@@ -2045,7 +2187,22 @@ fn read_static_subject_reading(
         _ => TypeChangeNumber::Plural,
     };
     let query = recognize_object_collection(cursor)?;
-    let exclude_source = query.exclude_source;
+    let objects = lower_static_permanent_query(cursor, &query)?;
+    Ok(StaticObjectSubject {
+        objects,
+        predicate: Some(query.predicate),
+        number,
+        possessive: false,
+    })
+}
+
+/// A battlefield-permanent collection as a static object selector: its
+/// predicate, ownership, controller relation and source exclusion. Shared by
+/// static abilities and the rules a resolving effect creates (CR 611.2a).
+pub(in crate::oracle::canonical) fn lower_static_permanent_query(
+    cursor: &OracleTokenCursor<'_>,
+    query: &ObjectQueryNode,
+) -> MachineResult<Value> {
     cursor.require(
         query.denotes_battlefield_permanents(),
         "a collection anchored in the battlefield-permanent domain",
@@ -2054,7 +2211,7 @@ fn read_static_subject_reading(
         lower_permanent_collection(&query.predicate),
         "an ownership relation a permanent collection can carry",
     )?;
-    if let Some(scope) = query.controller {
+    if let Some(scope) = &query.controller {
         objects["controller"] = match scope {
             ObjectControllerScope::AbilityController => controller(),
             ObjectControllerScope::OpponentOfAbilityController => {
@@ -2069,15 +2226,128 @@ fn read_static_subject_reading(
             }
         };
     }
-    if exclude_source {
+    if query.exclude_source {
         objects["excludeSource"] = json!(true);
     }
-    Ok(StaticObjectSubject {
-        objects,
-        predicate: Some(query.predicate),
-        number,
-        possessive: false,
+    Ok(objects)
+}
+
+/// The permanent that makes an attachment subject meaningful (CR 301.5,
+/// 303.4, 702.103b).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AttachmentSubjectSource {
+    /// An Equipment or an Aura face: the subject is its attached object.
+    AttachmentSubtype,
+    /// An enchantment creature without the Aura subtype: only its bestow
+    /// Aura form enchants a creature; composition proves the keyword.
+    Bestow,
+}
+
+fn type_line_word(type_line: &str, expected: &str) -> bool {
+    type_line
+        .split(|ch: char| !ch.is_alphanumeric())
+        .any(|word| word == expected)
+}
+
+/// Which source admits `equipped|enchanted NOUN` on this face, if any.
+pub(in crate::oracle::canonical) fn attachment_subject_source(
+    face_type_line: &str,
+    equipped: bool,
+    creature_noun: bool,
+) -> Option<AttachmentSubjectSource> {
+    if type_line_word(face_type_line, if equipped { "Equipment" } else { "Aura" }) {
+        return Some(AttachmentSubjectSource::AttachmentSubtype);
+    }
+    (!equipped
+        && creature_noun
+        && type_line_word(face_type_line, "Enchantment")
+        && type_line_word(face_type_line, "Creature"))
+    .then_some(AttachmentSubjectSource::Bestow)
+}
+
+/// A capitalized creature or noncreature subtype noun after `enchanted`.
+fn attached_subtype_noun(raw: &str) -> Option<String> {
+    if !raw.chars().next().is_some_and(|ch| ch.is_ascii_uppercase()) {
+        return None;
+    }
+    crate::oracle::characteristic_vocabulary::lookup_creature_subtype(
+        raw,
+        AcceptedForms::SingularOnly,
+    )
+    .map(|subtype| subtype.ir_name().to_string())
+    .or_else(|| {
+        crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(raw)
+            .filter(|name| {
+                crate::oracle::characteristic_vocabulary::subtype_denotes_permanent(name)
+            })
+            .map(str::to_string)
     })
+}
+
+fn value_mentions_attached_permanent(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => {
+            map.get("kind").and_then(Value::as_str) == Some("attachedPermanent")
+                || map.values().any(value_mentions_attached_permanent)
+        }
+        Value::Array(items) => items.iter().any(value_mentions_attached_permanent),
+        _ => false,
+    }
+}
+
+/// The composition marker of a static rule read on a bestow face: the
+/// rule's attachment subject is the bestowed Aura's (CR 702.103b).
+pub(in crate::oracle::canonical) const BESTOW_SUBJECT_DIRECTIVE: &str = "attachmentSubjectRequires";
+
+/// Card composition (CR 702.103b): a static rule whose `enchanted creature`
+/// subject was read on an enchantment creature face is meaningful only when
+/// the same face has bestow. The directive is removed once proven; without
+/// the keyword the ability becomes unsupported with an explicit diagnostic.
+pub(crate) fn validate_bestow_attachment_subjects(
+    abilities: &mut [crate::oracle::model::ParsedOracleAbility],
+) {
+    let bestow_faces = abilities
+        .iter()
+        .filter(|ability| {
+            ability.rule.as_ref().is_some_and(|rule| {
+                rule["kind"] == "keywordAbility" && rule["ability"]["kind"] == "bestow"
+            })
+        })
+        .map(|ability| ability.source.face_id.clone())
+        .collect::<Vec<_>>();
+    for ability in abilities.iter_mut() {
+        let Some(rule) = ability.rule.as_mut() else {
+            continue;
+        };
+        if rule.get(BESTOW_SUBJECT_DIRECTIVE).is_none() {
+            continue;
+        }
+        if bestow_faces.contains(&ability.source.face_id) {
+            if let Some(map) = rule.as_object_mut() {
+                map.remove(BESTOW_SUBJECT_DIRECTIVE);
+            }
+            continue;
+        }
+        let length = ability.source.text.len();
+        ability.status = "unsupported".to_string();
+        ability.rule = None;
+        ability
+            .diagnostics
+            .push(crate::oracle::model::ParserDiagnostic {
+                code: "oracle_card_composition_failure".to_string(),
+                message: "An `enchanted creature` subject on a non-Aura enchantment creature requires bestow on the same face (CR 702.103b).".to_string(),
+                severity: "unsupported".to_string(),
+                automaton: Some("card-bestow-subject-composition".to_string()),
+                state: Some("composition.bestow-subject".to_string()),
+                token_index: None,
+                span_start: Some(0),
+                span_end: Some(length),
+                expected: Some("a bestow keyword on the same face".to_string()),
+                found: None,
+                trace: Vec::new(),
+                owner: None,
+            });
+    }
 }
 
 #[cfg(test)]

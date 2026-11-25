@@ -46,6 +46,9 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     next_cast: usize,
     next_permission: usize,
     next_copy: usize,
+    /// The declared target slots of the enclosing program, by binding: a
+    /// card pronoun whose antecedent is a declared target reads its slot.
+    object_bindings: Vec<(TargetBinding, String)>,
 }
 
 /// The card collection this program put onto the battlefield; `it` after
@@ -124,6 +127,87 @@ impl CardCollectionMemory {
         }
     }
 
+    /// Installs the declared target slots the enclosing program lowered so
+    /// far; a card pronoun naming a declared target reads its slot.
+    pub(in crate::oracle::canonical) fn bind_object_references(
+        &mut self,
+        bindings: &[(TargetBinding, String)],
+    ) {
+        self.object_bindings = bindings.to_vec();
+    }
+
+    /// A card pronoun with a typed object antecedent names the program's
+    /// observed card collection when the program has one: that collection is
+    /// the nearer antecedent of a card pronoun. Every other reading keeps
+    /// the typed object. Returns the action with each such operand restored
+    /// to its collection reference, or `None` when nothing changes.
+    fn observed_collection_reading(&self, action: &CardActionNode) -> Option<CardActionNode> {
+        self.view.as_ref()?;
+        let restore = |operand: &mut CardOperandNode| {
+            if let CardOperandNode::ObjectAntecedent { reference, .. } = operand {
+                *operand = CardOperandNode::Reference(*reference);
+                true
+            } else {
+                false
+            }
+        };
+        let mut action = action.clone();
+        let changed = match &mut action {
+            CardActionNode::LookAt(operand)
+            | CardActionNode::Reveal(operand)
+            | CardActionNode::Move { cards: operand, .. }
+            | CardActionNode::Copy { cards: operand, .. }
+            | CardActionNode::Permit(CardPermissionNode { cards: operand, .. }) => restore(operand),
+            CardActionNode::GrantKeyword(grant) => restore(&mut grant.cards),
+            CardActionNode::Look { .. }
+            | CardActionNode::ChooseFromZone(_)
+            | CardActionNode::ChooseTargetCards(_)
+            | CardActionNode::RevealUntil { .. }
+            | CardActionNode::Choose(_)
+            | CardActionNode::Shuffle { .. } => false,
+        };
+        changed.then_some(action)
+    }
+
+    /// The cards a typed object antecedent names for a card action (CR
+    /// 400.7): the object itself while it is one, the card it became once a
+    /// zone change the ability can follow moved it. One object is read
+    /// through the shared single-object adapter, which finds nothing once
+    /// the object became a new object; a declared target set or the created
+    /// tokens are read as their collection.
+    fn object_antecedent_cards(
+        &self,
+        cursor: &OracleTokenCursor<'_>,
+        reference: CardCollectionReferenceNode,
+        object: PermanentEffectReference,
+    ) -> MachineResult<(Value, Option<i64>)> {
+        let value = super::permanent_subject::bound_permanent_reference_value(
+            object,
+            &self.object_bindings,
+        )
+        .ok_or_else(|| cursor.fail("the declared object the card pronoun names"))?;
+        match reference {
+            CardCollectionReferenceNode::Selected => {
+                let single =
+                    super::permanent_subject::single_object_reference(value).ok_or_else(|| {
+                        cursor.fail("one object as the antecedent of a singular card pronoun")
+                    })?;
+                Ok((
+                    super::permanent_subject::referenced_object_collection(single),
+                    Some(1),
+                ))
+            }
+            CardCollectionReferenceNode::Antecedent => {
+                cursor.require(
+                    matches!(value_kind_name(&value), Some("chosenTargets" | "boundObjects")),
+                    "a declared target set or created tokens as the antecedent of a plural card pronoun",
+                )?;
+                Ok((value, None))
+            }
+            _ => Err(cursor.fail("`it`, `that card`, `them` or `those cards` naming an object")),
+        }
+    }
+
     /// Selection bindings share one allocator across nested program scopes.
     pub(in crate::oracle::canonical) fn allocate_selection_id(&mut self, prefix: &str) -> String {
         let id = fresh(prefix, &mut self.next_selection);
@@ -198,6 +282,24 @@ impl CardCollectionMemory {
         self.singular_focus = None;
         self.plural_focus = None;
         self.removed_up_to_size = 0;
+    }
+
+    /// Cards chosen on resolution from a named zone or a linked exile (CR
+    /// 608.2d) become the observed collection: `that card`, `it` and `them`
+    /// name exactly the chosen cards, which are in `zone` when one zone is
+    /// proved. Nothing else of the choice (no complement) is observed.
+    fn observe_chosen_cards(
+        &mut self,
+        chosen: Value,
+        maximum: Option<i64>,
+        zone: Option<CardZoneName>,
+    ) {
+        self.clear_antecedent();
+        self.view = Some(chosen.clone());
+        self.view_maximum = maximum;
+        self.view_zone = zone;
+        self.mention((chosen.clone(), maximum));
+        self.plural_focus = Some((chosen, maximum));
     }
 
     /// A player's revealed hand (CR 701.20a) is the observed collection: its
@@ -580,6 +682,11 @@ impl CardCollectionMemory {
             // has a command-zone writer.
             return Err(cursor.fail("the command zone only as the origin of a cast"));
         }
+        if let CardOperandNode::ObjectAntecedent { reference, object } = operand {
+            let value = self.object_antecedent_cards(cursor, *reference, *object)?;
+            self.mention(value.clone());
+            return Ok(value);
+        }
         if let CardOperandNode::Targets(target) = operand {
             validate_object_predicate_numeric_expressions(&target.predicate, declarations)
                 .map_err(|error| cursor.fail(error.expectation()))?;
@@ -635,6 +742,23 @@ impl CardCollectionMemory {
             return Ok((json!({"kind":"chosenTargets","id":id}), maximum));
         }
         if let CardOperandNode::LibraryTop(top) = operand {
+            // `the top card of each player's library`: every library of the
+            // population, read on resolution; the number of libraries is
+            // not static, so the collection has no fixed size.
+            if let CardLibraryOwnerNode::Players(players) = &top.owner {
+                let count_ir = lower_targetless_numeric_expression(&top.count, declarations)
+                    .map_err(|error| cursor.fail(error.expectation()))?;
+                let id = fresh("topCards", &mut self.next_view);
+                self.allocated_ids.insert(id.clone());
+                self.observe(&id, None);
+                self.view_from_library_top = true;
+                effects.push(json!({"kind":"bind", "id":id,
+                    "value":{"kind":"libraryTopCards",
+                        "zone":{"kind":"library",
+                            "players":lower_player_set_reference(*players)},
+                        "count":count_ir}}));
+                return Ok((bound(&id), None));
+            }
             let player = match &top.owner {
                 CardLibraryOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
                 // `that player's library`: the player the event records.
@@ -643,6 +767,9 @@ impl CardCollectionMemory {
                 )) => json!({"kind":"triggeringPlayer"}),
                 CardLibraryOwnerNode::Player(_) => {
                     return Err(cursor.fail("a supported explicit library owner"));
+                }
+                CardLibraryOwnerNode::Players(_) => {
+                    unreachable!("a library population is lowered above")
                 }
                 // `the top N cards of target opponent's library`: the
                 // declared player owns the library the cards are read from.
@@ -1389,6 +1516,8 @@ impl CardCollectionMemory {
         target_decisions: &mut Vec<Value>,
     ) -> MachineResult<Vec<Value>> {
         cursor.enter("lower.card-action.bindings");
+        let observed_reading = self.observed_collection_reading(action);
+        let action = observed_reading.as_ref().unwrap_or(action);
         let mut effects = Vec::new();
         match action {
             CardActionNode::Look {
@@ -1426,6 +1555,13 @@ impl CardCollectionMemory {
                             }
                             CardLibraryOwnerNode::Player(player) => {
                                 CardZoneOwnerNode::Player(player.clone())
+                            }
+                            // A private look at several libraries has no one
+                            // looked-at collection of this frame.
+                            CardLibraryOwnerNode::Players(_) => {
+                                return Err(cursor.fail(
+                                    "one library to look at; a look at each library of a population is not read",
+                                ));
                             }
                         };
                         let player = self.zone_owner_player(cursor, &owner, target_decisions)?;
@@ -1552,13 +1688,104 @@ impl CardCollectionMemory {
                 cursor.enter("lower.card-action.choose");
                 // The choice itself is the action: the operand child emits
                 // `chooseCards` and records its result as the antecedent.
-                self.operand(
+                let (chosen, maximum) = self.operand(
                     cursor,
                     &CardOperandNode::Selection(selection.clone()),
                     declarations,
                     &mut effects,
                     target_decisions,
                 )?;
+                // A choice among the source's linked exile observes nothing
+                // before it: the chosen cards, in exile, are the collection
+                // a later `that card` names (CR 607.2a).
+                if selection.from == CardCollectionReferenceNode::Linked && self.view.is_none() {
+                    self.observe_chosen_cards(chosen, maximum, Some(CardZoneName::Exile));
+                }
+            }
+            CardActionNode::ChooseFromZone(zone) => {
+                cursor.enter("lower.card-action.choose-zone");
+                // The zone collection child emits `chooseCards` among the
+                // zone's matching cards; the chosen cards become the observed
+                // collection (the chosen-card binding), in that zone.
+                let (chosen, maximum) = self.operand(
+                    cursor,
+                    &CardOperandNode::ZoneCollection(zone.clone()),
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
+                cursor.require(
+                    value_kind_name(&chosen) == Some("decisionResult"),
+                    "a resolution choice among the zone's cards",
+                )?;
+                let single_zone = zone.additional_zones.is_empty().then_some(zone.zone);
+                self.observe_chosen_cards(chosen, maximum, single_zone);
+            }
+            CardActionNode::ChooseTargetCards(targets) => {
+                cursor.enter("lower.card-action.choose-target-cards");
+                // The declaration is the action (CR 115.1): the card target
+                // child registers the decision; the declared cards become
+                // the observed collection, in their zone.
+                let (chosen, maximum) = self.operand(
+                    cursor,
+                    &CardOperandNode::Targets(targets.clone()),
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
+                self.observe_chosen_cards(chosen, maximum, Some(targets.zone));
+            }
+            CardActionNode::GrantKeyword(grant) => {
+                cursor.enter("lower.card-action.grant-keyword");
+                let (cards, maximum) = self.operand(
+                    cursor,
+                    &grant.cards,
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
+                // One declared card is the target reference the grant reads;
+                // any other collection is resolved into its cards, each of
+                // which gains the keyword (CR 611.2c).
+                let object =
+                    if value_kind_name(&cards) == Some("chosenTargets") && maximum == Some(1) {
+                        json!({"kind":"chosenTarget", "id":cards["id"].clone()})
+                    } else {
+                        cards
+                    };
+                cursor.enter("lower.card-action.grant-keyword.cost");
+                // A cost keyword is granted with the cost a later sentence
+                // states; without one the grant has no complete ability.
+                let cost = match grant.keyword.cost {
+                    Some(GrantedKeywordCostNode::ManaCostOfCard) => {
+                        // CR 702.34a: within the granted ability, `its mana
+                        // cost` is the mana cost of the card that has it.
+                        json!({"kind":"manaCostOf", "card":{"kind":"abilitySource"}})
+                    }
+                    None => {
+                        return Err(cursor.fail(
+                            "a sentence stating the cost of the granted keyword (`The flashback cost is equal to ...`)",
+                        ));
+                    }
+                };
+                cursor.enter("lower.card-action.grant-keyword.duration");
+                // The card permission runtime expires at the end of the
+                // turn it was granted; no other window is modelled.
+                cursor.require(
+                    grant.duration == EffectDurationNode::UntilEndOfCurrentTurn,
+                    "a granted card keyword lasting until end of turn",
+                )?;
+                let ability = match grant.keyword.name {
+                    KeywordAbilityName::Flashback => json!({"kind":"flashback", "cost":cost}),
+                    KeywordAbilityName::Cycling
+                    | KeywordAbilityName::Kicker
+                    | KeywordAbilityName::Awaken => {
+                        return Err(cursor.fail("flashback granted to a card"));
+                    }
+                };
+                effects.push(json!({"kind":"grantAbility", "object":object,
+                    "duration":{"kind":"untilEndOfCurrentTurn"},
+                    "ability":ability}));
             }
             CardActionNode::Shuffle { owner } => {
                 cursor.enter("lower.card-action.shuffle");
@@ -1602,6 +1829,7 @@ impl CardCollectionMemory {
                     matches!(
                         permit.cards,
                         CardOperandNode::Reference(_)
+                            | CardOperandNode::ObjectAntecedent { .. }
                             | CardOperandNode::Selection(_)
                             | CardOperandNode::ZoneCollection(_)
                             | CardOperandNode::Targets(_)
@@ -1896,6 +2124,9 @@ impl CardCollectionMemory {
                         // zone or from outside the game: the choice fixed
                         // its identity (CR 400.11, 608.2c).
                         CardOperandNode::HiddenChoice(_) => is_choice_result(&cards),
+                        // The typed object a pronoun names: its reference
+                        // fixes the identity it follows (CR 400.7).
+                        CardOperandNode::ObjectAntecedent { .. } => true,
                         // Card copies are refused by `operand` before this
                         // point; they exist only to be cast (CR 707.12).
                         CardOperandNode::LibraryTop(_)
@@ -1966,12 +2197,21 @@ impl CardCollectionMemory {
                 cursor.require(
                     !destination.tapped
                         && destination.attacking.is_none()
-                        && destination.entering_counters.is_none()
+                        && (destination.entering_counters.is_none()
+                            || (destination.zone == CardZoneName::Exile
+                                && !destination.face_down))
                         && !destination.transformed
                         && destination.attached_to.is_none()
                         && (!destination.face_down || destination.zone == CardZoneName::Exile),
-                    "an untapped, counterless, untransformed nonbattlefield destination, face down only in exile",
+                    "an untapped, untransformed nonbattlefield destination, face down or with counters only in exile",
                 )?;
+                // `exile it with N KIND counters on it` (CR 702.62a).
+                if let Some(counters) = &destination.entering_counters {
+                    let count = lower_targetless_numeric_expression(&counters.count, declarations)
+                        .map_err(|error| cursor.fail(error.expectation()))?;
+                    to["enterWithCounters"] =
+                        json!([{"counter": counters.counter.as_str(), "count": count}]);
+                }
                 if matches!(operand, CardOperandNode::LibraryTop(_))
                     && destination.zone == CardZoneName::Exile
                 {
@@ -2121,6 +2361,7 @@ fn moved_cards_owned_by_controller(operand: &CardOperandNode) -> bool {
                 )
         }
         CardOperandNode::Reference(_)
+        | CardOperandNode::ObjectAntecedent { .. }
         | CardOperandNode::Selection(_)
         | CardOperandNode::LibraryTop(_)
         | CardOperandNode::CardCopies { .. }

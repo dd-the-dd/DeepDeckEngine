@@ -36,7 +36,9 @@ fn lower_keyword_grant_duration(duration: EffectDurationNode) -> Option<Value> {
         // to; a new object does not keep it (CR 400.7).
         EffectDurationNode::Indefinite => json!({ "kind": "permanent" }),
         EffectDurationNode::UntilEndOfNextTurn { .. }
-        | EffectDurationNode::WhileSourceControlled => return None,
+        | EffectDurationNode::WhileSourceControlled
+        | EffectDurationNode::WhileSourceTapped
+        | EffectDurationNode::WhileSourceOnBattlefield => return None,
     })
 }
 

@@ -349,6 +349,7 @@ fn compose_card_rules_with_sources(
         }
     }
     link_exiles_to_linked_readers(abilities);
+    super::effects::validate_bestow_attachment_subjects(abilities);
     let directives = abilities
         .iter()
         .enumerate()

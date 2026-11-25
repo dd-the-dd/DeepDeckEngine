@@ -51,6 +51,8 @@ fn lower_duration(duration: &EffectDurationNode) -> Value {
         }
         EffectDurationNode::UntilEndOfNextTurn { .. }
         | EffectDurationNode::WhileSourceControlled
+        | EffectDurationNode::WhileSourceTapped
+        | EffectDurationNode::WhileSourceOnBattlefield
         | EffectDurationNode::Indefinite => {
             unreachable!("protected-attack grammar reads only the continuous-effect durations")
         }

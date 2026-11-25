@@ -103,6 +103,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::BoundObjectProperty { .. }
+        | NumericExpression::Quantity(_)
         | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. }
         | NumericExpression::ActionResultCount { .. }

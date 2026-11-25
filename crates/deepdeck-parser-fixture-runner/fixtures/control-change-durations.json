@@ -114,12 +114,45 @@
       }
     },
     {
-      "id": "near-miss-other-as-long-as-condition",
+      "id": "sibling-as-long-as-source-remains-tapped",
       "request": {
         "cardName": "Test Tether",
         "typeLine": "Artifact",
         "manaCost": "{2}",
         "oracleText": "{T}: Gain control of target creature for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "whileSourceTapped"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-other-as-long-as-condition",
+      "request": {
+        "cardName": "Test Tether",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Gain control of target creature for as long as this artifact is untapped.",
         "layout": "normal",
         "faces": []
       },
@@ -138,7 +171,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "duration.while-source-controlled.condition"
+            "state": "duration.while-source.state"
           }
         ]
       }

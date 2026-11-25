@@ -53,6 +53,26 @@ pub(in crate::oracle::canonical) fn rules_free_label_body_start(
     (!chapter_symbols).then_some(start)
 }
 
+/// A labeled paragraph of a spell continues the spell's instructions (CR
+/// 207.2c: the label has no rules meaning; CR 608.2c: the spell's
+/// instructions are followed in written order, in one lexical scope). When
+/// the paragraph alone failed because a reference in it has no antecedent
+/// (`Morbid — That creature gets ...`, `Addendum — ..., put a +1/+1 counter
+/// on each of those creatures`), its antecedent is in the paragraph before
+/// it: the byte offset of the body after the label, which the logical
+/// ability boundary appends to that paragraph. `None` for an unlabeled
+/// paragraph or any other failure, which stays the paragraph's own.
+pub(in crate::oracle::canonical) fn spell_paragraph_continuation(
+    tokens: &[RecognizedEntity],
+    failure_state: &str,
+) -> Option<usize> {
+    if !super::unresolved_antecedent_state(failure_state) {
+        return None;
+    }
+    let start = rules_free_label_body_start(tokens)?;
+    tokens.get(start).map(|token| token.span_start)
+}
+
 /// The label of an activated ability, read before its costs. An ability or
 /// flavor word (CR 207.2c) has no rules meaning and yields `None`; an
 /// activation keyword (`Boast —`, `Exhaust —`, `Forecast —`, `Power-up —`)

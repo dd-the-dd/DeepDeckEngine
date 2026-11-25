@@ -65,7 +65,10 @@ pub(in crate::oracle::canonical) fn recognize_activated_mana_ability(
                     // The shared connector orders independent effects; it is
                     // not part of the preceding mana-choice list.
                     cursor.enter("activation.mana.followup-connector");
-                    super::recognize_effect_connector(cursor)?;
+                    // An `or` alternative is no followup of the mana action.
+                    if super::recognize_effect_connector(cursor)? == super::EffectConnector::Or {
+                        return Err(cursor.fail("`and` or `then` before the followup"));
+                    }
                     ActivationState::Followup
                 } else {
                     return Err(cursor.fail("."));

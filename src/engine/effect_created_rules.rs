@@ -35,6 +35,22 @@ const CREATED_STATIC_MODIFIERS: &str = "effectCreatedStaticModifiers";
 /// The rule field holding what the created trigger captured when it was
 /// created; merged into each occurrence's decisions.
 const CREATED_DECISIONS: &str = "createdTriggerDecisions";
+/// A lasting untap restriction tied to a watched state of its source
+/// (CR 611.2b): `for as long as SOURCE remains tapped | on the battlefield`.
+const SOURCE_STATE_UNTAP_RESTRICTION: &str = "doesNotUntapWhileSourceState";
+/// The player whose next untap step a `skipNextUntap` restriction names.
+const UNTAP_STEP_PLAYER: &str = "untapStepPlayerId";
+/// A control change lasting while its source holds a state (CR 611.2b).
+const SOURCE_STATE_CONTROL: &str = "controlWhileSourceState";
+
+/// The watched source state of a `whileSource...` window.
+fn source_state_name(window: &str) -> &'static str {
+    if window == "whileSourceTapped" {
+        "tapped"
+    } else {
+        "onBattlefield"
+    }
+}
 
 fn lifetime_supported(duration: &Value) -> bool {
     match value_kind(duration) {
@@ -548,5 +564,199 @@ impl GameEngine {
         .into_iter()
         .map(|(source, rule)| (source, rule, TriggerOrigin::Delayed))
         .collect()
+    }
+
+    /// A `nextUntapStep` window may name the one player whose untap step it
+    /// is (CR 502.3); no other window carries a player.
+    pub(super) fn untap_window_player_supported(duration: &Value) -> bool {
+        duration.get("player").is_none_or(|player| {
+            value_kind(duration) == Some("nextUntapStep") && player_reference_supported(player)
+        })
+    }
+
+    /// Installs one permanent's untap restriction for its window (CR 502.3,
+    /// 611.2b). A `for as long as` window never starts unless the watched
+    /// state of the same source object holds now.
+    pub(super) fn install_untap_restriction(
+        &mut self,
+        instance_id: &str,
+        duration: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) {
+        let source_id = stack_object.card.instance_id.clone();
+        let modifier = match value_kind(duration) {
+            Some("nextUntapStep") => {
+                let mut modifier = json!({
+                    "kind": "skipNextUntap",
+                    "sourceCardInstanceId": source_id,
+                    "cardInstanceId": instance_id,
+                });
+                if duration.get("player").is_some() {
+                    let Some(player_id) =
+                        self.resolve_player(&duration["player"], stack_object, bindings)
+                    else {
+                        return;
+                    };
+                    modifier[UNTAP_STEP_PLAYER] = Value::String(player_id);
+                }
+                modifier
+            }
+            Some("whileSourceControlled") => json!({
+                "kind": "doesNotUntapWhileSourceControlled",
+                "sourceCardInstanceId": source_id,
+                "cardInstanceId": instance_id,
+            }),
+            Some(window @ ("whileSourceTapped" | "whileSourceOnBattlefield")) => {
+                if !self.source_state_window_holds(stack_object, window) {
+                    return;
+                }
+                json!({
+                    "kind": SOURCE_STATE_UNTAP_RESTRICTION,
+                    "sourceState": source_state_name(window),
+                    "sourceCardInstanceId": source_id,
+                    "sourceIdentity": Self::tracked_zone_identity(&stack_object.card),
+                    "cardInstanceId": instance_id,
+                })
+            }
+            _ => return,
+        };
+        self.state.rule_modifiers.push(modifier);
+    }
+
+    /// CR 611.2b: whether a `for as long as SOURCE remains ...` window may
+    /// start: the same source object (CR 400.7) is on the battlefield and,
+    /// for `remains tapped`, tapped.
+    pub(super) fn source_state_window_holds(
+        &self,
+        stack_object: &StackObject,
+        window: &str,
+    ) -> bool {
+        self.permanent_position(&stack_object.card.instance_id)
+            .is_some_and(|(player, index)| {
+                let source = &self.state.players[player].battlefield[index];
+                Self::tracked_zone_identity(source)
+                    == Self::tracked_zone_identity(&stack_object.card)
+                    && (window != "whileSourceTapped" || source.tapped)
+            })
+    }
+
+    /// Records a control change that lasts while its source holds a state
+    /// (CR 611.2b, 613.1b); `refresh_control_effects` restores the original
+    /// controller once it lapses.
+    pub(super) fn record_source_state_control(
+        &mut self,
+        stack_object: &StackObject,
+        window: &str,
+        target_id: &str,
+        original_controller: &str,
+        controller_id: &str,
+    ) {
+        self.state.rule_modifiers.push(json!({
+            "kind": SOURCE_STATE_CONTROL,
+            "sourceState": source_state_name(window),
+            "sourceCardInstanceId": stack_object.card.instance_id,
+            "sourceIdentity": Self::tracked_zone_identity(&stack_object.card),
+            "sourceController": controller_id,
+            "targetCardInstanceId": target_id,
+            "originalController": original_controller,
+        }));
+    }
+
+    /// For a source-state control change, whether it lapsed; `None` for any
+    /// other control modifier.
+    pub(super) fn source_state_control_lapsed(&self, modifier: &Value) -> Option<bool> {
+        (value_kind(modifier) == Some(SOURCE_STATE_CONTROL))
+            .then(|| !self.untap_restriction_source_state_holds(modifier))
+    }
+
+    /// Whether the watched state of a lasting source-state effect still
+    /// holds: the same source object (CR 400.7) on the battlefield and, for
+    /// `remains tapped`, tapped.
+    fn untap_restriction_source_state_holds(&self, modifier: &Value) -> bool {
+        let Some((player, index)) = modifier["sourceCardInstanceId"]
+            .as_str()
+            .and_then(|source_id| self.permanent_position(source_id))
+        else {
+            return false;
+        };
+        let source = &self.state.players[player].battlefield[index];
+        modifier["sourceIdentity"].as_str() == Self::tracked_zone_identity(source)
+            && (modifier["sourceState"].as_str() != Some("tapped") || source.tapped)
+    }
+
+    /// Whether a lasting `for as long as SOURCE remains ...` restriction keeps
+    /// `permanent` tapped during its controller's untap step.
+    pub(super) fn source_state_untap_restriction_holds(&self, permanent: &CardInstance) -> bool {
+        self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some(SOURCE_STATE_UNTAP_RESTRICTION)
+                && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+                && self.untap_restriction_source_state_holds(modifier)
+        })
+    }
+
+    /// CR 611.2b: a `for as long as` effect ends the first time its state
+    /// stops holding and does not resume if the state holds again later.
+    pub(super) fn end_lapsed_source_state_untap_restrictions(&mut self) {
+        let lapsed = self
+            .state
+            .rule_modifiers
+            .iter()
+            .map(|modifier| {
+                value_kind(modifier) == Some(SOURCE_STATE_UNTAP_RESTRICTION)
+                    && !self.untap_restriction_source_state_holds(modifier)
+            })
+            .collect::<Vec<_>>();
+        let mut index = 0;
+        self.state.rule_modifiers.retain(|_| {
+            let keep = !lapsed[index];
+            index += 1;
+            keep
+        });
+    }
+
+    /// The active player's permanents a next-untap-step restriction keeps
+    /// tapped in this untap step (CR 502.3). A restriction naming a player
+    /// applies only during that player's untap step.
+    pub(super) fn next_untap_step_restricted(&self, active_player_id: &str) -> BTreeSet<String> {
+        self.state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| value_kind(modifier) == Some("skipNextUntap"))
+            .filter(|modifier| {
+                modifier[UNTAP_STEP_PLAYER]
+                    .as_str()
+                    .is_none_or(|player| player == active_player_id)
+            })
+            .filter_map(|modifier| modifier["cardInstanceId"].as_str())
+            .filter(|instance_id| {
+                self.permanent_position(instance_id)
+                    .is_some_and(|(player_index, _)| {
+                        self.state.players[player_index].id == active_player_id
+                    })
+            })
+            .map(ToOwned::to_owned)
+            .collect()
+    }
+
+    /// The next-untap-step restrictions this untap step consumed: those of
+    /// the permanents it kept tapped, and every restriction naming the
+    /// active player's untap step (that step has now happened).
+    pub(super) fn expire_next_untap_restrictions(
+        &mut self,
+        active_player_id: &str,
+        kept_tapped: &BTreeSet<String>,
+    ) {
+        self.state.rule_modifiers.retain(|modifier| {
+            if value_kind(modifier) != Some("skipNextUntap") {
+                return true;
+            }
+            match modifier[UNTAP_STEP_PLAYER].as_str() {
+                Some(player) => player != active_player_id,
+                None => !modifier["cardInstanceId"]
+                    .as_str()
+                    .is_some_and(|instance_id| kept_tapped.contains(instance_id)),
+            }
+        });
     }
 }

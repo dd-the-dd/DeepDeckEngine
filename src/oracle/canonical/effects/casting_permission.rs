@@ -42,6 +42,28 @@ pub(in crate::oracle::canonical) fn try_parse_casting_permission(
     }
 }
 
+/// The static modifiers of an allowance clause held for a created rule's
+/// lifetime (CR 611.2a): the same lowering as the static allowance, without
+/// its zone of function. A clause whose static form needs a condition or
+/// another zone of function is refused.
+pub(in crate::oracle::canonical) fn lower_casting_permission_modifiers(
+    node: &CastingPermissionNode,
+) -> MachineResult<Vec<Value>> {
+    let mut cursor = OracleTokenCursor::new("temporary-casting-permission", &[]);
+    let draft = lower_casting_permission(&mut cursor, node.clone())?;
+    cursor.enter("permission.temporary-capability");
+    cursor.require(
+        draft.rule["kind"] == "staticAbility"
+            && draft.rule["activeWhile"] == active_while_battlefield()
+            && draft.rule.get("condition").is_none(),
+        "an unconditional allowance the created rule can hold",
+    )?;
+    Ok(draft.rule["modifiers"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default())
+}
+
 fn lower_player_permission(
     cursor: &mut OracleTokenCursor<'_>,
     node: PlayerPermissionNode,
@@ -73,6 +95,19 @@ fn lower_player_permission(
             lower_alternative_mana_cost_permission(cursor, &cost, spells)
         }
         PlayerPermissionNode::Conjoined(nodes) => lower_conjoined_permissions(cursor, nodes),
+        // CR 302.6: the holder pays the selected creatures' tap-symbol costs
+        // despite summoning sickness.
+        PlayerPermissionNode::ActivateAsThoughHaste { objects } => {
+            cursor.enter("permission.haste-activation.objects-capability");
+            let objects = lower_static_permanent_query(cursor, &objects)?;
+            Ok(static_permission(
+                vec![json!({"kind":"activateAsThoughHaste", "objects":objects})],
+                &[
+                    "Read the shared permanent collection and the haste manner",
+                    "Lift summoning sickness from tap-symbol costs of those permanents only",
+                ],
+            ))
+        }
     }
 }
 

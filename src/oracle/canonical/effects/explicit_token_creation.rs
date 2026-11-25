@@ -161,6 +161,9 @@ pub(in crate::oracle::canonical) fn lower_token_copy_creation(
     if copy.exceptions.not_legendary {
         except.push(json!({ "kind": "removeSupertype", "supertype": "Legendary" }));
     }
+    if copy.exceptions.no_mana_cost {
+        except.push(json!({ "kind": "removeManaCost" }));
+    }
     let mut effect = json!({
         "kind": "createTokens",
         "controller": player,

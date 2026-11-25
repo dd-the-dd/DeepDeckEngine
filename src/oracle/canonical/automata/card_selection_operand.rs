@@ -197,6 +197,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
         let mut quantity = quantity;
         let mut this_way_source = false;
         let mut zone_source = false;
+        let mut linked_source = false;
         let predicate = if matches!(quantity, CardSelectionQuantityNode::All { .. })
             && trial
                 .peek()
@@ -245,6 +246,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             )?;
             trial.enter("collection.selection.source-relation");
             if matches!(quantity, CardSelectionQuantityNode::All { .. })
+                && !super::card_location_starts(&trial)
                 && trial.peek().is_some_and(|raw| {
                     raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
                 })
@@ -266,6 +268,13 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 // singular zone noun (`their hand`); the lowerer proves it.
                 trial.consume_phrase(&["from", "it"])?;
                 zone_source = true;
+            } else if super::card_location_starts(&trial) {
+                // `a creature card exiled with this artifact`: the shared
+                // card-location tail names the source's linked exile (CR
+                // 607.2a) as the collection chosen from.
+                match super::recognize_card_location(&mut trial)? {
+                    super::CardLocationNode::LinkedExile => linked_source = true,
+                }
             } else {
                 trial.consume_phrase(&["from", "among"])?;
             }
@@ -277,6 +286,13 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 quantity,
                 predicate,
                 from: CardCollectionReferenceNode::Zone,
+            });
+        }
+        if linked_source {
+            return Ok(CardSelectionOperandNode {
+                quantity,
+                predicate,
+                from: CardCollectionReferenceNode::Linked,
             });
         }
         if this_way_source {

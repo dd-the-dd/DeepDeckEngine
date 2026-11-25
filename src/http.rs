@@ -331,6 +331,35 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
                 })
         })
         .collect::<BTreeSet<_>>();
+    // CR 401.2: a static `play with the top card of PLAYERS' libraries
+    // revealed` makes each affected player's top card public.
+    let players = &view.state.players;
+    let revealed_library_tops = players
+        .iter()
+        .filter(|source_player| !source_player.has_lost)
+        .flat_map(|source_player| {
+            source_player
+                .battlefield
+                .iter()
+                .filter(|source| source.controller == source_player.id)
+                .flat_map(|source| source.definition.rules.iter())
+                .filter(|rule| rule["kind"].as_str() == Some("staticAbility"))
+                .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
+                .filter(|modifier| modifier["kind"].as_str() == Some("revealLibraryTop"))
+                .flat_map(move |modifier| {
+                    let population = modifier["player"]["kind"].as_str();
+                    players
+                        .iter()
+                        .filter(|player| !player.has_lost)
+                        .filter(move |player| match population {
+                            Some("eachPlayer") => true,
+                            Some("opponentsOf") => player.id != source_player.id,
+                            _ => player.id == source_player.id,
+                        })
+                        .map(|player| player.id.clone())
+                })
+        })
+        .collect::<BTreeSet<_>>();
     for player in &mut view.state.players {
         let known_library_card_ids = view
             .state
@@ -354,7 +383,8 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
                 continue;
             }
             if top_library_index == Some(index)
-                && known_library_card_ids.contains(card.instance_id.as_str())
+                && (known_library_card_ids.contains(card.instance_id.as_str())
+                    || revealed_library_tops.contains(&player.id))
             {
                 card.flags.insert("knownToViewer".to_string(), true);
                 continue;

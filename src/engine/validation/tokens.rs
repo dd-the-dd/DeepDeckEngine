@@ -33,6 +33,7 @@ pub(in super::super) fn copy_exception_supported(exception: &Value) -> bool {
             matches!(exception["supertype"].as_str(), Some("Legendary" | "Snow"))
         }
         Some("addCardType") => exception["cardType"].is_string(),
+        Some("removeManaCost") => true,
         Some("addSubtypes") => exception["subtypes"]
             .as_array()
             .is_some_and(|subtypes| !subtypes.is_empty() && subtypes.iter().all(Value::is_string)),

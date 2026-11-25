@@ -362,7 +362,10 @@ impl GameEngine {
         } else {
             return false;
         };
-        self.runtime_object_filter_matches(view, filter, source, bindings, decisions)
+        // A card's zone history is a fact of this instance, not of its
+        // definition: bound here, where the instance is known.
+        let filter = self.bind_card_history_leaves(instance_id, filter);
+        self.runtime_object_filter_matches(view, &filter, source, bindings, decisions)
     }
 }
 

@@ -501,7 +501,10 @@ impl GameEngine {
         };
         if !permanent_domain {
             object_predicate::try_map_predicate_leaves(&expression["where"], 0, &mut |leaf| {
-                if !object_predicate::definition_atom_supported(leaf) {
+                // A card's zone history is bound per instance below.
+                if !object_predicate::definition_atom_supported(leaf)
+                    && !value_kind(leaf).is_some_and(object_event_history::is_card_history_kind)
+                {
                     return Err(EngineError::new(
                         "unsupported query predicate for a definition-only card domain",
                     ));
@@ -581,6 +584,7 @@ impl GameEngine {
         }
         let mut result = Vec::new();
         for id in candidates {
+            let prepared = self.bind_card_history_leaves(&id, &prepared);
             if self.collection_query_object_matches(&id, &prepared, context, bindings, decisions)? {
                 result.push(id);
             }

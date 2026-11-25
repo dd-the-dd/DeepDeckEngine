@@ -80,7 +80,47 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         // Only the keyword grant has an indefinite primitive so far.
         EffectDurationNode::Indefinite => return None,
         EffectDurationNode::WhileSourceControlled => json!({ "kind": "whileSourceControlled" }),
+        EffectDurationNode::WhileSourceTapped => json!({ "kind": "whileSourceTapped" }),
+        EffectDurationNode::WhileSourceOnBattlefield => {
+            json!({ "kind": "whileSourceOnBattlefield" })
+        }
     })
+}
+
+/// The untap-step window of an untap restriction (CR 502.3, 611.2b): its
+/// kind and, for one named player's next untap step, that player.
+fn lower_untap_restriction_window(
+    cursor: &OracleTokenCursor<'_>,
+    restriction: &UntapRestrictionNode,
+    declared_player_targets: &[(PlayerTargetBinding, String)],
+) -> Result<Value, EffectSequenceLoweringFailure> {
+    let kind = match restriction.duration {
+        UntapRestrictionDuration::NextUntapStep => "nextUntapStep",
+        UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
+        UntapRestrictionDuration::WhileSourceTapped => "whileSourceTapped",
+        UntapRestrictionDuration::WhileSourceOnBattlefield => "whileSourceOnBattlefield",
+    };
+    let mut window = json!({ "kind": kind });
+    if let UntapStepOwner::Player(player) = &restriction.step_owner {
+        let player = match player {
+            LocalPlayerReference::Controller => Some(controller()),
+            LocalPlayerReference::Bound(BoundPlayerReference::EventPlayer) => {
+                Some(json!({ "kind": "triggeringPlayer" }))
+            }
+            LocalPlayerReference::Bound(BoundPlayerReference::Bound(binding)) => {
+                declared_player_targets.iter().find_map(|(key, id)| {
+                    (key.effect_index == binding.0).then(|| chosen_target(id))
+                })
+            }
+            _ => None,
+        };
+        window["player"] = player.ok_or_else(|| {
+            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("an untap step owner the runtime resolves (you, the event player or a declared player)"),
+            )
+        })?;
+    }
+    Ok(window)
 }
 
 pub(in crate::oracle::canonical) fn target_id_for_ordinal(
@@ -169,7 +209,10 @@ fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
             | CardActionNode::Reveal(cards)
             | CardActionNode::Copy { cards, .. }
             | CardActionNode::Permit(CardPermissionNode { cards, .. }),
-        ) => Some(matches!(cards, CardOperandNode::Reference(_))),
+        ) => Some(matches!(
+            cards,
+            CardOperandNode::Reference(_) | CardOperandNode::ObjectAntecedent { .. }
+        )),
         LocalEffectNode::CardAction(_) => Some(false),
         _ => None,
     }) == Some(true)
@@ -743,13 +786,15 @@ fn lower_local_effect_sequence_with_collections(
                         continue;
                     }
                 };
-                let amount = lower_sequence_bound_amount(
+                let mut amount = lower_sequence_bound_amount(
                     cursor,
                     amount,
                     sequence,
                     &target_bindings,
                     context,
                 )?;
+                // `mills half their library`: the acting player's zone.
+                bind_acting_player(&mut amount, &lowered.player);
                 let mut effect = json!({"kind": kind, "player": lowered.player});
                 effect[field] = amount;
                 if let SingularPlayerAction::Counters(node) = &action.action {
@@ -790,11 +835,31 @@ fn lower_local_effect_sequence_with_collections(
                     }
                 };
                 let first_decision = decisions.len();
-                effects.extend(
-                    collections
-                        .lower_action(cursor, action, declarations, &mut decisions)
-                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
-                );
+                // A card pronoun may name a target an earlier action declared.
+                collections.bind_object_references(&target_bindings);
+                let mut lowered = collections
+                    .lower_action(cursor, action, declarations, &mut decisions)
+                    .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                // `exile all cards from your hand. ... return those cards`:
+                // the cards a zone-wide exile moved are the observed exile
+                // collection of the next card action (CR 400.7: the cards
+                // they became), bound only when read.
+                if let CardActionNode::Move {
+                    cards: CardOperandNode::ZoneCollection(query),
+                    destination,
+                } = action
+                    && destination.zone == CardZoneName::Exile
+                    && query.quantity.is_none()
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && let Some(movement) = lowered
+                        .iter_mut()
+                        .rev()
+                        .find(|value| value["kind"] == "moveCards")
+                    && movement.get("bind").is_none()
+                {
+                    movement["bind"] = json!(collections.observe_exiled_objects(None));
+                }
+                effects.extend(lowered);
                 // `look at target player's hand`: the declared zone owner is
                 // the player a later `that player` names (CR 115.1, 608.2c).
                 if let [id] = decisions[first_decision..]
@@ -1235,6 +1300,26 @@ fn lower_local_effect_sequence_with_collections(
                     let later = &sequence.effects[effect_index + 1..];
                     observe_bound_library_search(cursor, collections, search, later)?;
                 }
+                // `Search that player's library ...`, `Search its controller's
+                // graveyard, hand, and library ...`: the holder is a player
+                // this program already binds (CR 108.3, 109.4).
+                SearchedPlayer::Bound(subject) => {
+                    cursor.enter("lower.library-search.bound-holder");
+                    let holder = lower_bound_player_subject(
+                        cursor,
+                        subject,
+                        &target_bindings,
+                        &declared_player_targets,
+                    )?;
+                    let lowered = lower_controller_search_of_holder(cursor, search, holder)?;
+                    collections.register_collection_binding_ids(
+                        &lowered,
+                        &lower_collection_binding(search.binding),
+                    );
+                    effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
+                }
             },
             LocalEffectNode::OptionalLibrarySearch(search) => {
                 cursor.enter("lower.optional-library-search.player");
@@ -1455,10 +1540,8 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 // CR 502.3: the permanent stays tapped during its
                 // controller's untap step for the stated window.
-                let duration = match restriction.duration {
-                    UntapRestrictionDuration::NextUntapStep => "nextUntapStep",
-                    UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
-                };
+                let duration =
+                    lower_untap_restriction_window(cursor, restriction, &declared_player_targets)?;
                 for object in objects {
                     // A plural operand (`those creatures`, `up to two target
                     // creatures`, `all nonblue creatures`) restricts each of
@@ -1475,7 +1558,7 @@ fn lower_local_effect_sequence_with_collections(
                             "effects": [{
                                 "kind": "installUntapRestriction",
                                 "permanent": {"kind": "boundValue", "id": id},
-                                "duration": {"kind": duration},
+                                "duration": duration.clone(),
                             }],
                         }));
                         continue;
@@ -1483,7 +1566,7 @@ fn lower_local_effect_sequence_with_collections(
                     effects.push(json!({
                         "kind": "installUntapRestriction",
                         "permanent": object,
-                        "duration": {"kind": duration},
+                        "duration": duration.clone(),
                     }));
                 }
             }
@@ -1524,13 +1607,15 @@ fn lower_local_effect_sequence_with_collections(
                             None => None,
                             Some(
                                 duration @ (EffectDurationNode::UntilEndOfCurrentTurn
-                                | EffectDurationNode::WhileSourceControlled),
+                                | EffectDurationNode::WhileSourceControlled
+                                | EffectDurationNode::WhileSourceTapped
+                                | EffectDurationNode::WhileSourceOnBattlefield),
                             ) => lower_duration(duration),
                             Some(_) => {
                                 return Err(
                                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                                         cursor.fail(
-                                            "an indefinite, until-end-of-turn or while-source-controlled control duration",
+                                            "an indefinite, until-end-of-turn or source-state control duration",
                                         ),
                                     ),
                                 );
@@ -1621,6 +1706,17 @@ fn lower_local_effect_sequence_with_collections(
                         action["except"] = except.clone();
                     }
                     effects.push(action);
+                }
+                // The singular copied stack object is the antecedent a later
+                // condition reads (`copy target spell. If it's ...`).
+                if slot.cardinality == TargetCardinality::EXACTLY_ONE {
+                    target_bindings.push((
+                        TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                        target_id.to_string(),
+                    ));
                 }
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
@@ -1725,22 +1821,23 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
-                // The engine resolves an attached object and a destination
-                // as source, target, bound or decision references only. An
-                // event-object reference is not a supported attach operand.
-                cursor.require(
-                    attachments
-                        .iter()
-                        .chain(recipients.iter())
-                        .all(|object| value_kind_is_not_observed(object)),
-                    "an attach operand that is not an observed event object",
-                )?;
                 let ([attachment], [recipient]) = (attachments.as_slice(), recipients.as_slice())
                 else {
                     return Err(EffectSequenceLoweringFailure::FailedSupport(
                         cursor.fail("one attached object and one attachment destination"),
                     ));
                 };
+                // Any typed reference to one object is an attach operand: the
+                // source, a declared target, the entering object the event
+                // observed (`attach this Equipment to it`, CR 400.7) or an
+                // object bound earlier. An object is never attached to itself
+                // (CR 701.3c): two operands naming the same reference (`attach
+                // it to it`) leave the recipient ambiguous and are refused.
+                cursor.enter("lower.attach.distinct-operands");
+                cursor.require(
+                    attachment != recipient,
+                    "an attachment and a recipient that name different objects",
+                )?;
                 effects.push(json!({
                     "kind": "attachPermanent",
                     "attachment": attachment.clone(),
@@ -2036,14 +2133,15 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail("exactly one object dealing the damage"),
                     ));
                 };
-                // The permanent the source is attached to (`enchanted creature
-                // deals 1 damage to its owner`) is a live object reference
-                // the runtime resolves; an unattached source deals no damage.
-                cursor.require(
-                    source["kind"].as_str() == Some("chosenTarget")
-                        || (source["kind"].as_str() == Some("attachedPermanent")
-                            && source["attachment"]["kind"].as_str() == Some("self")),
-                    "a damage source declared as a target, bound to a declared target, or attached to the source",
+                // Any typed reference to one object deals the damage (CR
+                // 120.1): a declared target, the permanent the source is
+                // attached to, the event's object, an object bound earlier
+                // (a created token, the card a move put onto the
+                // battlefield) or the source itself. The runtime resolves
+                // each with its own departure rule (CR 608.2b, 608.2h).
+                let source = &cursor.require_value(
+                    super::permanent_subject::single_object_reference(source.clone()),
+                    "one object dealing the damage: a target, an attached, event, bound or source object",
                 )?;
                 let amount = lower_sequence_bound_amount(
                     cursor,
@@ -2060,9 +2158,9 @@ fn lower_local_effect_sequence_with_collections(
                         // earlier targets, never an attached object.
                         cursor
                             .require(
-                                source["kind"].as_str() != Some("attachedPermanent")
+                                source["kind"].as_str() == Some("chosenTarget")
                                     || targets.slots.iter().all(|slot| !slot.exclude_source),
-                                "an `other` recipient relation to the attached damage source",
+                                "an `other` recipient relation to a damage source that is not a declared target",
                             )
                             .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                         let (base_id, candidates, minimum, maximum) = lower_single_target(targets);
@@ -2119,7 +2217,8 @@ fn lower_local_effect_sequence_with_collections(
                             .as_object_mut()
                             .expect("a collection recipient is an object")
                             .remove("excludeSource");
-                        recipient["exclude"] = json!({"kind":"chosenTargets","id":source["id"]});
+                        recipient["exclude"] =
+                            super::permanent_subject::exclusion_of_single_object(source);
                     }
                     effects.push(json!({
                         "kind": "dealDamage",
@@ -2233,15 +2332,21 @@ fn lower_local_effect_sequence_with_collections(
                 // (`that creature`, `its controller`) resolves to.
                 if let DamageRecipientNode::Targets(targets) = &damage.recipient
                     && let [slot] = targets.slots.as_slice()
-                    && slot.cardinality == TargetCardinality::EXACTLY_ONE
                 {
-                    target_bindings.push((
-                        TargetBinding {
-                            effect_index,
-                            slot_index: 0,
-                        },
-                        target_id.clone(),
-                    ));
+                    let binding = TargetBinding {
+                        effect_index,
+                        slot_index: 0,
+                    };
+                    if slot.cardinality == TargetCardinality::EXACTLY_ONE {
+                        target_bindings.push((binding, target_id.clone()));
+                    } else if slot.cardinality.maximum > 1 {
+                        // A plural recipient slot is the set a later `those
+                        // creatures` names (`TargetSet`).
+                        target_bindings.push((
+                            super::permanent_subject::target_set_binding_key(binding),
+                            target_id.clone(),
+                        ));
+                    }
                 }
             }
             LocalEffectNode::ZoneChange(zone_change) => {
@@ -2589,6 +2694,20 @@ fn lower_local_effect_sequence_with_collections(
                     };
                     draw_effect["bind"] = json!(collections.observe_drawn_cards(maximum));
                 }
+                // `exile all creatures. Return those cards ...`: the
+                // permanents a collection exile moved are the observed exile
+                // collection of the next card action (CR 400.7: the cards
+                // they became), bound only when read.
+                if let LocalEffectNode::SelectedPermanents(selected) = effect
+                    && selected.action == SelectedPermanentAction::Exile
+                    && selected.operand.bounds.is_none()
+                    && selected.until.is_none()
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && let [exile] = lowered.as_mut_slice()
+                    && exile["kind"] == "exilePermanent"
+                {
+                    exile["bind"] = json!(collections.observe_exiled_objects(None));
+                }
                 effects.extend(lowered);
             }
         }
@@ -2630,6 +2749,12 @@ fn lower_local_effect_sequence_with_collections(
     })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     bind_returned_source_when_read(cursor, &mut effects, collections)?;
+    effect_alternatives::apply_alternative_frames(
+        cursor,
+        sequence,
+        &mut action_starts,
+        &mut effects,
+    )?;
     apply_delayed_frames(
         cursor,
         &sequence.delayed,
@@ -3532,10 +3657,6 @@ fn references_x_value_here(value: &Value) -> bool {
         && value.get("decisionId").and_then(Value::as_str) == Some("xValue")
 }
 
-fn value_kind_is_not_observed(object: &Value) -> bool {
-    object["kind"].as_str() != Some("observedEventObject")
-}
-
 #[cfg(test)]
 #[path = "effect_sequence_tests.rs"]
 mod tests;
@@ -3546,6 +3667,9 @@ mod preposed_duration_tests;
 
 #[path = "delayed_frame_lowering.rs"]
 mod delayed_frame_lowering;
+
+#[path = "effect_alternatives.rs"]
+mod effect_alternatives;
 use delayed_frame_lowering::apply_delayed_frames;
 
 #[cfg(test)]
@@ -3790,6 +3914,23 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
         return node.object
             == PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens);
     }
+    // `Exile them at the beginning of the next end step`: a card action
+    // whose pronoun names the created tokens (CR 608.2c).
+    if let LocalEffectNode::CardAction(
+        CardActionNode::Move { cards, .. }
+        | CardActionNode::Reveal(cards)
+        | CardActionNode::Copy { cards, .. }
+        | CardActionNode::Permit(CardPermissionNode { cards, .. }),
+    ) = next
+    {
+        return matches!(
+            cards,
+            CardOperandNode::ObjectAntecedent {
+                object: PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
+                ..
+            }
+        );
+    }
     let operands: Vec<&PermanentOperandNode> = match next {
         LocalEffectNode::TemporaryKeywordGrant(node) => vec![&node.objects],
         LocalEffectNode::ModifyStats(node) => vec![&node.targets],
@@ -3818,7 +3959,9 @@ fn milled_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index:
                 | CardActionNode::Permit(CardPermissionNode { cards, .. }),
             ) => matches!(
                 cards,
-                CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                CardOperandNode::Reference(_)
+                    | CardOperandNode::ObjectAntecedent { .. }
+                    | CardOperandNode::Selection(_)
             ),
             LocalEffectNode::CardAction(CardActionNode::Choose(_)) => true,
             LocalEffectNode::OptionalSequence(inner) => inner.effects.first().is_some_and(reads),
@@ -3877,6 +4020,8 @@ fn apply_performer(
                 cursor.fail("a performer other than the controller"),
             ));
         }
+        // `the player to your left|right` (CR 101.4).
+        PerformerNode::SeatNeighbor(direction) => lower_seat_neighbor(*direction),
         // CR 608.2d: the controller chooses one player of the population on
         // resolution; every primitive of the action (and of the verbs that
         // continue it) names the same choice. The choice is the shared
@@ -3979,18 +4124,55 @@ fn apply_performer(
             }));
             return Ok(());
         }
-        PerformerNode::Population {
-            players,
-            excluding_controller,
-        } => {
+        PerformerNode::Population { .. } | PerformerNode::FilteredPopulation(_) => {
             let bind = format!("performer{effect_index}");
-            // CR 102.3: `each other player` is every player but the
-            // controller, teammates included, not the opponents set.
-            let players = if *excluding_controller {
-                json!({"kind": "playersExcept", "player": controller()})
-            } else {
-                lower_player_set_reference(*players)
+            let players = match &performer {
+                // `each player who ...`, `each player other than its
+                // controller` (CR 102.1-102.3): the shared player-set filter.
+                PerformerNode::FilteredPopulation(query) => {
+                    let except = match &query.except {
+                        None => None,
+                        Some(subject) => Some(lower_bound_player_subject(
+                            cursor,
+                            subject,
+                            target_bindings,
+                            declared_player_targets,
+                        )?),
+                    };
+                    lower_player_population_query(query, except).map_err(|expected| {
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                            cursor.fail(expected),
+                        )
+                    })?
+                }
+                // CR 102.3: `each other player` is every player but the
+                // controller, teammates included, not the opponents set.
+                PerformerNode::Population {
+                    excluding_controller: true,
+                    ..
+                } => json!({"kind": "playersExcept", "player": controller()}),
+                PerformerNode::Population { players, .. } => lower_player_set_reference(*players),
+                _ => {
+                    return Err(EffectSequenceLoweringFailure::FailedInvariant(
+                        cursor.fail("a player population performer"),
+                    ));
+                }
             };
+            // A restriction is read once, when its instruction begins: a
+            // later verb the same restricted subject continues (`each
+            // opponent who has seven or more cards in hand discards a card,
+            // then draws a card`) would read it again after the first
+            // action changed the game, so it is refused explicitly.
+            if players["kind"] == "filterPlayers"
+                && effects[..start]
+                    .iter()
+                    .any(|effect| effect["kind"] == "forEachPlayer" && effect["players"] == players)
+            {
+                cursor.enter("lower.performer.restricted-population.continued");
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("one action per restricted player population"),
+                ));
+            }
             let body = effects
                 .drain(start..)
                 .map(|mut effect| {
@@ -4018,6 +4200,42 @@ fn apply_performer(
         effect["performer"] = player.clone();
     }
     Ok(())
+}
+
+/// A player the program already binds (`that player`, `its controller`,
+/// the triggering event's player), as one singular runtime reference: the
+/// player excluded from a population (`each player other than its
+/// controller`) or the holder of searched zones (`its controller's library`).
+fn lower_bound_player_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: &PlayerEffectSubject,
+    target_bindings: &[(TargetBinding, String)],
+    declared_player_targets: &[(PlayerTargetBinding, String)],
+) -> Result<Value, EffectSequenceLoweringFailure> {
+    cursor.enter("lower.bound-player");
+    match subject {
+        PlayerEffectSubject::EventPlayer => Ok(json!({"kind": "triggeringPlayer"})),
+        PlayerEffectSubject::ObjectRelation { relation, object } => Ok(json!({
+            "kind": match relation {
+                ObjectPlayerRelation::Controller => "controllerOf",
+                ObjectPlayerRelation::Owner => "ownerOf",
+            },
+            "object": lower_bound_permanent_reference(cursor, *object, target_bindings)?,
+        })),
+        PlayerEffectSubject::Bound(binding) => declared_player_targets
+            .iter()
+            .find_map(|(key, id)| (key.effect_index == binding.0).then(|| chosen_target(id)))
+            .ok_or_else(|| {
+                EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("an earlier declared player for the bound player"),
+                )
+            }),
+        PlayerEffectSubject::Controller | PlayerEffectSubject::DeclaredTarget { .. } => {
+            Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("a player this program already binds"),
+            ))
+        }
+    }
 }
 
 /// The player targets that query possessors (`target opponent controls`)
@@ -4314,11 +4532,14 @@ fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: 
     matches!(
         sequence.effects.get(effect_index + 1),
         Some(LocalEffectNode::CardAction(
-            CardActionNode::Reveal(CardOperandNode::Reference(_))
-                | CardActionNode::Permit(CardPermissionNode {
-                    cards: CardOperandNode::Reference(_) | CardOperandNode::Selection(_),
-                    ..
-                })
+            CardActionNode::Reveal(
+                CardOperandNode::Reference(_) | CardOperandNode::ObjectAntecedent { .. }
+            ) | CardActionNode::Permit(CardPermissionNode {
+                cards: CardOperandNode::Reference(_)
+                    | CardOperandNode::ObjectAntecedent { .. }
+                    | CardOperandNode::Selection(_),
+                ..
+            })
         ))
     )
 }

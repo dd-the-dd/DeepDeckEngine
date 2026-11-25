@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "selector-predicates-relations-batch7/comparative-name-zone-history",
+  "cardName": "Selector predicates and relations (batch 7)",
+  "cases": [
+    {
+      "id": "exact-bounty-agent-thats-article-list",
+      "request": {
+        "cardName": "Bounty Agent",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "Vigilance\n{T}, Sacrifice this creature: Destroy target legendary permanent that's an artifact, creature, or enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-prehistoric-pet-anchorless-comparative",
+      "request": {
+        "cardName": "Prehistoric Pet",
+        "typeLine": "Creature — Dinosaur Ninja",
+        "manaCost": "{W}",
+        "oracleText": "This creature can't be blocked by creatures with greater power.\n{1}{W}, {T}: Return another target creature you control to its owner's hand. Activate only during your turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-self-assembler-subtype-card-type-search",
+      "request": {
+        "cardName": "Self-Assembler",
+        "typeLine": "Artifact Creature — Assembly-Worker",
+        "manaCost": "{5}",
+        "oracleText": "When this creature enters, you may search your library for an Assembly-Worker creature card, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "known-gap-exact-celestial-kirin-possessive-mana-value",
+      "request": {
+        "cardName": "Celestial Kirin",
+        "typeLine": "Legendary Creature — Kirin Spirit",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Flying\nWhenever you cast a Spirit or Arcane spell, destroy all permanents with that spell's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.rhs-context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-faiths-reward-zone-history",
+      "request": {
+        "cardName": "Faith's Reward",
+        "typeLine": "Instant",
+        "manaCost": "{3}{W}",
+        "oracleText": "Return to the battlefield all permanent cards in your graveyard that were put there from the battlefield this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-into-the-north-snow-search",
+      "request": {
+        "cardName": "Into the North",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Search your library for a snow land card, put it onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "probe-sibling-immerwolf-copular-subtype-disjunction",
+      "request": {
+        "cardName": "Immerwolf Probe",
+        "typeLine": "Creature — Wolf",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "Each other creature you control that's a Wolf or a Werewolf gets +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "probe-sibling-explicit-than-anchor",
+      "request": {
+        "cardName": "Comparative Probe",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{3}{G}",
+        "oracleText": "This creature can't be blocked by creatures with power greater than or equal to 2.\n{T}: Destroy target creature with lesser toughness than this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "probe-sibling-red-or-green-search-card",
+      "request": {
+        "cardName": "Search Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for a red or green card, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "probe-sibling-dragon-creature-cards-search",
+      "request": {
+        "cardName": "Dragon Search Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}",
+        "oracleText": "Search your library for any number of Dragon creature cards, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "probe-unused-combination-same-name-damaged-anchor",
+      "request": {
+        "cardName": "Combination Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Return target creature card with the same name as a creature you control that was dealt damage this turn from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-comparative-without-anchor",
+      "request": {
+        "cardName": "Anchorless Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target creature with greater power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "selector.comparative.anchor"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-with-flying-is-still-a-keyword",
+      "request": {
+        "cardName": "Keyword Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Destroy target creature with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-relative-characteristic-with-own-controller",
+      "request": {
+        "cardName": "Copula Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Destroy target creature that's red or green an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "expectedContains": "without another controller qualifier"
+          }
+        ]
+      }
+    }
+  ]
+}

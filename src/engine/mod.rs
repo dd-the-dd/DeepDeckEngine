@@ -189,8 +189,10 @@ mod mana_spend_prohibition;
 mod mana_value_execution;
 mod nominal_choices;
 mod numeric_evaluation;
+mod numeric_quantities;
 mod object_condition;
 mod object_context;
+mod object_event_history;
 mod object_identity;
 mod object_identity_initialization;
 #[cfg(test)]
@@ -218,7 +220,9 @@ mod player_static_modifiers;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
+mod random_outcome;
 mod rebound;
+mod referenced_object;
 mod resolution_casting;
 mod resolution_checkpoint;
 mod resolution_costs;
@@ -2397,6 +2401,7 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "hasAttachedAura"
             | "dealtDamageThisTurn"
             | "enteredGraveyardThisTurn"
+            | object_event_history::PUT_THERE_FROM_BATTLEFIELD
             | "dealtDamageToControllerThisTurn"
             | "wasDealtDamageThisTurn"
             | "attackedThisTurn"
@@ -2627,7 +2632,13 @@ fn numeric_expression_supported(expression: &Value) -> bool {
     if integer_value(expression).is_some() {
         return true;
     }
+    if let Some(supported) = random_outcome::random_outcome_value_supported(expression) {
+        return supported;
+    }
     if let Some(supported) = object_relation_eval::related_count_supported(expression) {
+        return supported;
+    }
+    if let Some(supported) = numeric_quantities::numeric_quantity_supported(expression) {
         return supported;
     }
     match value_kind(expression) {
@@ -2908,10 +2919,8 @@ fn object_expression_supported(expression: &Value) -> bool {
                     .is_none_or(object_expression_supported)
         }
         Some("cardsExiledWithSource" | "triggeringCard") => true,
-        Some("libraryTopCards") => {
-            library_zone_supported(&expression["zone"])
-                && numeric_expression_supported(&expression["count"])
-        }
+        Some("referencedObject") => referenced_object::referenced_object_supported(expression),
+        Some("libraryTopCards") => card_selection::library_top_cards_supported(expression),
         Some("boundObjects") => expression["binding"].is_string(),
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("setDifference") => {
@@ -2933,7 +2942,7 @@ fn object_expression_supported(expression: &Value) -> bool {
                     // is refused here, not at resolution.
                     card_filter_supported(predicate)
                         && object_predicate::try_map_predicate_leaves(predicate, 0, &mut |leaf| {
-                            if object_predicate::definition_atom_supported(leaf) {
+                            if card_selection::card_zone_query_atom_supported(leaf) {
                                 Ok(leaf.clone())
                             } else {
                                 Err(EngineError::new("not a definition atom"))
@@ -3304,6 +3313,12 @@ fn player_reference_supported(reference: &Value) -> bool {
         // CR 102.3: every player but the named one, teammates included.
         Some("playersExcept") => player_complement_reference_supported(reference),
         Some("chosenTarget" | "chosenObject" | "boundValue") => reference["id"].is_string(),
+        Some("filterPlayers") => {
+            effect_domains::player_designations::filtered_players_supported(reference)
+        }
+        Some("seatNeighbor") => {
+            effect_domains::player_designations::seat_neighbor_supported(reference)
+        }
         _ => false,
     }
 }
@@ -3311,7 +3326,7 @@ fn player_reference_supported(reference: &Value) -> bool {
 fn singular_player_reference_supported(reference: &Value) -> bool {
     !matches!(
         value_kind(reference),
-        Some("eachPlayer" | "opponentsOf" | "playersExcept")
+        Some("eachPlayer" | "opponentsOf" | "playersExcept" | "filterPlayers")
     ) && player_reference_supported(reference)
 }
 
@@ -4582,6 +4597,9 @@ pub fn effect_supported(effect: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = myriad::myriad_effect_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = random_outcome::random_outcome_effect_supported(effect) {
         return supported;
     }
     if let Some(supported) = city_blessing::ascend_effect_supported(effect) {
@@ -7422,7 +7440,8 @@ impl GameEngine {
             .players
             .iter()
             .find(|player| !player.has_lost)
-            .map(|player| player.id.clone());
+            .map(|player| player.id.clone())
+            .filter(|player_id| self.player_can_win(player_id));
         let mut all_losers = self
             .state
             .players
@@ -7669,7 +7688,9 @@ impl GameEngine {
             .battlefield_static_modifiers()
             .iter()
             .any(|(_, modifier)| value_kind(modifier) == Some("preventPlayersDrawCards"));
-        let draw_prevented = draw_prevented || self.static_draw_limit_reached(player_id);
+        let draw_prevented = draw_prevented
+            || self.static_draw_limit_reached(player_id)
+            || self.player_draw_prohibited(player_id);
         if draw_prevented {
             self.record_event(
                 "cardDrawPrevented",
@@ -9286,6 +9307,9 @@ impl GameEngine {
     }
 
     fn numeric_expression(&self, expression: &Value, controller_id: &str) -> Option<i32> {
+        if let Some(value) = self.numeric_quantity(expression, controller_id) {
+            return value;
+        }
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
@@ -9923,17 +9947,17 @@ impl GameEngine {
             )
         {
             let source = source?;
-            let counter = expression["counter"].as_str()?;
+            // One kind, or every kind when the expression names none.
+            let counter = expression["counter"].as_str();
             return self
                 .permanent_position(&source.instance_id)
                 .map(|(player_index, card_index)| {
-                    self.state.players[player_index].battlefield[card_index]
-                        .counters
-                        .get(counter)
-                        .copied()
-                        .unwrap_or(0)
+                    numeric_quantities::counter_total(
+                        &self.state.players[player_index].battlefield[card_index].counters,
+                        counter,
+                    )
                 })
-                .or_else(|| Some(source.counters.get(counter).copied().unwrap_or(0)));
+                .or_else(|| Some(numeric_quantities::counter_total(&source.counters, counter)));
         }
         if value_kind(expression) == Some("countAttachments")
             && matches!(
@@ -10511,7 +10535,8 @@ impl GameEngine {
         permanent.tapped
             || (permanent.summoning_sick
                 && self.permanent_is_creature(permanent)
-                && !self.permanent_has_effective_keyword(permanent, "haste"))
+                && !self.permanent_has_effective_keyword(permanent, "haste")
+                && !self.activates_as_though_haste(permanent))
     }
 
     fn ring_bearer_level(&self, permanent: &CardInstance) -> i64 {
@@ -11189,6 +11214,9 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> bool {
         match value_kind(filter) {
+            Some(object_event_history::PUT_THERE_FROM_BATTLEFIELD) => {
+                self.card_put_there_from_battlefield_this_turn(&card.instance_id)
+            }
             Some("enteredGraveyardThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
                     && ((event.kind == "cardsEnteredGraveyard"
@@ -13347,6 +13375,7 @@ impl GameEngine {
             if let Some(binding) = cost["bindToughnessAs"].as_str() {
                 bound.push((binding.to_string(), self.current_toughness(permanent)));
             }
+            bound.extend(numeric_quantities::cost_mana_value_binding(cost, permanent));
         }
         bound
     }
@@ -21199,10 +21228,14 @@ impl GameEngine {
                         "controlWhileSourceTapped"
                             | "controlWhileSourceAttached"
                             | "controlWhileSourceControlled"
+                            | "controlWhileSourceState"
                     )
                 )
             })
             .filter(|modifier| {
+                if let Some(lapsed) = self.source_state_control_lapsed(modifier) {
+                    return lapsed;
+                }
                 let Some(source_id) = modifier["sourceCardInstanceId"].as_str() else {
                     return true;
                 };
@@ -21258,6 +21291,7 @@ impl GameEngine {
                     "controlWhileSourceTapped"
                         | "controlWhileSourceAttached"
                         | "controlWhileSourceControlled"
+                        | "controlWhileSourceState"
                 )
             ) || !expired.contains(modifier)
         });
@@ -22789,6 +22823,10 @@ impl GameEngine {
                 Value::Bool(died.definition.is_token),
             ),
             (
+                damage_preparation::DEPARTED_EVENT_OBJECT_IDENTITY.to_string(),
+                damage_preparation::departed_identity_value(died),
+            ),
+            (
                 "triggeringPermanentWasAttacking".to_string(),
                 Value::Bool(died.flags.get("attacking").copied().unwrap_or(false)),
             ),
@@ -23336,7 +23374,15 @@ impl GameEngine {
         );
     }
 
-    fn record_cards_entered_graveyard_event(&mut self, player_id: &str, cards: &[CardInstance]) {
+    /// Records one batched graveyard arrival with its origin zone when the
+    /// recorder knows it. The per-card departure, mill and discard records
+    /// precede it; zone-history readers classify the batch by its origin.
+    fn record_cards_entered_graveyard_event(
+        &mut self,
+        player_id: &str,
+        cards: &[CardInstance],
+        from: Option<&'static str>,
+    ) {
         if cards.is_empty() {
             return;
         }
@@ -23344,7 +23390,7 @@ impl GameEngine {
             "cardsEnteredGraveyard",
             Some(player_id.to_string()),
             None,
-            event_history::graveyard_arrival_detail(cards),
+            event_history::graveyard_arrival_detail_from(cards, from),
         );
     }
 
@@ -23465,7 +23511,7 @@ impl GameEngine {
             .map(|card| card.instance_id.clone())
             .collect::<Vec<_>>();
         if record_event {
-            self.record_cards_entered_graveyard_event(player_id, cards);
+            self.record_cards_entered_graveyard_event(player_id, cards, from);
         }
         for (observer, rule, matching) in arrival_observers {
             let occurrences = if triggered_event_variants(&rule["event"])
@@ -27602,7 +27648,10 @@ impl GameEngine {
                 {
                     let power_binding = cost["bindPowerAs"].as_str();
                     let toughness_binding = cost["bindToughnessAs"].as_str();
-                    if power_binding.is_none() && toughness_binding.is_none() {
+                    if power_binding.is_none()
+                        && toughness_binding.is_none()
+                        && cost.get("bindManaValueAs").is_none()
+                    {
                         continue;
                     }
                     let Some(target_id) = cost["permanent"]["id"].as_str() else {
@@ -27629,6 +27678,10 @@ impl GameEngine {
                                 Value::from(self.current_toughness(permanent)),
                             );
                         }
+                        stack_decisions.extend(
+                            numeric_quantities::cost_mana_value_binding(cost, permanent)
+                                .map(|(binding, value)| (binding, Value::from(value))),
+                        );
                     }
                 }
                 stack_decisions.extend(attacking_entry::cost_attack_references(
@@ -28975,11 +29028,12 @@ impl GameEngine {
             .any(|(source, modifier)| {
                 value_kind(modifier) == Some("permanentsEnterTapped")
                     && matches_card_filter(&card.definition, &modifier["objects"]["where"])
-                    && self.event_player_reference_matches(
-                        &modifier["objects"]["controller"],
-                        source,
-                        &card.controller,
-                    )
+                    && (modifier["objects"]["controller"].is_null()
+                        || self.event_player_reference_matches(
+                            &modifier["objects"]["controller"],
+                            source,
+                            &card.controller,
+                        ))
             })
         {
             card.tapped = true;
@@ -30489,8 +30543,8 @@ impl GameEngine {
                         && modifier["cardInstanceId"].as_str()
                             == Some(stack_object.card.instance_id.as_str())
                 })
-                .and_then(|modifier| modifier["addCounter"].as_str())
-                .map(ToOwned::to_owned);
+                .map(card_movement::resolving_spell_exile_counters)
+                .unwrap_or_default();
             self.state.rule_modifiers.retain(|modifier| {
                 value_kind(modifier) != Some("exileResolvingSpell")
                     || modifier["cardInstanceId"].as_str()
@@ -30549,8 +30603,8 @@ impl GameEngine {
             let destination = if spell_copy {
                 "ceasesToExist"
             } else if exile_on_leave_stack {
-                if let Some(counter) = resolving_spell_exile_counter {
-                    *card.counters.entry(counter).or_default() += 1;
+                for (counter, count) in resolving_spell_exile_counter {
+                    *card.counters.entry(counter).or_default() += count;
                 }
                 let destination_zone = card_zone_transition::ObjectZone::Exile;
                 if let Some(source) = &movement_source {
@@ -30974,6 +31028,7 @@ impl GameEngine {
                 .get("triggeringPlayerId")
                 .and_then(Value::as_str)
                 .map(ToOwned::to_owned),
+            Some("seatNeighbor") => self.seat_neighbor(reference, stack_object, bindings),
             Some("controllerOfAttachedPermanent") => stack_object
                 .card
                 .attached_to
@@ -31055,6 +31110,7 @@ impl GameEngine {
                     .map(|player| player.id.clone())
                     .collect()
             }
+            Some("filterPlayers") => self.filtered_players(reference, stack_object, bindings),
             _ => self
                 .resolve_player(reference, stack_object, bindings)
                 .into_iter()
@@ -31093,6 +31149,12 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
+            return Some(value);
+        }
+        if let Some(value) = self.runtime_numeric_quantity(expression, stack_object, bindings) {
+            return value;
+        }
+        if let Some(value) = random_outcome::random_outcome_value(expression, bindings) {
             return Some(value);
         }
         if let Some(value) = self.bound_object_numeric_read(expression, bindings, decisions) {
@@ -31799,6 +31861,7 @@ impl GameEngine {
             Some(
                 "boundObjects"
                     | "boundValue"
+                    | "randomOutcomeValue"
                     | "countBoundObjects"
                     | "decisionResult"
                     | "countDecisionCardsMatching"
@@ -32057,31 +32120,10 @@ impl GameEngine {
                 )
             }
             Some("self" | "abilitySource") => Some(vec![stack_object.card.instance_id.clone()]),
-            // The top N cards of a library, top first (CR 401.2). The set is
-            // identified when evaluated; a `bind` fixes it for later verbs.
+            // The top N cards of a library or of each library of a player
+            // population, top first (CR 401.2): `card_selection`.
             Some("libraryTopCards") => {
-                let player_id =
-                    self.resolve_player(&expression["zone"]["player"], stack_object, bindings)?;
-                let player_index = self.player_index(&player_id).ok()?;
-                let count = self
-                    .checked_runtime_numeric_expression(
-                        &expression["count"],
-                        stack_object,
-                        bindings,
-                        decisions,
-                        "libraryTopCards.count",
-                    )
-                    .ok()?
-                    .max(0) as usize;
-                Some(
-                    self.state.players[player_index]
-                        .library
-                        .iter()
-                        .rev()
-                        .take(count)
-                        .map(|card| card.instance_id.clone())
-                        .collect(),
-                )
+                self.library_top_card_ids(expression, stack_object, bindings, decisions)
             }
             Some("attachedObject") if value_kind(&expression["attachment"]) == Some("self") => {
                 stack_object
@@ -32143,6 +32185,9 @@ impl GameEngine {
                 Some(drawn)
             }
             Some("triggeringCard") => Some(self.event_card_ids(stack_object)),
+            Some("referencedObject") => {
+                self.referenced_object_ids(expression, stack_object, bindings, decisions)
+            }
             Some("cardsExiledWithSource") => Some(
                 self.state
                     .rule_modifiers
@@ -33426,6 +33471,15 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_myriad_effect(effect, stack_object, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_random_outcome_effect(
+            effect,
+            stack_object,
+            bindings,
+            decisions,
+            provider,
+        )? {
             return Ok(());
         }
         if self.execute_ascend_effect(effect, stack_object, bindings)? {
@@ -35734,7 +35788,7 @@ impl GameEngine {
             }));
             self.record_event("cityBlessingGained", Some(player_id), None, json!({}));
         }
-        let legend_rule_exemptions = self
+        let mut legend_rule_exemptions = self
             .battlefield_static_modifiers()
             .into_iter()
             .filter(|(_, modifier)| value_kind(modifier) == Some("ignoreLegendRuleForSubtype"))
@@ -35752,6 +35806,7 @@ impl GameEngine {
                     .map(|permanent| permanent.instance_id.clone())
             })
             .collect::<BTreeSet<_>>();
+        legend_rule_exemptions.extend(self.legend_rule_waived_permanents());
         let legendary_groups = self
             .state
             .players
@@ -36267,31 +36322,15 @@ impl GameEngine {
                                     |source_id| self.permanent_position(source_id).is_some(),
                                 )
                         })
+                        || self.source_state_untap_restriction_holds(permanent)
                 })
                 .map(|permanent| permanent.instance_id.clone()),
         );
-        let skip_next_untap = self
-            .state
-            .rule_modifiers
-            .iter()
-            .filter(|modifier| value_kind(modifier) == Some("skipNextUntap"))
-            .filter_map(|modifier| modifier["cardInstanceId"].as_str())
-            .filter(|instance_id| {
-                self.permanent_position(instance_id)
-                    .is_some_and(|(player_index, _)| {
-                        self.state.players[player_index].id == active_player_id
-                    })
-            })
-            .map(ToOwned::to_owned)
-            .collect::<BTreeSet<_>>();
+        let skip_next_untap = self.next_untap_step_restricted(&active_player_id);
         remain_tapped.extend(skip_next_untap.iter().cloned());
         self.skip_untap_step_if_scheduled(active, &mut remain_tapped);
-        self.state.rule_modifiers.retain(|modifier| {
-            value_kind(modifier) != Some("skipNextUntap")
-                || !modifier["cardInstanceId"]
-                    .as_str()
-                    .is_some_and(|instance_id| skip_next_untap.contains(instance_id))
-        });
+        self.skip_untap_step_by_static_rule(active, &mut remain_tapped);
+        self.expire_next_untap_restrictions(&active_player_id, &skip_next_untap);
         let candidates = self.state.players[active]
             .battlefield
             .iter()
@@ -36529,6 +36568,7 @@ impl GameEngine {
                                     == Some("kulrathCounteredCreaturesCantAttackOrBlock")
                         }))
                 && !selected.contains(&card.instance_id)
+                && selected.len() < self.combat_participant_limit("attack")
                 && !selected_has_attack_alone
                 && (selected.is_empty() || !attacks_alone(card))
         }) {
@@ -37007,6 +37047,7 @@ impl GameEngine {
                 && !card.tapped
                 && !self.permanent_has_keyword(card, "cantBlock")
                 && !used_blockers.contains(&card.instance_id)
+                && used_blockers.len() < self.combat_participant_limit("block")
         }) {
             for attacker_id in attackers {
                 if !incomplete_menace_attackers.is_empty()

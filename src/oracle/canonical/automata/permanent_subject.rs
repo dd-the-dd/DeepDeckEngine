@@ -217,6 +217,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         effect if moved_onto_battlefield_selector(effect).is_some() => Local(Some(
             PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
         )),
+        LocalEffectNode::OptionalSequence(body) => optional_sequence_subject(body, previous),
         LocalEffectNode::Choose(node) => match &node.domain {
             ChoiceDomainNode::CreatureType
             | ChoiceDomainNode::Color
@@ -310,7 +311,6 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             _ => Local(None),
         },
         LocalEffectNode::CardAction(_)
-        | LocalEffectNode::OptionalSequence(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::Retarget(_)
@@ -334,6 +334,43 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::DestroyCollection(_)
         | LocalEffectNode::Sacrifice(_)
         | LocalEffectNode::SelectedPermanents(_) => Local(None),
+    }
+}
+
+/// The permanent subject after an optional block (`you may ...`, CR
+/// 608.2c): its last action's referent when that referent does not depend
+/// on the block being performed nor on the block's own action positions
+/// (the source, the permanent it is attached to, an event's object). A
+/// referent the block's actions declare or produce exists only if the
+/// block was performed and is bound inside the block, so it ends the scope
+/// as any other new object does; a block that names no permanent keeps the
+/// enclosing scope.
+fn optional_sequence_subject(
+    body: &EffectSequenceNode,
+    previous: PermanentSubjectScope,
+) -> PermanentSubjectScope {
+    let inner = body
+        .effects
+        .iter()
+        .enumerate()
+        .fold(previous, |scope, (index, effect)| {
+            permanent_subject_after_effect(effect, index, scope)
+        });
+    match inner {
+        PermanentSubjectScope::Local(Some(reference)) if inner == previous => {
+            PermanentSubjectScope::Local(Some(reference))
+        }
+        PermanentSubjectScope::Local(Some(
+            reference @ (PermanentEffectReference::Source(_)
+            | PermanentEffectReference::Attached(_)
+            | PermanentEffectReference::Observed(
+                TypedObservedEventObject::EventPermanent
+                | TypedObservedEventObject::EnteringPermanent
+                | TypedObservedEventObject::CombatCounterpart,
+            )),
+        )) => PermanentSubjectScope::Local(Some(reference)),
+        PermanentSubjectScope::AbilityContext => previous,
+        PermanentSubjectScope::Local(_) => PermanentSubjectScope::Local(None),
     }
 }
 
@@ -401,18 +438,34 @@ fn ordinary_permanent_operand(effect: &LocalEffectNode) -> Option<&PermanentOper
     }
 }
 
-/// The declared selector of the plural slot a `TargetSet` reference names.
+/// The declared selector of the plural slot a `TargetSet` reference names:
+/// the one target-slot reader every declaring action shares.
 fn target_set_selector(
     effects: &[LocalEffectNode],
     binding: TargetBinding,
 ) -> Option<TargetSelector> {
-    match ordinary_permanent_operand(effects.get(binding.effect_index)?)? {
-        PermanentOperandNode::Targets(targets) => targets
-            .slots
-            .get(binding.slot_index)
-            .map(|slot| slot.selector.clone()),
-        _ => None,
-    }
+    target_slot_selector(effects.get(binding.effect_index)?, binding.slot_index).cloned()
+}
+
+/// The one plural permanent slot of a target list, as the object set a
+/// later `those NOUNs`, `they` or `each of them` names (CR 115.1, 608.2c).
+fn plural_target_set(targets: &TargetListNode, effect_index: usize) -> Option<ObjectSetAntecedent> {
+    let [slot] = targets.slots.as_slice() else {
+        return None;
+    };
+    (slot.cardinality.maximum > 1 && selector_guarantees_permanent(&slot.selector)).then(|| {
+        ObjectSetAntecedent {
+            denotes: ObjectSetDenotation::Bound(PermanentEffectReference::TargetSet(
+                TargetBinding {
+                    effect_index,
+                    slot_index: 0,
+                },
+            )),
+            selector: Some(slot.selector.clone()),
+            number: GrammaticalNumber::Plural,
+            tokens: false,
+        }
+    })
 }
 
 /// The selector the card types of written tokens guarantee (`a 1/1 white
@@ -459,6 +512,25 @@ pub(in crate::oracle::canonical) fn prior_object_set(
             tokens: true,
         });
     }
+    // `Choose any number of target creatures. Put a +1/+1 counter on each
+    // of them.` / `deals 1 damage to each of up to two target creatures.
+    // Those creatures can't block this turn.`: the plural slot an action
+    // declared outside an ordinary permanent operand.
+    let declared = match effect {
+        LocalEffectNode::Choose(node) => node.permanent_targets(),
+        LocalEffectNode::DealDamage(node)
+            if !matches!(node.source, PermanentOperandNode::Targets(_)) =>
+        {
+            match &node.recipient {
+                DamageRecipientNode::Targets(targets) => Some(targets),
+                _ => None,
+            }
+        }
+        _ => None,
+    };
+    if let Some(targets) = declared {
+        return plural_target_set(targets, effect_index);
+    }
     let operand = ordinary_permanent_operand(effect)?;
     if matches!(operand, PermanentOperandNode::Collection { .. })
         && matches!(
@@ -471,24 +543,7 @@ pub(in crate::oracle::canonical) fn prior_object_set(
         return None;
     }
     match operand {
-        PermanentOperandNode::Targets(targets) => {
-            let [slot] = targets.slots.as_slice() else {
-                return None;
-            };
-            (slot.cardinality.maximum > 1 && selector_guarantees_permanent(&slot.selector)).then(
-                || ObjectSetAntecedent {
-                    denotes: ObjectSetDenotation::Bound(PermanentEffectReference::TargetSet(
-                        TargetBinding {
-                            effect_index,
-                            slot_index: 0,
-                        },
-                    )),
-                    selector: Some(slot.selector.clone()),
-                    number: GrammaticalNumber::Plural,
-                    tokens: false,
-                },
-            )
-        }
+        PermanentOperandNode::Targets(targets) => plural_target_set(targets, effect_index),
         PermanentOperandNode::BoundReference(
             reference @ PermanentEffectReference::TargetSet(binding),
         ) => Some(ObjectSetAntecedent {
@@ -740,7 +795,12 @@ pub(in crate::oracle::canonical) fn action_result_object(
 fn singular_card_operand(operand: &CardOperandNode) -> Option<Option<ObjectPredicate>> {
     let one = NumericExpression::from(1);
     match operand {
-        CardOperandNode::LibraryTop(top) if top.count == one => Some(None),
+        // `the top card of each player's library` is one card per library.
+        CardOperandNode::LibraryTop(top)
+            if top.count == one && !matches!(top.owner, CardLibraryOwnerNode::Players(_)) =>
+        {
+            Some(None)
+        }
         CardOperandNode::Selection(selection)
             if selection.quantity == CardSelectionQuantityNode::Exactly(one.clone()) =>
         {

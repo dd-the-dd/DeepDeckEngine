@@ -1,0 +1,878 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/temporary-continuous-and-global-rules",
+  "cases": [
+    {
+      "id": "exact-gnarled-scarhide",
+      "request": {
+        "cardName": "Gnarled Scarhide",
+        "typeLine": "Enchantment Creature — Minotaur",
+        "manaCost": "{B}",
+        "oracleText": "Bestow {3}{B} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nThis creature can't block.\nEnchanted creature gets +2/+1 and can't block.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "attachedPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-nimbus-naiad",
+      "request": {
+        "cardName": "Nimbus Naiad",
+        "typeLine": "Enchantment Creature — Nymph",
+        "manaCost": "{2}{U}",
+        "oracleText": "Bestow {4}{U} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nFlying\nEnchanted creature gets +2/+2 and has flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/modifiers/1/keyword",
+                "equals": "flying"
+              },
+              {
+                "pointer": "/modifiers/1/objects/kind",
+                "equals": "attachedPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-animate-wall-subtype-subject",
+      "request": {
+        "cardName": "Animate Wall",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{W}",
+        "oracleText": "Enchant Wall\nEnchanted Wall can attack as though it didn't have defender.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "allowAttackWithDefender"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "attachedPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-enchanted-creature-without-bestow",
+      "request": {
+        "cardName": "Unbestowed Nymph",
+        "typeLine": "Enchantment Creature — Nymph",
+        "manaCost": "{2}",
+        "oracleText": "Enchanted creature gets +2/+2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_card_composition_failure",
+            "state": "composition.bestow-subject"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thalakos-lowlands-your-next-untap-step",
+      "request": {
+        "cardName": "Thalakos Lowlands",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{T}: Add {W} or {U}. This land doesn't untap during your next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-kefnets-last-word-collection-your-step",
+      "request": {
+        "cardName": "Kefnet's Last Word",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Gain control of target artifact, creature, or enchantment. Lands you control don't untap during your next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-mana-vapors-their-next-untap-step",
+      "request": {
+        "cardName": "Mana Vapors",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Lands target player controls don't untap during their next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-amber-prison-remains-tapped",
+      "request": {
+        "cardName": "Amber Prison",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "You may choose not to untap this artifact during your untap step.\n{4}, {T}: Tap target artifact, creature, or land. That permanent doesn't untap during its controller's untap step for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-rust-tick-remains-tapped",
+      "request": {
+        "cardName": "Rust Tick",
+        "typeLine": "Artifact Creature — Insect",
+        "manaCost": "{3}",
+        "oracleText": "You may choose not to untap this creature during your untap step.\n{1}, {T}: Tap target artifact. It doesn't untap during its controller's untap step for as long as this creature remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-kill-switch-plural-remains-tapped",
+      "request": {
+        "cardName": "Kill Switch",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}: Tap all other artifacts. They don't untap during their controllers' untap steps for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "near-miss-untap-window-unknown-source-state",
+      "request": {
+        "cardName": "Counter Lock Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Tap target creature. It doesn't untap during its controller's untap step for as long as it has a counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "duration.while-source.introducer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sower-of-temptation-control-while-on-battlefield",
+      "request": {
+        "cardName": "Sower of Temptation",
+        "typeLine": "Creature — Faerie Wizard",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flying\nWhen this creature enters, gain control of target creature for as long as this creature remains on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "whileSourceOnBattlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-vedalken-shackles-control-while-tapped",
+      "request": {
+        "cardName": "Vedalken Shackles",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "You may choose not to untap this artifact during your untap step.\n{2}, {T}: Gain control of target creature with power less than or equal to the number of Islands you control for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-giants-grasp-aura-source-window",
+      "request": {
+        "cardName": "Giant's Grasp",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Enchant Giant you control\nWhen this Aura enters, gain control of target nonland permanent for as long as this Aura remains on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-courser-of-kruphix-revealed-top",
+      "request": {
+        "cardName": "Courser of Kruphix",
+        "typeLine": "Enchantment Creature — Centaur",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "Play with the top card of your library revealed.\nYou may play lands from the top of your library.\nLandfall — Whenever a land you control enters, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "revealLibraryTop"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-oracle-of-mul-daya",
+      "request": {
+        "cardName": "Oracle of Mul Daya",
+        "typeLine": "Creature — Elf Shaman",
+        "manaCost": "{3}{G}",
+        "oracleText": "You may play an additional land on each of your turns.\nPlay with the top card of your library revealed.\nYou may play lands from the top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "revealLibraryTop"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stasis-skip-untap-steps",
+      "request": {
+        "cardName": "Stasis",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "Players skip their untap steps.\nAt the beginning of your upkeep, sacrifice this enchantment unless you pay {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "skipUntapStep"
+              },
+              {
+                "pointer": "/modifiers/0/player/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-platinum-angel-cant-win",
+      "request": {
+        "cardName": "Platinum Angel",
+        "typeLine": "Artifact Creature — Angel",
+        "manaCost": "{7}",
+        "oracleText": "Flying\nYou can't lose the game and your opponents can't win the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "cantLoseGame"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "cantWinGame"
+              },
+              {
+                "pointer": "/modifiers/1/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mornsong-aria-cant-draw",
+      "request": {
+        "cardName": "Mornsong Aria",
+        "typeLine": "Legendary Enchantment",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Players can't draw cards or gain life.\nAt the beginning of each player's draw step, that player loses 3 life, searches their library for a card, puts it into their hand, then shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitDraw"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "prohibitPlayerAction"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mirror-gallery-legend-rule",
+      "request": {
+        "cardName": "Mirror Gallery",
+        "typeLine": "Artifact",
+        "manaCost": "{5}",
+        "oracleText": "The \"legend rule\" doesn't apply.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "legendRuleDoesNotApply"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-council-of-reeds-legend-rule-collection",
+      "request": {
+        "cardName": "Council of Reeds",
+        "typeLine": "Legendary Creature — Human Scientist Hero",
+        "manaCost": "{2}{U}",
+        "oracleText": "The \"legend rule\" doesn't apply to creatures you control.\nAt the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "legendRuleDoesNotApply"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-silent-arbiter-combat-limits",
+      "request": {
+        "cardName": "Silent Arbiter",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}",
+        "oracleText": "No more than one creature can attack each combat.\nNo more than one creature can block each combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "combatParticipantLimit"
+              },
+              {
+                "pointer": "/modifiers/0/role",
+                "equals": "attack"
+              },
+              {
+                "pointer": "/modifiers/0/maximum/value",
+                "equals": 1
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/role",
+                "equals": "block"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-combat-limit-each-turn",
+      "request": {
+        "cardName": "Turn Limit Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "No more than one creature can attack each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.combat-limit.period"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thousand-year-elixir-haste-activation",
+      "request": {
+        "cardName": "Thousand-Year Elixir",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "You may activate abilities of creatures you control as though those creatures had haste.\n{1}, {T}: Untap target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "activateAsThoughHaste"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-tyvar-haste-activation",
+      "request": {
+        "cardName": "Tyvar, Jubilant Brawler",
+        "typeLine": "Legendary Planeswalker — Tyvar",
+        "manaCost": "{1}{B}{G}",
+        "oracleText": "You may activate abilities of creatures you control as though those creatures had haste.\n+1: Untap up to one target creature.\n−2: Mill three cards, then you may return a creature card with mana value 2 or less from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-due-respect-entry-rule",
+      "request": {
+        "cardName": "Due Respect",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Permanents enter tapped this turn.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "permanentsEnterTapped"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-preposed-graveyard-allowance",
+      "request": {
+        "cardName": "Graveyard Allowance Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Until end of turn, you may play lands and cast spells from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "playLandsFromGraveyard"
+              },
+              {
+                "pointer": "/effects/0/modifiers/1/kind",
+                "equals": "castingPermission"
+              },
+              {
+                "pointer": "/effects/0/modifiers/1/sourceZone",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-preposed-flash-allowance-until-next-turn",
+      "request": {
+        "cardName": "Flash Window Probe",
+        "typeLine": "Legendary Planeswalker — Teferi",
+        "manaCost": "{2}",
+        "oracleText": "+1: Until your next turn, you may cast sorcery spells as though they had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "grantFlashCasting"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilNextTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-temporary-legend-rule-waiver",
+      "request": {
+        "cardName": "Echo Waiver Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "The \"legend rule\" doesn't apply to permanents you control this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "legendRuleDoesNotApply"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/objects/controller/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-preposed-entry-and-draw-rules",
+      "request": {
+        "cardName": "Lockdown Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Until your next turn, artifacts your opponents control enter tapped and players can't draw cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "permanentsEnterTapped"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/objects/controller/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilNextTurn"
+              },
+              {
+                "pointer": "/effects/1/modifiers/0/kind",
+                "equals": "prohibitDraw"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entry-rule-without-lifetime",
+      "request": {
+        "cardName": "Lifeless Entry Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Permanents enter tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-end-event",
+      "request": {
+        "cardName": "Unknown End Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Until the next end step, players can't draw cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

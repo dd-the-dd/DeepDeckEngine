@@ -31,6 +31,7 @@ mod bound_collection_untap;
 mod bound_object_condition;
 mod card_action;
 mod card_collection_operand;
+mod card_keyword_grant;
 mod card_library_top;
 mod card_move_destination;
 mod card_selection_operand;
@@ -70,6 +71,7 @@ mod controlled_count_entry;
 mod copy_exception;
 mod cost;
 mod cost_keyword;
+mod cost_paid_object;
 mod counter_delayed_draw;
 mod counter_descriptive_token;
 mod counter_event;
@@ -298,6 +300,7 @@ pub(super) use bound_collection_untap::*;
 pub(super) use bound_object_condition::*;
 pub(super) use card_action::*;
 pub(super) use card_collection_operand::*;
+pub(super) use card_keyword_grant::*;
 pub(super) use card_library_top::*;
 pub(super) use card_move_destination::*;
 pub(super) use card_selection_operand::*;
@@ -337,6 +340,7 @@ pub(super) use controlled_count_entry::*;
 pub(super) use copy_exception::*;
 pub(super) use cost::*;
 pub(super) use cost_keyword::*;
+pub(super) use cost_paid_object::*;
 pub(super) use counter_delayed_draw::*;
 pub(super) use counter_descriptive_token::*;
 pub(super) use counter_event::*;
@@ -842,6 +846,8 @@ impl NumericComparisonOperator {
 pub(in crate::oracle::canonical) enum NumericObjectProperty {
     Power,
     Toughness,
+    /// CR 202.3: read only where a producer records it (a paid cost).
+    ManaValue,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -966,10 +972,11 @@ pub(super) enum NumericExpression {
         right: Box<NumericExpression>,
         rounding: NumericRounding,
     },
-    /// A characteristic of the permanent sacrificed to pay a cost of this
-    /// ability, as last known when the cost was paid. Its producer is
+    /// A characteristic of an object a cost of this ability paid with (the
+    /// sacrificed or tapped permanent, the exiled source card), as last known
+    /// when the cost was paid (`cost_paid_object.rs`). Its producer is
     /// resolved against the same face after card composition.
-    SacrificedCostObjectProperty(NumericObjectProperty),
+    SacrificedCostObjectProperty(CostPaidObjectProperty),
     /// The greatest power or toughness among the ability controller's
     /// permanents matching the predicate (zero when there are none).
     /// `the greatest|highest PROPERTY among COLLECTION`: a maximum over the
@@ -998,6 +1005,9 @@ pub(super) enum NumericExpression {
         object: PermanentEffectReference,
         property: SelectorNumericProperty,
     },
+    /// A record or collection aggregate of the shared quantity language
+    /// (`numeric::NumericQuantity`).
+    Quantity(Box<NumericQuantity>),
 }
 
 /// How a numeric property is aggregated over a collection.
@@ -1033,6 +1043,9 @@ pub(super) enum OpponentFact {
     /// combat (CR 506.2, 702.121a); attacking its planeswalkers or battles
     /// is not attacking the player.
     AttackedByControllerThisCombat,
+    /// The controller attacked that player with a creature during this
+    /// turn (any combat of the turn, CR 506.2).
+    AttackedByControllerThisTurn,
     /// Every opponent of the controller still in the game (`the number of
     /// opponents you have`, CR 102.3).
     Any,
@@ -1086,6 +1099,7 @@ impl NumericExpression {
     pub(super) fn requires_target_binding(&self) -> bool {
         match self {
             Self::CountQuery(query) => query.requires_target_binding(),
+            Self::Quantity(quantity) => quantity.requires_target_binding(),
             Self::PowerOf(_) | Self::ManaValueOf(_) | Self::QualifiedTargetProperty { .. } => true,
             Self::Add { left, right }
             | Self::Subtract { left, right }
@@ -1165,6 +1179,7 @@ impl NumericExpression {
             } => object_predicate_uses_x(required_nominal),
             Self::PermanentCount(count) => object_predicate_uses_x(&count.predicate),
             Self::GreatestPropertyAmong { predicate, .. } => object_predicate_uses_x(predicate),
+            Self::Quantity(quantity) => quantity.uses_x(),
             Self::Add { left, right }
             | Self::Subtract { left, right }
             | Self::Multiply { left, right }
@@ -1465,6 +1480,13 @@ pub(super) enum EffectDurationNode {
     /// ability's controller no longer controls that source object. Produced
     /// only by `recognize_source_control_duration` for consumers opting in.
     WhileSourceControlled,
+    /// `for as long as SOURCE remains tapped` (CR 611.2b): ends the first
+    /// time the same source object is untapped or leaves. Produced only by
+    /// `SourceStateDuration::effect_duration` for consumers opting in.
+    WhileSourceTapped,
+    /// `for as long as SOURCE remains on the battlefield` (CR 611.2b): ends
+    /// when that source object leaves the battlefield.
+    WhileSourceOnBattlefield,
     /// No stated duration (CR 611.2a): the effect lasts indefinitely, and an
     /// effect on an object ends when that object becomes a new object
     /// (CR 400.7). Produced only at the end of a continuous-effect clause.
@@ -1775,6 +1797,9 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     /// `to the battlefield with N COUNTER counters on it` (CR 122.6): the
     /// source enters with these counters.
     pub entering_counters: Option<EnteringCountersNode>,
+    /// `to the battlefield tapped and attacking` (CR 508.4): the source
+    /// enters attacking without being declared as an attacker.
+    pub attacking: Option<EnteringAttackNode>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2387,6 +2412,16 @@ pub(super) enum ControllerKeywordAction {
     Learn,
     Manifest,
     ManifestDread,
+    /// `flip N coin(s)` (CR 705); the count is the quantity.
+    FlipCoins,
+    /// `roll N dK` (CR 706); the count is the quantity.
+    RollDice(DieSides),
+    /// `clash with an opponent` (CR 701.30).
+    Clash,
+    /// `recruit` (CR 701.70a).
+    Recruit,
+    /// `exchange your ZONE and ZONE` (CR 701.12a): the two zones' cards.
+    ExchangeZones(ZoneExchange),
 }
 
 impl ControllerKeywordAction {
@@ -2397,7 +2432,7 @@ impl ControllerKeywordAction {
             "discover" => Some(Self::Discover),
             "learn" => Some(Self::Learn),
             "manifest" => Some(Self::Manifest),
-            _ => None,
+            other => lexical_controller_action(other),
         }
     }
 
@@ -2416,6 +2451,9 @@ pub(super) struct ControllerKeywordActionNode {
 pub(super) enum EffectConnector {
     And,
     Then,
+    /// `ACTION or ACTION` (CR 608.2d): the actions joined by `or` are the
+    /// alternatives of one resolution choice, never a sequence.
+    Or,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2568,7 +2606,7 @@ mod permanent_action;
 mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
-    PerformedEffectNode, PerformerContext, PerformerNode, affected_object_player_at,
+    PerformedEffectNode, PerformerContext, PerformerNode, SeatDirection, affected_object_player_at,
     controller_reference_failure, object_relation_declaration_starts, performer_description,
     performer_modality, permission_sentence_end, person_shifted_permission_tokens,
     person_shifted_tokens, recognize_declaring_performer, recognize_object_relation_declaration,
@@ -2580,8 +2618,8 @@ pub(in crate::oracle::canonical) use referenced_permanent_action::{
     recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
-    SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,
-    untap_restriction_starts,
+    SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, UntapStepOwner,
+    recognize_untap_restriction, untap_restriction_starts,
 };
 mod permanent_subject;
 mod token_window;

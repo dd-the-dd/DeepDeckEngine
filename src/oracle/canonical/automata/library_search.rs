@@ -30,6 +30,13 @@ pub(in crate::oracle::canonical) struct SearchOrigin {
 pub(in crate::oracle::canonical) enum SearchedPlayer {
     Searcher,
     DeclaredTarget(TargetListNode),
+    /// A player the binding environment already names, written as a
+    /// possessive (`that player's library`, `its controller's graveyard,
+    /// hand, and library`, `that creature's owner's library`): the player of
+    /// a triggering event, a declared player, or the player related to a
+    /// bound object (CR 108.3, 109.4), resolved by the shared player
+    /// resolvers.
+    Bound(super::PlayerEffectSubject),
 }
 
 impl SearchOrigin {
@@ -252,7 +259,27 @@ fn run_library_search(
                 {
                     let target = recognize_possessive_target_player(cursor)?;
                     memory.holder = Some(SearchedPlayer::DeclaredTarget(target));
+                } else if controller_owned
+                    && let Some(player) = recognize_possessive_bound_player(cursor)
+                {
+                    memory.holder = Some(SearchedPlayer::Bound(player?));
                 } else {
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+                        && cursor.peek_ahead(1).is_some_and(|raw| {
+                            ["library", "graveyard", "hand"]
+                                .iter()
+                                .any(|zone| raw.eq_ignore_ascii_case(zone))
+                        })
+                    {
+                        // `search you library` (a misprint of `your`): no
+                        // possessive is guessed.
+                        cursor.enter("effect.library-search.possessive-library.misprint");
+                        return Err(cursor.fail(
+                            "a possessive before the searched zone; `you` is not read as `your`",
+                        ));
+                    }
                     cursor.consume(library_player_possessive(
                         memory.player.expect("recognized searching player"),
                     ))?;
@@ -479,7 +506,7 @@ fn run_library_search(
                     cursor.require(
                         matches!(
                             memory.origin.as_ref().map(|origin| &origin.holder),
-                            Some(SearchedPlayer::DeclaredTarget(_))
+                            Some(SearchedPlayer::DeclaredTarget(_) | SearchedPlayer::Bound(_))
                         ),
                         "`, then shuffle` after exiling from the searcher's own library",
                     )?;
@@ -749,6 +776,78 @@ fn conditional_shuffle_starts(cursor: &OracleTokenCursor<'_>) -> bool {
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     })
+}
+
+/// `that player's`, `its controller's`, `that creature's owner's` before a
+/// searched zone: the bound player the shared resolvers read
+/// (`player_subject.rs`), written possessively. `None` when no such head
+/// starts here; a head whose binding fails is the search's failure.
+fn recognize_possessive_bound_player(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> Option<MachineResult<super::PlayerEffectSubject>> {
+    use super::source_sacrifice::atomic_action::player_subject::{
+        player_anaphor_at, recognize_object_related_player_subject, recognize_player_effect_subject,
+    };
+    let start = cursor.position();
+    // The possessive word ends the head (`player's`, `controller's`); the
+    // shared resolvers read the same head without its possessive mark,
+    // over a view whose indices and spans are the written ones.
+    let (offset, base) = (1..=3).find_map(|offset| {
+        let raw = cursor.peek_ahead(offset)?;
+        let base = raw
+            .strip_suffix("'s")
+            .or_else(|| raw.strip_suffix("\u{2019}s"))?
+            .to_ascii_lowercase();
+        ["player", "opponent", "controller", "owner"]
+            .contains(&base.as_str())
+            .then_some((offset, base))
+    })?;
+    let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
+    replace_word(&mut tokens[start + offset], &base);
+    let view_start = cursor.with_tokens(&tokens);
+    let read = if offset == 1 && player_anaphor_at(&view_start).is_some() {
+        let mut view = view_start.clone();
+        view.enter("effect.library-search.possessive-player");
+        recognize_player_effect_subject(&mut view, super::PlayerBinding(usize::MAX), None, false)
+            .map(|player| (player, view.position()))
+    } else if super::object_related_player_head_length(&view_start) == Some(offset + 1) {
+        let mut view = view_start.clone();
+        view.enter("effect.library-search.possessive-object-player");
+        recognize_object_related_player_subject(&mut view, None)
+            .map(|player| (player, view.position()))
+    } else {
+        return None;
+    };
+    Some(read.and_then(|(player, end)| {
+        cursor.enter("effect.library-search.possessive-bound-player");
+        cursor.require(
+            end == start + offset + 1,
+            "the whole possessive player head before the searched zone",
+        )?;
+        cursor.require(
+            matches!(
+                player,
+                super::PlayerEffectSubject::Bound(_)
+                    | super::PlayerEffectSubject::EventPlayer
+                    | super::PlayerEffectSubject::ObjectRelation { .. }
+            ),
+            "a bound player whose zones the controller searches",
+        )?;
+        cursor.advance_to(end)?;
+        Ok(player)
+    }))
+}
+
+/// The written token reclassified as `word` by the shared tokenizer.
+fn replace_word(token: &mut crate::oracle::model::RecognizedEntity, word: &str) {
+    if let Some(class) = crate::oracle::syntax::recognize_entities(word)
+        .into_iter()
+        .next()
+    {
+        token.category = class.category;
+        token.token_type = class.token_type;
+    }
+    token.raw = word.to_string();
 }
 
 fn library_player_possessive(player: LocalPlayerReference) -> &'static str {

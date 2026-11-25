@@ -1783,7 +1783,7 @@
       }
     },
     {
-      "id": "near-miss-opponents-cant-win-is-explicit",
+      "id": "opponents-cant-win-is-a-player-rule",
       "request": {
         "cardName": "Static frame near miss",
         "typeLine": "Artifact Creature — Angel",
@@ -1793,12 +1793,48 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "cantLoseGame"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "cantWinGame"
+              },
+              {
+                "pointer": "/modifiers/1/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-static-cant-win-with-a-turn-duration",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Artifact Creature — Angel",
+        "manaCost": "{6}",
+        "oracleText": "You can't lose the game and your opponents can't win the game this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
+            "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "static.player.prohibition.action"
+            "state": "static.continuous.player-terminator"
           }
         ]
       }

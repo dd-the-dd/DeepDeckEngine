@@ -398,6 +398,163 @@ fn is_shared_land_type_atom(atom: &Value) -> bool {
 /// a constraint nested elsewhere, stays in the filter, where the candidate
 /// validator refuses it.
 fn lift_choice_set_constraints(choice: &mut serde_json::Map<String, Value>) {
+    if choice.get("candidates").is_none() {
+        lift_bound_choice_set_constraints(choice);
+    } else {
+        lift_candidate_choice_set_constraints(choice);
+    }
+    strip_choice_bound_set_constraints(choice);
+}
+
+/// Splits the top-level set-constraint members off one domain filter. The
+/// filter keeps its exact IR when it states none; otherwise it becomes the
+/// remaining conjunction, or `Null` when nothing remains.
+fn split_filter_set_constraints(filter: &mut Value, lifts: &dyn Fn(&Value) -> bool) -> Vec<Value> {
+    let mut members = Vec::new();
+    conjunction_members(filter, &mut members);
+    if !members.iter().any(lifts) {
+        return Vec::new();
+    }
+    let (lifted, rest): (Vec<Value>, Vec<Value>) = members.into_iter().partition(lifts);
+    *filter = match rest.len() {
+        0 => Value::Null,
+        1 => rest.into_iter().next().expect("one remaining operand"),
+        _ => json!({ "kind": "and", "operands": rest }),
+    };
+    lifted
+}
+
+/// Splits the set constraints off a card-collection domain (`cardsInZone`,
+/// `filterObjects`, or a `union` whose every set states the same ones). A
+/// domain left without a filter drops it (`cardsInZone`) or becomes its
+/// unfiltered objects (`filterObjects`). A union whose sets disagree, or any
+/// other domain, is left unchanged.
+fn split_domain_set_constraints(domain: &mut Value, lifts: &dyn Fn(&Value) -> bool) -> Vec<Value> {
+    let kind = domain["kind"].as_str().map(str::to_owned);
+    match kind.as_deref() {
+        Some("cardsInZone") => {
+            let Some(filter) = domain.get_mut("where") else {
+                return Vec::new();
+            };
+            let lifted = split_filter_set_constraints(filter, lifts);
+            // Only a filter emptied by the lift is dropped: an unfiltered
+            // domain keeps its exact IR.
+            if !lifted.is_empty()
+                && domain["where"].is_null()
+                && let Some(map) = domain.as_object_mut()
+            {
+                map.remove("where");
+            }
+            lifted
+        }
+        Some("filterObjects") => {
+            let lifted = split_filter_set_constraints(&mut domain["where"], lifts);
+            if !lifted.is_empty() && domain["where"].is_null() {
+                *domain = domain["objects"].take();
+            }
+            lifted
+        }
+        Some("union") => {
+            let Some(sets) = domain["sets"].as_array() else {
+                return Vec::new();
+            };
+            let mut trial = sets.clone();
+            let mut shared: Option<Vec<Value>> = None;
+            for set in &mut trial {
+                let lifted = split_domain_set_constraints(set, lifts);
+                match &shared {
+                    Some(previous) if *previous != lifted => return Vec::new(),
+                    Some(_) => {}
+                    None => shared = Some(lifted),
+                }
+            }
+            let shared = shared.unwrap_or_default();
+            if !shared.is_empty() {
+                domain["sets"] = Value::Array(trial);
+            }
+            shared
+        }
+        _ => Vec::new(),
+    }
+}
+
+/// A resolution choice among a bound domain (`chooseCards` with `from`,
+/// `up to two creature cards with total mana value 4 or less from your
+/// graveyard`, `cards with different mana values`): the set constraints of
+/// its own `where` and of its domain filter apply to the chosen set, never
+/// to one candidate (CR 608.2d), so they move to `setConstraints`.
+fn lift_bound_choice_set_constraints(choice: &mut serde_json::Map<String, Value>) {
+    let lifts = |atom: &Value| is_set_constraint_atom(atom) || is_shared_land_type_atom(atom);
+    let mut lifted = Vec::new();
+    if let Some(filter) = choice.get_mut("where") {
+        lifted.extend(split_filter_set_constraints(filter, &lifts));
+        if filter.is_null() {
+            choice.remove("where");
+        }
+    }
+    if let Some(domain) = choice.get_mut("from") {
+        for atom in split_domain_set_constraints(domain, &lifts) {
+            if !lifted.contains(&atom) {
+                lifted.push(atom);
+            }
+        }
+    }
+    record_choice_set_constraints(choice, lifted);
+}
+
+/// The size bounds of a choice count its candidates (`countObjects` of the
+/// same domain): once the domain's set constraints are the choice's own,
+/// they are not a candidate filter of that count either.
+fn strip_choice_bound_set_constraints(choice: &mut serde_json::Map<String, Value>) {
+    if choice.get("setConstraints").is_none() && choice.get("sameLandType").is_none() {
+        return;
+    }
+    fn strip(value: &mut Value) {
+        match value {
+            Value::Object(map) => {
+                if map.get("kind").and_then(Value::as_str) == Some("countObjects")
+                    && let Some(domain) = map.get_mut("objects")
+                {
+                    let lifts = |atom: &Value| {
+                        is_set_constraint_atom(atom) || is_shared_land_type_atom(atom)
+                    };
+                    split_domain_set_constraints(domain, &lifts);
+                }
+                map.values_mut().for_each(strip);
+            }
+            Value::Array(items) => items.iter_mut().for_each(strip),
+            _ => {}
+        }
+    }
+    for bound in ["count", "minimum", "maximum"] {
+        if let Some(value) = choice.get_mut(bound) {
+            strip(value);
+        }
+    }
+}
+
+fn record_choice_set_constraints(choice: &mut serde_json::Map<String, Value>, lifted: Vec<Value>) {
+    if lifted.is_empty() {
+        return;
+    }
+    let mut constraints = match choice.remove("setConstraints") {
+        Some(Value::Array(existing)) => existing,
+        Some(other) => vec![other],
+        None => Vec::new(),
+    };
+    for atom in lifted {
+        if is_shared_land_type_atom(&atom) {
+            choice.insert("sameLandType".to_string(), json!(true));
+        } else if !constraints.contains(&atom) {
+            constraints.push(atom);
+        }
+    }
+    if !constraints.is_empty() {
+        choice.insert("setConstraints".to_string(), Value::Array(constraints));
+    }
+}
+
+fn lift_candidate_choice_set_constraints(choice: &mut serde_json::Map<String, Value>) {
     let Some(filter) = choice
         .get_mut("candidates")
         .and_then(|candidates| candidates.get_mut("where"))

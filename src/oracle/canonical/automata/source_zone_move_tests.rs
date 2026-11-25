@@ -25,6 +25,7 @@ fn source_exile_and_anaphoric_transformed_return_are_separate_moves() {
             tapped: false,
             attached_to: None,
             entering_counters: None,
+            attacking: None,
         }
     );
 
@@ -44,6 +45,7 @@ fn source_exile_and_anaphoric_transformed_return_are_separate_moves() {
             tapped: false,
             attached_to: None,
             entering_counters: None,
+            attacking: None,
         }
     );
 }
@@ -94,6 +96,7 @@ fn a_source_card_returns_from_its_graveyard_to_the_battlefield_optionally_tapped
                 tapped,
                 attached_to: None,
                 entering_counters: None,
+                attacking: None,
             },
             "{text}"
         );

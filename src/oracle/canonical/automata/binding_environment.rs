@@ -132,6 +132,22 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// battlefield permanent answers only reads of its last known
     /// information (CR 400.7, 608.2h); an operand reader refuses it.
     pub result_object: Option<ActionResultObject>,
+    /// The latest singular target the program declared whose selector does
+    /// not guarantee a battlefield permanent: a spell or ability on the
+    /// stack (`counter target spell`) or `any target` (a creature, a player
+    /// or a planeswalker, CR 115.4). Targets are declared as the spell is
+    /// cast (CR 601.2c), so a condition may read it, even the condition that
+    /// gates the declaring action; it is never a permanent operand. The
+    /// program parent publishes it (`publish_program_antecedents`).
+    pub declared_target: Option<DeclaredTargetAntecedent>,
+}
+
+/// A singular declared target that need not be a battlefield permanent: the
+/// slot it binds and the selector that declared it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DeclaredTargetAntecedent {
+    pub binding: super::TargetBinding,
+    pub selector: TargetSelector,
 }
 
 /// The one object an earlier action of the same program selected or moved
@@ -193,7 +209,74 @@ pub(in crate::oracle::canonical) fn publish_program_antecedents(
 ) -> BindingEnvironment {
     environment.player_target = program_player_target(effects);
     environment.result_object = super::permanent_subject::program_action_result(effects);
+    environment.declared_target = program_declared_target(effects);
     environment
+}
+
+/// Publishes only the declared-target antecedent over `effects`, the
+/// action being read included: a postposed condition (`Counter target spell
+/// if its mana value is 2 or less`) reads the target its own action
+/// declared, never that action's result (CR 601.2c, 608.2c).
+pub(in crate::oracle::canonical) fn publish_installed_declared_target(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &[super::LocalEffectNode],
+) {
+    let mut environment = installed_binding_environment(cursor);
+    environment.declared_target = program_declared_target(effects);
+    cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+}
+
+/// The latest exactly-one target slot whose selector does not guarantee a
+/// battlefield permanent: the stack object of a counter or copy action, or
+/// the recipient of damage or of a prevention shield written `any target`.
+/// A later action that declares a target of its own is the nearer
+/// declaration, so nothing earlier is published past it.
+fn program_declared_target(effects: &[super::LocalEffectNode]) -> Option<DeclaredTargetAntecedent> {
+    for (effect_index, effect) in effects.iter().enumerate().rev() {
+        let targets = match effect {
+            super::LocalEffectNode::CounterSpell(node) if !node.event_spell => Some(&node.target),
+            super::LocalEffectNode::CopyStackObject(node) if !node.event_spell => {
+                Some(&node.target)
+            }
+            // A targeted damage source occupies the action's first slot.
+            super::LocalEffectNode::DealDamage(node)
+                if !matches!(node.source, super::PermanentOperandNode::Targets(_)) =>
+            {
+                match &node.recipient {
+                    super::DamageRecipientNode::Targets(targets) => Some(targets),
+                    _ => None,
+                }
+            }
+            super::LocalEffectNode::PreventDamage(node) => match &node.recipient {
+                Some(super::DamagePartyNode::Targets(targets)) => Some(targets),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(targets) = targets {
+            return match targets.slots.as_slice() {
+                [slot]
+                    if slot.cardinality == super::TargetCardinality::EXACTLY_ONE
+                        && !super::permanent_subject::selector_guarantees_permanent(
+                            &slot.selector,
+                        ) =>
+                {
+                    Some(DeclaredTargetAntecedent {
+                        binding: super::TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                        selector: slot.selector.clone(),
+                    })
+                }
+                _ => None,
+            };
+        }
+        if super::permanent_subject::target_slot_selector(effect, 0).is_some() {
+            return None;
+        }
+    }
+    None
 }
 
 /// Copies the action result the program parent published on the cursor
@@ -354,6 +437,7 @@ impl BindingEnvironment {
             objects: None,
             player_target: None,
             result_object: None,
+            declared_target: None,
         }
     }
 }
@@ -1111,6 +1195,27 @@ fn lexical_antecedent_implies(
     antecedent_names(antecedent, &[nominal])
 }
 
+/// The failure states of a reference read without any antecedent in its
+/// lexical scope: a nominal or plural anaphor, a bound player, a possessive
+/// player relation, a condition pronoun, a genitive property, or an
+/// `instead` with no replaced sentence before it. Only these may be read
+/// again in an enclosing scope (a labeled spell paragraph continuing the
+/// paragraph before it, CR 207.2c, 608.2c); every other failure is the
+/// reference's own.
+pub(in crate::oracle::canonical) fn unresolved_antecedent_state(state: &str) -> bool {
+    matches!(
+        state,
+        "permanent.subject.nominal-anaphor.antecedent"
+            | "permanent.subject.object-set-anaphor.antecedent"
+            | "player-subject.bound.resolve"
+            | "player-subject.object-relation.antecedent"
+            | "condition.sentence.object.antecedent"
+            | "condition.sentence.object.card-antecedent"
+            | "numeric.genitive.antecedent"
+            | "condition.sentence.instead"
+    )
+}
+
 /// Lexical lookahead for `it` / `that NOUN` (a registered nominal that is
 /// not possessive). It proves no binding.
 pub(in crate::oracle::canonical) fn bound_object_reference_starts(
@@ -1416,7 +1521,11 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
                     .selector
                     .as_ref()
                     .ok_or("the declared selector of the preceding permanent target")?;
-                return if selector_names_nominals(selector, nominals) {
+                // `Counter target spell. If that spell ...`: a read of the
+                // declared stack object, never an operand on it.
+                return if selector_names_nominals(selector, nominals)
+                    || (departed_readable && stack_selector_names_spell(selector, nominals))
+                {
                     Ok(antecedent.reference)
                 } else {
                     Err("a nominal implied by the preceding target's declared selector")
@@ -1438,6 +1547,18 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
             }
             _ => {}
         }
+    }
+    // `Counter target spell if that spell ...`: a read of the declared
+    // target that need not be a permanent, when its selector names the
+    // nominal (a spell on the stack); never an operand.
+    if departed_readable
+        && let Some(target) = environment.declared_target.as_ref().filter(|target| {
+            stack_selector_names_spell(&target.selector, nominals)
+                || selector_names_nominals(&target.selector, nominals)
+        })
+        && environment.object.is_none()
+    {
+        return Ok(PermanentEffectReference::Target(target.binding));
     }
     // `Create a 1/1 Otter creature token. ... that creature`: the one token
     // the preceding action created, with the types it was created with.
@@ -1461,6 +1582,25 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
         None => "a preceding singular permanent subject in this lexical scope",
         Some(_) => "a declared target as the nominal anaphor antecedent",
     })
+}
+
+/// `spell` names a declared stack-object target whose selector guarantees
+/// a spell (CR 112.1, 115.1); an ability on the stack is no spell.
+fn stack_selector_names_spell(selector: &TargetSelector, nominals: &[TargetNominal]) -> bool {
+    fn guarantees_spell(predicate: &super::StackItemPredicate) -> bool {
+        match predicate {
+            super::StackItemPredicate::Spell => true,
+            super::StackItemPredicate::Intersection(operands) => {
+                operands.iter().any(guarantees_spell)
+            }
+            super::StackItemPredicate::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(guarantees_spell)
+            }
+            super::StackItemPredicate::Ability(_) | super::StackItemPredicate::Colorless => false,
+        }
+    }
+    nominals == [TargetNominal::Domain(ObjectKind::Spell)]
+        && matches!(selector, TargetSelector::StackItem(predicate) if guarantees_spell(predicate))
 }
 
 /// One nominal that names a kind of battlefield permanent (`creature`,
@@ -1535,6 +1675,141 @@ pub(in crate::oracle::canonical) fn resolve_condition_antecedent(
     } else {
         resolve_nominal_antecedent(environment, nominals, true)
     }
+}
+
+/// What a condition pronoun (`it`, `its`, `that card`) names when the
+/// program has no permanent subject and no card result in scope: the
+/// nearest of a declared target that need not be a permanent and of the one
+/// object an earlier action selected or moved, else the spell a cast record
+/// binds (CR 601.2c, 603.2, 608.2c).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ConditionPronounAntecedent {
+    /// A declared spell, `any target` or other non-permanent target slot.
+    Target(super::TargetBinding),
+    /// The one object an earlier action of the program selected or moved.
+    ActionResult(super::ActionResultReference),
+    /// The object the triggering event records as its subject, read for
+    /// its last known information once it left the battlefield (CR
+    /// 603.10a, 608.2h): `draw a card if its power is 3 or greater` after
+    /// the entering creature's draw.
+    EventObject(PermanentEffectReference),
+    /// The spell the triggering cast record binds.
+    EventSpell,
+}
+
+/// The diagnostic of a condition over a permanent an earlier action
+/// sacrificed: the card it became is another object (CR 400.7) whose
+/// characteristics are not its last known information (CR 608.2h).
+pub(in crate::oracle::canonical) const SACRIFICED_RESULT_CONDITION: &str = "a condition over an object whose last known information is recorded; the sacrificed permanent is not the card it became (CR 400.7, 608.2h)";
+
+/// The one resolver of a condition pronoun outside the permanent scope
+/// (`Counter target spell if its mana value is 2 or less`, `defending
+/// player reveals the top card of their library. If it's a land card`,
+/// `Whenever you cast a spell, if its mana value is ...`). The latest
+/// lexical antecedent wins (CR 608.2c); the cast record is the frame's.
+pub(in crate::oracle::canonical) fn resolve_condition_pronoun(
+    environment: &BindingEnvironment,
+) -> Result<ConditionPronounAntecedent, &'static str> {
+    let target = environment
+        .declared_target
+        .as_ref()
+        .map(|target| target.binding);
+    let result = environment
+        .result_object
+        .as_ref()
+        .filter(|result| result.number == GrammaticalNumber::Singular);
+    match (target, result) {
+        (Some(target), Some(result)) if target.effect_index == result.reference.effect_index => {
+            Err(
+                "exactly one proven antecedent for the pronoun, not a target and a result of the same action",
+            )
+        }
+        (Some(target), Some(result)) if target.effect_index > result.reference.effect_index => {
+            Ok(ConditionPronounAntecedent::Target(target))
+        }
+        (_, Some(result)) => condition_result_antecedent(result),
+        (Some(target), None) => Ok(ConditionPronounAntecedent::Target(target)),
+        (None, None) => {
+            // No lexical antecedent: the event's grammatical subject, then
+            // the spell a cast record binds (the frame's antecedents).
+            if let Some(slot) = environment
+                .frame
+                .event_object
+                .as_ref()
+                .filter(|slot| slot.subject && relation_supported(slot.reference))
+            {
+                return Ok(ConditionPronounAntecedent::EventObject(slot.reference));
+            }
+            if environment.frame.event_spell {
+                return Ok(ConditionPronounAntecedent::EventSpell);
+            }
+            Err("one proven singular antecedent for the pronoun")
+        }
+    }
+}
+
+/// `that card` in a condition outside the card-collection scope: the one
+/// card an earlier action selected or moved (`Target opponent exiles the
+/// top card of their library. If that card is a land card`).
+pub(in crate::oracle::canonical) fn resolve_condition_card(
+    environment: &BindingEnvironment,
+) -> Result<ConditionPronounAntecedent, &'static str> {
+    let result = environment
+        .result_object
+        .as_ref()
+        .filter(|result| {
+            result.number == GrammaticalNumber::Singular && !result.reference.permanent
+        })
+        .ok_or("one proven singular card antecedent for `that card`")?;
+    condition_result_antecedent(result)
+}
+
+fn condition_result_antecedent(
+    result: &ActionResultObject,
+) -> Result<ConditionPronounAntecedent, &'static str> {
+    if !result.reference.permanent && result.verb == Some(super::ActionResultVerb::Sacrificed) {
+        return Err(SACRIFICED_RESULT_CONDITION);
+    }
+    Ok(ConditionPronounAntecedent::ActionResult(result.reference))
+}
+
+/// `that NOUN` as the subject of a condition: the nominal antecedent read
+/// for its last known information (CR 608.2h), else, for `that spell`, the
+/// spell a cast record binds when no lexical spell antecedent has that
+/// nominal. Nothing else is guessed.
+pub(in crate::oracle::canonical) fn recognize_condition_nominal_object(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<ConditionPronounAntecedentOrObject> {
+    let start = cursor.clone();
+    match recognize_nominal_object_read(cursor, environment) {
+        Ok(reference) => Ok(ConditionPronounAntecedentOrObject::Object(reference)),
+        Err(_)
+            if environment.frame.event_spell
+                && start
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+                && start
+                    .peek_ahead(1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("spell")) =>
+        {
+            *cursor = start;
+            cursor.enter("condition.sentence.object.cast-record-spell");
+            cursor.consume_phrase(&["that", "spell"])?;
+            Ok(ConditionPronounAntecedentOrObject::Antecedent(
+                ConditionPronounAntecedent::EventSpell,
+            ))
+        }
+        Err(failure) => Err(failure),
+    }
+}
+
+/// A condition subject: a permanent reference, or an antecedent outside the
+/// permanent scope.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ConditionPronounAntecedentOrObject {
+    Object(PermanentEffectReference),
+    Antecedent(ConditionPronounAntecedent),
 }
 
 /// The one object every atom of a condition is about, when they share it

@@ -28,7 +28,7 @@ mod payments;
 mod permanent_movement;
 
 mod combat_removal;
-mod player_designations;
+pub(super) mod player_designations;
 mod player_status;
 mod reflexive_cost_transactions;
 mod rules_permissions;

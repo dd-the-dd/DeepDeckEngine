@@ -6,6 +6,10 @@
 //! TemporaryRule := Allowance Duration
 //!                | PlayerSubject PlayerPredicate TemporaryDuration
 //!                | "damage" PROHIBITION "be" "prevented" TemporaryDuration
+//!                | LegendRuleWaiver TemporaryDuration           (CR 704.5j)
+//!                | PERMANENTS "enter" "tapped" TemporaryDuration (CR 614.1c)
+//! LegendRuleWaiver := "the" [QUOTE] "legend" "rule" [QUOTE] "doesn't" "apply"
+//!                     ["to" PERMANENTS]
 //!                | "the" "next" SPELLS "you" "cast" "this" "turn" NextSpellRule
 //!                | "you" "may" "cast" SPELLS "this" "turn"
 //!                  "as" "though" "they" "had" "flash"        (CR 702.8a, 601.3)
@@ -26,8 +30,17 @@
 //! The subject and predicate are the readers of a static ability; only the
 //! written lifetime makes the rule temporary. Without one the clause is a
 //! static ability (`Your opponents can't cast spells during your turn.`)
-//! and this child rolls back. Lifetime and sentence boundary belong to the
-//! enclosing sequence for the allowance header, as before.
+//! and this child rolls back. A sentence-level preposed duration (`Until
+//! your next turn, RULE and RULE.`, CR 611.2a) supplied by the enclosing
+//! sequence is the lifetime of every rule of the sentence; a second, trailing
+//! lifetime after it is rejected. Lifetime and sentence boundary belong to
+//! the enclosing sequence for the allowance header, as before.
+//!
+//! Only rules that change the game's rules, not characteristics, read a
+//! permanent collection here: the created effect keeps applying to objects
+//! that enter later (CR 611.2c). A characteristic change of a collection
+//! stays with the effect families that lock the affected set at
+//! resolution.
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::*;
 
@@ -57,6 +70,22 @@ pub(in crate::oracle::canonical) enum TemporaryRuleNode {
     /// controller casts every matching spell with instant timing while the
     /// rule lasts (CR 702.8a, 601.3). Costs and zones are unchanged.
     FlashCasting { spells: ObjectPredicate },
+    /// `the "legend rule" doesn't apply [to PERMANENTS]` (CR 704.5j).
+    LegendRuleWaiver(LegendRuleWaiverNode),
+    /// `PERMANENTS enter tapped` (CR 614.1c): a replacement applied to each
+    /// matching permanent as it enters while the rule lasts.
+    EntersTapped { objects: ObjectQueryNode },
+    /// `you may play lands and cast spells from your graveyard`, `you may
+    /// cast sorcery spells as though they had flash`: the static allowance
+    /// frame's clause, held by its actor while the rule lasts (CR 601.3).
+    Casting(CastingPermissionNode),
+}
+
+/// `the "legend rule" doesn't apply [to PERMANENTS]`: `None` waives it for
+/// every permanent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct LegendRuleWaiverNode {
+    pub objects: Option<ObjectQueryNode>,
 }
 
 /// What a next-spell rule does to the spell it applies to.
@@ -125,7 +154,21 @@ fn close_temporary_rule(
     cursor: &mut OracleTokenCursor<'_>,
     checkpoint: super::super::machine::MachineCheckpoint,
     rule: TemporaryRuleNode,
+    supplied: Option<&EffectDurationNode>,
 ) -> TemporaryPlayerPermissionParseAttempt {
+    if let Some(duration) = supplied {
+        // The sentence's preposed lifetime: a second one is a conflict.
+        if temporary_duration_starts(cursor) {
+            cursor.enter("temporary-rule.duration.second");
+            return TemporaryPlayerPermissionParseAttempt::FailedCommitted(
+                cursor.fail("no second duration after a sentence-level preposed duration"),
+            );
+        }
+        return TemporaryPlayerPermissionParseAttempt::Parsed(TemporaryPlayerPermissionNode {
+            rule,
+            duration: TemporaryRuleDuration::Effect(duration.clone()),
+        });
+    }
     if !temporary_duration_starts(cursor) {
         let failure = cursor.fail("a temporary rule's lifetime (`this turn`, `until ...`)");
         cursor.rollback(checkpoint);
@@ -187,9 +230,35 @@ pub(in crate::oracle::canonical) fn temporary_land_permission_owns_head(
 /// by its lifetime.
 pub(in crate::oracle::canonical) fn try_recognize_temporary_player_permission(
     cursor: &mut OracleTokenCursor<'_>,
+    supplied: Option<&EffectDurationNode>,
 ) -> TemporaryPlayerPermissionParseAttempt {
+    if legend_rule_waiver_starts(cursor) {
+        let checkpoint = cursor.checkpoint();
+        return match recognize_legend_rule_waiver(cursor) {
+            Ok(waiver) => close_temporary_rule(
+                cursor,
+                checkpoint,
+                TemporaryRuleNode::LegendRuleWaiver(waiver),
+                supplied,
+            ),
+            Err(failure) => {
+                cursor.rollback(checkpoint);
+                TemporaryPlayerPermissionParseAttempt::RejectedCandidate(failure)
+            }
+        };
+    }
+    if let Some(attempt) = try_recognize_temporary_entry_rule(cursor, supplied) {
+        return attempt;
+    }
     if word_at(cursor, 0, "you") && word_at(cursor, 1, "may") && word_at(cursor, 2, "play") {
-        return try_recognize_temporary_allowance(cursor);
+        match try_recognize_temporary_allowance(cursor) {
+            TemporaryPlayerPermissionParseAttempt::RejectedCandidate(failure) => {
+                return try_recognize_temporary_casting_permission(cursor, supplied).unwrap_or(
+                    TemporaryPlayerPermissionParseAttempt::RejectedCandidate(failure),
+                );
+            }
+            attempt => return attempt,
+        }
     }
     if word_at(cursor, 0, "you")
         && word_at(cursor, 1, "may")
@@ -197,6 +266,13 @@ pub(in crate::oracle::canonical) fn try_recognize_temporary_player_permission(
         && let Some(offsets) = flash_manner_offsets(cursor)
     {
         return try_recognize_temporary_flash_permission(cursor, offsets);
+    }
+    if word_at(cursor, 0, "you")
+        && word_at(cursor, 1, "may")
+        && word_at(cursor, 2, "cast")
+        && let Some(attempt) = try_recognize_temporary_casting_permission(cursor, supplied)
+    {
+        return attempt;
     }
     if word_at(cursor, 0, "damage")
         && super::player_prohibition_word_at(cursor, 1)
@@ -208,12 +284,123 @@ pub(in crate::oracle::canonical) fn try_recognize_temporary_player_permission(
         if let Err(failure) = cursor.advance_to(cursor.position() + 4) {
             return TemporaryPlayerPermissionParseAttempt::RejectedCandidate(failure);
         }
-        return close_temporary_rule(cursor, checkpoint, TemporaryRuleNode::DamageCantBePrevented);
+        return close_temporary_rule(
+            cursor,
+            checkpoint,
+            TemporaryRuleNode::DamageCantBePrevented,
+            supplied,
+        );
     }
     if word_at(cursor, 0, "the") && word_at(cursor, 1, "next") && !word_at(cursor, 2, "time") {
         return try_recognize_next_spell_rule(cursor);
     }
-    try_recognize_temporary_player_rule(cursor)
+    try_recognize_temporary_player_rule(cursor, supplied)
+}
+
+/// `you may play|cast COLLECTION [from ZONE] [MANNER] LIFETIME` (CR 611.2a,
+/// 601.3): the static allowance clause read whole, then its lifetime. A
+/// clause the allowance frame does not read is not claimed (a card
+/// permission over `that card` belongs to the card-action frame); a complete
+/// clause without a lifetime rolls back.
+fn try_recognize_temporary_casting_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    supplied: Option<&EffectDurationNode>,
+) -> Option<TemporaryPlayerPermissionParseAttempt> {
+    let checkpoint = cursor.checkpoint();
+    let mut probe = cursor.clone();
+    let node = recognize_casting_permission_clause(&mut probe).ok()?;
+    *cursor = probe;
+    cursor.enter("temporary-rule.casting-permission");
+    Some(close_temporary_rule(
+        cursor,
+        checkpoint,
+        TemporaryRuleNode::Casting(node),
+        supplied,
+    ))
+}
+
+/// `the "legend rule"` at the cursor (CR 704.5j), quoted or not.
+pub(in crate::oracle::canonical) fn legend_rule_waiver_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let quoted = usize::from(cursor.peek_ahead(1) == Some(QUOTE));
+    word_at(cursor, 0, "the")
+        && word_at(cursor, 1 + quoted, "legend")
+        && word_at(cursor, 2 + quoted, "rule")
+}
+
+/// The straight quotation mark token around the rule's name.
+const QUOTE: &str = "\"";
+
+/// `the "legend rule" doesn't apply [to PERMANENTS]`: the waived permanents
+/// are the shared object collection in the battlefield-permanent domain.
+pub(in crate::oracle::canonical) fn recognize_legend_rule_waiver(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LegendRuleWaiverNode> {
+    cursor.enter("legend-rule-waiver.rule");
+    cursor.consume("the")?;
+    let quoted = cursor.peek() == Some(QUOTE);
+    if quoted {
+        cursor.consume(QUOTE)?;
+    }
+    cursor.consume_phrase(&["legend", "rule"])?;
+    if quoted {
+        cursor.consume(QUOTE)?;
+    }
+    cursor.enter("legend-rule-waiver.verb");
+    cursor.require(word_at(cursor, 0, "doesn't"), "`doesn't apply`")?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.consume("apply")?;
+    if !word_at(cursor, 0, "to") {
+        return Ok(LegendRuleWaiverNode { objects: None });
+    }
+    cursor.enter("legend-rule-waiver.objects");
+    cursor.consume("to")?;
+    let objects = recognize_object_collection(cursor)?;
+    cursor.require(
+        objects.denotes_battlefield_permanents(),
+        "a permanent collection the legend rule ignores",
+    )?;
+    Ok(LegendRuleWaiverNode {
+        objects: Some(objects),
+    })
+}
+
+/// `PERMANENTS enter tapped LIFETIME` (CR 614.1c). The collection and the
+/// `enter tapped` modification are read first; only a lifetime (written or
+/// supplied) makes the clause this frame's, otherwise it rolls back.
+fn try_recognize_temporary_entry_rule(
+    cursor: &mut OracleTokenCursor<'_>,
+    supplied: Option<&EffectDurationNode>,
+) -> Option<TemporaryPlayerPermissionParseAttempt> {
+    let checkpoint = cursor.checkpoint();
+    let mut probe = cursor.clone();
+    let objects = recognize_object_collection(&mut probe).ok()?;
+    if !(word_at(&probe, 0, "enter") && word_at(&probe, 1, "tapped")) {
+        return None;
+    }
+    *cursor = probe;
+    cursor.enter("temporary-rule.entry.objects");
+    if !objects.denotes_battlefield_permanents() || objects.exclude_source {
+        let failure = cursor.fail("a permanent collection entering the battlefield");
+        cursor.rollback(checkpoint);
+        return Some(TemporaryPlayerPermissionParseAttempt::RejectedCandidate(
+            failure,
+        ));
+    }
+    cursor.enter("temporary-rule.entry.modification");
+    if let Err(failure) = cursor.consume_phrase(&["enter", "tapped"]) {
+        cursor.rollback(checkpoint);
+        return Some(TemporaryPlayerPermissionParseAttempt::RejectedCandidate(
+            failure,
+        ));
+    }
+    Some(close_temporary_rule(
+        cursor,
+        checkpoint,
+        TemporaryRuleNode::EntersTapped { objects },
+        supplied,
+    ))
 }
 
 /// Offsets of the written lifetime `this turn` and of the timing manner
@@ -409,6 +596,7 @@ fn try_recognize_temporary_allowance(
 /// static vocabulary does not have, is not claimed.
 fn try_recognize_temporary_player_rule(
     cursor: &mut OracleTokenCursor<'_>,
+    supplied: Option<&EffectDurationNode>,
 ) -> TemporaryPlayerPermissionParseAttempt {
     let Some((_, width)) = super::static_player_subject_width(cursor) else {
         return TemporaryPlayerPermissionParseAttempt::NotClaimed;
@@ -447,7 +635,12 @@ fn try_recognize_temporary_player_rule(
             cursor.rollback(checkpoint);
             return TemporaryPlayerPermissionParseAttempt::RejectedCandidate(failure);
         }
-        return close_temporary_rule(cursor, checkpoint, TemporaryRuleNode::NoMaximumHandSize);
+        return close_temporary_rule(
+            cursor,
+            checkpoint,
+            TemporaryRuleNode::NoMaximumHandSize,
+            supplied,
+        );
     }
     let predicate = match super::recognize_static_player_predicate(cursor, reading) {
         Ok(predicate) => predicate,
@@ -463,6 +656,7 @@ fn try_recognize_temporary_player_rule(
             subject: reading.subject,
             predicate,
         },
+        supplied,
     )
 }
 

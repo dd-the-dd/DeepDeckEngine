@@ -76,6 +76,7 @@ pub(in crate::oracle::canonical) fn legacy_target_card_move(
         || destination.tapped
         || destination.face_down
         || destination.transformed
+        || destination.entering_counters.is_some()
         || target.exclude_source
         || target.unbounded
     {

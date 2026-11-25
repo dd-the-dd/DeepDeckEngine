@@ -368,7 +368,17 @@ impl GameEngine {
                 "plural damage does not define a singular excess or recipient binding",
             ));
         }
+        // The triggering event's object deals the damage live, else as it
+        // last existed on the battlefield (CR 608.2h).
+        let mut event_profile = None;
         let source = match effect.get("source") {
+            Some(reference)
+                if super::damage_preparation::is_event_object_damage_source(reference) =>
+            {
+                let resolved = self.event_object_damage_source(reference, stack, bindings)?;
+                event_profile = resolved.profile;
+                resolved.instance_id
+            }
             None => stack.card.instance_id.clone(),
             Some(reference) if matches!(value_kind(reference), Some("self" | "abilitySource")) => {
                 stack.card.instance_id.clone()
@@ -385,7 +395,9 @@ impl GameEngine {
             },
         };
         let players = self.player_iteration_ids(&effect["recipient"], stack, bindings)?;
-        let profile = if source == stack.card.instance_id {
+        let profile = if event_profile.is_some() {
+            event_profile
+        } else if source == stack.card.instance_id {
             Some(self.resolve_damage_source_lki(stack)?)
         } else {
             None

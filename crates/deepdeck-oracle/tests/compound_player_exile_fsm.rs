@@ -73,13 +73,27 @@ fn card_type_and_player_selector_are_reusable_parameters() {
 }
 
 #[test]
+fn or_between_the_exiled_objects_is_the_performers_choice() {
+    // CR 608.2d: `A or B` is one choice the performing opponent makes on
+    // resolution, never the compound exile of both.
+    let parsed = parse("Target opponent exiles a creature they control or their graveyard.");
+    let rule = parsed.abilities[0]
+        .rule
+        .as_ref()
+        .expect("resolution choice");
+    let choice = &rule["effects"][0];
+    assert_eq!(choice["kind"], "chooseOneEffect", "{rule:#}");
+    assert_eq!(choice["player"]["id"], "targetPlayer", "{rule:#}");
+    assert_eq!(
+        choice["options"].as_array().map(Vec::len),
+        Some(2),
+        "{rule:#}"
+    );
+}
+
+#[test]
 fn malformed_family_members_fail_in_the_responsible_local_automaton() {
     for (oracle_text, expected_state, expected_found) in [
-        (
-            "Target opponent exiles a creature they control or their graveyard.",
-            "compound-exile.object-connector",
-            "or",
-        ),
         (
             "Target opponent exiles a creature they control and their library.",
             "zone.possessive-player.kind",

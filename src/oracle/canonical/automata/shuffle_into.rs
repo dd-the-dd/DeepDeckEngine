@@ -199,6 +199,7 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_source_into_library(
         tapped: false,
         attached_to: None,
         entering_counters: None,
+        attacking: None,
     }))
 }
 

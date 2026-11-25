@@ -22,7 +22,9 @@ fn lower_become_types_duration(duration: Option<&EffectDurationNode>) -> Option<
             EffectDurationNode::UntilNextTurn { .. }
             | EffectDurationNode::UntilEndOfNextTurn { .. }
             | EffectDurationNode::Indefinite
-            | EffectDurationNode::WhileSourceControlled,
+            | EffectDurationNode::WhileSourceControlled
+            | EffectDurationNode::WhileSourceTapped
+            | EffectDurationNode::WhileSourceOnBattlefield,
         ) => None,
     }
 }
@@ -95,6 +97,9 @@ fn lower_copied_value_changes(
     };
     if exceptions.not_legendary {
         except.push(json!({ "kind": "removeSupertype", "supertype": "Legendary" }));
+    }
+    if exceptions.no_mana_cost {
+        except.push(json!({ "kind": "removeManaCost" }));
     }
     Ok(except)
 }

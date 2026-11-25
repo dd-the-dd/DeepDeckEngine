@@ -65,6 +65,7 @@ fn controller_relative_leaf(expression: &Value) -> bool {
             | "sumPowers"
             | "countOpponents"
             | "countOpponentsAttackedThisCombat"
+            | "countOpponentsAttackedThisTurn"
             | "devotion"
             | "lifeTotal"
             | "lifeGainedThisTurn"

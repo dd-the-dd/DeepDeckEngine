@@ -555,7 +555,7 @@
       }
     },
     {
-      "id": "observed-creature-pronoun-is-not-current-source",
+      "id": "observed-creature-pronoun-is-the-entering-source",
       "request": {
         "cardName": "Unsupported Observed Source",
         "typeLine": "Enchantment",
@@ -565,12 +565,44 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/source/kind",
+                "equals": "observedEventObject"
+              },
+              {
+                "pointer": "/effects/0/source/event",
+                "equals": "permanentEntered"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-plural-pronoun-for-one-entering-creature",
+      "request": {
+        "cardName": "Unsupported Observed Source",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever a creature you control enters, they deal 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
           }
         ]
       }
