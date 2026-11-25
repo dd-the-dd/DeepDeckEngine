@@ -614,7 +614,37 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     Ok(tokens)
 }
 
+/// True when the `you` at `offset` is the player relation of a declared
+/// target noun phrase (`target permanent you control`, `another target
+/// creature you own`): `you` is followed by the relation verb and the noun
+/// phrase it closes began at `target`, with no clause verb between them.
+fn declared_target_controller_relation(tokens: &[RecognizedEntity], offset: usize) -> bool {
+    let raw = |index: usize| tokens.get(index).map(|token| token.raw.as_str());
+    if !raw(offset).is_some_and(|word| word.eq_ignore_ascii_case("you"))
+        || !raw(offset + 1).is_some_and(|word| {
+            ["control", "controls", "own", "owns"]
+                .iter()
+                .any(|relation| word.eq_ignore_ascii_case(relation))
+        })
+    {
+        return false;
+    }
+    for index in (0..offset).rev() {
+        let word = raw(index).unwrap_or("");
+        if word.eq_ignore_ascii_case("target") {
+            return true;
+        }
+        if matches!(word, "." | ";" | ":" | "\"" | "\u{201c}" | "\u{201d}")
+            || lookup_verb(word, &super::ALL_LEMMAS).is_some()
+        {
+            return false;
+        }
+    }
+    false
+}
+
 /// The written token reclassified as `word` by the shared tokenizer.
+
 fn replace_word(token: &mut RecognizedEntity, word: &str) {
     if let Some(class) = recognize_entities(word).into_iter().next() {
         token.category = class.category;
@@ -653,16 +683,23 @@ pub(in crate::oracle::canonical) fn performer_description(
 /// ambiguous and fails explicitly. Quoted abilities (CR 113.1) are their own
 /// scope: their `you` is the controller of the object that has them.
 /// Tokens after the action (`, then you draw a card`) are not its own.
+/// The controller relation of a declared target (`gains control of target
+/// permanent you control`) is not ambiguous: the ability's controller
+/// declares every target while the ability is put on the stack (CR 601.2c,
+/// 602.2b), before any player performs the action.
 pub(in crate::oracle::canonical) fn controller_reference_failure(
     cursor: &OracleTokenCursor<'_>,
     from: usize,
     to: usize,
 ) -> Option<super::super::MachineFailure> {
     let mut quoted = false;
-    for token in cursor.token_slice(from, to) {
+    let tokens = cursor.token_slice(from, to);
+    for (offset, token) in tokens.iter().enumerate() {
         match token.raw.as_str() {
             "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
             _ if quoted => {}
+            _ if declared_target_controller_relation(tokens, offset) => {}
+
             raw if ["you", "your", "yours", "you've"]
                 .iter()
                 .any(|word| raw.eq_ignore_ascii_case(word)) =>

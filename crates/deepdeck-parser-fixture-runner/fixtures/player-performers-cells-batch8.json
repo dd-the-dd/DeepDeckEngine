@@ -913,6 +913,217 @@
       }
     },
     {
+      "id": "donate-exact",
+      "request": {
+        "cardName": "Donate",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player gains control of target permanent you control."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/performer",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bazaar-trader-exact",
+      "request": {
+        "cardName": "Bazaar Trader",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "{T}: Target player gains control of target artifact, creature, or land you control."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "gain-control-of-each-permanent-you-control-near-miss",
+      "request": {
+        "cardName": "Shared control source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player gains control of each creature you control."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "clause.performer.controller-reference"
+          }
+        ]
+      }
+    },
+    {
+      "id": "thran-spider-exact",
+      "request": {
+        "cardName": "Thran Spider",
+        "typeLine": "Artifact Creature — Spider",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Reach\nWhen this creature enters, you and target opponent each create a tapped Powerstone token."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "false-peace-exact",
+      "request": {
+        "cardName": "False Peace",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player skips all combat phases of their next turn."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "skipTurnPart",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  },
+                  "part": "allCombatPhasesOfNextTurn",
+                  "count": 1,
+                  "thisTurn": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "controller-skips-all-combat-phases-sibling",
+      "request": {
+        "cardName": "Shared skip source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Skip all combat phases of your next turn."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/part",
+                "equals": "allCombatPhasesOfNextTurn"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "skip-all-combat-phases-of-two-turns-near-miss",
+      "request": {
+        "cardName": "Shared skip source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player skips all combat phases of their next two turns."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-action.skip.all-combat-phases"
+          }
+        ]
+      }
+    },
+    {
       "id": "destroy-then-controller-discards-no-code",
       "request": {
         "cardName": "Shared recombination source",

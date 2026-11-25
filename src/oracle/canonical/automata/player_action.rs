@@ -259,6 +259,9 @@ pub(in crate::oracle::canonical) enum SkippedTurnPart {
     DrawStep,
     /// The combat phase (CR 506).
     CombatPhase,
+    /// Every combat phase of the player's next turn (CR 500.11, 506.1):
+    /// `skips all combat phases of their next turn`.
+    AllCombatPhasesOfNextTurn,
 }
 
 impl SkippedTurnPart {
@@ -269,6 +272,7 @@ impl SkippedTurnPart {
             Self::UntapStep => "untapStep",
             Self::DrawStep => "drawStep",
             Self::CombatPhase => "combatPhase",
+            Self::AllCombatPhasesOfNextTurn => "allCombatPhasesOfNextTurn",
         }
     }
 }
@@ -1000,6 +1004,7 @@ fn coordinated_player_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
             VerbLemma::Mill,
             VerbLemma::Discard,
             VerbLemma::Sacrifice,
+            VerbLemma::Create,
         ]
         .iter()
         .any(|lemma| is_verb_form(raw, *lemma, VerbForm::Base))
@@ -1037,6 +1042,13 @@ fn recognize_coordinated_player_action(
             cursor,
             ActingSubject::THIRD_PLURAL,
         )?)
+    } else if base(VerbLemma::Create) {
+        // CR 111.2: each subject creates and controls its own tokens.
+        cursor.enter("player-subject.coordinated.create-tokens");
+        cursor.consume(super::verb_entry(VerbLemma::Create).surface(VerbForm::Base))?;
+        SingularPlayerAction::CreateTokens(Box::new(
+            super::recognize_performed_token_creation_body(cursor, None)?,
+        ))
     } else if player_counters_follow(cursor) {
         SingularPlayerAction::Counters(recognize_player_counters_fragment(
             cursor,
@@ -1149,12 +1161,13 @@ pub(in crate::oracle::canonical) fn skip_turn_part_follows(cursor: &OracleTokenC
     cursor
         .peek()
         .is_some_and(|raw| lookup_verb(raw, &[VerbLemma::Skip]).is_some())
-        && cursor.peek_ahead(1).is_some_and(|raw| {
+        && ((cursor.peek_ahead(1).is_some_and(|raw| {
             raw.eq_ignore_ascii_case("your") || raw.eq_ignore_ascii_case("their")
-        })
-        && cursor
+        }) && cursor
             .peek_ahead(2)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("next"))
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("next")))
+            // `skip(s) all combat phases of POSSESSIVE next turn`.
+            || (word_at(cursor, 1, "all") && word_at(cursor, 2, "combat")))
 }
 
 /// Subject-free `skip(s) POSSESSIVE next [N] PART [this turn]` (CR 500.11);
@@ -1167,7 +1180,19 @@ pub(in crate::oracle::canonical) fn recognize_skip_turn_part_fragment(
 ) -> MachineResult<SkipTurnPartNode> {
     cursor.enter("player-action.skip.verb");
     cursor.consume(super::verb_entry(VerbLemma::Skip).surface(form.form()))?;
+    if word_at(cursor, 0, "all") {
+        // Every combat phase of the acting player's next turn (CR 506.1:
+        // a turn may have more than one combat phase).
+        cursor.enter("player-action.skip.all-combat-phases");
+        cursor.consume_phrase(&["all", "combat", "phases", "of", possessive, "next", "turn"])?;
+        return Ok(SkipTurnPartNode {
+            part: SkippedTurnPart::AllCombatPhasesOfNextTurn,
+            count: 1,
+            this_turn: false,
+        });
+    }
     cursor.enter("player-action.skip.possessive");
+
     cursor.consume(possessive)?;
     cursor.consume("next")?;
     cursor.enter("player-action.skip.count");

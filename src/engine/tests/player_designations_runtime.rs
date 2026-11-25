@@ -156,6 +156,35 @@ fn skipped_steps_and_phases_are_consumed_in_order() {
 }
 
 #[test]
+fn every_combat_phase_of_the_next_turn_is_skipped_once() {
+    let mut engine = test_engine(2);
+    engine.state.turn_number = 3;
+    engine.state.active_player = 1;
+    engine.schedule_skipped_turn_part("player-1", "allCombatPhasesOfNextTurn", 1, false);
+    // Scheduled during the player's own turn: that turn keeps its combats.
+    assert!(!engine.skip_combat_phase_if_scheduled());
+    // Another player's turn is not the skipped turn.
+    engine.state.turn_number = 4;
+    engine.state.active_player = 0;
+    assert!(!engine.skip_combat_phase_if_scheduled());
+    // The player's next turn loses every combat phase (CR 506.1).
+    engine.state.turn_number = 5;
+    engine.state.active_player = 1;
+    assert!(engine.skip_combat_phase_if_scheduled());
+    assert!(engine.skip_combat_phase_if_scheduled());
+    // The skip expires with that turn.
+    engine.state.turn_number = 7;
+    assert!(!engine.skip_combat_phase_if_scheduled());
+    assert!(effect_supported(&json!({
+        "kind": "skipTurnPart",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "part": "allCombatPhasesOfNextTurn",
+        "count": 1,
+        "thisTurn": false,
+    })));
+}
+
+#[test]
 fn a_cast_prohibition_binds_the_acting_player_for_the_turn() {
     let source = test_instance(
         "chant-source",
