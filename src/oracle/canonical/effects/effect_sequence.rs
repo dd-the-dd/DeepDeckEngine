@@ -1056,6 +1056,10 @@ fn lower_local_effect_sequence_with_collections(
                     ));
                 }
             }
+            // CR 500.8: phases added to this turn after a named phase.
+            LocalEffectNode::AdditionalPhases(node) => {
+                effects.push(lower_additional_phases(node));
+            }
             LocalEffectNode::Retarget(node) => {
                 let id = format!("retargetObject{effect_index}");
                 let (decision, effect) = lower_retarget_action(cursor, node, &id)?;

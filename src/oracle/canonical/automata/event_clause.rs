@@ -46,7 +46,7 @@ use super::{
     recognize_land_played_event, recognize_optional_spell_cast_event_atom,
     recognize_ordinal_card_drawn_event, recognize_permanent_transition_subject,
     recognize_player_event, recognize_source_attacked_event, recognize_source_dealt_damage_event,
-    recognize_step_event, try_recognize_actor_object_event_clause,
+    recognize_step_clause_head, try_recognize_actor_object_event_clause,
     try_recognize_sacrifice_event_clause, try_recognize_source_trigger_event,
 };
 
@@ -589,11 +589,8 @@ fn read_step_clause(
     name_failure: Option<&NameResolutionFailure>,
     boundary: &str,
 ) -> EventClauseAttempt {
-    cursor.enter("trigger.envelope.step-prefix");
-    if let Err(failure) = cursor.consume_phrase(&["at", "the", "beginning", "of"]) {
-        return EventClauseAttempt::Rejected(failure);
-    }
-    let event = match recognize_step_event(cursor) {
+    // `at the beginning of STEP` or `at [the] end of combat [on TURN]`.
+    let event = match recognize_step_clause_head(cursor) {
         Ok(event) => event,
         Err(failure) => return EventClauseAttempt::Rejected(failure),
     };

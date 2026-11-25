@@ -9,6 +9,7 @@ mod ability_loss;
 mod ability_word_envelope;
 mod action_result;
 mod activated;
+mod additional_phase;
 mod activated_effect_sequence;
 mod activated_library_search;
 mod activated_top_card_delayed_draw;
@@ -279,6 +280,7 @@ mod zone_prohibition;
 pub(super) use ability_history::*;
 pub(super) use ability_loss::*;
 pub(super) use ability_word_envelope::*;
+pub(super) use additional_phase::*;
 pub(super) use action_result::*;
 pub(super) use activated::*;
 pub(super) use activated_effect_sequence::*;
@@ -2284,6 +2286,8 @@ pub(super) enum LocalEffectNode {
     ControlChange(ControlChangeEffectNode),
     /// `copy TARGET` over a stack object.
     CopyStackObject(CopyStackObjectEffectNode),
+    /// `After this phase, there is an additional combat phase` (CR 500.8).
+    AdditionalPhases(AdditionalPhasesNode),
     PreventDamage(PreventDamageEffectNode),
     Attach(AttachEffectNode),
     TemporaryPlayerPermission(TemporaryPlayerPermissionNode),

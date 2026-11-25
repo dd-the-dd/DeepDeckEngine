@@ -93,6 +93,7 @@ fn positive_integer_compositions(
 
 mod ability_signals;
 mod activated_rule_execution;
+mod additional_phase;
 mod adventure;
 mod attack_defender_restriction;
 mod attack_tax;
@@ -126,6 +127,7 @@ mod defending_player_restriction;
 mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
+mod end_of_combat;
 mod event_batch;
 mod event_card_batch;
 mod event_model;
@@ -5015,6 +5017,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                             | "postcombatMain"
                             | "endStep"
                             | "beginCombat"
+                            | "endOfCombat"
                     )
                 )
                 && event.get("firstOnly").is_none_or(Value::is_boolean)
@@ -37343,8 +37346,7 @@ impl GameEngine {
             declared_actions.push(action);
         }
         if attacks.is_empty() {
-            self.clear_combat_state();
-            return Ok(());
+            return self.end_combat_without_attackers(provider);
         }
         let attacker_ids = attacks.keys().cloned().collect::<Vec<_>>();
         self.record_event(
@@ -37629,7 +37631,7 @@ impl GameEngine {
         result?;
         self.record_attack_outcomes(&attacks, &blocks, combat_event_start);
         // The end of combat step (CR 511): delayed `at end of combat` triggers.
-        if self.fire_delayed_step_triggers("endOfCombat") > 0 {
+        if self.begin_end_of_combat_step() > 0 {
             self.run_priority_window(provider)?;
             if self.state.outcome.is_some() || self.force_end_turn {
                 self.clear_combat_state();
@@ -38487,6 +38489,9 @@ impl GameEngine {
         if self.state.outcome.is_some() {
             return Ok(());
         }
+        if self.run_phases_added_after_main_phase(provider)? {
+            return Ok(());
+        }
         let active_player_id = self.state.players[self.state.active_player].id.clone();
         let skip_combat = self.state.rule_modifiers.iter().position(|modifier| {
             value_kind(modifier) == Some("skipCombatNextTurn")
@@ -38531,6 +38536,9 @@ impl GameEngine {
                 return Ok(());
             }
         }
+        if self.run_phases_added_after_combat_phase(provider)? {
+            return Ok(());
+        }
         self.transition_to_step(GameStep::PostcombatMain);
         self.enqueue_step_triggers("postcombatMain");
         self.run_priority_window(provider)?;
@@ -38538,6 +38546,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.state.outcome.is_some() {
+            return Ok(());
+        }
+        if self.run_phases_added_after_main_phase(provider)? {
             return Ok(());
         }
         self.transition_to_step(GameStep::EndStep);
