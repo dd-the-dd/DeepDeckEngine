@@ -703,6 +703,12 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
             },
             "where": Value::Null,
         })),
+        // CR 102.1-102.3: the members of a restricted population, counted
+        // by the engine's player count over the same `filterPlayers` node.
+        NumericQuantity::Players(query) => Some(json!({
+            "kind": "countPlayers",
+            "players": lower_player_population_query(query, None).ok()?,
+        })),
         NumericQuantity::Greatest(_) => None,
     }
 }

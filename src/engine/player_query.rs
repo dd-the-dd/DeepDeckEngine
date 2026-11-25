@@ -268,6 +268,68 @@ impl<'a> PlayerQueryContext<'a> {
     }
 }
 
+/// Whether a base population is read relative to the ability controller
+/// alone: every player, or every player but that controller.
+fn controller_relative_base(players: &Value) -> bool {
+    match value_kind(players) {
+        Some("eachPlayer") => true,
+        Some("opponentsOf" | "playersExcept") => {
+            matches!(
+                value_kind(&players["player"]),
+                Some("abilityController" | "controller")
+            ) || (value_kind(&players["player"]) == Some("controllerOf")
+                && matches!(
+                    value_kind(&players["player"]["object"]),
+                    Some("self" | "abilitySource")
+                ))
+        }
+        _ => false,
+    }
+}
+
+/// A `filterPlayers` population a count reads relative to the ability
+/// controller (CR 102.1-102.3): the member condition is the shared
+/// `filterPlayers` contract; an excluded bound player or a superlative needs
+/// bindings or every player's measure, which this count does not read.
+pub(super) fn countable_population_supported(population: &Value) -> bool {
+    value_kind(population) == Some("filterPlayers")
+        && controller_relative_base(&population["players"])
+        && population.get("except").is_none()
+        && population.get("superlative").is_none()
+        && population.get("where").is_some()
+        && super::effect_domains::player_designations::filtered_players_supported(population)
+}
+
+impl GameEngine {
+    /// The number of living players of a controller-relative population
+    /// satisfying its member condition, each member read as the condition's
+    /// reference player (as `playerQuantifier` reads it). `None` for a shape
+    /// outside `countable_population_supported`.
+    pub(super) fn population_member_count(
+        &self,
+        population: &Value,
+        controller_id: &str,
+    ) -> Option<i32> {
+        if !countable_population_supported(population) {
+            return None;
+        }
+        let excludes_controller = value_kind(&population["players"]) != Some("eachPlayer");
+        let condition =
+            crate::engine::player_quantifier::bind_quantified_player(&population["where"]);
+        let count = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .filter(|player| !(excludes_controller && player.id == controller_id))
+            .filter(|player| {
+                self.condition_value_with_source(&condition, &player.id, &BTreeMap::new(), None)
+            })
+            .count();
+        i32::try_from(count).ok()
+    }
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")

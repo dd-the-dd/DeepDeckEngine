@@ -254,6 +254,187 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-draw-for-each-opponent-who-lost-life",
+      "request": {
+        "cardName": "Lost Life Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card for each opponent who lost life this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "countPlayers",
+                  "players": {
+                    "kind": "filterPlayers",
+                    "players": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "compare",
+                      "operator": ">=",
+                      "left": {
+                        "kind": "lifeLostThisTurn",
+                        "player": {
+                          "kind": "quantifiedPlayer"
+                        }
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-player-who-was-dealt-combat-damage",
+      "request": {
+        "cardName": "Combat Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card for each player who was dealt combat damage this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/count/players/players",
+                "equals": {
+                  "kind": "eachPlayer"
+                }
+              },
+              {
+                "pointer": "/effects/0/count/players/where/left/detail",
+                "equals": {
+                  "combat": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-number-of-opponents-who-control",
+      "request": {
+        "cardName": "Artifact Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain X life, where X is the number of opponents who control an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "countPlayers"
+              },
+              {
+                "pointer": "/effects/0/amount/players/players",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-untyped-member-action",
+      "request": {
+        "cardName": "Search Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card for each opponent who searched a library this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-plural-member-agreement",
+      "request": {
+        "cardName": "Agreement Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain X life, where X is the number of opponents who was dealt damage this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

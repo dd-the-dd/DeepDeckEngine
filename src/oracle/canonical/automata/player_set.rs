@@ -125,6 +125,17 @@ pub(in crate::oracle::canonical) enum PlayerRelativePredicate {
         measure: super::PlayerStateMeasure,
         extremum: PlayerExtremum,
     },
+    /// `who lost life this turn`, `who was dealt combat damage this turn`:
+    /// an event of this turn whose player is the member.
+    History(MemberHistory),
+}
+
+/// An event of this turn a population member took part in (CR 119.3 life
+/// loss, CR 120.3 damage dealt to a player).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum MemberHistory {
+    LostLife,
+    DealtDamage { combat_only: bool },
 }
 
 /// A player population restricted by an exclusion and/or a relative
@@ -179,6 +190,24 @@ pub(in crate::oracle::canonical) fn recognize_player_population_restriction(
     excluding_controller: bool,
     context: &PlayerRelativeContext,
 ) -> MachineResult<PlayerPopulationQueryNode> {
+    recognize_player_population_restriction_in_number(
+        cursor,
+        players,
+        excluding_controller,
+        context,
+        false,
+    )
+}
+
+/// The same restriction after a plural population noun (`opponents who
+/// control an artifact`): the relative verb agrees in the plural.
+pub(in crate::oracle::canonical) fn recognize_player_population_restriction_in_number(
+    cursor: &mut OracleTokenCursor<'_>,
+    players: PlayerSetReferenceNode,
+    excluding_controller: bool,
+    context: &PlayerRelativeContext,
+    plural: bool,
+) -> MachineResult<PlayerPopulationQueryNode> {
     let mut except = None;
     if word_at(cursor, 0, "other") && word_at(cursor, 1, "than") {
         cursor.enter("player-set.relative.exclusion");
@@ -195,6 +224,7 @@ pub(in crate::oracle::canonical) fn recognize_player_population_restriction(
                 cursor,
                 players,
                 excluding_controller || except.is_some(),
+                plural,
             )?)
         } else {
             None
@@ -248,6 +278,7 @@ fn recognize_player_relative_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     players: PlayerSetReferenceNode,
     restricted: bool,
+    plural: bool,
 ) -> MachineResult<PlayerRelativePredicate> {
     // The member is a third-person player: its zones are `their` zones.
     let member = super::ConditionPlayerSubject::Quantified {
@@ -292,8 +323,13 @@ fn recognize_player_relative_predicate(
     } else {
         false
     };
+    if !negated && let Some(history) = recognize_member_history(cursor, plural)? {
+        return Ok(PlayerRelativePredicate::History(history));
+    }
     cursor.enter("player-set.relative.who.verb");
-    let (controls, has) = if negated {
+    // `who doesn't control`, `opponents who control`: the base form after
+    // a negation or a plural member; the third person otherwise.
+    let (controls, has) = if negated || plural {
         ("control", "have")
     } else {
         ("controls", "has")
@@ -334,6 +370,43 @@ fn recognize_player_relative_predicate(
             negated,
         }
     })
+}
+
+/// `lost life this turn`, `was|were dealt [combat] damage this turn` after
+/// `who`: the member's events of this turn. `None` (nothing consumed) for
+/// another verb, which the proposition grammar reads.
+fn recognize_member_history(
+    cursor: &mut OracleTokenCursor<'_>,
+    plural: bool,
+) -> MachineResult<Option<MemberHistory>> {
+    let history = if word_at(cursor, 0, "lost") && word_at(cursor, 1, "life") {
+        cursor.enter("player-set.relative.who.lost-life");
+        cursor.consume_phrase(&["lost", "life"])?;
+        MemberHistory::LostLife
+    } else if (word_at(cursor, 0, "was") || word_at(cursor, 0, "were"))
+        && word_at(cursor, 1, "dealt")
+    {
+        cursor.enter("player-set.relative.who.dealt-damage");
+        cursor.require(
+            word_at(cursor, 0, if plural { "were" } else { "was" }),
+            "`was` after a singular member, `were` after a plural one",
+        )?;
+        let copula = cursor.peek().expect("checked copula").to_string();
+        cursor.consume(&copula)?;
+        cursor.consume("dealt")?;
+        let combat_only = word_at(cursor, 0, "combat");
+        if combat_only {
+            cursor.consume("combat")?;
+        }
+        cursor.consume("damage")?;
+        MemberHistory::DealtDamage { combat_only }
+    } else {
+        return Ok(None);
+    };
+    // CR 500: the events of this turn; another window is not read here.
+    cursor.enter("player-set.relative.who.history-window");
+    cursor.consume_phrase(&["this", "turn"])?;
+    Ok(Some(history))
 }
 
 fn superlative_starts(cursor: &OracleTokenCursor<'_>) -> bool {

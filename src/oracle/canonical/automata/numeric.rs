@@ -430,6 +430,10 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// action (`mills half their library`, CR 401.1): the action's lowering
     /// supplies that single player, or the quantity is refused.
     ActingPlayerCards { zone: super::LocalZone },
+    /// The members of a restricted player population (`the number of
+    /// opponents who control an artifact`, `for each player who lost life
+    /// this turn`, CR 102.1-102.3), read by the shared player-set grammar.
+    Players(super::PlayerPopulationQueryNode),
 }
 
 /// Where a counter query reads counters.
@@ -486,6 +490,7 @@ impl NumericQuantity {
             Self::ManaSpentToCast { .. }
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
+            | Self::Players(_)
             | Self::Counters {
                 holder: CounterHolder::Source,
                 ..
@@ -505,6 +510,7 @@ impl NumericQuantity {
             Self::ManaSpentToCast { .. }
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
+            | Self::Players(_)
             | Self::Counters { .. } => false,
         }
     }
@@ -525,7 +531,8 @@ impl NumericQuantity {
             }
             | Self::DistinctCardValues { .. }
             | Self::ManaSymbolsAmongCards { .. }
-            | Self::ActingPlayerCards { .. } => false,
+            | Self::ActingPlayerCards { .. }
+            | Self::Players(_) => false,
         }
     }
 }

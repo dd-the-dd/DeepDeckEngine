@@ -168,6 +168,12 @@ fn recognize_counted_collection(
     if opponent_count_starts(cursor) {
         return recognize_opponent_count(cursor);
     }
+    // `opponent who lost life this turn`, `opponents who control an
+    // artifact`, `player with three or more poison counters`: the members of
+    // a restricted player population (`player_set.rs`).
+    if player_population_count_starts(cursor) {
+        return recognize_player_population_count(cursor);
+    }
     if history_count_collection_starts(cursor) {
         return recognize_history_count_collection(cursor);
     }
@@ -587,6 +593,63 @@ fn recognize_opponent_count(
     ))
 }
 
+/// The population a player noun names after a counting introducer, and
+/// whether the noun is plural (`opponents who control`).
+fn counted_player_noun(raw: &str) -> Option<(PlayerSetReferenceNode, bool)> {
+    Some(match raw.to_ascii_lowercase().as_str() {
+        "opponent" => (PlayerSetReferenceNode::OpponentsOfAbilityController, false),
+        "opponents" => (PlayerSetReferenceNode::OpponentsOfAbilityController, true),
+        "player" => (PlayerSetReferenceNode::EachPlayer, false),
+        "players" => (PlayerSetReferenceNode::EachPlayer, true),
+        _ => return None,
+    })
+}
+
+/// Lexical lookahead: a player noun followed by a relative restriction
+/// (`who`, `whose`, `with`). A bare `opponent` count is not this reader's.
+fn player_population_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if cursor.peek().and_then(counted_player_noun).is_none() {
+        return false;
+    }
+    let mut lookahead = cursor.clone();
+    lookahead.advance_to(lookahead.position() + 1).is_ok()
+        && player_relative_clause_starts(&lookahead)
+        && !(lookahead
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("other")))
+}
+
+/// `PLAYER-NOUN RESTRICTION` counted (CR 102.1-102.3): the members of the
+/// population that satisfy the shared relative predicate. The restriction
+/// must state a predicate: a population exclusion alone names no
+/// independent fact a count reads here.
+fn recognize_player_population_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.player-count.population");
+    let raw = cursor
+        .peek()
+        .expect("the player noun was checked")
+        .to_string();
+    let (players, plural) = counted_player_noun(&raw).expect("the player noun was checked");
+    cursor.consume(&raw)?;
+    cursor.enter("numeric.player-count.restriction");
+    let query = recognize_player_population_restriction_in_number(
+        cursor,
+        players,
+        false,
+        &PlayerRelativeContext::default(),
+        plural,
+    )?;
+    cursor.require(
+        query.predicate.is_some() && query.except.is_none(),
+        "a relative predicate of each counted player",
+    )?;
+    Ok(NumericExpression::Quantity(Box::new(
+        NumericQuantity::Players(query),
+    )))
+}
+
 /// Lexical lookahead: the counted collection is followed by `in` before the
 /// end of its noun phrase. The scoped query proves the actual zone grammar;
 /// a collection without that relation keeps the battlefield reading.
@@ -803,3 +866,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         None => false,
     }
 }
+
+#[cfg(test)]
+#[path = "player_population_count_tests.rs"]
+mod player_population_count_tests;

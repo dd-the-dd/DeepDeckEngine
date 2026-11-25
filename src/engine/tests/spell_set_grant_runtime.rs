@@ -151,3 +151,57 @@ fn graveyard_cast_reduction_applies_only_to_the_casters_own_graveyard_zone() {
         "a card of another player's graveyard is not in the caster's graveyard"
     );
 }
+
+/// `for each opponent who lost life this turn` as the parser lowers it: a
+/// count of the controller-relative population members satisfying the
+/// member condition, the same on the static and resolution paths.
+#[test]
+fn population_count_reads_each_members_own_history() {
+    let mut engine = test_engine(4);
+    let count = json!({
+        "kind": "countPlayers",
+        "players": {
+            "kind": "filterPlayers",
+            "players": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+            "where": {
+                "kind": "compare",
+                "operator": ">=",
+                "left": { "kind": "lifeLostThisTurn", "player": { "kind": "quantifiedPlayer" } },
+                "right": { "kind": "integer", "value": 1 },
+            },
+        },
+    });
+    assert!(numeric_expression_supported(&count), "{count:#}");
+    assert_eq!(engine.numeric_expression(&count, "player-0"), Some(0));
+    engine.record_event(
+        "lifeLost",
+        Some("player-1".to_string()),
+        None,
+        json!({ "amount": 2 }),
+    );
+    // The controller's own loss is not an opponent's.
+    engine.record_event(
+        "lifeLost",
+        Some("player-0".to_string()),
+        None,
+        json!({ "amount": 1 }),
+    );
+    engine.record_event(
+        "lifeLost",
+        Some("player-3".to_string()),
+        None,
+        json!({ "amount": 1 }),
+    );
+    assert_eq!(engine.numeric_expression(&count, "player-0"), Some(2));
+    // Every player, the controller included.
+    let mut every = count.clone();
+    every["players"]["players"] = json!({ "kind": "eachPlayer" });
+    assert_eq!(engine.numeric_expression(&every, "player-0"), Some(3));
+    // An excluded bound player needs bindings a count does not read.
+    let mut excluded = count.clone();
+    excluded["players"]["except"] = json!({ "kind": "triggeringPlayer" });
+    assert!(!numeric_expression_supported(&excluded));
+}
