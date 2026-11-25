@@ -186,6 +186,22 @@ pub(in crate::oracle::canonical) fn recognize_untap_permanents_effect(
     })
 }
 
+/// Whether the operand after `untap` (the cursor at the verb) opens the
+/// untap choice's own grammar: `all QUERY` or a resolution count heading no
+/// target. Any other head (a reference such as `them`, a declared target)
+/// belongs to the shared permanent operand, whose diagnostic is then the
+/// authoritative one.
+pub(in crate::oracle::canonical) fn untap_selection_head(cursor: &OracleTokenCursor<'_>) -> bool {
+    if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("all"))
+    {
+        return true;
+    }
+    let mut operand = cursor.clone();
+    operand.advance_to(cursor.position() + 1).is_ok() && resolution_selection_count_starts(&operand)
+}
+
 /// `tap N|up to N|X|any number of|one or more PERMANENTS`: the same
 /// resolution choice as the untap action (CR 608.2d), consumed by the tap
 /// action. If fewer permanents qualify, all of them are chosen (CR 609.3);
