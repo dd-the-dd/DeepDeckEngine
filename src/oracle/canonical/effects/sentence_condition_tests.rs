@@ -248,11 +248,13 @@ fn unsupported_or_unproven_conditions_fail_explicitly() {
     // No antecedent for `it`.
     let (state, _) = failure("Instant", "If it's a creature, draw a card.");
     assert_eq!(state, "condition.sentence.object.antecedent");
-    // A replacing `instead` sentence is read with the sentence it replaces;
-    // branches declaring different targets have no one cast-time choice.
+    // A replacing `instead` sentence is read with the sentence it replaces.
+    // Its branches may declare different targets only when the casting
+    // choices alone select the branch (CR 601.2c): a condition also checked
+    // on resolution cannot decide which targets are declared.
     let (state, _) = failure(
         "Instant",
-        "Kicker {2}\nDestroy target creature with mana value 2 or less. If this spell was kicked, instead destroy target creature.",
+        "Kicker {2}\nDestroy target creature with mana value 2 or less. If this spell was kicked and you control a Wizard, instead destroy target creature.",
     );
     assert_eq!(state, "lower.sentence-conditional.cast-choice-targets");
     // A postposed `instead` replaces the previous sentence: the replaced
