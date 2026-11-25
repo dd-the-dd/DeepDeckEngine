@@ -15,7 +15,12 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
     /// resolution cost or an ordinary instruction; the connector resolves
     /// against its ActionResult antecedent (`binding_environment.rs`) and
     /// observes whether it was actually performed (CR 608.2c, 603.12), not
-    /// merely chosen. Producer and body are each bounded to one sentence.
+    /// merely chosen. The producing sentence is one measured instruction
+    /// group; a producer that reads the antecedents of earlier sentences
+    /// reads them in the same sequence (`ProducerScope::FinalInstruction`).
+    /// The connector may restate the instruction (`If you don't put it into
+    /// your hand,`) or name the objects its action affected (`When you
+    /// discard a nonland card this way,`). The body is its own sentence.
     Outcome {
         /// `PLAYER may`: the producer is optional. `None`: a mandatory
         /// instruction whose measured performance gates the body.
