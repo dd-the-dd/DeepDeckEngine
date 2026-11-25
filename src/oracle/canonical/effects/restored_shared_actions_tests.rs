@@ -135,6 +135,15 @@ fn drawn_cards_are_the_antecedent_of_a_resolution_free_cast() {
         rule["effects"][2]["cards"]["binding"],
         rule["effects"][0]["id"]
     );
+    // Near miss: a cast zone contradicting the observed library is refused.
+    assert_ne!(
+        parse(
+            "Sorcery",
+            "Reveal the top two cards of your library. You may cast one of them without paying its mana cost from your graveyard."
+        )
+        .status,
+        "canonical"
+    );
 }
 
 #[test]

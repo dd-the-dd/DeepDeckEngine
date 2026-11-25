@@ -1854,7 +1854,8 @@ impl CardCollectionMemory {
                     KeywordAbilityName::Flashback => json!({"kind":"flashback", "cost":cost}),
                     KeywordAbilityName::Cycling
                     | KeywordAbilityName::Kicker
-                    | KeywordAbilityName::Awaken => {
+                    | KeywordAbilityName::Awaken
+                    | KeywordAbilityName::Toxic => {
                         return Err(cursor.fail("flashback granted to a card"));
                     }
                 };

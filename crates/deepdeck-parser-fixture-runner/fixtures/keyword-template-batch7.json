@@ -573,6 +573,30 @@
       }
     },
     {
+      "id": "near-miss-copy-exception-names-a-status-not-a-characteristic",
+      "request": {
+        "cardName": "Untyped Exception Fixture",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "{W}: Create a token that's a copy of this creature, except it's tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "token.copy.except.complement",
+            "found": "tapped"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-creature-types-retention-after-a-card-type",
       "request": {
         "cardName": "Retention Fixture",

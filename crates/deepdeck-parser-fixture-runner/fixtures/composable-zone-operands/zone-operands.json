@@ -619,6 +619,30 @@
           }
         ]
       }
+    },
+    {
+      "id": "near-miss-library-collection-without-an-owner",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Exile the library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.start",
+            "found": "the"
+          }
+        ]
+      }
     }
   ]
 }

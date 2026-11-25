@@ -371,6 +371,30 @@
       }
     },
     {
+      "id": "near-miss-single-base-stat-without-a-value",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Target creature has base power until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "characteristic.power-toughness.single-component",
+            "found": "until"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-wall-of-one-thousand-cuts-attack-as-though-no-defender",
       "request": {
         "cardName": "Wall of One Thousand Cuts",

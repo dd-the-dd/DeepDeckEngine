@@ -215,6 +215,30 @@
       }
     },
     {
+      "id": "near-miss-singular-it-after-a-plural-search-result",
+      "request": {
+        "cardName": "Ambiguous Research Lesson",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Target creature gets +1/+1 until end of turn. Search your library for two basic land cards, put them onto the battlefield tapped, then shuffle. Untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.untap-target.reference",
+            "found": "it"
+          }
+        ]
+      }
+    },
+    {
       "id": "top-before-shuffle-near-miss",
       "request": {
         "cardName": "Malformed Tutor",

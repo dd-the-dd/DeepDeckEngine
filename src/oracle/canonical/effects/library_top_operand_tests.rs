@@ -172,6 +172,9 @@ fn unbounded_permission_over_exiled_cards_lasts_while_they_remain_exiled() {
     assert_eq!(effects[2]["sourceZone"], "library");
     assert_eq!(effects[2]["timing"]["kind"], "duringResolution");
     assert_eq!(effects[2]["playLands"], true);
+    // Near miss: a singular `that card` over two revealed cards names no
+    // single card to play.
+    assert_not_canonical("Reveal the top two cards of your library. You may play that card.");
 }
 
 /// The library holder is the shared possessive: a target player's library
