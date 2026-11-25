@@ -68,6 +68,7 @@ impl ConditionObjectReference {
             ConditionPronounAntecedent::ActionResult(result) => {
                 Self::Permanent(PermanentEffectReference::ActionResult(result))
             }
+            ConditionPronounAntecedent::EventObject(reference) => Self::Permanent(reference),
             ConditionPronounAntecedent::EventSpell => Self::EventSpell,
         }
     }

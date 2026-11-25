@@ -1688,6 +1688,11 @@ pub(in crate::oracle::canonical) enum ConditionPronounAntecedent {
     Target(super::TargetBinding),
     /// The one object an earlier action of the program selected or moved.
     ActionResult(super::ActionResultReference),
+    /// The object the triggering event records as its subject, read for
+    /// its last known information once it left the battlefield (CR
+    /// 603.10a, 608.2h): `draw a card if its power is 3 or greater` after
+    /// the entering creature's draw.
+    EventObject(PermanentEffectReference),
     /// The spell the triggering cast record binds.
     EventSpell,
 }
@@ -1724,8 +1729,22 @@ pub(in crate::oracle::canonical) fn resolve_condition_pronoun(
         }
         (_, Some(result)) => condition_result_antecedent(result),
         (Some(target), None) => Ok(ConditionPronounAntecedent::Target(target)),
-        (None, None) if environment.frame.event_spell => Ok(ConditionPronounAntecedent::EventSpell),
-        (None, None) => Err("one proven singular antecedent for the pronoun"),
+        (None, None) => {
+            // No lexical antecedent: the event's grammatical subject, then
+            // the spell a cast record binds (the frame's antecedents).
+            if let Some(slot) = environment
+                .frame
+                .event_object
+                .as_ref()
+                .filter(|slot| slot.subject && relation_supported(slot.reference))
+            {
+                return Ok(ConditionPronounAntecedent::EventObject(slot.reference));
+            }
+            if environment.frame.event_spell {
+                return Ok(ConditionPronounAntecedent::EventSpell);
+            }
+            Err("one proven singular antecedent for the pronoun")
+        }
     }
 }
 
