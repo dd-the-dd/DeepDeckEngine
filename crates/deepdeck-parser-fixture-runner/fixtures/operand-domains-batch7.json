@@ -635,6 +635,101 @@
           }
         ]
       }
+    },
+    {
+      "id": "silas-renn-exact-chosen-target-card-cast",
+      "request": {
+        "cardName": "Silas Renn, Seeker Adept",
+        "typeLine": "Legendary Artifact Creature — Human",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "Deathtouch\nWhenever Silas Renn deals combat damage to a player, choose target artifact card in your graveyard. You may cast that card this turn.\nPartner (You can have two commanders if both have partner.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "emry-exact-chosen-target-card-cast",
+      "request": {
+        "cardName": "Emry, Lurker of the Loch",
+        "typeLine": "Legendary Creature — Merfolk Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nWhen Emry enters, mill four cards.\n{T}: Choose target artifact card in your graveyard. You may cast that card this turn. (You still pay its costs. Timing rules still apply.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "daretti-rocketeer-exact-the-chosen-card",
+      "request": {
+        "cardName": "Daretti, Rocketeer Engineer",
+        "typeLine": "Legendary Creature — Goblin Artificer",
+        "manaCost": "{4}{R}",
+        "oracleText": "Daretti's power is equal to the greatest mana value among artifacts you control.\nWhenever Daretti enters or attacks, choose target artifact card in your graveyard. You may sacrifice an artifact. If you do, return the chosen card to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "victimize-exact-the-chosen-cards",
+      "request": {
+        "cardName": "Victimize",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Choose two target creature cards in your graveyard. Sacrifice a creature. If you do, return the chosen cards to the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-chosen-target-card-returned-to-hand",
+      "request": {
+        "cardName": "Target Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose up to one target instant card in your graveyard. Return it to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-chosen-target-card-in-hidden-library",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Choose target creature card in your library. Return that card to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

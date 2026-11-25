@@ -1630,6 +1630,20 @@ impl CardCollectionMemory {
                 let single_zone = zone.additional_zones.is_empty().then_some(zone.zone);
                 self.observe_chosen_cards(chosen, maximum, single_zone);
             }
+            CardActionNode::ChooseTargetCards(targets) => {
+                cursor.enter("lower.card-action.choose-target-cards");
+                // The declaration is the action (CR 115.1): the card target
+                // child registers the decision; the declared cards become
+                // the observed collection, in their zone.
+                let (chosen, maximum) = self.operand(
+                    cursor,
+                    &CardOperandNode::Targets(targets.clone()),
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
+                self.observe_chosen_cards(chosen, maximum, Some(targets.zone));
+            }
             CardActionNode::GrantKeyword(grant) => {
                 cursor.enter("lower.card-action.grant-keyword");
                 let (cards, maximum) = self.operand(

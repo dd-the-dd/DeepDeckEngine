@@ -246,6 +246,11 @@ pub(in crate::oracle::canonical) enum CardActionNode {
     /// The chosen cards are the observed collection (the chosen-card binding)
     /// a later `that card`, `it` or `them` names, in that zone.
     ChooseFromZone(CardZoneCollectionNode),
+    /// `choose target QUERY card(s) in ZONE` (CR 115.1, 601.2c): the
+    /// instruction is the card target declaration itself; the declared
+    /// cards are the collection a later `that card`, `it`, `them` or `the
+    /// chosen card(s)` names, in that zone.
+    ChooseTargetCards(CardTargetOperandNode),
     /// `CARDS gain(s) flashback until end of turn` (CR 702.34a): a keyword
     /// the cards have where they are, fixed on resolution (CR 611.2c).
     GrantKeyword(CardKeywordGrantNode),
@@ -397,6 +402,18 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
             trial.consume("you")?;
         }
         trial.consume("choose")?;
+        // `choose target artifact card in your graveyard`: a card target
+        // declaration; a permanent target stays with the choose frame.
+        trial.enter("card-action.choose.target-cards");
+        match try_recognize_card_target_operand(&mut trial) {
+            CollectionOperandAttempt::Recognized(fragment) => {
+                *cursor = trial;
+                return Ok(Some(CardActionNode::ChooseTargetCards(fragment.node)));
+            }
+            CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+            CollectionOperandAttempt::NotClaimed
+            | CollectionOperandAttempt::RejectedCandidate(_) => {}
+        }
         trial.enter("card-action.choose.selection");
         match try_recognize_card_selection_operand(&mut trial) {
             CardSelectionOperandAttempt::Recognized(fragment) => {
