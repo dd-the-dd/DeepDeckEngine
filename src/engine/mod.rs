@@ -220,6 +220,7 @@ mod player_static_modifiers;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
+mod random_outcome;
 mod rebound;
 mod referenced_object;
 mod resolution_casting;
@@ -2631,6 +2632,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
     if integer_value(expression).is_some() {
         return true;
     }
+    if let Some(supported) = random_outcome::random_outcome_value_supported(expression) {
+        return supported;
+    }
     if let Some(supported) = object_relation_eval::related_count_supported(expression) {
         return supported;
     }
@@ -4593,6 +4597,9 @@ pub fn effect_supported(effect: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = myriad::myriad_effect_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = random_outcome::random_outcome_effect_supported(effect) {
         return supported;
     }
     if let Some(supported) = city_blessing::ascend_effect_supported(effect) {
@@ -31139,6 +31146,9 @@ impl GameEngine {
         if let Some(value) = self.runtime_numeric_quantity(expression, stack_object, bindings) {
             return value;
         }
+        if let Some(value) = random_outcome::random_outcome_value(expression, bindings) {
+            return Some(value);
+        }
         if let Some(value) = self.bound_object_numeric_read(expression, bindings, decisions) {
             return value;
         }
@@ -31843,6 +31853,7 @@ impl GameEngine {
             Some(
                 "boundObjects"
                     | "boundValue"
+                    | "randomOutcomeValue"
                     | "countBoundObjects"
                     | "decisionResult"
                     | "countDecisionCardsMatching"
@@ -33452,6 +33463,15 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_myriad_effect(effect, stack_object, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_random_outcome_effect(
+            effect,
+            stack_object,
+            bindings,
+            decisions,
+            provider,
+        )? {
             return Ok(());
         }
         if self.execute_ascend_effect(effect, stack_object, bindings)? {

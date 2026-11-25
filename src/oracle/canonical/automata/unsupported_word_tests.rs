@@ -39,12 +39,14 @@ fn an_unsupported_verb_is_not_reported_as_an_unresolved_name() {
 #[test]
 fn keyword_actions_and_keyword_abilities_are_named_from_the_catalog() {
     for (name, type_line, text, state_prefix, found) in [
+        // `roll` now has a lexicon row and a frame (`keyword_action.rs`);
+        // `seek` is still a verb without grammar.
         (
-            "Steel Squirrel",
-            "Artifact Creature — Squirrel",
-            "{6}: Roll a six-sided die.",
+            "Seek Probe",
+            "Sorcery",
+            "Seek a nonland card.",
             "effect.unsupported-verb.",
-            "Roll",
+            "Seek",
         ),
         (
             "Evra, Halcyon Witness",

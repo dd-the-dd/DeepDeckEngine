@@ -198,6 +198,10 @@ pub(in crate::oracle::canonical) enum ActionResultQuantity {
     /// `the excess damage dealt this way` (CR 120.4a): the damage beyond
     /// lethal the nearest earlier damage action dealt to a permanent.
     ExcessDamage,
+    /// `the result`, `the flip`, `you win` (a clash): a quantity of the
+    /// latest random or contested outcome (`keyword_action.rs`), read from
+    /// that outcome's definite binding rather than a producer search.
+    RandomResult(super::RandomResultQuantity),
 }
 
 /// Where one runtime action records the quantity a reader restates.
@@ -252,6 +256,7 @@ impl ActionResultQuantity {
             Self::Amount => "amount",
             Self::Objects(_) => "objects",
             Self::ExcessDamage => "excessDamage",
+            Self::RandomResult(_) => "randomResult",
         }
     }
 
@@ -279,6 +284,9 @@ impl ActionResultQuantity {
             // A number chosen on resolution (CR 608.2d) is the amount or the
             // count a later `that much` / `that many` restates.
             (Self::Amount | Self::ObjectCount, "chooseNumber") => Some(ActionResultField::Integer),
+            // A die roll's result (CR 706.2) is the amount or the count a
+            // later `that much` / `that many` restates.
+            (Self::Amount | Self::ObjectCount, "rollDice") => Some(ActionResultField::Integer),
             (
                 Self::ObjectCount,
                 "discardCards"

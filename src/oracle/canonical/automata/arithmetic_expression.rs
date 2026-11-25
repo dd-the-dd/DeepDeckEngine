@@ -126,6 +126,7 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
         || super::history_life_amount_starts(cursor)
         || super::event_damage_amount_starts(cursor)
         || super::excess_damage_result_starts(cursor)
+        || super::random_result_starts(cursor)
         || devotion_starts(cursor)
         || cursor
             .peek()
@@ -333,6 +334,12 @@ fn recognize_primary(
         query_context.kind,
         NumericReadKind::Query | NumericReadKind::Definition | NumericReadKind::Comparison
     ) {
+        // The latest random outcome (`the result`, `the number of coins
+        // that came up heads`) before the generic `the number of` count.
+        if query_context.kind == NumericReadKind::Definition && super::random_result_starts(cursor)
+        {
+            return super::recognize_random_result(cursor);
+        }
         if query_context.kind.reads_definition_families()
             && super::player_numeric_fact_starts(cursor)
         {
