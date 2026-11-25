@@ -397,6 +397,8 @@ fn history_count_event(lemma: VerbLemma) -> Option<(HistoryEvent, ObjectKind)> {
         VerbLemma::Discard => (HistoryEvent::CardDiscarded, ObjectKind::Card),
         VerbLemma::Cycle => (HistoryEvent::CardCycled, ObjectKind::Card),
         VerbLemma::Sacrifice => (HistoryEvent::PermanentSacrificed, ObjectKind::Permanent),
+        // CR 111.1: a created token is a permanent the creation records.
+        VerbLemma::Create => (HistoryEvent::TokenCreated, ObjectKind::Permanent),
         _ => return None,
     })
 }
@@ -407,7 +409,15 @@ const HISTORY_COUNT_LEMMAS: &[VerbLemma] = &[
     VerbLemma::Discard,
     VerbLemma::Cycle,
     VerbLemma::Sacrifice,
+    VerbLemma::Create,
 ];
+
+/// The lemmas whose simple past (`tokens you created this turn`, `cards you
+/// drew this turn`) states the same recorded action as the perfect. `cast`
+/// is not among them: `spells you cast` is also the present relation.
+fn simple_past_history_lemma(lemma: VerbLemma) -> bool {
+    lemma != VerbLemma::Cast
+}
 
 /// The relative clause of a counted history collection at `offset`: its
 /// width before the verb, the actor, and the verb's lemma.
@@ -424,14 +434,29 @@ fn history_relative_at(
         (1, HistoryPlayer::Controller, VerbForm::PastParticiple)
     } else if word(offset, "you") && word(offset + 1, "have") {
         (2, HistoryPlayer::Controller, VerbForm::PastParticiple)
+    } else if word(offset, "your") && word(offset + 1, "opponents") && word(offset + 2, "have") {
+        // `cards your opponents have drawn this turn`: every opponent's
+        // recorded actions (CR 102.3).
+        (3, HistoryPlayer::Opponent, VerbForm::PastParticiple)
+    } else if word(offset, "you") {
+        (1, HistoryPlayer::Controller, VerbForm::Past)
     } else {
         return None;
     };
     let raw = cursor.peek_ahead(offset + width)?;
     let (entry, forms) = lookup_verb(raw, HISTORY_COUNT_LEMMAS)?;
+    // The simple past claims only a this-turn history (`cards you drew this
+    // turn`); `cards you discarded this way` is an action's result.
+    if form == VerbForm::Past
+        && !(simple_past_history_lemma(entry.lemma)
+            && word(offset + width + 1, "this")
+            && word(offset + width + 2, "turn"))
+    {
+        return None;
+    }
     // `NOUN that died this turn` is a departure of the shared object query
     // (`relative_clause.rs`), counted through the scoped query; this reader
-    // owns only the controller's own recorded actions.
+    // owns only recorded actions of the controller or its opponents.
     forms
         .contains(&form)
         .then_some((width, player, entry.lemma))
@@ -504,6 +529,18 @@ pub(in crate::oracle::canonical) fn recognize_history_count_collection(
         predicate.has_domain(domain) || predicate.supports_domain(domain),
         "a counted noun in the recorded event's object domain",
     )?;
+    // A creation records tokens (CR 111.1): the `token` noun restates the
+    // event and the rest is the created token's type line.
+    let predicate = if event == HistoryEvent::TokenCreated {
+        cursor.enter("numeric.history-count.created-token");
+        let rest = cursor.require_value(
+            created_token_filter(predicate),
+            "a token noun counted by its type-line characteristics",
+        )?;
+        rest.unwrap_or(ObjectPredicate::ObjectKind(domain))
+    } else {
+        predicate
+    };
     cursor.enter("numeric.history-count.relative");
     for _ in 0..=width {
         let raw = cursor.peek().unwrap_or_default().to_owned();
@@ -527,6 +564,42 @@ pub(in crate::oracle::canonical) fn recognize_history_count_collection(
             aggregate: HistoryAggregate::Total,
         },
     )))
+}
+
+/// The created-token filter of `[TYPE] tokens you created`: the `token`
+/// atom removed, the rest read on the recorded type line. `None` without a
+/// `token` noun or with a characteristic a creation record does not keep.
+fn created_token_filter(predicate: ObjectPredicate) -> Option<Option<ObjectPredicate>> {
+    fn type_line_only(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::CardType(_)
+            | ObjectPredicate::Subtype(_)
+            | ObjectPredicate::Supertype(_) => true,
+            ObjectPredicate::Not(operand) => type_line_only(operand),
+            ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(type_line_only)
+            }
+            _ => false,
+        }
+    }
+    let rest = match predicate {
+        ObjectPredicate::IsToken => None,
+        ObjectPredicate::Intersection(operands) if operands.contains(&ObjectPredicate::IsToken) => {
+            let mut rest = operands
+                .into_iter()
+                .filter(|operand| *operand != ObjectPredicate::IsToken)
+                .collect::<Vec<_>>();
+            Some(match rest.len() {
+                1 => rest.remove(0),
+                _ => ObjectPredicate::Intersection(rest),
+            })
+        }
+        _ => return None,
+    };
+    match rest {
+        Some(rest) if !type_line_only(&rest) => None,
+        rest => Some(rest),
+    }
 }
 
 /// `opponent(s) you attacked ...` / `opponents you have`: the counted
@@ -870,3 +943,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
 #[cfg(test)]
 #[path = "player_population_count_tests.rs"]
 mod player_population_count_tests;
+
+#[cfg(test)]
+#[path = "history_count_relation_tests.rs"]
+mod history_count_relation_tests;

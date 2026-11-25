@@ -374,11 +374,15 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0/amount/kind",
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/0/value/kind",
                 "equals": "countPlayers"
               },
               {
-                "pointer": "/effects/0/amount/players/players",
+                "pointer": "/effects/0/value/players/players",
                 "equals": {
                   "kind": "opponentsOf",
                   "player": {
@@ -490,6 +494,73 @@
         "typeLine": "Sorcery",
         "manaCost": "{1}{R}",
         "oracleText": "This spell deals 2 damage to each other opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tokens-you-created-this-turn",
+      "request": {
+        "cardName": "Token Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw X cards, where X is the number of tokens you created this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/0/value/kind",
+                "equals": "countEventsThisTurn"
+              },
+              {
+                "pointer": "/effects/0/value/event",
+                "equals": "tokenCreated"
+              },
+              {
+                "pointer": "/effects/0/value/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-creatures-you-created",
+      "request": {
+        "cardName": "Creation Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw X cards, where X is the number of creatures you created this turn.",
         "layout": "normal",
         "faces": []
       },
