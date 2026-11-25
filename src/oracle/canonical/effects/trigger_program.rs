@@ -51,9 +51,9 @@ fn compile_recognized_trigger_program(
 ) -> MachineResult<CanonicalRuleDraft> {
     // The zone the ability functions from (CR 113.6) follows from the typed
     // event: the spell's own cast functions on the stack for any spell, a
-    // battlefield observer needs a permanent face.
-    // A card zone the guard or the program declares (CR 113.6) replaces the
-    // battlefield; the face is checked once that zone is known.
+    // battlefield observer needs a permanent face. A card zone the guard or
+    // the program declares replaces the battlefield; the face is checked
+    // once that zone is known.
     cursor.enter("trigger.program.permanent-face");
     let face_cursor = cursor.clone();
     let battlefield_face = !envelope.event.requires_permanent_face()
@@ -199,8 +199,12 @@ fn compile_recognized_trigger_program(
     }
     if let Some(zone) = trigger_zone {
         cursor.enter("trigger.program.zone-of-function.event");
-        let observed =
-            ZONE_OF_FUNCTION_EVENTS.contains(&(zone, event["kind"].as_str().unwrap_or_default()));
+        let event_kind = event["kind"].as_str().unwrap_or_default();
+        let observed = ZONE_OF_FUNCTION_EVENTS
+            .iter()
+            .any(|(observed_zone, observed_kind)| {
+                *observed_zone == zone && *observed_kind == event_kind
+            });
         if !observed {
             return Err(cursor.engine_gap(
                 crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
