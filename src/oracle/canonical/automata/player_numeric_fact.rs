@@ -4,6 +4,7 @@
 //! ```text
 //! PlayerFact := "the" "amount" "of" "life" LifeClause[past, gapped amount]
 //!             | "your" "life" "total"
+//!             | "your" "starting" "life" "total"
 //! ```
 //!
 //! `the amount of life you gained this turn` is the relative clause of the
@@ -18,6 +19,8 @@ use super::{ClauseArguments, Voice};
 
 const AMOUNT_OF_LIFE: &[&str] = &["the", "amount", "of", "life"];
 const LIFE_TOTAL: &[&str] = &["your", "life", "total"];
+/// CR 103.4: the life total a player began the game with.
+const STARTING_LIFE_TOTAL: &[&str] = &["your", "starting", "life", "total"];
 /// `half your life`: a player's life is their life total (CR 119.1).
 const LIFE: &[&str] = &["your", "life"];
 
@@ -54,7 +57,9 @@ fn amount_of_life_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 pub(in crate::oracle::canonical) fn player_numeric_fact_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    amount_of_life_starts(cursor) || phrase_starts(cursor, LIFE)
+    amount_of_life_starts(cursor)
+        || phrase_starts(cursor, LIFE)
+        || phrase_starts(cursor, STARTING_LIFE_TOTAL)
 }
 
 pub(in crate::oracle::canonical) fn recognize_player_numeric_fact(
@@ -80,6 +85,9 @@ pub(in crate::oracle::canonical) fn recognize_player_numeric_fact(
             "a recorded life amount (`the amount of life you gained this turn`)",
         )?;
         PlayerNumericFact::LifeGainedThisTurn
+    } else if phrase_starts(cursor, STARTING_LIFE_TOTAL) {
+        cursor.consume_phrase(STARTING_LIFE_TOTAL)?;
+        PlayerNumericFact::StartingLifeTotal
     } else if phrase_starts(cursor, LIFE_TOTAL) {
         cursor.consume_phrase(LIFE_TOTAL)?;
         PlayerNumericFact::LifeTotal

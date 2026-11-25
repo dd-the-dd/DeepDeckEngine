@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-use super::{default_max_hand_size, default_opening_hand_size, is_false};
+use super::{
+    default_max_hand_size, default_opening_hand_size, default_starting_life,
+    is_default_starting_life, is_false,
+};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -226,6 +229,12 @@ pub struct EnginePlayer {
     pub land_plays_remaining: i32,
     #[serde(default = "default_max_hand_size")]
     pub max_hand_size: usize,
+    /// CR 103.4: the life total the player began the game with.
+    #[serde(
+        default = "default_starting_life",
+        skip_serializing_if = "is_default_starting_life"
+    )]
+    pub starting_life: i32,
 }
 
 fn is_zero_usize(value: &usize) -> bool {

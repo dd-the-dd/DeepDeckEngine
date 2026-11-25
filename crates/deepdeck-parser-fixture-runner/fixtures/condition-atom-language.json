@@ -913,7 +913,7 @@
       }
     },
     {
-      "id": "near-miss-two-color-devotion-is-not-one-color",
+      "id": "sibling-two-color-devotion-is-one-count",
       "request": {
         "cardName": "Compare Probe",
         "typeLine": "Legendary Enchantment Creature — God",
@@ -923,19 +923,30 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "condition.static.atom-kind"
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition/left",
+                "equals": {
+                  "kind": "devotionToColors",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "colors": [
+                    "W",
+                    "U"
+                  ]
+                }
+              }
+            ]
           }
         ]
       }
