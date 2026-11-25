@@ -330,10 +330,18 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
         )));
     }
     if object_related_player_head_length(cursor).is_some() {
-        return Some(single(recognize_object_related_player_subject(
-            cursor,
-            context.object_antecedent.clone(),
-        )));
+        let subject =
+            recognize_object_related_player_subject(cursor, context.object_antecedent.clone());
+        // `its owner shuffles it into their library`, `this creature's owner
+        // shuffles it ...`: the possessor is the antecedent of the
+        // performer's predicate. Only an effect program's performer slot
+        // (which declares) reads a predicate after its subject here.
+        if declaration.is_some()
+            && let Ok(player) = &subject
+        {
+            super::publish_performer_possessor(cursor, player);
+        }
+        return Some(single(subject));
     }
     None
 }

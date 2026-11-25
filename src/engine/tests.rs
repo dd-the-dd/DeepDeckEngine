@@ -37,6 +37,10 @@ mod linked_duration_runtime;
 mod antecedent_producers_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/antecedent_producers_batch11_runtime.rs"]
+mod antecedent_producers_batch11_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/rebound_runtime.rs"]
 mod rebound_runtime;
 

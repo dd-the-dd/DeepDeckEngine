@@ -227,6 +227,30 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
         }) if subject.multiplicity == EventMultiplicity::PerObject
     ) || matches!(
         event,
+        // `one or more creatures you control deal combat damage to a
+        // player`: the batch is grouped per damaged player, whom its record
+        // binds (CR 510.2, 603.2c).
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            verb: ObjectEventVerb::DealCombatDamageToPlayer,
+            subject,
+            attacked,
+            ..
+        }) if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. })
+            && attacked.is_empty()
+    ) || matches!(
+        event,
+        // `Whenever a creature attacks one of your opponents`: the attack
+        // record of one attacker binds the player it attacks (CR 506.2,
+        // 508.1), the player the event wrote.
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            verb: ObjectEventVerb::Attack,
+            subject,
+            attacked,
+            ..
+        }) if subject.multiplicity == EventMultiplicity::PerObject
+            && matches!(attacked.as_slice(), [super::AttackedRecipientNode::Player(_)])
+    ) || matches!(
+        event,
         // `one or more creatures you control attack a player`: one event per
         // attacked player, which the record binds (CR 508.1, 603.2c).
         GenericTriggerEventNode::Object(ObjectEventNode {
@@ -562,6 +586,14 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             action: AttachedObjectEventAction::Die,
             ..
         }) => permanent(creature(), true, true),
+        // `When enchanted creature leaves the battlefield`: the departed
+        // permanent the source was attached to, the same zone-change record
+        // a death binds, read by its last known information (CR 603.10a,
+        // 608.2h).
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectDeparture {
+            role,
+            ..
+        }) => permanent(attached_nominal(*role), true, true),
         // `a player taps a land for mana`: the tapped permanent the mana
         // ability record binds (CR 106.11a, 605.1b), named with its nominal
         // (`that land`); the player is the event's subject, not the land.
@@ -746,5 +778,6 @@ fn trigger_guard_context(event: &GenericTriggerEventNode) -> EffectRecognitionCo
         context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
         context.observed_source_relationship = ObservedSourceRelationship::SameEnteringObject;
     }
+    super::bind_source_event_object(&mut context, event);
     context
 }

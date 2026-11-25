@@ -1902,6 +1902,9 @@ fn recognize_effect_sequence_attempt_scoped(
                                         &condition_context,
                                     )?;
                                     *cursor = trial;
+                                    super::publish_preposed_condition_antecedent(
+                                        cursor, &condition,
+                                    );
                                     let snapshot = memory.anaphor_snapshot();
                                     memory.branch_snapshots.push(snapshot);
                                     memory.conditionals.push(super::SentenceConditionalNode {

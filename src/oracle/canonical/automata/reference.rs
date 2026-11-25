@@ -91,6 +91,19 @@ pub(in crate::oracle::canonical) fn recognize_source_reference(
             SourceReferenceState::ThisObject => {
                 cursor.enter("reference.source.this-object");
                 cursor.consume("this")?;
+                // `this creature's`, `this Aura's`: the genitive of the source
+                // names one of its characteristics or players, which the
+                // possessive readers own (`recognize_possessive_source_reference`).
+                // The object itself is not referenced here.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| possessive_source_noun(raw) && !is_token_possessive(raw))
+                {
+                    cursor.enter("reference.source.possessive");
+                    return Err(cursor.fail(
+                        "the source object itself; `this NOUN's` names a characteristic or a player of the source, which this reader does not take",
+                    ));
+                }
                 let object_noun = cursor
                     .peek()
                     .filter(|raw| {
@@ -162,6 +175,24 @@ pub(in crate::oracle::canonical) fn recognize_source_reference_with_antecedent(
             cursor.enter("reference.source-or-anaphor.object-antecedent");
             return Err(cursor.fail_with_span(
                 "a source antecedent; the pronoun names another object this consumer cannot denote",
+                cursor.position(),
+                token.span_start,
+                token.span_end,
+                token.raw.clone(),
+            ));
+        }
+        // `If this Equipment is a creature and equipped creature is a
+        // Warrior, it ...`: the preceding condition named several objects
+        // and published none of them; the pronoun has competing antecedents.
+        if antecedent.is_none()
+            && cursor.binding_environment().is_some_and(|environment| {
+                environment.object_producer
+                    == Some(super::ObjectProducer::CompetingConditionSubjects)
+            })
+        {
+            cursor.enter("reference.source-or-anaphor.competing-antecedents");
+            return Err(cursor.fail_with_span(
+                super::COMPETING_CONDITION_ANTECEDENTS,
                 cursor.position(),
                 token.span_start,
                 token.span_end,
@@ -428,6 +459,54 @@ pub(in crate::oracle::canonical) fn source_or_anaphor_reference_starts_at(
 ) -> bool {
     next.is_some_and(is_source_anaphor)
         || source_reference_starts_at(position, next, name_links, name_failure)
+}
+
+/// The genitive of a noun the source can be named by after `this` (CR
+/// 205.3, 109.2): a card type, an object domain, a noncreature subtype
+/// (`this Aura's`, `this Vehicle's`) or `token`. Lexical only.
+pub(in crate::oracle::canonical) fn possessive_source_noun(raw: &str) -> bool {
+    let normalized = raw.to_ascii_lowercase();
+    let Some(base) = normalized
+        .strip_suffix("'s")
+        .or_else(|| normalized.strip_suffix("\u{2019}s"))
+        .filter(|base| !base.is_empty())
+    else {
+        return false;
+    };
+    // Subtypes are written capitalized; read the written base.
+    let written = &raw[..base.len()];
+    lookup_card_type(base, AcceptedForms::SingularOnly).is_some()
+        || lookup_object_domain(base, AcceptedForms::SingularOnly).is_some()
+        || lookup_object_characteristic(base, AcceptedForms::SingularOnly).is_some()
+        || lookup_noncreature_subtype(written).is_some()
+}
+
+/// `token's` / `token’s`: the token's own quoted abilities name it by this
+/// genitive (CR 111.1); the source reader keeps reading it as the source.
+fn is_token_possessive(raw: &str) -> bool {
+    ["token's", "token\u{2019}s"]
+        .iter()
+        .any(|form| raw.eq_ignore_ascii_case(form))
+}
+
+/// `this NOUN's` (CR 109.2, 205.3): the source named by the genitive of one
+/// of its nouns, for a reader of one of its characteristics or players (`this
+/// creature's owner`, `this Aura's controller`). It consumes the determiner
+/// and the genitive and returns the source; the caller reads what the
+/// genitive names and refuses anything it does not take.
+pub(in crate::oracle::canonical) fn recognize_possessive_source_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LocalObjectReference> {
+    cursor.enter("reference.source.possessive");
+    cursor.consume("this")?;
+    let genitive = cursor
+        .peek()
+        .filter(|raw| possessive_source_noun(raw))
+        .ok_or_else(|| cursor.fail("the genitive of a source noun after `this`"))?
+        .to_string();
+    cursor.consume(&genitive)?;
+    cursor.enter("reference.source.possessive.complete");
+    Ok(LocalObjectReference::SourceSelf)
 }
 
 /// Object pronouns, including the gendered subject and object forms Oracle
