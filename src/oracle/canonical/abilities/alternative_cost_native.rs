@@ -680,12 +680,60 @@ fn lower_casting_keyword(
             json!({ "kind": "aftermath" })
         }
         // CR 702.174a: an optional promise as the spell is cast; the
-        // runtime has the chosen opponent draw a card first.
-        CastingKeyword::GiftACard => json!({ "kind": "giftCard", "optional": true }),
+        // chosen opponent performs the payload's instruction first.
+        CastingKeyword::Gift => lower_gift(cursor, node, face_type_line)?,
+        // CR 702.94a: the runtime reveals the first card drawn this turn and
+        // offers its cast for this cost; `{X}` is the spell's own X.
+        CastingKeyword::Miracle => json!({
+            "kind": "miracle",
+            "cost": keyword_mana(cursor, node, "a miracle mana cost")?,
+        }),
         // CR 702.192a: the spell's own name identifies its later copies.
         CastingKeyword::Paradigm => {
             cursor.require(!face_name.trim().is_empty(), "the paradigm spell's name")?;
             json!({ "kind": "paradigm", "spellName": face_name })
+        }
+    })
+}
+
+/// The promised gift's recipient: the opponent the caster chose (CR
+/// 702.174a), bound by the casting runtime for the spell's resolution.
+fn gift_recipient() -> Value {
+    json!({ "kind": "boundValue", "id": "giftRecipient" })
+}
+
+/// CR 702.174: the payload row's instruction performed by the recipient.
+/// A token payload is the CR token description read by the shared token
+/// body grammar and lowered by the shared token-creation lowering.
+fn lower_gift(
+    cursor: &OracleTokenCursor<'_>,
+    node: &CastingKeywordNode,
+    face_type_line: &str,
+) -> MachineResult<Value> {
+    let payload = cursor.require_value(node.gift, "a gift payload")?;
+    cursor.require(
+        spell_face(face_type_line) && node.gift_timing != Some(GiftTiming::AsPermanentEnters),
+        "an instant or sorcery face for a gift (a gift given as a permanent enters has no runtime)",
+    )?;
+    Ok(match payload.instruction {
+        GiftInstruction::DrawCard => json!({ "kind": "giftCard", "optional": true }),
+        GiftInstruction::ExtraTurn => json!({
+            "kind": "gift",
+            "optional": true,
+            "effects": [{ "kind": "grantExtraTurn", "player": gift_recipient() }],
+        }),
+        GiftInstruction::CreateToken(words) => {
+            let tokens = crate::oracle::syntax::recognize_entities(words);
+            let mut definition = OracleTokenCursor::new("gift-payload-definition", &tokens);
+            let body = recognize_performed_token_creation_body(&mut definition, None)?;
+            definition.finish()?;
+            let quantity = cursor.require_value(
+                lower_numeric_expression(&body.quantity),
+                "a gift token quantity the shared numeric lowering represents",
+            )?;
+            let effect = lower_token_creation_body(&body, gift_recipient(), quantity)
+                .map_err(|expected| cursor.fail(expected))?;
+            json!({ "kind": "gift", "optional": true, "effects": [effect] })
         }
     })
 }

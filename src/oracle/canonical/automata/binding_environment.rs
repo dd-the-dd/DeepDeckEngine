@@ -70,6 +70,9 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     pub event_object: Option<EventObjectSlot>,
     /// The event is the cast of one spell (`that spell`).
     pub event_spell: bool,
+    /// The event is the cast of the ability's own source spell (`When you
+    /// cast this spell`, CR 601.2i): `this spell` / `it` name that spell.
+    pub source_spell_cast: bool,
     /// The event moved its object into this public zone, where the ability
     /// can still find the card it became (CR 400.7, 603.6c): `it` / `that
     /// card` in a card action when the program observed no other card.

@@ -564,8 +564,8 @@ pub(in crate::oracle::canonical) fn recognize_alternative_cast_sentence(
 mod casting_keyword;
 
 pub(in crate::oracle::canonical) use casting_keyword::{
-    CastingKeyword, CastingKeywordNode, KeywordCostNode, casting_keyword_starts,
-    recognize_casting_keyword,
+    CastingKeyword, CastingKeywordNode, GiftInstruction, GiftTiming, KeywordCostNode,
+    casting_keyword_starts, recognize_casting_keyword,
 };
 
 #[cfg(test)]

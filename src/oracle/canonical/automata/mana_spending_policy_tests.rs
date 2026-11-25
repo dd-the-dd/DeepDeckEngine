@@ -16,7 +16,14 @@ fn production_and_spell_use_predicate_remain_separate_typed_parameters() {
         let AddManaEffectNode::Qualified { policy, .. } = &node else {
             panic!("missing typed qualifier: {text}")
         };
-        assert!(policy.spells.has_domain(ObjectKind::Spell));
+        assert!(
+            policy
+                .restriction
+                .as_ref()
+                .unwrap()
+                .spells
+                .has_domain(ObjectKind::Spell)
+        );
         let ir = crate::oracle::canonical::lower_add_mana_effect(&node);
         assert_eq!(ir["kind"], "addMana");
         assert_eq!(ir["spendRestriction"]["kind"], "castSpell");
@@ -106,7 +113,7 @@ fn a_union_of_cast_and_activation_uses_of_the_same_objects_is_one_restriction() 
         let AddManaEffectNode::Qualified { policy, .. } = &node else {
             panic!("missing typed qualifier: {text}")
         };
-        assert_eq!(policy.uses.len(), 2, "{text}");
+        assert_eq!(policy.restriction.as_ref().unwrap().uses.len(), 2, "{text}");
         assert!(policy.also_activates_abilities(), "{text}");
         let ir = crate::oracle::canonical::lower_add_mana_effect(&node);
         assert_eq!(

@@ -194,6 +194,7 @@ mod mana_projection_fixed_point;
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
 ))]
 mod mana_public_path_tests;
+mod mana_retention;
 mod mana_spend_prohibition;
 mod mana_value_execution;
 mod nominal_choices;
@@ -4077,6 +4078,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || convoke_ability_supported(&rule["ability"])
                 || improvise_ability_supported(&rule["ability"])
                 || teamwork_ability_supported(&rule["ability"])
+                || miracle_ability_supported(&rule["ability"])
                 || fuse_ability_supported(&rule["ability"])
                 || morph_ability_supported(&rule["ability"])
                 || prototype_ability_supported(&rule["ability"])
@@ -4198,6 +4200,12 @@ fn mana_value_supported(value: &Value) -> bool {
 }
 
 fn mana_spend_restriction_supported(restriction: &Value) -> bool {
+    mana_retention::unit_attributes_supported(restriction)
+        && (mana_retention::unit_attributes_only(restriction)
+            || mana_spend_use_supported(restriction))
+}
+
+fn mana_spend_use_supported(restriction: &Value) -> bool {
     (matches!(
         value_kind(restriction),
         Some(
@@ -36228,121 +36236,7 @@ impl GameEngine {
                     permission["expiresAtEndStepOf"].as_str() != Some(active_player_id.as_str())
                 });
             }
-            let mana_conversions = self
-                .state
-                .players
-                .iter()
-                .flat_map(|player| player.battlefield.iter())
-                .flat_map(|source| {
-                    source
-                        .definition
-                        .printed_rules()
-                        .iter()
-                        .flat_map(move |rule| {
-                            rule["modifiers"]
-                                .as_array()
-                                .into_iter()
-                                .flatten()
-                                .filter(|modifier| {
-                                    value_kind(rule) == Some("staticAbility")
-                                        && value_kind(modifier) == Some("convertUnspentMana")
-                                        && value_kind(&modifier["player"]) == Some("controllerOf")
-                                })
-                                .filter_map(move |modifier| {
-                                    modifier["to"].as_str().map(|symbol| {
-                                        (source.controller.clone(), symbol.to_string())
-                                    })
-                                })
-                        })
-                })
-                .collect::<BTreeMap<_, _>>();
-            let mut mana_retentions = self
-                .state
-                .players
-                .iter()
-                .flat_map(|player| player.battlefield.iter())
-                .flat_map(|source| {
-                    source
-                        .definition
-                        .printed_rules()
-                        .iter()
-                        .flat_map(move |rule| {
-                            rule["modifiers"]
-                                .as_array()
-                                .into_iter()
-                                .flatten()
-                                .filter(|modifier| {
-                                    value_kind(rule) == Some("staticAbility")
-                                        && value_kind(modifier) == Some("retainUnspentMana")
-                                        && value_kind(&modifier["player"]) == Some("controllerOf")
-                                })
-                                .flat_map(move |modifier| {
-                                    modifier["symbols"]
-                                        .as_array()
-                                        .into_iter()
-                                        .flatten()
-                                        .filter_map(Value::as_str)
-                                        .map(move |symbol| {
-                                            (source.controller.clone(), symbol.to_string())
-                                        })
-                                })
-                        })
-                })
-                .fold(
-                    BTreeMap::<String, BTreeSet<String>>::new(),
-                    |mut map, (player, symbol)| {
-                        map.entry(player).or_default().insert(symbol);
-                        map
-                    },
-                );
-            for modifier in &self.state.rule_modifiers {
-                if value_kind(modifier) != Some("retainUnspentMana")
-                    || modifier["expiresAfterTurn"]
-                        .as_u64()
-                        .is_some_and(|turn| turn < u64::from(self.state.turn_number))
-                {
-                    continue;
-                }
-                let Some(player_id) = modifier["playerId"].as_str() else {
-                    continue;
-                };
-                for symbol in modifier["symbols"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                {
-                    mana_retentions
-                        .entry(player_id.to_string())
-                        .or_default()
-                        .insert(symbol.to_string());
-                }
-            }
-            for player in &mut self.state.players {
-                let conversion = mana_conversions.get(&player.id);
-                let retained_symbols = mana_retentions.get(&player.id);
-                let mut retained_mana = Vec::new();
-                for mut mana in std::mem::take(&mut player.mana_pool) {
-                    let independently_retained =
-                        mana.spend_restriction.as_ref().is_some_and(|restriction| {
-                            value_kind(restriction) == Some("firebendingMana")
-                                && restriction["expiresAfterTurn"]
-                                    .as_u64()
-                                    .is_some_and(|turn| turn >= u64::from(self.state.turn_number))
-                        });
-                    if independently_retained {
-                        retained_mana.push(mana);
-                    } else if retained_symbols.is_some_and(|symbols| symbols.contains(&mana.symbol))
-                    {
-                        retained_mana.push(mana);
-                    } else if let Some(symbol) = conversion {
-                        mana.symbol = symbol.clone();
-                        mana.spend_restriction = None;
-                        retained_mana.push(mana);
-                    }
-                }
-                player.mana_pool = retained_mana;
-            }
+            self.empty_mana_pools_as_step_ends();
             self.state.step = step;
         }
     }

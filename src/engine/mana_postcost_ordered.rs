@@ -43,8 +43,7 @@ pub(super) fn mana_pool_entry_can_pay(
     spending_source_zone: Option<&str>,
 ) -> bool {
     mana.spend_restriction.as_ref().is_none_or(|restriction| {
-        restriction["producedBySnowSource"].as_bool() == Some(true)
-            && restriction.get("kind").is_none()
+        super::mana_retention::unit_attributes_only(restriction)
             || value_kind(restriction) == Some("firebendingMana")
             || spending_card.is_some_and(|card| {
                 value_kind(restriction) == Some("castSpell")

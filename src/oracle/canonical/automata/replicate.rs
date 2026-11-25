@@ -97,9 +97,17 @@ pub(in crate::oracle::canonical) fn recognize_mana_replicate(
             }
             ReplicateState::NewTargetsPermission => {
                 cursor.enter("keyword.replicate.reminder.new-targets-permission");
-                cursor.consume_phrase(&[
-                    "you", "may", "choose", "new", "targets", "for", "the", "copies",
-                ])?;
+                cursor.consume_phrase(&["you", "may", "choose", "new", "targets", "for", "the"])?;
+                // The copies of every paid instance (`copies`), or the one
+                // copy a printing that names a single payment states.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("copy"))
+                {
+                    cursor.consume("copy")?;
+                } else {
+                    cursor.consume("copies")?;
+                }
                 ReplicateState::SecondSentenceTerminator
             }
             ReplicateState::SecondSentenceTerminator => {
