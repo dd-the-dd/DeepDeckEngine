@@ -548,6 +548,28 @@ impl GameEngine {
                 counter_removals: Vec::new(),
             });
         }
+        // CR 615.1a: a static prevention scoped by damage kind, recipient
+        // and source (`static_damage_prevention.rs`).
+        if !damage_cannot_be_prevented
+            && let Some((player_id, card_id)) = self.scoped_static_prevention_event_ids(
+                &target,
+                source,
+                source_card.as_ref(),
+                combat,
+            )
+        {
+            events.record_event(
+                "damagePrevented",
+                player_id,
+                card_id,
+                json!({"amount":amount,"source":source,"combat":combat,"reason":"staticPrevention"}),
+            );
+            return Ok(PreparedDamage::Prevented {
+                events: events.records,
+                draws,
+                counter_removals: Vec::new(),
+            });
+        }
         let mut counter_removals = Vec::new();
         if let TargetRef::Permanent { instance_id } = &target {
             if let Some((p, c)) = self.permanent_position(instance_id) {

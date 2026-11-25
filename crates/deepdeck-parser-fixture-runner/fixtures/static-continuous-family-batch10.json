@@ -1,0 +1,1051 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static/continuous-family-batch10",
+  "cases": [
+    {
+      "id": "exact-hungering-yeti-gated-flash-permission",
+      "request": {
+        "cardName": "Hungering Yeti",
+        "typeLine": "Creature — Yeti",
+        "manaCost": "{4}{R}",
+        "oracleText": "As long as you control a green or blue permanent, you may cast this spell as though it had flash. (You may cast it any time you could cast an instant.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castAsThoughFlash"
+              },
+              {
+                "pointer": "/condition/kind",
+                "equals": "compare"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-artifact-gated-flash-permission",
+      "request": {
+        "cardName": "Generic Ambusher",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{1}",
+        "oracleText": "As long as you control an artifact, you may cast this spell as though it had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castAsThoughFlash"
+              },
+              {
+                "pointer": "/condition/left/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-guardian-naga-turn-gated-prevention",
+      "request": {
+        "cardName": "Guardian Naga",
+        "typeLine": "Creature — Naga",
+        "manaCost": "{5}{W}{W}",
+        "oracleText": "During your turn, prevent all damage that would be dealt to this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "preventDamage",
+                  "objects": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "duringControllerTurn",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-turn-gated-own-cost-reduction",
+      "request": {
+        "cardName": "Generic Raider",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}",
+        "oracleText": "During your turn, this spell costs {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "stackOrCast"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceOwnGenericCastingCost"
+              },
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "duringControllerTurn",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-turn-and-count-gated-player-prevention",
+      "request": {
+        "cardName": "Generic Sanctum",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "During your turn, as long as you control two or more creatures, prevent all damage that would be dealt to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "preventPlayerDamage",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/condition/kind",
+                "equals": "and"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-turn-gated-keyword-stays-in-static-frame",
+      "request": {
+        "cardName": "Generic Brute",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{1}",
+        "oracleText": "During your turn, this creature has first strike.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "firstStrike"
+              },
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "duringControllerTurn",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-gated-combat-clause-stays-in-its-frame",
+      "request": {
+        "cardName": "Generic Brute",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{1}",
+        "oracleText": "As long as you control an artifact, this creature can't block.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "cantBlock"
+              },
+              {
+                "pointer": "/condition/kind",
+                "equals": "compare"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-gated-unsupported-permission-body",
+      "request": {
+        "cardName": "Verge Rangers",
+        "typeLine": "Creature — Elf Scout Ranger",
+        "manaCost": "{2}{G}",
+        "oracleText": "As long as an opponent controls more lands than you, you may play lands from the top of your library. (You can play a land this way only if you have an available land play remaining.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thassa-devotion-reminder",
+      "request": {
+        "cardName": "Thassa, God of the Sea",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{2}{U}",
+        "oracleText": "As long as your devotion to blue is less than five, Thassa isn't a creature. (Each {U} in the mana costs of permanents you control counts toward your devotion to blue.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "removeCardTypeWhile"
+              },
+              {
+                "pointer": "/modifiers/0/cardType",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "devotion"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-arixmethes-contracted-pronoun-subject",
+      "request": {
+        "cardName": "Arixmethes, Slumbering Isle",
+        "typeLine": "Legendary Creature — Kraken",
+        "manaCost": "{2}{G}{U}",
+        "oracleText": "As long as Arixmethes has a slumber counter on it, it's a land. (It's not a creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "setCardTypes",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "cardTypes": [
+                    "Land"
+                  ]
+                }
+              },
+              {
+                "pointer": "/condition/object",
+                "equals": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-contracted-pronoun-without-object-condition",
+      "request": {
+        "cardName": "Generic Isle",
+        "typeLine": "Creature — Kraken",
+        "manaCost": "{1}",
+        "oracleText": "As long as you control an Island, it's a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-anger-graveyard-zone-and-condition",
+      "request": {
+        "cardName": "Anger",
+        "typeLine": "Creature — Incarnation",
+        "manaCost": "{3}{R}",
+        "oracleText": "As long as this card is in your graveyard and you control a Mountain, creatures you control have haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "haste"
+              },
+              {
+                "pointer": "/condition/kind",
+                "equals": "compare"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-graveyard-zone-without-condition",
+      "request": {
+        "cardName": "Generic Spirit",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}",
+        "oracleText": "As long as this card is in your graveyard, creatures you control have flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "flying"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kicked-leading-entry-condition",
+      "request": {
+        "cardName": "Gnarlid Colony",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{1}{G}",
+        "oracleText": "Kicker {2}{G}\nIf this creature was kicked, it enters with two +1/+1 counters on it.\nEach creature you control with a +1/+1 counter on it has trample.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "replacementEffect"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "wouldEnterBattlefield"
+              },
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "wasKicked",
+                  "spell": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lair-leading-entry-tapped-condition",
+      "request": {
+        "cardName": "Lair of the Hydra",
+        "typeLine": "Land",
+        "manaCost": "{1}",
+        "oracleText": "If you control two or more other lands, this land enters tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "replacementEffect"
+              },
+              {
+                "pointer": "/replacement/0/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/condition/operator",
+                "equals": ">="
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-shadowborn-apostle-any-number",
+      "request": {
+        "cardName": "Shadowborn Apostle",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{B}",
+        "oracleText": "A deck can have any number of cards named Shadowborn Apostle.\n{B}, Sacrifice six creatures named Shadowborn Apostle: Search your library for a Demon creature card, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability",
+                "equals": {
+                  "kind": "deckCopyLimit",
+                  "maximum": null,
+                  "rulesScope": "deckConstruction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-seven-dwarves-up-to-seven",
+      "request": {
+        "cardName": "Seven Dwarves",
+        "typeLine": "Creature — Dwarf",
+        "manaCost": "{1}{R}",
+        "oracleText": "A deck can have up to seven cards named Seven Dwarves.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability",
+                "equals": {
+                  "kind": "deckCopyLimit",
+                  "maximum": 7,
+                  "rulesScope": "deckConstruction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-elminster-commander-eligibility",
+      "request": {
+        "cardName": "Elminster",
+        "typeLine": "Legendary Planeswalker — Elminster",
+        "manaCost": "{3}{W}{U}",
+        "oracleText": "Elminster can be your commander.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability",
+                "equals": {
+                  "kind": "commanderEligibility",
+                  "rulesScope": "deckConstruction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-limit-of-another-card",
+      "request": {
+        "cardName": "Generic Rat",
+        "typeLine": "Creature — Rat",
+        "manaCost": "{1}",
+        "oracleText": "A deck can have any number of cards named Relentless Rats.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-glacial-chasm-player-recipient",
+      "request": {
+        "cardName": "Glacial Chasm",
+        "typeLine": "Land",
+        "manaCost": null,
+        "oracleText": "Prevent all damage that would be dealt to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "preventPlayerDamage",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fog-bank-dealt-to-and-dealt-by",
+      "request": {
+        "cardName": "Fog Bank",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{1}{U}",
+        "oracleText": "Defender, flying\nPrevent all combat damage that would be dealt to and dealt by this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "preventDamage",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "combatOnly": true
+                }
+              },
+              {
+                "pointer": "/modifiers/1",
+                "equals": {
+                  "kind": "preventScopedDamage",
+                  "damage": "combat",
+                  "sources": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-muzzle-dealt-by-attachment",
+      "request": {
+        "cardName": "Muzzle",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{W}",
+        "oracleText": "Enchant creature\nPrevent all damage that would be dealt by enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "preventScopedDamage",
+                  "damage": "any",
+                  "sources": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tajic-noncombat-recipients",
+      "request": {
+        "cardName": "Tajic, Legion's Edge",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{1}{R}{W}",
+        "oracleText": "Prevent all noncombat damage that would be dealt to other creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "preventScopedDamage"
+              },
+              {
+                "pointer": "/modifiers/0/damage",
+                "equals": "noncombat"
+              },
+              {
+                "pointer": "/modifiers/0/recipients/objects/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-desert-nomads-source-collection",
+      "request": {
+        "cardName": "Desert Nomads",
+        "typeLine": "Creature — Human Nomad",
+        "manaCost": "{2}{R}",
+        "oracleText": "Prevent all damage that would be dealt to this creature by Deserts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "preventScopedDamage"
+              },
+              {
+                "pointer": "/modifiers/0/recipients",
+                "equals": {
+                  "objects": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/sources/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-relational-damage-source",
+      "request": {
+        "cardName": "Wall of Vapor",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{3}{U}",
+        "oracleText": "Prevent all damage that would be dealt to this creature by creatures it's blocking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.prevent.terminator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-quagmire-landwalk-exception",
+      "request": {
+        "cardName": "Quagmire",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "Creatures with swampwalk can be blocked as though they didn't have swampwalk.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "ignoreBlockEvasion"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "swampwalk"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-flying-is-not-a-landwalk-exception",
+      "request": {
+        "cardName": "Generic Net",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Creatures with flying can be blocked as though they didn't have flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.evasion-exception.keyword"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-amorphous-axe-every-creature-type",
+      "request": {
+        "cardName": "Amorphous Axe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{4}",
+        "oracleText": "Equipped creature gets +3/+0 and is every creature type.\nEquip {3}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1",
+                "equals": {
+                  "kind": "modifySubtypeSet",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "subtypeClass": "creature",
+                  "mode": "all"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-stalactite-all-creature-types",
+      "request": {
+        "cardName": "Stalactite Dagger",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature gets +1/+1 and is all creature types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/mode",
+                "equals": "all"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-slickshot-crime-history-gate",
+      "request": {
+        "cardName": "Slickshot Vault-Buster",
+        "typeLine": "Creature — Bird Mercenary",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nThis creature gets +2/+0 as long as you've committed a crime this turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countEventsThisTurn"
+              },
+              {
+                "pointer": "/condition/left/event",
+                "equals": "crimeCommitted"
+              },
+              {
+                "pointer": "/condition/left/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

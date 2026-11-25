@@ -274,6 +274,24 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
     if word_is(cursor, 0, "completed") {
         return recognize_completed_dungeon_atom(cursor, true);
     }
+    // `you've committed a crime this turn` (CR 700.13): the recorded crime
+    // of the controller, read like any other recorded action.
+    if word_is(cursor, 0, "committed") && word_is(cursor, 1, "a") && word_is(cursor, 2, "crime") {
+        cursor.enter("condition.static.controller-history.crime");
+        cursor.consume_phrase(&["committed", "a", "crime"])?;
+        let scope = recognize_history_scope(cursor)?;
+        return Ok(history_node(
+            plain_pattern(
+                HistoryEvent::CrimeCommitted,
+                HistoryPlayer::Controller,
+                None,
+                HistoryMeasure::Occurrences,
+            ),
+            scope,
+            HistoryAggregate::Total,
+            CountThreshold::at_least(1),
+        ));
+    }
     // `you've attacked this turn`, `you've searched your library this turn`:
     // the perfect of a recorded action is the same player history.
     if history_verb_at(cursor, 0, VerbForm::PastParticiple).is_some() {

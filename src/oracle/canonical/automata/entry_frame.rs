@@ -476,12 +476,33 @@ fn recognize_entering_state_frame(
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<EntryFrameNode> {
     let mut frame = EntryFrameNode::empty();
+    // `If CONDITION, SOURCE enters STATE.` (CR 614.1c): the leading form of
+    // the entry condition, checked as the permanent enters.
+    let leading_condition = if word_at(cursor, 0, "if") {
+        let condition = recognize_entry_condition(cursor, name_links, name_failure)?;
+        cursor.enter("replacement.entry-frame.leading-condition.separator");
+        cursor.consume(",")?;
+        condition
+    } else {
+        None
+    };
     cursor.enter("replacement.entry-frame.permission");
     if word_at(cursor, 0, "you") {
         cursor.consume_phrase(&["you", "may", "have"])?;
         frame.optional = true;
     }
-    let source = recognize_entering_source(cursor, name_links, name_failure)?;
+    // After a leading condition, `it enters` names the one object an entry
+    // replacement of this frame modifies: its own entering source.
+    let source = if leading_condition.is_some()
+        && word_at(cursor, 0, "it")
+        && cursor.peek_ahead(1).is_some_and(is_entry_verb)
+    {
+        cursor.enter("replacement.entry-frame.source");
+        cursor.consume("it")?;
+        LocalObjectReference::SourceSelf
+    } else {
+        recognize_entering_source(cursor, name_links, name_failure)?
+    };
     cursor.require(
         source == LocalObjectReference::SourceSelf,
         "the current source entering the battlefield",
@@ -489,10 +510,15 @@ fn recognize_entering_state_frame(
     recognize_entry_verb(cursor, frame.optional)?;
     commit.commit();
     let state = recognize_entering_state(cursor, name_links, name_failure)?;
+    cursor.enter("replacement.entry-frame.leading-condition");
+    cursor.require(
+        leading_condition.is_none() || state.condition.is_none(),
+        "one entry condition, leading or trailing",
+    )?;
     frame.tapped = state.tapped;
     frame.counters = state.counters;
     frame.copy = state.copy;
-    frame.condition = state.condition;
+    frame.condition = leading_condition.or(state.condition);
     cursor.require(
         !(frame.optional && frame.condition.is_some()),
         "one applicability for an optional entry replacement",

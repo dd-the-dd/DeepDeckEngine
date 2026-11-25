@@ -5,8 +5,8 @@
 use super::*;
 
 /// `partner`, `partner—[text]`, `choose a Background`, `Doctor's
-/// companion` and `Spell commander`, each explicitly scoped to deck
-/// construction by the compiler.
+/// companion`, `Spell commander` and a card's own commander eligibility and
+/// copy limit, each explicitly scoped to deck construction by the compiler.
 pub(super) fn deck_construction_keyword_supported(ability: &Value) -> bool {
     ability["rulesScope"].as_str() == Some("deckConstruction")
         && match value_kind(ability) {
@@ -15,6 +15,15 @@ pub(super) fn deck_construction_keyword_supported(ability: &Value) -> bool {
                 .is_none_or(|variant| variant.as_str().is_some_and(|name| !name.trim().is_empty())),
             Some("chooseABackground" | "doctorsCompanion" | "spellCommander") => {
                 ability.get("variant").is_none()
+            }
+            // CR 903.3d: the card can be a commander.
+            Some("commanderEligibility") => ability.get("variant").is_none(),
+            // CR 100.2a: any number (`null`) or at most N copies of the card.
+            Some("deckCopyLimit") => {
+                ability["maximum"].is_null()
+                    || ability["maximum"]
+                        .as_i64()
+                        .is_some_and(|maximum| maximum > 0)
             }
             _ => false,
         }

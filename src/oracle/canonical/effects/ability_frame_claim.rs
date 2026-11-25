@@ -458,6 +458,169 @@ fn optional_permission_frame_failure(input: &AbilityInput<'_>, start: usize) -> 
     )
 }
 
+/// The outcome of the conditional-static wrapper (CR 611.3a).
+pub(in crate::oracle::canonical) enum ConditionalStaticAttempt {
+    Parsed(CanonicalRuleDraft),
+    /// The leading gate was read and the body, read by the ordinary frames,
+    /// failed or cannot carry the gate.
+    Committed(MachineFailure),
+    NotClaimed,
+}
+
+/// `("as long as" CONDITION | "during" TURN) "," BODY` (CR 611.3a, 113.6):
+/// the leading gate is read once with the shared static condition readers,
+/// then the body is dispatched through the ordinary frame classifier
+/// (`parse_body` reads the body as an ability of its own). The gate is
+/// attached to the static rule the body produced, so a permission, a
+/// replacement, a prevention, a cost change or a continuous effect each
+/// keeps its own frame and IR. The wrapper never accepts a body that no
+/// frame completed, and a body whose zone of function cannot evaluate the
+/// gate fails explicitly.
+pub(in crate::oracle::canonical) fn try_parse_conditional_static_frame(
+    input: &AbilityInput<'_>,
+    parse_body: &mut dyn FnMut(&AbilityInput<'_>) -> CanonicalParseOutcome,
+) -> ConditionalStaticAttempt {
+    let tokens = input.tokens;
+    let start = body_start(tokens);
+    if !(phrase_at(tokens, start, &["as", "long", "as"]) || word_at(tokens, start, "during")) {
+        return ConditionalStaticAttempt::NotClaimed;
+    }
+    let mut cursor = OracleTokenCursor::new("conditional-static", tokens);
+    if cursor.advance_to(start).is_err() {
+        return ConditionalStaticAttempt::NotClaimed;
+    }
+    let mut committed = false;
+    // A gate the shared condition grammar does not read stays with the frame
+    // that already reported it.
+    let Ok(leading) = read_leading_static_conditions(&mut cursor, input, &mut committed) else {
+        return ConditionalStaticAttempt::NotClaimed;
+    };
+    let body = cursor.position();
+    if (leading.condition.is_none() && leading.zone_of_function.is_none()) || body >= tokens.len() {
+        return ConditionalStaticAttempt::NotClaimed;
+    }
+    let end = tokens.len();
+    let name_links = input
+        .name_links
+        .iter()
+        .filter_map(|link| rebase_name_link(link, body, end))
+        .collect::<Vec<_>>();
+    let name_failure = input
+        .name_resolution_failure
+        .and_then(|failure| rebase_name_failure(failure, body, end));
+    let body_input = AbilityInput {
+        face_name: input.face_name,
+        face_type_line: input.face_type_line,
+        source: input.source,
+        tokens: &tokens[body..],
+        name_links: &name_links,
+        name_resolution_failure: name_failure.as_ref(),
+    };
+    let mut draft = match parse_body(&body_input) {
+        CanonicalParseOutcome::Parsed { draft, .. } => draft,
+        CanonicalParseOutcome::Failed { failure, .. }
+        | CanonicalParseOutcome::FailedWithCandidateEvidence { failure, .. } => {
+            return ConditionalStaticAttempt::Committed(rebase_machine_failure(failure, body));
+        }
+        CanonicalParseOutcome::Unsupported => {
+            return ConditionalStaticAttempt::Committed(fail_at(
+                input,
+                "ability-frame.conditional-static.body",
+                body,
+                "a body the ordinary frames read after the leading gate (CR 611.3a)",
+            ));
+        }
+    };
+    match attach_leading_static_gate(&mut cursor, &mut draft.rule, &leading) {
+        Ok(()) => {
+            draft.operations.insert(
+                0,
+                "Read the leading static gate with the shared condition readers, then the body with the ordinary frame classifier (CR 611.3a)".to_string(),
+            );
+            ConditionalStaticAttempt::Parsed(draft)
+        }
+        Err(failure) => ConditionalStaticAttempt::Committed(failure),
+    }
+}
+
+/// The modifiers of a body that the engine gates by the modifier's own
+/// condition: a spell's own cost reduction (CR 601.2f) reads it while the
+/// card is being cast.
+fn modifier_gated_body(rule: &Value) -> bool {
+    rule["modifiers"].as_array().is_some_and(|modifiers| {
+        !modifiers.is_empty()
+            && modifiers
+                .iter()
+                .all(|modifier| modifier["kind"] == "reduceOwnGenericCastingCost")
+    })
+}
+
+/// A hand-functioning body the engine gates by the rule's condition: a
+/// card's own flash permission (CR 702.8a).
+fn hand_rule_gated_body(rule: &Value) -> bool {
+    rule["modifiers"].as_array().is_some_and(|modifiers| {
+        !modifiers.is_empty()
+            && modifiers
+                .iter()
+                .all(|modifier| modifier["kind"] == "castAsThoughFlash")
+    })
+}
+
+fn conjoined(existing: Option<&Value>, gate: Value) -> Value {
+    match existing {
+        None => gate,
+        Some(existing) => and(vec![gate, existing.clone()]),
+    }
+}
+
+/// Attaches the leading gate to the body's static rule where its zone of
+/// function evaluates it: the rule's condition on the battlefield, in a
+/// graveyard it declares (CR 113.6) or for a card's own flash permission in
+/// hand; each modifier's condition for a spell's own cost reduction.
+fn attach_leading_static_gate(
+    cursor: &mut OracleTokenCursor<'_>,
+    rule: &mut Value,
+    leading: &LeadingStaticCondition,
+) -> MachineResult<()> {
+    cursor.enter("ability-frame.conditional-static.body-kind");
+    cursor.require(
+        rule["kind"] == "staticAbility" && rule["activeWhile"]["object"] == self_ref(),
+        "a static body of the source (continuous effect, permission, replacement, prevention or cost change) that the leading gate governs (CR 611.3a)",
+    )?;
+    let body_zone = rule["activeWhile"]["zone"]["kind"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    if let Some(zone) = leading.zone_of_function {
+        cursor.enter("ability-frame.conditional-static.zone-of-function");
+        cursor.require(
+            body_zone == "battlefield",
+            "a battlefield body whose zone of function the leading condition replaces (CR 113.6)",
+        )?;
+        rule["activeWhile"] = active_while_static_zone(Some(zone));
+    }
+    let Some(condition) = &leading.condition else {
+        return Ok(());
+    };
+    let gate = lower_condition(condition);
+    cursor.enter("ability-frame.conditional-static.gate");
+    let rule_gated = leading.zone_of_function.is_some()
+        || body_zone == "battlefield"
+        || (body_zone == "hand" && hand_rule_gated_body(rule));
+    if rule_gated {
+        rule["condition"] = conjoined(rule.get("condition"), gate);
+        return Ok(());
+    }
+    cursor.require(
+        body_zone == "stackOrCast" && modifier_gated_body(rule),
+        "a body whose zone of function evaluates the leading gate (battlefield, a declared graveyard, a card's own flash permission or its own cost reduction)",
+    )?;
+    for modifier in rule["modifiers"].as_array_mut().into_iter().flatten() {
+        modifier["condition"] = conjoined(modifier.get("condition"), gate.clone());
+    }
+    Ok(())
+}
+
 /// The frame owning an unclaimed ability and the failure inside that frame.
 pub(in crate::oracle::canonical) fn claim_unclaimed_ability_frame(
     input: &AbilityInput<'_>,
