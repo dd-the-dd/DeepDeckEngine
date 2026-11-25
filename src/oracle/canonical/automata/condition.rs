@@ -692,6 +692,11 @@ pub(in crate::oracle::canonical) enum ActionOutcomeNode {
     PreviousActionImpossible,
     /// `if you don't`: the optional payment the parent bound was not paid.
     CostNotPaid { payment: ChoiceBinding },
+    /// `If you do` / `If you don't` (CR 608.2c) after an optional
+    /// instruction of the program (`you may reveal it`): whether it was
+    /// actually performed. Only the program lowering resolves it; a guard
+    /// that kept the instruction from being offered makes `you do` false.
+    OptionalInstruction { performed: bool },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -997,12 +1002,11 @@ fn action_result_copula_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> 
             ["is", "are", "was", "were"]
                 .iter()
                 .any(|copula| word(*offset, copula))
-                && cursor
-                    .peek_ahead(offset + 1)
-                    .and_then(super::ActionResultVerb::from_word)
-                    .is_some()
-                && word(offset + 2, "this")
-                && word(offset + 3, "way")
+                && super::action_result_participle_at(cursor, offset + 1).is_some_and(
+                    |(_, width)| {
+                        word(offset + 1 + width, "this") && word(offset + 2 + width, "way")
+                    },
+                )
         })
 }
 
@@ -1035,12 +1039,12 @@ pub(in crate::oracle::canonical) fn recognize_action_result_condition_atom(
     cursor.enter("condition.action-result.verb");
     let raw = cursor.peek().unwrap_or_default().to_owned();
     cursor.consume(&raw)?;
-    let verb = cursor
-        .peek()
-        .and_then(super::ActionResultVerb::from_word)
+    let (verb, width) = super::action_result_participle_at(cursor, 0)
         .ok_or_else(|| cursor.fail("`destroyed`, `milled` or `discarded`"))?;
-    let raw = cursor.peek().unwrap_or_default().to_owned();
-    cursor.consume(&raw)?;
+    for _ in 0..width {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+    }
     cursor.consume_phrase(&["this", "way"])?;
     let (operator, value) = threshold_comparison(threshold);
     Ok(ConditionAtom::Compare(ConditionComparison {

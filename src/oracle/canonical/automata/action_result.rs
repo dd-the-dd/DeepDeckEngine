@@ -44,10 +44,15 @@ pub(in crate::oracle::canonical) enum ActionResultVerb {
     /// Permanents returned from the battlefield to their owners' hands
     /// (CR 400.7: each card is a new object in the hand).
     Returned,
+    /// Permanents a damage action actually dealt damage to (CR 120.3;
+    /// prevented damage is not dealt, CR 615.1). They stay on the
+    /// battlefield while the program resolves; only the two-word participle
+    /// `dealt damage` names them (`action_result_participle_at`).
+    DealtDamage,
 }
 
 impl ActionResultVerb {
-    pub(in crate::oracle::canonical) const ALL: [Self; 8] = [
+    pub(in crate::oracle::canonical) const ALL: [Self; 9] = [
         Self::Destroyed,
         Self::Milled,
         Self::Discarded,
@@ -56,6 +61,7 @@ impl ActionResultVerb {
         Self::Sacrificed,
         Self::Tapped,
         Self::Returned,
+        Self::DealtDamage,
     ];
 
     pub(in crate::oracle::canonical) fn from_word(word: &str) -> Option<Self> {
@@ -98,6 +104,7 @@ impl ActionResultVerb {
             Self::Sacrificed => "sacrificed",
             Self::Tapped => "tapped",
             Self::Returned => "returned",
+            Self::DealtDamage => "dealtDamage",
         }
     }
 
@@ -119,6 +126,9 @@ impl ActionResultVerb {
             Self::Tapped => &["tapPermanent"],
             // `bind` records the objects this return put into a hand.
             Self::Returned => &["returnToOwnersHand"],
+            // `bind` records the permanents its damage events show it
+            // dealt damage to.
+            Self::DealtDamage => &["dealDamage"],
         }
     }
 
@@ -150,8 +160,26 @@ impl ActionResultVerb {
     /// battlefield (a tap changes no zone, CR 701.26a), so a restated
     /// permanent noun can be re-read on the bound permanents.
     pub(in crate::oracle::canonical) const fn preserves_permanents(self) -> bool {
-        matches!(self, Self::Tapped)
+        matches!(self, Self::Tapped | Self::DealtDamage)
     }
+}
+
+/// The past participle of a restated action at `offset` (`destroyed`,
+/// `milled`, the two-word `dealt damage`), with its width in tokens. A
+/// passive `OBJECT is dealt damage this way` names the damage action's
+/// recipients; the bare `dealt` of `the damage dealt this way` is not one.
+pub(in crate::oracle::canonical) fn action_result_participle_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(ActionResultVerb, usize)> {
+    let word = cursor.peek_ahead(offset)?;
+    if word.eq_ignore_ascii_case("dealt") {
+        return cursor
+            .peek_ahead(offset + 1)
+            .is_some_and(|next| next.eq_ignore_ascii_case("damage"))
+            .then_some((ActionResultVerb::DealtDamage, 2));
+    }
+    ActionResultVerb::from_word(word).map(|verb| (verb, 1))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -538,6 +566,9 @@ pub(in crate::oracle::canonical) fn action_result_verb_produced_by(
             LocalEffectNode::SelectedPermanents(node)
                 if node.action == super::SelectedPermanentAction::ReturnToOwnerHand
         ),
+        // A damage action (`deals 3 damage to any target`); its recipients
+        // are read from the damage it actually dealt.
+        ActionResultVerb::DealtDamage => matches!(effect, LocalEffectNode::DealDamage(_)),
     }
 }
 
@@ -813,6 +844,84 @@ pub(in crate::oracle::canonical) fn recognize_reflexive_result_connector(
         predicate: query.predicate,
         one_or_more,
     })
+}
+
+/// Lexical lookahead for `excess damage was|is dealt ... this way`.
+pub(in crate::oracle::canonical) fn excess_damage_condition_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(0, "excess") && word(1, "damage") && (word(2, "was") || word(2, "is")) && word(3, "dealt")
+}
+
+/// `excess damage was dealt [to that creature|to it|to a permanent] this
+/// way` (CR 120.4a, 608.2c): the damage beyond lethal that the nearest
+/// earlier damage action of the program dealt is greater than zero. Excess
+/// damage exists only for a permanent recipient, so `a permanent` restates
+/// no other filter; a narrower noun (`a creature`) is not proven by the
+/// recorded amount and fails explicitly. The program lowering binds the
+/// producing action or fails; the first action of a program has none.
+pub(in crate::oracle::canonical) fn recognize_excess_damage_condition_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.excess-damage.subject");
+    cursor.consume_phrase(&["excess", "damage"])?;
+    let copula = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&copula)?;
+    cursor.consume("dealt")?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("to"))
+    {
+        cursor.enter("condition.excess-damage.recipient");
+        cursor.consume("to")?;
+        let determiner = cursor.peek().unwrap_or_default().to_ascii_lowercase();
+        match determiner.as_str() {
+            "it" => cursor.consume("it")?,
+            "that" => {
+                cursor.consume("that")?;
+                let noun = cursor.peek().unwrap_or_default().to_owned();
+                cursor.require(
+                    ["creature", "permanent", "planeswalker"]
+                        .iter()
+                        .any(|expected| noun.eq_ignore_ascii_case(expected)),
+                    "the permanent the damage action dealt damage to",
+                )?;
+                cursor.consume(&noun)?;
+            }
+            "a" => {
+                cursor.consume("a")?;
+                cursor.consume("permanent")?;
+            }
+            _ => {
+                return Err(cursor.fail("`to it`, `to that PERMANENT` or `to a permanent`"));
+            }
+        }
+    }
+    cursor.enter("condition.excess-damage.scope");
+    cursor.consume_phrase(&["this", "way"])?;
+    cursor.enter("condition.excess-damage.reader");
+    let reader = cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
+        .filter(|index| *index > 0);
+    let reader = cursor.require_value(
+        reader,
+        "an earlier damage action of this program whose excess damage the condition reads",
+    )?;
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(super::NumericExpression::ActionResultQuantity {
+            reader_effect: reader,
+            quantity: ActionResultQuantity::ExcessDamage,
+        }),
+        operator: super::NumericComparisonOperator::GreaterThan,
+        right: ConditionNumber::Integer(0),
+    }))
 }
 
 /// Words a restated object may use in place of the producer's own words:

@@ -471,7 +471,7 @@
           {
             "abilityIndex": 2,
             "code": "oracle_machine_failure",
-            "state": "condition.sentence.object.zone-of-function"
+            "state": "engine.gap.event-matcher"
           }
         ]
       }

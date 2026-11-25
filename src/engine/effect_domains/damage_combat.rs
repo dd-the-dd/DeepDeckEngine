@@ -91,7 +91,11 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
             Some("dealDamage") => {
+                // `bind`: the permanents this action dealt damage to (CR
+                // 120.3, 608.2c `dealt damage this way`), from its events.
+                let damage_events_from = self.state.events.len();
                 if self.execute_player_set_damage(effect, stack_object, bindings, decisions)? {
+                    self.bind_damaged_permanents(effect, damage_events_from, None, bindings);
                     return Ok(());
                 }
                 let amount = self
@@ -111,6 +115,7 @@ impl GameEngine {
                     bindings,
                 )?
                 else {
+                    self.bind_damaged_permanents(effect, damage_events_from, None, bindings);
                     return Ok(());
                 };
                 let damage_source_id = damage_source.instance_id;
@@ -261,6 +266,12 @@ impl GameEngine {
                         )?;
                     }
                 }
+                self.bind_damaged_permanents(
+                    effect,
+                    damage_events_from,
+                    Some(damage_source_id.as_str()),
+                    bindings,
+                );
             }
             Some("dealDividedDamage") => {
                 let targets = effect["targetsDecisionId"]
@@ -613,5 +624,37 @@ impl GameEngine {
             }
         }
         Ok(())
+    }
+
+    /// Records under the action's `bind` the permanents its damage events
+    /// since `from` show it actually dealt damage to (prevented damage is
+    /// not dealt, CR 615.1), each once, in event order. Without a source
+    /// (nothing could deal the damage) the set is empty.
+    fn bind_damaged_permanents(
+        &self,
+        effect: &Value,
+        from: usize,
+        source_id: Option<&str>,
+        bindings: &mut BTreeMap<String, RuntimeBinding>,
+    ) {
+        let Some(binding) = effect["bind"].as_str() else {
+            return;
+        };
+        let mut damaged = Vec::<String>::new();
+        if let Some(source_id) = source_id {
+            for event in self.state.events.iter().skip(from) {
+                if event.kind == "damageDealt"
+                    && event.detail["source"].as_str() == Some(source_id)
+                    && event.detail["amount"]
+                        .as_i64()
+                        .is_some_and(|amount| amount > 0)
+                    && let Some(instance_id) = event.card_instance_id.as_ref()
+                    && !damaged.contains(instance_id)
+                {
+                    damaged.push(instance_id.clone());
+                }
+            }
+        }
+        bindings.insert(binding.to_string(), RuntimeBinding::Objects(damaged));
     }
 }

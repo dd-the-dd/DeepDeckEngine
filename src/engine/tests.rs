@@ -67,6 +67,9 @@ mod antecedent_continuation_runtime;
 #[path = "tests/binding_environment_runtime.rs"]
 mod binding_environment_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/condition_guards_runtime.rs"]
+mod condition_guards_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/measured_instruction_runtime.rs"]
 mod measured_instruction_runtime;
 
