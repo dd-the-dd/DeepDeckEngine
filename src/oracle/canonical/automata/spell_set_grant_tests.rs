@@ -22,8 +22,8 @@ fn chief_engineer_grants_convoke_to_artifact_spells_you_cast() {
         "Artifact spells you cast have convoke. (Your creatures can help cast those spells. Each creature you tap while casting an artifact spell pays for {1} or one mana of that creature's color.)",
     );
     assert_eq!(
-        node.keyword,
-        SpellGrantedKeyword::Parameterless(GrantedKeyword::Convoke)
+        node.predicate,
+        SpellSetPredicate::Has(SpellGrantedKeyword::Parameterless(GrantedKeyword::Convoke))
     );
     assert_eq!(
         node.spells.caster,
@@ -40,11 +40,15 @@ fn chief_engineer_grants_convoke_to_artifact_spells_you_cast() {
 #[test]
 fn each_singular_subject_agrees_with_has_and_reads_conspire_and_replicate() {
     let conspire = parsed("Each red or green instant or sorcery spell you cast has conspire.");
-    assert_eq!(conspire.keyword, SpellGrantedKeyword::Conspire);
+    assert_eq!(
+        conspire.predicate,
+        SpellSetPredicate::Has(SpellGrantedKeyword::Conspire)
+    );
     let replicate = parsed("Artifact spells you cast have replicate {2}{U}.");
     assert!(matches!(
-        &replicate.keyword,
-        SpellGrantedKeyword::Replicate(cost) if cost.as_oracle_cost() == "{2}{U}"
+        &replicate.predicate,
+        SpellSetPredicate::Has(SpellGrantedKeyword::Replicate(cost))
+            if cost.as_oracle_cost() == "{2}{U}"
     ));
 }
 
@@ -77,4 +81,16 @@ fn verb_agreement_and_unread_cost_sentences_fail_explicitly() {
         }
         SpellSetGrantAttempt::Parsed(node) => panic!("cast origin dropped: {node:?}"),
     }
+}
+
+#[test]
+fn meddling_mage_prohibits_casting_spells_with_the_chosen_name() {
+    let node = parsed("Spells with the chosen name can't be cast.");
+    assert_eq!(node.predicate, SpellSetPredicate::CantBeCast);
+    assert_eq!(node.spells.caster, None);
+    assert!(matches!(
+        &node.spells.predicate,
+        ObjectPredicate::Intersection(operands)
+            if operands.contains(&ObjectPredicate::Relation(ObjectRelation::ChosenName))
+    ));
 }

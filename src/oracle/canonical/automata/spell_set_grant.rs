@@ -1,10 +1,12 @@
-//! A static grant of a keyword to the spells a player casts (CR 604.1,
-//! 613.1f): `Artifact spells you cast have convoke.`, `Each noncreature
-//! spell you cast has conspire.`, `Spells you cast with mana value 6 or
-//! greater have cascade.`
+//! A static rule of a spell set (CR 604.1): a keyword granted to the spells
+//! a player casts (CR 613.1f: `Artifact spells you cast have convoke.`,
+//! `Each noncreature spell you cast has conspire.`, `Spells you cast with
+//! mana value 6 or greater have cascade.`) or a prohibition on casting them
+//! (CR 101.2: `Spells with the chosen name can't be cast.`).
 //!
 //! ```text
-//! SpellSetGrant := ["each"] SPELLS ("have" | "has") KEYWORD "." [REMINDER]
+//! SpellSetGrant := ["each"] SPELLS PREDICATE "." [REMINDER]
+//! PREDICATE     := ("have" | "has") KEYWORD | "can't" "be" "cast"
 //! SPELLS        := the shared spell-cast collection (`recognize_spell_cast_collection`)
 //! KEYWORD       := a parameterless keyword (`convoke`, `split second`)
 //!                | "conspire"
@@ -22,6 +24,15 @@ use super::{
     recognize_parameterless_keyword, recognize_spell_cast_collection,
 };
 
+/// What the static rule says of its spells.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SpellSetPredicate {
+    /// `have KEYWORD`: the spells have the keyword while cast.
+    Has(SpellGrantedKeyword),
+    /// `can't be cast` (CR 101.2): no player casts such a spell.
+    CantBeCast,
+}
+
 /// One keyword granted to a spell set.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum SpellGrantedKeyword {
@@ -37,7 +48,7 @@ pub(in crate::oracle::canonical) enum SpellGrantedKeyword {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SpellSetGrantNode {
     pub spells: SpellCastQueryNode,
-    pub keyword: SpellGrantedKeyword,
+    pub predicate: SpellSetPredicate,
 }
 
 pub(in crate::oracle::canonical) enum SpellSetGrantAttempt {
@@ -82,11 +93,23 @@ fn read_spell_set_grant(
     cursor.enter("static.spell-grant.spells");
     let spells = recognize_spell_cast_collection(cursor)?;
     cursor.enter("static.spell-grant.verb");
-    // `each SPELL has`, `SPELLS have`: the verb agrees with the subject.
-    cursor.consume(if each { "has" } else { "have" })?;
-    *claimed = true;
-    cursor.enter("static.spell-grant.keyword");
-    let keyword = recognize_spell_granted_keyword(cursor)?;
+    let cant = cursor
+        .peek()
+        .is_some_and(|raw| raw.replace('\u{2019}', "'").eq_ignore_ascii_case("can't"));
+    let predicate = if cant && word_at(cursor, 1, "be") && word_at(cursor, 2, "cast") {
+        // CR 101.2: `can't be cast`, the passive of every caster's action.
+        let negation = cursor.peek().expect("checked negation").to_string();
+        cursor.consume(&negation)?;
+        cursor.consume_phrase(&["be", "cast"])?;
+        *claimed = true;
+        SpellSetPredicate::CantBeCast
+    } else {
+        // `each SPELL has`, `SPELLS have`: the verb agrees with the subject.
+        cursor.consume(if each { "has" } else { "have" })?;
+        *claimed = true;
+        cursor.enter("static.spell-grant.keyword");
+        SpellSetPredicate::Has(recognize_spell_granted_keyword(cursor)?)
+    };
     cursor.enter("static.spell-grant.terminator");
     cursor.consume(".")?;
     // CR 207.2: one trailing parenthetical that closes the ability is
@@ -101,7 +124,7 @@ fn read_spell_set_grant(
     }
     cursor.enter("static.spell-grant.complete");
     cursor.finish()?;
-    Ok(SpellSetGrantNode { spells, keyword })
+    Ok(SpellSetGrantNode { spells, predicate })
 }
 
 fn recognize_spell_granted_keyword(

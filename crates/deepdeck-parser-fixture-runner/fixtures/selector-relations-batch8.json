@@ -574,6 +574,99 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-meddling-mage-stored-name-prohibition",
+      "request": {
+        "cardName": "Meddling Mage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{W}{U}",
+        "oracleText": "As this creature enters, choose a nonland card name.\nSpells with the chosen name can't be cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "prohibitCast",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "where": {
+                    "kind": "chosenCardName",
+                    "decisionId": "chosenCardName"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponents-cant-cast-chosen-name",
+      "request": {
+        "cardName": "Gideon's Chosen Ward",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "As this enchantment enters, choose a card name.\nYour opponents can't cast spells with the chosen name.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitCast"
+              },
+              {
+                "pointer": "/modifiers/0/where",
+                "equals": {
+                  "kind": "chosenCardName",
+                  "decisionId": "chosenCardName"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-chosen-name-without-entry-choice",
+      "request": {
+        "cardName": "Unnamed Mage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{W}{U}",
+        "oracleText": "Spells with the chosen name can't be cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
     }
   ]
 }

@@ -43,20 +43,38 @@ pub(in crate::oracle::canonical) fn lower_spell_set_grant(
     cursor: &mut OracleTokenCursor<'_>,
     node: &SpellSetGrantNode,
 ) -> MachineResult<CanonicalRuleDraft> {
-    cursor.enter("static.spell-grant.caster");
-    // The engine grants to the spells its source's controller casts.
-    cursor.require(
-        node.spells.caster == Some(SpellCasterScope::AbilityController),
-        "spells cast by the ability controller (`you cast`)",
-    )?;
     cursor.enter("static.spell-grant.filter");
     cursor.require(
         domain_filter_is_representable(&node.spells.predicate),
         "a spell filter preserving Boolean domain identities",
     )?;
     let filter = lower_spell_object_predicate(&node.spells.predicate).unwrap_or(Value::Null);
+    let keyword = match &node.predicate {
+        // CR 101.2: no player casts a matching spell; a caster relation
+        // would name the prohibited players, which this subject does not.
+        SpellSetPredicate::CantBeCast => {
+            cursor.enter("static.spell-grant.prohibition");
+            cursor.require(
+                node.spells.caster.is_none(),
+                "spells of every caster before `can't be cast`",
+            )?;
+            let mut modifier =
+                json!({ "kind": "prohibitCast", "players": { "kind": "eachPlayer" } });
+            if !filter.is_null() {
+                modifier["where"] = filter;
+            }
+            return Ok(static_spell_rule(cursor, modifier));
+        }
+        SpellSetPredicate::Has(keyword) => keyword,
+    };
+    cursor.enter("static.spell-grant.caster");
+    // The engine grants to the spells its source's controller casts.
+    cursor.require(
+        node.spells.caster == Some(SpellCasterScope::AbilityController),
+        "spells cast by the ability controller (`you cast`)",
+    )?;
     cursor.enter("static.spell-grant.keyword-modifier");
-    let modifier = match &node.keyword {
+    let modifier = match keyword {
         SpellGrantedKeyword::Parameterless(GrantedKeyword::Convoke) => {
             json!({ "kind": "grantConvoke", "spells": granted_spells(&filter) })
         }
@@ -95,13 +113,17 @@ pub(in crate::oracle::canonical) fn lower_spell_set_grant(
             ));
         }
     };
+    Ok(static_spell_rule(cursor, modifier))
+}
+
+fn static_spell_rule(cursor: &OracleTokenCursor<'_>, modifier: Value) -> CanonicalRuleDraft {
     let transition_trace = cursor
         .transitions()
         .iter()
         .map(|transition| transition.state)
         .collect::<Vec<_>>()
         .join(" -> ");
-    Ok(draft(
+    draft(
         json!({
             "kind": "staticAbility",
             "source": self_ref(),
@@ -109,12 +131,12 @@ pub(in crate::oracle::canonical) fn lower_spell_set_grant(
             "modifiers": [modifier],
         }),
         &[
-            "Read the granted spells with the shared spell-cast collection and its caster",
-            "Read the granted keyword as one typed atom",
-            "Lower the keyword to the one spell-grant modifier the engine evaluates",
+            "Read the spells with the shared spell-cast collection and its caster",
+            "Read the granted keyword or the cast prohibition as one typed predicate",
+            "Lower it to the one spell modifier the engine evaluates",
             &transition_trace,
         ],
-    ))
+    )
 }
 
 #[cfg(test)]

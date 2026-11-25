@@ -86,3 +86,30 @@ fn keywords_and_casters_without_a_spell_grant_fail_explicitly() {
         "static.spell-grant.caster"
     );
 }
+
+#[test]
+fn a_spell_set_prohibition_lowers_to_the_filtered_cast_prohibition() {
+    // The symbolic chosen name; the card-level entry binder links it to the
+    // face's stored choice or refuses the card.
+    assert_eq!(
+        modifier("Spells with the chosen name can't be cast."),
+        json!({
+            "kind": "prohibitCast",
+            "players": { "kind": "eachPlayer" },
+            "where": {
+                "kind": "chosenCardName",
+                "decisionId": crate::oracle::contextual_binding::RESOLUTION_CARD_NAME_DECISION,
+            },
+        })
+    );
+    // A previously unused combination: a characteristic filter.
+    let creatures = modifier("Creature spells can't be cast.");
+    assert_eq!(
+        creatures["where"],
+        json!({ "kind": "cardTypeContains", "value": "Creature" })
+    );
+    assert_eq!(
+        failure_state("Spells you cast can't be cast."),
+        "static.spell-grant.prohibition"
+    );
+}
