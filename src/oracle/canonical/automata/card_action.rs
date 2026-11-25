@@ -2697,6 +2697,34 @@ fn following_sentence_ends(cursor: &OracleTokenCursor<'_>, from: usize, end: usi
     ends
 }
 
+/// Whether one action of `effects` names the observation by a form only an
+/// observation answers: the rest, the other card, the revealed cards, the
+/// cards VERBed this way, a choice from among them, or a restated query.
+/// A bare `it|them|that card|those cards` may also name a triggering
+/// event's card, which an independent program step already reads.
+fn effects_name_observation_explicitly(effects: &[LocalEffectNode]) -> bool {
+    let explicit = |operand: &CardOperandNode| match operand {
+        CardOperandNode::Reference(reference) => !matches!(
+            reference,
+            CardCollectionReferenceNode::Selected | CardCollectionReferenceNode::Antecedent
+        ),
+        CardOperandNode::Selection(_) | CardOperandNode::RestatedAntecedent { .. } => true,
+        _ => false,
+    };
+    effects.iter().any(|effect| match effect {
+        LocalEffectNode::CardAction(
+            CardActionNode::Move { cards, .. }
+            | CardActionNode::Reveal(cards)
+            | CardActionNode::Permit(CardPermissionNode { cards, .. }),
+        ) => explicit(cards),
+        LocalEffectNode::CardAction(CardActionNode::Choose(_)) => true,
+        LocalEffectNode::OptionalSequence(body) => {
+            effects_name_observation_explicitly(&body.effects)
+        }
+        _ => false,
+    })
+}
+
 /// `PRODUCER. Put that card into your hand and the rest into your graveyard.`
 /// after an `If you do,` outcome or a `you may` permission: the sentences
 /// that only act on the cards the governed sentence observed belong to the
@@ -2705,8 +2733,9 @@ fn following_sentence_ends(cursor: &OracleTokenCursor<'_>, from: usize, end: usi
 /// and they would do nothing, so the governed reading is exact. The longest
 /// run of such sentences is read; a sentence with any other action (or one
 /// the shared sequence does not read) ends the run and stays an independent
-/// program step. The observation is then the nearer antecedent of a card
-/// pronoun than a triggering event's card, as inside one sequence. `None`
+/// program step. Where the frame names a triggering event's card, a sentence
+/// joins only when it also names the observation explicitly (`the rest`,
+/// `from among them`): a bare pronoun there may name the event's card. `None`
 /// consumes nothing: the governed sentence observes no cards, or no
 /// following sentence only reads them.
 pub(in crate::oracle::canonical) fn try_recognize_observed_card_continuation(
@@ -2718,6 +2747,9 @@ pub(in crate::oracle::canonical) fn try_recognize_observed_card_continuation(
     if ability_end <= body_end {
         return None;
     }
+    let event_card = cursor
+        .binding_environment()
+        .is_some_and(|environment| environment.frame.event_card.is_some());
     let mut alone = cursor.clone();
     let own = alone.bounded(body_end, &mut read).ok()?;
     if !effects_observe_cards(&own.effects) {
@@ -2725,6 +2757,7 @@ pub(in crate::oracle::canonical) fn try_recognize_observed_card_continuation(
     }
     let mut best: Option<(OracleTokenCursor<'_>, EffectSequenceNode)> = None;
     let mut start = body_end;
+    let mut read_effects = own.effects.len();
     for end in following_sentence_ends(cursor, body_end, ability_end) {
         // An outcome connector (`If you don't,`, `Otherwise,`, `When you
         // do,`) opens the complementary or reflexive block, never a reader.
@@ -2749,12 +2782,15 @@ pub(in crate::oracle::canonical) fn try_recognize_observed_card_continuation(
         let Ok(extended) = trial.bounded(end, &mut read) else {
             break;
         };
-        let continues = extended.effects.len() > own.effects.len()
+        let continues = extended.effects.len() > read_effects
             && extended.effects[..own.effects.len()] == own.effects[..]
-            && effects_read_only_observed_cards(&extended.effects[own.effects.len()..]);
+            && effects_read_only_observed_cards(&extended.effects[read_effects..])
+            && (!event_card
+                || effects_name_observation_explicitly(&extended.effects[read_effects..]));
         if !continues {
             break;
         }
+        read_effects = extended.effects.len();
         best = Some((trial, extended));
     }
     let (trial, extended) = best?;
