@@ -14,7 +14,7 @@ pub(in crate::oracle::canonical) fn try_parse_event_replacement(
     let node = match try_recognize_event_replacement(&mut cursor) {
         ChildOutcome::Matched(node) => node,
         ChildOutcome::Committed(failure) => return ReplacementFrameAttempt::Committed(failure),
-        ChildOutcome::NoMatch(_) => return ReplacementFrameAttempt::NotClaimed,
+        ChildOutcome::NoMatch(_) => return try_parse_created_replacement_spell(input),
     };
     match lower_event_replacement(&mut cursor, input, &node) {
         Ok(draft) => ReplacementFrameAttempt::Parsed(draft),
@@ -65,6 +65,45 @@ fn lower_event_replacement(
             "Install one battlefield-active event replacement modifier",
         ],
     ))
+}
+
+/// A spell ability that is one replacement-creating sentence (`If a card
+/// would be put into your graveyard from anywhere this turn, exile that
+/// card instead.`, CR 611.2a, 614.1a): the spell creates the replacement
+/// when it resolves.
+fn try_parse_created_replacement_spell(input: &AbilityInput<'_>) -> ReplacementFrameAttempt {
+    if !spell_face(input.face_type_line) {
+        return ReplacementFrameAttempt::NotClaimed;
+    }
+    let mut cursor = OracleTokenCursor::new("created-replacement-spell", input.tokens);
+    cursor.replace_source_names(Some(input.name_links.into()));
+    let node = match try_recognize_created_replacement_sentence(
+        &mut cursor,
+        input.name_links,
+        input.name_resolution_failure,
+    ) {
+        ChildOutcome::Matched(node) => node,
+        ChildOutcome::Committed(failure) => return ReplacementFrameAttempt::Committed(failure),
+        ChildOutcome::NoMatch(_) => return ReplacementFrameAttempt::NotClaimed,
+    };
+    let lowered = cursor.finish().and_then(|()| {
+        cursor.enter("created-replacement-spell.lowering");
+        lower_created_replacement_step(&mut cursor, &node)
+    });
+    match lowered {
+        Ok(lowered) => ReplacementFrameAttempt::Parsed(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "effects": lowered.effects,
+            }),
+            &[
+                "Read one sentence creating a replacement with the shared frames",
+                "Install the replacement when the spell resolves, through this turn",
+            ],
+        )),
+        Err(failure) => ReplacementFrameAttempt::Committed(failure),
+    }
 }
 
 #[cfg(test)]

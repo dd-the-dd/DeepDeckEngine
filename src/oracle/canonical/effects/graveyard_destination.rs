@@ -58,16 +58,19 @@ pub(in crate::oracle::canonical) fn claims_promoted_graveyard_destination_replac
     }
     // The shared departure frame claims the ability once its subject,
     // `would` and departure verb are read (a committed failure or a match).
+    // A replacement with a lifetime is created by a resolving effect: the
+    // effect program reads it as one of its sentences.
     let mut cursor = OracleTokenCursor::new("departure-replacement", input.tokens);
-    !matches!(
-        try_recognize_departure_replacement(
-            &mut cursor,
-            DepartureFrame::Ability,
-            input.name_links,
-            input.name_resolution_failure,
-        ),
-        ChildOutcome::NoMatch(_)
-    )
+    match try_recognize_departure_replacement(
+        &mut cursor,
+        DepartureFrame::Ability,
+        input.name_links,
+        input.name_resolution_failure,
+    ) {
+        ChildOutcome::Matched(node) => node.lifetime.is_none(),
+        ChildOutcome::Committed(_) => true,
+        ChildOutcome::NoMatch(_) => false,
+    }
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_graveyard_destination_replacement(
