@@ -879,6 +879,79 @@
         "cardStatus": "canonical",
         "abilityCount": 1
       }
+    },
+    {
+      "id": "exact-keeper-of-the-lens",
+      "request": {
+        "cardName": "Keeper of the Lens",
+        "typeLine": "Artifact Creature \u2014 Golem",
+        "manaCost": "{1}",
+        "oracleText": "You may look at face-down creatures you don't control any time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "lookAtFaceDownAnyTime"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-found-footage",
+      "request": {
+        "cardName": "Found Footage",
+        "typeLine": "Artifact \u2014 Clue",
+        "manaCost": "{1}",
+        "oracleText": "You may look at face-down creatures your opponents control any time.\n{2}, Sacrifice this artifact: Surveil 2, then draw a card. (To surveil 2, look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-any-time-look-at-face-up-creatures",
+      "request": {
+        "cardName": "Lens Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "You may look at creatures you don't control any time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

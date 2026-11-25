@@ -14,6 +14,13 @@ pub(super) fn look_at_face_down_supported(effect: &Value) -> bool {
             || object_expression_supported(&effect["objects"]))
 }
 
+/// `lookAtFaceDownAnyTime` (static, CR 708.5): the source's controller may
+/// look at the face-down permanents of a static battlefield selector.
+pub(super) fn face_down_look_modifier_supported(modifier: &Value) -> bool {
+    value_kind(&modifier["player"]) == Some("abilityController")
+        && static_object_selector_supported(&modifier["objects"])
+}
+
 /// `grantCardVisibility`: a viewer may look at bound hidden cards (a
 /// face-down exiled card, CR 406.3) for a window the runtime can end.
 pub(super) fn grant_card_visibility_supported(effect: &Value) -> bool {
@@ -225,6 +232,16 @@ impl GameEngine {
                     && modifier["viewerId"].as_str() == Some(viewer)
                     && modifier["cardInstanceId"].as_str() == Some(instance_id)
             })
+            // `you may look at face-down creatures you don't control any
+            // time`: a static grant of a permanent the viewer controls.
+            || self
+                .battlefield_static_modifiers()
+                .iter()
+                .any(|(source, modifier)| {
+                    value_kind(modifier) == Some("lookAtFaceDownAnyTime")
+                        && source.controller == viewer
+                        && Self::static_selector_matches(source, &modifier["objects"], permanent)
+                })
     }
 
     /// CR 400.7, 708.8: a look at a face-down permanent ends with that

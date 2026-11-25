@@ -1,5 +1,7 @@
 use super::super::*;
-use super::{grant_card_visibility_supported, look_at_face_down_supported};
+use super::{
+    face_down_look_modifier_supported, grant_card_visibility_supported, look_at_face_down_supported,
+};
 
 fn definition(id: &str, type_line: &str) -> CardDefinition {
     CardDefinition {
@@ -287,4 +289,41 @@ fn exiled_card_visibility_this_turn_expires_after_the_turn() {
         "viewer": {"kind": "abilityController"},
         "duration": {"kind": "permanent"},
     })));
+}
+
+/// `You may look at face-down creatures you don't control any time` (CR
+/// 708.5): the static grant follows the source's controller and its
+/// selector; it ends when the source leaves the battlefield.
+#[test]
+fn static_face_down_look_follows_its_source_controller() {
+    let mut engine = engine(3);
+    let hidden = put_face_down(&mut engine, "player-1");
+    let mut keeper = card_instance(
+        "player-0",
+        &definition("lens-keeper", "Creature - Human"),
+        3,
+    );
+    keeper.definition.rules = vec![json!({
+        "kind": "staticAbility",
+        "source": {"kind": "self"},
+        "activeWhile": {"kind": "inZone", "object": {"kind": "self"}, "zone": {"kind": "battlefield"}},
+        "modifiers": [{
+            "kind": "lookAtFaceDownAnyTime",
+            "player": {"kind": "abilityController"},
+            "objects": {
+                "kind": "permanents",
+                "where": {"kind": "hasDesignation", "designation": "faceDown"},
+                "controller": {"kind": "opponentsOf", "player": {"kind": "abilityController"}},
+            },
+        }],
+    })];
+    assert!(face_down_look_modifier_supported(
+        &keeper.definition.rules[0]["modifiers"][0]
+    ));
+    let index = engine.player_index("player-0").expect("player-0 exists");
+    engine.state.players[index].battlefield.push(keeper);
+    assert!(engine.face_down_permanent_visible_to("player-0", &hidden));
+    assert!(!engine.face_down_permanent_visible_to("player-2", &hidden));
+    engine.state.players[index].battlefield.pop();
+    assert!(!engine.face_down_permanent_visible_to("player-0", &hidden));
 }

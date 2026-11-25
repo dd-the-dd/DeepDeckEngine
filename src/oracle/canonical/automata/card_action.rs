@@ -948,22 +948,29 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
     )))
 }
 
-/// Whether every permanent a target selector admits is face down: the
-/// face-down status (CR 708.2) is a conjunct of each branch.
-fn selector_requires_face_down(selector: &TargetSelector) -> bool {
-    fn requires(predicate: &ObjectPredicate) -> bool {
-        match predicate {
-            ObjectPredicate::Designation(PermanentDesignation::FaceDown) => true,
-            ObjectPredicate::Intersection(operands) => operands.iter().any(requires),
-            ObjectPredicate::Union(operands) => {
-                !operands.is_empty() && operands.iter().all(requires)
-            }
-            _ => false,
+/// Whether every object a predicate admits is face down: the face-down
+/// status (CR 708.2) is a conjunct of each branch. Shared by the look
+/// action and the any-time look permission.
+pub(in crate::oracle::canonical) fn predicate_requires_face_down(
+    predicate: &ObjectPredicate,
+) -> bool {
+    match predicate {
+        ObjectPredicate::Designation(PermanentDesignation::FaceDown) => true,
+        ObjectPredicate::Intersection(operands) => {
+            operands.iter().any(predicate_requires_face_down)
         }
+        ObjectPredicate::Union(operands) => {
+            !operands.is_empty() && operands.iter().all(predicate_requires_face_down)
+        }
+        _ => false,
     }
+}
+
+/// Whether every permanent a target selector admits is face down.
+fn selector_requires_face_down(selector: &TargetSelector) -> bool {
     match selector {
         TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
-            requires(predicate)
+            predicate_requires_face_down(predicate)
         }
         TargetSelector::Union(branches) => {
             !branches.is_empty() && branches.iter().all(selector_requires_face_down)

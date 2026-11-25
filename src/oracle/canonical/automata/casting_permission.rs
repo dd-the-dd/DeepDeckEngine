@@ -99,6 +99,13 @@ pub(in crate::oracle::canonical) enum PlayerPermissionNode {
     LookAtLibraryTopAnyTime {
         actor: CastingPermissionActorNode,
     },
+    /// `you may look at face-down creatures you don't control any time` (CR
+    /// 708.5): a hidden-information grant over the face-down permanents of
+    /// a shared battlefield collection.
+    LookAtFaceDownAnyTime {
+        actor: CastingPermissionActorNode,
+        objects: ObjectQueryNode,
+    },
     /// `you may cast SOURCE [from ZONE] [as though it had flash] [CONDITION]`
     /// (CR 601.3, 702.8a): the card's own casting permission, functioning
     /// from the zone it names (CR 113.6).
@@ -323,7 +330,18 @@ fn recognize_look_permission(
     let top = match try_recognize_card_library_top(cursor) {
         CollectionOperandAttempt::Recognized(fragment) => fragment.node,
         CollectionOperandAttempt::NotClaimed => {
-            return Err(cursor.fail("the top card of a library"));
+            // `face-down creatures you don't control`: the shared battlefield
+            // collection; only face-down permanents hide anything (CR 708.5).
+            cursor.enter("permission.look.face-down");
+            let objects = recognize_object_collection(cursor)?;
+            cursor.require(
+                objects.denotes_battlefield_permanents()
+                    && predicate_requires_face_down(&objects.predicate),
+                "the top card of a library or a collection of face-down permanents",
+            )?;
+            cursor.enter("permission.look.timing");
+            cursor.consume_phrase(&["any", "time"])?;
+            return Ok(PlayerPermissionNode::LookAtFaceDownAnyTime { actor, objects });
         }
         CollectionOperandAttempt::RejectedCandidate(failure)
         | CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
@@ -527,6 +545,7 @@ fn permission_predicates<'a>(node: &'a PlayerPermissionNode, out: &mut Vec<&'a O
             }
         }
         PlayerPermissionNode::LookAtLibraryTopAnyTime { .. }
+        | PlayerPermissionNode::LookAtFaceDownAnyTime { .. }
         | PlayerPermissionNode::CastSelf(_)
         | PlayerPermissionNode::ExertAsAttacks { .. }
         | PlayerPermissionNode::AssignCombatDamageAsThoughUnblocked

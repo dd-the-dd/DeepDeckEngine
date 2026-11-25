@@ -6032,6 +6032,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
             static_object_prohibitions::static_object_prohibition_supported(modifier)
                 .unwrap_or(false)
         }
+        Some("lookAtFaceDownAnyTime") => {
+            hidden_visibility::face_down_look_modifier_supported(modifier)
+        }
         _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }

@@ -73,6 +73,22 @@ fn lower_player_permission(
         PlayerPermissionNode::LookAtLibraryTopAnyTime { actor } => {
             lower_look_permission(cursor, actor)
         }
+        // CR 708.5: the holder may look at the matching face-down
+        // permanents whenever the static ability applies.
+        PlayerPermissionNode::LookAtFaceDownAnyTime { actor, objects } => {
+            require_controller_actor(cursor, actor)?;
+            cursor.enter("permission.look.face-down-capability");
+            let objects = lower_static_permanent_query(cursor, &objects)?;
+            Ok(static_permission(
+                vec![
+                    json!({"kind":"lookAtFaceDownAnyTime", "player":controller(), "objects":objects}),
+                ],
+                &[
+                    "Read the actor, the shared face-down permanent collection and the any-time allowance",
+                    "Grant the holder private knowledge of those face-down permanents",
+                ],
+            ))
+        }
         PlayerPermissionNode::CastSelf(node) => lower_self_cast_permission(cursor, &node),
         PlayerPermissionNode::ExertAsAttacks { reflexive } => {
             lower_exert_permission(cursor, reflexive.as_ref())
