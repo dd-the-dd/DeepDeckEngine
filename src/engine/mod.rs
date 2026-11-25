@@ -5226,6 +5226,7 @@ fn triggered_event_supported(event: &Value) -> bool {
             player_action_events::player_card_action_event_supported(event)
         }
         Some("playerDealtDamage") => player_event_matchers::received_damage_event_supported(event),
+        Some("cardsDiscarded") => player_event_matchers::discard_batch_event_supported(event),
         Some("opponentDealtDamage") => {
             player_reference_supported(&event["player"])
                 && event.get("noncombatOnly").is_none_or(Value::is_boolean)

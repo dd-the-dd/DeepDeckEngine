@@ -416,7 +416,7 @@ impl GameEngine {
                                             event,
                                             source,
                                             player_id,
-                                            Some(card),
+                                            Some(*card),
                                         )
                                     })
                                     .count()

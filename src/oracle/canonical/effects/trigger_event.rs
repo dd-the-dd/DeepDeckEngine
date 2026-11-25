@@ -1530,6 +1530,9 @@ fn lower_damage_dealt_event(
         return Ok(pattern);
     };
     lowered["recipient"] = match recipient {
+        DamageRecipient::PermanentBatch(query) => {
+            return lower_damage_recipient_batch(cursor, lowered, query);
+        }
         DamageRecipient::Player(actor) => {
             json!({"kind": "player", "player": event_actor_player(*actor)})
         }
@@ -1542,6 +1545,35 @@ fn lower_damage_dealt_event(
         }
     };
     Ok(lowered)
+}
+
+/// `deals damage to one or more PERMANENTS` (CR 603.2c): the generic damage
+/// pattern with the shared recipient query, triggering once per source and
+/// simultaneous event (`aggregation`), with the total amount dealt to the
+/// matching permanents.
+fn lower_damage_recipient_batch(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut lowered: Value,
+    query: &ObjectQueryNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.dealt-damage.recipient-batch-support");
+    let mut recipient = json!({"kind": "permanent"});
+    if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut recipient)? {
+        recipient["where"] = filter;
+    }
+    let mut pattern = json!({
+        "kind": "eventPattern",
+        "lemma": "dealDamage",
+        "source": lowered["source"].take(),
+        "recipient": recipient,
+        "aggregation": "oneOrMore",
+    });
+    for flag in ["combatOnly", "noncombatOnly"] {
+        if let Some(value) = lowered.get(flag) {
+            pattern[flag] = value.clone();
+        }
+    }
+    Ok(pattern)
 }
 
 /// The attacked object of an attack pattern (CR 506.2, 508.1b): each

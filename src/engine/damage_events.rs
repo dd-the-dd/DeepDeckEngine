@@ -179,12 +179,25 @@ pub(super) fn damage_event_pattern(event: &Value) -> Option<Result<DamageEventPa
             let known = event.as_object()?.keys().all(|key| {
                 matches!(
                     key.as_str(),
-                    "kind" | "lemma" | "source" | "recipient" | "combatOnly" | "noncombatOnly"
+                    "kind"
+                        | "lemma"
+                        | "source"
+                        | "recipient"
+                        | "combatOnly"
+                        | "noncombatOnly"
+                        | "aggregation"
                 )
             });
             if !known {
                 return None;
             }
+            // `deals damage to one or more PERMANENTS`: one trigger per
+            // source and simultaneous event for a written recipient too.
+            let batch = match event.get("aggregation") {
+                None => false,
+                Some(aggregation) if aggregation.as_str() == Some("oneOrMore") => true,
+                Some(_) => return None,
+            };
             let recipient = match event.get("recipient") {
                 None => DamageRecipientPattern::Any,
                 Some(recipient) => damage_recipient_pattern(recipient)?,
@@ -197,9 +210,13 @@ pub(super) fn damage_event_pattern(event: &Value) -> Option<Result<DamageEventPa
                 None => return None,
                 Some(source) => Some(damage_source_pattern(source)?),
             };
+            // A batch names its source: one event of one source.
+            if batch && source.is_none() {
+                return None;
+            }
             Some(DamageEventPattern {
                 source,
-                aggregated: recipient == DamageRecipientPattern::Any,
+                aggregated: batch || recipient == DamageRecipientPattern::Any,
                 recipient,
                 combat: damage_kind_flags(event)?,
                 group: DamageGroup::SourceObservers,

@@ -59,6 +59,10 @@ pub(in crate::oracle::canonical) fn recognize_dealt_damage_complement(
 pub(in crate::oracle::canonical) enum DamageRecipient {
     Player(EventActorScope),
     Permanent(ObjectQueryNode),
+    /// `one or more CREATURES`: the permanents one damage event of the
+    /// source dealt damage to, observed once per source and event
+    /// (CR 603.2c); no single damaged permanent is bound.
+    PermanentBatch(ObjectQueryNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -131,6 +135,30 @@ fn recognize_damage_recipient(
         cursor.enter("event.dealt-damage.recipient-partitive");
         cursor.consume_phrase(&partitive)?;
         return Ok(DamageRecipient::Player(EventActorScope::Opponent));
+    }
+    // `one or more CREATURES [you control]` (CR 603.2c): the shared object
+    // collection; a batch is never an `or` alternative.
+    if !elided_article
+        && ["one", "or", "more"]
+            .iter()
+            .enumerate()
+            .all(|(offset, word)| {
+                cursor
+                    .peek_ahead(offset)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+            })
+    {
+        cursor.enter("event.dealt-damage.recipient-batch");
+        cursor.consume_phrase(&["one", "or", "more"])?;
+        let query = super::recognize_object_collection(cursor)?;
+        cursor.enter("event.dealt-damage.recipient-domain");
+        cursor.require(
+            query.predicate.supports_domain(ObjectKind::Permanent)
+                && query.predicate.has_nominal_head()
+                && !query.exclude_source,
+            "a permanent batch recipient with a nominal head",
+        )?;
+        return Ok(DamageRecipient::PermanentBatch(query));
     }
     if elided_article {
         for (word, actor) in [
