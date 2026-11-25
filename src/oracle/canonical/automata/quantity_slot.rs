@@ -467,7 +467,21 @@ pub(in crate::oracle::canonical) fn recognize_partitive_rounding(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericRounding> {
     cursor.enter("quantity.partitive.rounding");
-    super::recognize_stated_rounding(cursor)
+    if cursor.peek().is_some_and(|raw| raw == ",") {
+        cursor.consume(",")?;
+    }
+    cursor.consume("rounded")?;
+    cursor.enter("quantity.partitive.rounding-direction");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("up"))
+    {
+        cursor.consume("up")?;
+        Ok(NumericRounding::Up)
+    } else {
+        cursor.consume("down")?;
+        Ok(NumericRounding::Down)
+    }
 }
 
 /// The count of `half the QUERY` (CR 107.1a): half the number of permanents
