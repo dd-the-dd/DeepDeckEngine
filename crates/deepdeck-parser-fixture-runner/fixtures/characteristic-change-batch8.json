@@ -1,0 +1,524 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "characteristic-change-frame-batch8",
+  "cases": [
+    {
+      "id": "real-windreaver-switch-source",
+      "request": {
+        "cardName": "Windreaver",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{1}",
+        "oracleText": "{U}: Switch this creature's power and toughness until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "switchPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/effects/0/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              }
+            ],
+            "abilityType": "activatedAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-strange-inversion-switch-target",
+      "request": {
+        "cardName": "Strange Inversion",
+        "typeLine": "Instant — Arcane",
+        "manaCost": "{1}",
+        "oracleText": "Switch target creature's power and toughness until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "switchPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-invert-switch-of-each-of-up-to-two-targets",
+      "request": {
+        "cardName": "Invert // Invent",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Switch the power and toughness of each of up to two target creatures until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-mannichi-switch-each-creature",
+      "request": {
+        "cardName": "Mannichi, the Fevered Dream",
+        "typeLine": "Legendary Creature — Spirit",
+        "manaCost": "{1}",
+        "oracleText": "{1}{R}: Switch each creature's power and toughness until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-valakut-fireboar-switch-trigger-antecedent",
+      "request": {
+        "cardName": "Valakut Fireboar",
+        "typeLine": "Creature — Elemental Boar",
+        "manaCost": "{1}",
+        "oracleText": "Whenever this creature attacks, switch its power and toughness until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-optional-switch-after-cast",
+      "request": {
+        "cardName": "Fluxcharger",
+        "typeLine": "Creature — Weird",
+        "manaCost": "{1}",
+        "oracleText": "Flying\nWhenever you cast an instant or sorcery spell, you may switch this creature's power and toughness until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-switch-without-duration",
+      "request": {
+        "cardName": "Switch Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Switch target creature's power and toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "expectedContains": "power/toughness switch until end of turn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-singing-tree-base-power-alone",
+      "request": {
+        "cardName": "Singing Tree",
+        "typeLine": "Creature — Plant",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Target attacking creature has base power 0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "setPower"
+              },
+              {
+                "pointer": "/effects/0/power",
+                "equals": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              },
+              {
+                "pointer": "/effects/0/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              }
+            ],
+            "abilityType": "activatedAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-turtle-duck-base-power-and-keyword",
+      "request": {
+        "cardName": "Turtle-Duck",
+        "typeLine": "Creature — Turtle Bird",
+        "manaCost": "{1}",
+        "oracleText": "{3}: Until end of turn, this creature has base power 4 and gains trample.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-base-power-or-base-toughness",
+      "request": {
+        "cardName": "Vhati il-Dal",
+        "typeLine": "Legendary Creature — Human Warrior",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Until end of turn, target creature has base power 1 or base toughness 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-impossible-man-copy-name",
+      "request": {
+        "cardName": "Impossible Man",
+        "typeLine": "Legendary Creature — Human Hero",
+        "manaCost": "{1}",
+        "oracleText": "{2}{U}: Impossible Man becomes a copy of another target permanent until end of turn, except his name is Impossible Man.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "becomeCopyOfPermanent"
+              },
+              {
+                "pointer": "/effects/0/except",
+                "equals": [
+                  {
+                    "kind": "setName",
+                    "name": "Impossible Man"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-token-copy-name-and-legendary",
+      "request": {
+        "cardName": "Mirror Herald",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{1}",
+        "oracleText": "{3}: Create a token that's a copy of target creature you control, except its name is Mirror Herald and it's legendary in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-living-lands-static-copula",
+      "request": {
+        "cardName": "Living Lands",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "All Forests are 1/1 creatures that are still lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/modifiers/0/cardType",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "setBasePowerToughness"
+              }
+            ],
+            "abilityType": "staticAbility"
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "real-ensoul-artifact-static-copula-base-stats",
+      "request": {
+        "cardName": "Ensoul Artifact",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant artifact\nEnchanted artifact is a creature with base power and toughness 5/5 in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/modifiers/1/power",
+                "equals": {
+                  "kind": "integer",
+                  "value": 5
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-zendikon-still-a-land-sentence",
+      "request": {
+        "cardName": "Gale Zendikon Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant land\nEnchanted land is a 2/2 blue Elemental creature with flying. It's still a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "addSubtype"
+              },
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "setColor"
+              },
+              {
+                "pointer": "/modifiers/3/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/modifiers/4/kind",
+                "equals": "grantKeyword"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "no-code-combo-plural-still-sentence-with-keyword",
+      "request": {
+        "cardName": "Natural Emergence Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Lands you control are 2/2 creatures with first strike. They're still lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-static-animation-without-retention",
+      "request": {
+        "cardName": "Ooze Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant land\nEnchanted land is a 3/3 black Ooze creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.characteristic-copula.lowering"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-becomes-the-target-stays-an-event",
+      "request": {
+        "cardName": "Phantasmal Bear Probe",
+        "typeLine": "Creature — Bear Illusion",
+        "manaCost": "{1}",
+        "oracleText": "When this creature becomes the target of a spell or ability, sacrifice it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility"
+          }
+        ]
+      }
+    }
+  ]
+}

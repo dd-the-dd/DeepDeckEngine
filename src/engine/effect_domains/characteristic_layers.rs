@@ -8,7 +8,10 @@
 //! - `setCardTypes` (layer 4, CR 205.1a): read by the effective card-type query;
 //! - `setColors` (layer 5, CR 105.3): read by both effective color queries;
 //! - `setBasePowerToughness` (layer 7b, CR 613.4b): read before counters and
-//!   modifications (layers 7c-d).
+//!   modifications (layers 7c-d);
+//! - `switchPowerToughness` (layer 7d, CR 613.4d): a turn-scoped switch of
+//!   one object's power and toughness, applied after every other layer-7
+//!   effect whatever its timestamp; an even number of switches cancels.
 //!
 //! The markers are characteristics, not abilities: an object that loses all
 //! abilities keeps them. `untilEndOfCurrentTurn` markers carry the existing
@@ -19,6 +22,9 @@ use super::super::*;
 pub(in crate::engine) const CARD_TYPE_SET_MARKER: &str = "cardTypeSetModification";
 pub(in crate::engine) const COLOR_SET_MARKER: &str = "colorSetModification";
 pub(in crate::engine) const BASE_POWER_TOUGHNESS_MARKER: &str = "basePowerToughnessModification";
+/// The rule modifier recording one switch of an object's power and
+/// toughness until the end of the turn it was created in (CR 514.2).
+pub(in crate::engine) const POWER_TOUGHNESS_SWITCH_MODIFIER: &str = "temporaryPowerToughnessSwitch";
 
 const PERMANENT_CARD_TYPES: [&str; 6] = [
     "Artifact",
@@ -109,6 +115,10 @@ fn supports_known_effect(effect: &Value) -> bool {
             Some("setBasePowerToughness") => {
                 numeric_expression_supported(&effect["power"])
                     && numeric_expression_supported(&effect["toughness"])
+            }
+            // CR 613.4d: only a switch that ends with the turn is recorded.
+            Some("switchPowerToughness") => {
+                value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
             }
             _ => false,
         }
@@ -336,6 +346,68 @@ impl GameEngine {
             .map(|()| true)
     }
 
+    /// Whether an odd number of this turn's switches applies to the object
+    /// (CR 613.4d): two switches restore the original order.
+    fn power_toughness_switched(&self, permanent: &CardInstance) -> bool {
+        self.state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| {
+                value_kind(modifier) == Some(POWER_TOUGHNESS_SWITCH_MODIFIER)
+                    && modifier["objectId"].as_str() == Some(permanent.instance_id.as_str())
+                    && modifier["expiresAfterTurn"].as_u64()
+                        == Some(u64::from(self.state.turn_number))
+            })
+            .count()
+            % 2
+            == 1
+    }
+
+    /// The object's power after every layer (CR 613.4): layers 7a-7c, then
+    /// the layer-7d switch.
+    pub(in crate::engine) fn current_power(&self, permanent: &CardInstance) -> i32 {
+        if self.power_toughness_switched(permanent) {
+            self.layered_toughness(permanent)
+        } else {
+            self.layered_power(permanent)
+        }
+    }
+
+    /// The object's toughness after every layer (CR 613.4).
+    pub(in crate::engine) fn current_toughness(&self, permanent: &CardInstance) -> i32 {
+        if self.power_toughness_switched(permanent) {
+            self.layered_power(permanent)
+        } else {
+            self.layered_toughness(permanent)
+        }
+    }
+
+    /// `switchPowerToughness` (CR 613.4d): one switch per affected object,
+    /// locked in when the effect begins (CR 611.2c) and ending with the turn.
+    fn execute_power_toughness_switch(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) {
+        for instance_id in
+            self.characteristic_object_ids(&effect["object"], stack_object, bindings, decisions)
+        {
+            self.state.rule_modifiers.push(json!({
+                "kind": POWER_TOUGHNESS_SWITCH_MODIFIER,
+                "objectId": instance_id.clone(),
+                "expiresAfterTurn": self.state.turn_number,
+            }));
+            self.record_event(
+                "powerToughnessSwitched",
+                Some(stack_object.controller.clone()),
+                Some(instance_id),
+                json!({ "duration": effect["duration"] }),
+            );
+        }
+    }
+
     fn execute_characteristic_layers_domain_known(
         &mut self,
         effect: &Value,
@@ -343,6 +415,10 @@ impl GameEngine {
         bindings: &mut BTreeMap<String, RuntimeBinding>,
         decisions: &mut BTreeMap<String, Value>,
     ) -> Result<(), EngineError> {
+        if value_kind(effect) == Some("switchPowerToughness") {
+            self.execute_power_toughness_switch(effect, stack_object, bindings, decisions);
+            return Ok(());
+        }
         let (marker_kind, mut marker, event, payload) = match value_kind(effect) {
             Some("setCardTypes") => (
                 CARD_TYPE_SET_MARKER,

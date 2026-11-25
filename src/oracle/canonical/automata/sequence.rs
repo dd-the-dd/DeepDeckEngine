@@ -3221,6 +3221,13 @@ fn recognize_imperative_frame(
         VerbLemma::Exile => recognize_exile_frame(cursor, inputs, attempt_frame),
         VerbLemma::Return => recognize_return_frame(cursor, inputs, attempt_frame),
         VerbLemma::Create => recognize_token_creation_frame(cursor, inputs, attempt_frame),
+        VerbLemma::Switch => super::permanent_action::recognize_switch_power_toughness_effect(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+        )
+        .map(LocalEffectNode::BecomeTypes),
         // The lemma has no imperative effect frame here (`gain`, `lose` and
         // `deal` belong to the clause readers before the dispatcher; a
         // counter verb without its counter noun is no counter frame); the

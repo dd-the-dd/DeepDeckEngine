@@ -514,6 +514,21 @@ impl GameEngine {
             }
             // CR 707.9b: the copy has no mana cost (embalm, eternalize).
             Some("removeManaCost") => definition.mana_cost = String::new(),
+            // CR 707.9b: `except its name is NAME`.
+            Some("setName") => {
+                definition.name = exception["name"].as_str().unwrap_or_default().to_string();
+            }
+            // CR 205.4, 707.9b: `except it's legendary`.
+            Some("addSupertype") => {
+                let supertype = exception["supertype"].as_str().unwrap_or_default();
+                if !definition
+                    .type_line
+                    .split_whitespace()
+                    .any(|part| part.eq_ignore_ascii_case(supertype))
+                {
+                    definition.type_line = format!("{supertype} {}", definition.type_line);
+                }
+            }
             Some("removeSupertype") => {
                 let supertype = exception["supertype"].as_str().unwrap_or_default();
                 definition.type_line = definition

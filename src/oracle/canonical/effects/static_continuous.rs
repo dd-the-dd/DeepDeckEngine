@@ -17,7 +17,12 @@
 //! TurnCondition := "during your turn" | "during turns other than yours"
 //! Predicate := ("get" | "gets") signed P/T delta ["instead"]
 //!            | ("have" | "has") keyword list
-//!            | ("is" | "are") (type change | COLOR list | "all colors" | "colorless")
+//!            | ("is" | "are") (type change | COLOR list | "all colors" | "colorless"
+//!                            | characteristic complement)
+//!              -- `a 3/3 black Ooze creature. It's still a land.`, `1/1
+//!              -- creatures that are still lands`, `a creature with base
+//!              -- power and toughness 5/5 in addition to its other types`:
+//!              -- the shared characteristic-change complement (CR 205.1b)
 //!            | ("isn't" | "aren't") "a" CARD-TYPE | shared combat clause
 //!            | ("enter" | "enters") ("tapped" | "with" N "additional" COUNTER "counter(s) on them")
 //!            | ("doesn't" | "don't") "untap during" OWNER "untap step"
@@ -820,6 +825,23 @@ fn read_object_predicates(
                     read_optional_color_predicate(cursor, objects, committed)?
                 {
                     modifiers.push(modifier);
+                } else if let Some(complement) = read_characteristic_copula(cursor, number) {
+                    // A complement stating more than types (power and
+                    // toughness, colors, granted abilities, a retained type)
+                    // is the shared characteristic-change complement.
+                    *committed = true;
+                    let lands = subject_predicate.as_ref().is_some_and(|predicate| {
+                        predicate.guarantees_card_type(ObjectCardType::Land)
+                    });
+                    cursor.enter("static.continuous.characteristic-copula.lowering");
+                    modifiers.extend(
+                        lower_continuous_characteristic_complement(objects, lands, &complement)
+                            .map_err(|expected| cursor.fail(expected))?,
+                    );
+                    for ability in complement.characteristics.abilities {
+                        modifiers.push(lower_static_quoted_ability(cursor, objects, ability)?);
+                    }
+                    changes_types = true;
                 } else {
                     cursor.enter("static.continuous.type-change");
                     cursor.require(
@@ -1239,6 +1261,29 @@ fn read_card_type_removal(
         "object": self_ref(),
         "cardType": card_type.ir_name(),
     }))
+}
+
+/// The characteristic-change complement of a copula when it states more
+/// than the type nouns the type-change child reads: power and toughness,
+/// colors, supertypes, granted abilities or a retained type. `None` leaves
+/// the copula to the type-change child and its own diagnostics.
+fn read_characteristic_copula(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+) -> Option<BecomeTypesNode<()>> {
+    let mut trial = cursor.clone();
+    let complement = recognize_characteristic_copula_complement(&mut trial, number).ok()?;
+    let states_more_than_types = complement.base_power_toughness().is_some()
+        || complement.colors.is_some()
+        || !complement.supertypes.is_empty()
+        || !complement.characteristics.keywords.is_empty()
+        || !complement.characteristics.abilities.is_empty()
+        || matches!(complement.retention, TypeChangeRetention::StillA(_));
+    if !states_more_than_types {
+        return None;
+    }
+    *cursor = trial;
+    Some(complement)
 }
 
 /// `KEYWORD ("," | "and" | ", and") KEYWORD …` lost by the subject's objects:
