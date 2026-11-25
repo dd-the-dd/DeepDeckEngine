@@ -503,7 +503,7 @@ fn lower_reflexive_result(
     // The nearest action of the instruction that runs the restated verb.
     let position = effects
         .iter()
-        .rposition(|member| reflexive_result_produced_by(result.verb, member))
+        .rposition(|member| result.verb.records_result(member))
         .ok_or_else(|| {
             cursor.fail("an action of the instruction that the reflexive event restates")
         })?;
@@ -563,22 +563,6 @@ fn lower_reflexive_result(
         decisions: Vec::new(),
         effects,
     })
-}
-
-/// True when `member` runs the action `verb` restates and records the
-/// objects it affected in its `bind` (the shared action-result contract).
-fn reflexive_result_produced_by(verb: ActionResultVerb, member: &Value) -> bool {
-    match (verb, member["kind"].as_str()) {
-        (ActionResultVerb::Discarded, Some("discardCards"))
-        | (ActionResultVerb::Milled, Some("mill"))
-        | (ActionResultVerb::Revealed, Some("revealCards"))
-        | (ActionResultVerb::Exiled, Some("exileTargetCards"))
-        | (ActionResultVerb::Sacrificed, Some("sacrificePermanents" | "sacrificePermanent"))
-        | (ActionResultVerb::Destroyed, Some("destroyPermanent")) => true,
-        // A card move whose destination is exile (CR 701.13a).
-        (ActionResultVerb::Exiled, Some("moveCards")) => member["to"]["kind"] == "exile",
-        _ => false,
-    }
 }
 
 /// True when the action affects at most one object: a literal count of one,

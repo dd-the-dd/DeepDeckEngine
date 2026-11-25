@@ -605,9 +605,9 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
 /// a `RejectedCandidate` the parent may replace with another child's
 /// reading; `NotClaimed` means no card action starts here.
 ///
-/// Sequence hook (owned by `automata/sequence.rs`): replace the speculative
-/// `attempt.attempt(|child| recognize_card_action(...))` with this outcome
-/// and `attempt_frame.commit()` on `FailedCommitted`.
+/// The sequence parent (`automata/sequence.rs`) calls it in place of a
+/// speculative `recognize_card_action` and commits its attempt frame on
+/// `FailedCommitted`.
 pub(in crate::oracle::canonical) fn try_recognize_card_action_outcome(
     cursor: &mut OracleTokenCursor<'_>,
     move_ellipsis: bool,

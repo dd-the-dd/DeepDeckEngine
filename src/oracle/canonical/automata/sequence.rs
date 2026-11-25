@@ -1204,18 +1204,27 @@ fn recognize_effect_sequence_attempt_scoped(
                             super::CollectionOperandAttempt::NotClaimed
                             | super::CollectionOperandAttempt::RejectedCandidate(_) => {}
                         }
-                        if let Ok(Some(action)) = attempt.attempt(|child| {
-                            super::recognize_card_action(
-                                child,
-                                move_ellipsis,
-                                super::CardActionReadContext::of(
-                                    &action_context,
-                                    name_links,
-                                    name_failure,
-                                ),
-                            )
-                        }) {
-                            return Ok(LocalEffectNode::CardAction(action));
+                        // The card-action child is transactional: a cast/play
+                        // frame that read its `from` (or a tail only it reads)
+                        // owns the clause and publishes its own failure.
+                        match super::try_recognize_card_action_outcome(
+                            attempt,
+                            move_ellipsis,
+                            super::CardActionReadContext::of(
+                                &action_context,
+                                name_links,
+                                name_failure,
+                            ),
+                        ) {
+                            super::CollectionOperandAttempt::Recognized(fragment) => {
+                                return Ok(LocalEffectNode::CardAction(fragment.node));
+                            }
+                            super::CollectionOperandAttempt::FailedCommitted(failure) => {
+                                attempt_frame.commit();
+                                return Err(failure);
+                            }
+                            super::CollectionOperandAttempt::NotClaimed
+                            | super::CollectionOperandAttempt::RejectedCandidate(_) => {}
                         }
                         let legacy = attempt.attempt(|child| {
                             recognize_effect(

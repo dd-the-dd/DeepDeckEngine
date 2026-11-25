@@ -1028,7 +1028,13 @@ fn recognize_instruction_outcome_block(
         outcome,
         name_links,
         name_failure,
-        context,
+        // As for a permission's outcome: only an `If you do` body shares its
+        // producer's resolution bindings (CR 603.12, 608.2c).
+        &if outcome == PerformanceOutcome::Reflexive {
+            context.clone()
+        } else {
+            inherit_sequence_antecedents(context, &action)
+        },
     )?;
     // Only a permission has a declined branch to complement.
     let otherwise = if permits {
