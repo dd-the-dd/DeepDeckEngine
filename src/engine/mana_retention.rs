@@ -40,8 +40,8 @@ pub(super) fn unit_attributes_supported(restriction: &Value) -> bool {
 /// Whether the unit survives the end of `ending_step`: an `until end of turn`
 /// retention lasts through every step of the turn and ends with the cleanup
 /// step, when that effect ends (CR 514.2).
-fn unit_retained_past(mana: &FloatingMana, ending_step: GameStep) -> bool {
-    ending_step != GameStep::Cleanup
+fn unit_retained_past(mana: &FloatingMana, ending_step: &GameStep) -> bool {
+    *ending_step != GameStep::Cleanup
         && mana.spend_restriction.as_ref().is_some_and(|restriction| {
             restriction[RETAINED_UNTIL_END_OF_TURN].as_bool() == Some(true)
         })
@@ -51,7 +51,7 @@ impl GameEngine {
     /// Empties every pool as the current step or phase ends, keeping the
     /// retained mana and converting the mana a static ability converts.
     pub(super) fn empty_mana_pools_as_step_ends(&mut self) {
-        let ending_step = self.state.step;
+        let ending_step = self.state.step.clone();
         let mana_conversions = self
             .state
             .players
@@ -153,7 +153,7 @@ impl GameEngine {
                             && restriction["expiresAfterTurn"]
                                 .as_u64()
                                 .is_some_and(|turn| turn >= u64::from(self.state.turn_number))
-                    }) || unit_retained_past(&mana, ending_step);
+                    }) || unit_retained_past(&mana, &ending_step);
                 if independently_retained {
                     retained_mana.push(mana);
                 } else if retained_symbols.is_some_and(|symbols| symbols.contains(&mana.symbol)) {

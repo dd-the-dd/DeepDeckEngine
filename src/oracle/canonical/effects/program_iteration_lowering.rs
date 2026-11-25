@@ -121,10 +121,12 @@ fn population_count(population: IterationPopulation) -> Value {
 fn read_after_loop(body: &[Value], after: &[Value]) -> Vec<String> {
     // A step names its own result (`createTokens` with `bind`), or is the
     // binding step of a choice made on resolution (`bind` with `id`).
-    let produced = |effect: &Value| match effect["kind"].as_str() {
-        Some("bind") => effect["id"].as_str(),
-        _ => effect["bind"].as_str(),
-    };
+    fn produced(effect: &Value) -> Option<&str> {
+        match effect["kind"].as_str() {
+            Some("bind") => effect["id"].as_str(),
+            _ => effect["bind"].as_str(),
+        }
+    }
     let mut ids = body
         .iter()
         .filter_map(produced)

@@ -264,7 +264,8 @@ fn other_is_lowered_by_the_shared_aggregate_as_its_set_exclusion() {
     );
     let serialized = rule.to_string();
     assert!(
-        serialized.contains("\"aggregateObjects\"") && serialized.contains("\"excludeSource\":true"),
+        serialized.contains("\"aggregateObjects\"")
+            && serialized.contains("\"excludeSource\":true"),
         "{rule:#}"
     );
 }
