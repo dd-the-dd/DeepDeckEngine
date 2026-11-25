@@ -38,6 +38,9 @@ enum CostObjectProducer {
     /// you control`, CR 702.184a); the source's own `{T}` taps no other
     /// object.
     TapChosen,
+    /// One discarded card: a chosen `discardCard` cost, or a random
+    /// `discardCards` cost of exactly one card (CR 701.9).
+    DiscardOne,
 }
 
 impl CostObjectProducer {
@@ -48,6 +51,18 @@ impl CostObjectProducer {
                 cost["kind"].as_str() == Some("tap")
                     && cost["object"]["kind"].as_str() == Some("chosenTarget")
             }
+            Self::DiscardOne => match cost["kind"].as_str() {
+                Some("discardCard") => matches!(
+                    cost["card"]["kind"].as_str(),
+                    Some("chosenObject" | "chosenTarget")
+                ),
+                Some("discardCards") => {
+                    cost["selection"]["kind"].as_str() == Some("random")
+                        && cost["count"]["kind"].as_str() == Some("integer")
+                        && cost["count"]["value"].as_i64() == Some(1)
+                }
+                _ => false,
+            },
         }
     }
 }
@@ -56,7 +71,7 @@ impl CostObjectProducer {
 /// the engine to record them (CR 608.2h last known information). A tapped
 /// cost object records only its power: the runtime tap cost has no
 /// toughness or mana-value binding, so the reader refuses those reads.
-const COST_OBJECT_BINDINGS: [(&str, &str, CostObjectProducer); 4] = [
+const COST_OBJECT_BINDINGS: [(&str, &str, CostObjectProducer); 6] = [
     (
         "sacrificedPermanentPower",
         "bindPowerAs",
@@ -76,6 +91,18 @@ const COST_OBJECT_BINDINGS: [(&str, &str, CostObjectProducer); 4] = [
         "tappedPermanentPower",
         "bindPowerAs",
         CostObjectProducer::TapChosen,
+    ),
+    // The object itself, read by an object condition (`If the sacrificed
+    // creature was legendary`, `If the discarded card was multicolored`).
+    (
+        "sacrificedPermanentObject",
+        "bindObjectAs",
+        CostObjectProducer::Sacrifice,
+    ),
+    (
+        "discardedCardObject",
+        "bindObjectAs",
+        CostObjectProducer::DiscardOne,
     ),
 ];
 

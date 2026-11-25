@@ -1,0 +1,334 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-conditions-batch8",
+  "cases": [
+    {
+      "id": "grima-wormtongue-exact-sacrificed-creature-legendary",
+      "request": {
+        "cardName": "Gríma Wormtongue",
+        "typeLine": "Legendary Creature — Human Advisor",
+        "manaCost": "{2}{B}",
+        "oracleText": "Your opponents can't gain life.\n{T}, Sacrifice another creature: Target player loses 1 life. If the sacrificed creature was legendary, amass Orcs 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "stormscale-anarch-exact-discarded-card-multicolored",
+      "request": {
+        "cardName": "Stormscale Anarch",
+        "typeLine": "Creature — Lizard Shaman",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "{2}{R}, Discard a card at random: This creature deals 2 damage to any target. If the discarded card was multicolored, this creature deals 4 damage instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nasty-end-exact-spell-additional-sacrifice",
+      "request": {
+        "cardName": "Nasty End",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards. If the sacrificed creature was legendary, draw three cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lands-edge-exact-chosen-discard-card",
+      "request": {
+        "cardName": "Land's Edge",
+        "typeLine": "World Enchantment",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Discard a card: If the discarded card was a land card, this enchantment deals 2 damage to target player or planeswalker. Any player may activate this ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hexgold-slash-exact-has-toxic",
+      "request": {
+        "cardName": "Hexgold Slash",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Hexgold Slash deals 2 damage to target creature. If that creature has toxic, Hexgold Slash deals 4 damage to that creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "compleat-devotion-exact-has-toxic",
+      "request": {
+        "cardName": "Compleat Devotion",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Target creature you control gets +2/+2 until end of turn. If that creature has toxic, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hulkling-exact-greater-power-or-toughness-than-name",
+      "request": {
+        "cardName": "Hulkling, Burgeoning Bruiser",
+        "typeLine": "Legendary Creature — Kree Skrull Hero",
+        "manaCost": "{2}{G}",
+        "oracleText": "Vigilance\nWhenever another creature you control enters, if it has greater power or toughness than Hulkling, put a +1/+1 counter on Hulkling.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "evolving-adaptive-exact-that-creature-greater-than-this",
+      "request": {
+        "cardName": "Evolving Adaptive",
+        "typeLine": "Creature — Phyrexian Warrior",
+        "manaCost": "{G}",
+        "oracleText": "This creature enters with an oil counter on it.\nThis creature gets +1/+1 for each oil counter on it.\nWhenever another creature you control enters, if that creature has greater power or toughness than this creature, put an oil counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-end-step-source-doesnt-have-counter",
+      "request": {
+        "cardName": "Negated Possession Probe",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{R}",
+        "oracleText": "At the beginning of your end step, if this creature doesn't have a +1/+1 counter on it, return it to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrificed-artifact-cost-was-equipment",
+      "request": {
+        "cardName": "Sacrificed Artifact Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, Sacrifice an artifact: You gain 1 life. If the sacrificed artifact was an Equipment, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-exiled-card-was-an-artifact",
+      "request": {
+        "cardName": "Exiled Card Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Exile target card from a graveyard. If the exiled card was an artifact card, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-shares-creature-type-without-antecedent",
+      "request": {
+        "cardName": "Unbound Kinship Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "You gain 3 life. If it shares a creature type with a creature you control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-milled-card-without-producer",
+      "request": {
+        "cardName": "Milled Card Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card. If the milled card was a land card, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.participle-antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-discarded-creature-is-no-card-nominal",
+      "request": {
+        "cardName": "Discarded Creature Probe",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "Discard a card: If the discarded creature was red, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.participle-antecedent"
+          }
+        ]
+      }
+    }
+  ]
+}

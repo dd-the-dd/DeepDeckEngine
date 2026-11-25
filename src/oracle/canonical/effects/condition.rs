@@ -743,6 +743,15 @@ fn lower_object_condition(
                 .ok_or("a singular card result in the current card-collection scope")?,
             lower_card_object_predicate(&node.predicate),
         ),
+        // The object a cost paid with, recorded by its unique producing cost
+        // (`contextual_binding.rs` proves and installs it, CR 608.2h).
+        ConditionObjectReference::CostPaid(object) => (
+            json!({ "kind": "decisionResult", "decisionId": object.decision_id() }),
+            match object.domain() {
+                ObjectKind::Card => lower_card_object_predicate(&node.predicate),
+                _ => lower_permanent_object_predicate(&node.predicate),
+            },
+        ),
     };
     if filter.is_null() {
         return Err("a characteristic that lowers to a nonempty object filter");

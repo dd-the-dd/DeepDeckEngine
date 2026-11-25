@@ -3108,7 +3108,7 @@ fn condition_supported(condition: &Value) -> bool {
         }
         Some("objectMatchesFilter") => {
             object_condition::object_condition_reference_supported(&condition["object"])
-                && permanent_filter_supported(&condition["where"])
+                && object_condition::object_condition_filter_supported(&condition["where"])
         }
         Some("controllerIsBeingAttacked") => true,
         Some("sorceryTiming" | "ninjutsuTiming") => true,
@@ -26028,6 +26028,11 @@ impl GameEngine {
                 ) {
                     stack_decisions.insert(binding, Value::from(value));
                 }
+                self.record_casting_cost_paid_objects(
+                    &spell_definition,
+                    &action.targets,
+                    &mut stack_decisions,
+                );
                 let stack_targets: BTreeMap<String, TargetRef> = action
                     .targets
                     .iter()
@@ -27595,6 +27600,11 @@ impl GameEngine {
                 self.stack_sequence += 1;
                 let stack_id = format!("stack:{}", self.stack_sequence);
                 let mut stack_decisions = action.decisions.clone();
+                self.record_cost_paid_objects(
+                    &rule["costs"],
+                    &action.targets,
+                    &mut stack_decisions,
+                );
                 for stored in source
                     .definition
                     .printed_rules()
@@ -27720,6 +27730,7 @@ impl GameEngine {
                     })?;
                 let pending_counter_cost_triggers = self.state.stack.split_off(cost_trigger_start);
                 self.state.stack.push(pending_activation);
+                self.record_random_discard_cost_object(&rule);
                 self.apply_activated_exile_source_costs(action, &rule)?;
                 self.apply_activated_exile_object_costs(action, &rule)?;
                 self.apply_activated_discard_costs(action, &rule)?;
