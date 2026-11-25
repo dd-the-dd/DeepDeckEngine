@@ -355,6 +355,19 @@ fn recognize_primary(
         {
             return super::recognize_greatest_property_among(cursor);
         }
+        // `the number of times this ability has resolved this turn`: the
+        // resolving ability's own record, before the collection count.
+        if query_context.kind == NumericReadKind::Definition
+            && super::ability_history_count_starts(cursor)
+        {
+            return super::recognize_ability_history_count(cursor);
+        }
+        if query_context.kind.reads_definition_families() && super::property_total_starts(cursor) {
+            return super::recognize_property_total(
+                cursor,
+                query_context.kind == NumericReadKind::Definition,
+            );
+        }
         if query_context.kind.reads_definition_families()
             && super::number_of_count_starts(cursor)
             && !super::source_counter_count_starts(cursor)

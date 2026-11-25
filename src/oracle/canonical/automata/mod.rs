@@ -4,6 +4,7 @@
 //! or rematch an Oracle sentence and they emit typed semantic values rather
 //! than card-shaped JSON.
 
+mod ability_history;
 mod ability_loss;
 mod ability_word_envelope;
 mod action_result;
@@ -271,6 +272,7 @@ mod zone_change_until;
 mod zone_list;
 mod zone_prohibition;
 
+pub(super) use ability_history::*;
 pub(super) use ability_loss::*;
 pub(super) use ability_word_envelope::*;
 pub(super) use action_result::*;
