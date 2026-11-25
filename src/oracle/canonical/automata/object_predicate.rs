@@ -596,7 +596,10 @@ impl ObjectPredicate {
     /// duplicating the walk over shared Boolean predicate composition.
     pub(in crate::oracle::canonical) fn contains_numeric_comparison(&self) -> bool {
         match self {
-            Self::NumericComparison { .. } => true,
+            // A comparison of two candidate properties is a numeric
+            // comparison too: a consumer without that contract refuses it.
+            Self::NumericComparison { .. }
+            | Self::Qualifier(ObjectQualifier::CandidatePropertyComparison { .. }) => true,
             Self::Not(operand) => operand.contains_numeric_comparison(),
             Self::Intersection(operands) | Self::Union(operands) => {
                 operands.iter().any(Self::contains_numeric_comparison)

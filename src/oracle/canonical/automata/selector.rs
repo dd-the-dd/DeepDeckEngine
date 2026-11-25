@@ -1934,6 +1934,24 @@ pub(in crate::oracle::canonical) fn lift_shared_trailing_domain(
 pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<TargetSelector> {
+    recognize_target_slot_selector_with(cursor, false).map(|(selector, _)| selector)
+}
+
+/// The target slot selector for a parent that represents the slot's source
+/// exclusion (`target creature other than this creature`, CR 109.5, 115.1):
+/// the postnominal exclusion of the object query is returned beside the
+/// selector instead of failing at `other`, so the slot excludes the source
+/// as `another target creature` does.
+pub(in crate::oracle::canonical) fn recognize_target_slot_selector_excluding_source(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(TargetSelector, bool)> {
+    recognize_target_slot_selector_with(cursor, true)
+}
+
+fn recognize_target_slot_selector_with(
+    cursor: &mut OracleTokenCursor<'_>,
+    source_exclusion: bool,
+) -> MachineResult<(TargetSelector, bool)> {
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("any"))
@@ -1941,7 +1959,7 @@ pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
         cursor.enter("selector.predicate.start");
         cursor.consume_phrase(&["any", "target"])?;
         cursor.enter("selector.predicate.complete");
-        return Ok(TargetSelector::Any);
+        return Ok((TargetSelector::Any, false));
     }
     if let Some(player) = cursor.peek().and_then(player_predicate) {
         cursor.enter("selector.predicate.start");
@@ -1966,30 +1984,34 @@ pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
                 }
             };
             cursor.enter("selector.predicate.complete");
-            return Ok(TargetSelector::Union(vec![
-                TargetSelector::Player(player),
-                second,
-            ]));
+            return Ok((
+                TargetSelector::Union(vec![TargetSelector::Player(player), second]),
+                false,
+            ));
         }
         cursor.enter("selector.predicate.complete");
-        return Ok(TargetSelector::Player(player));
+        return Ok((TargetSelector::Player(player), false));
     }
     if stack_item_selector_starts(cursor) {
         cursor.enter("selector.predicate.start");
         let stack_item = recognize_stack_item_selector(cursor)?;
         cursor.enter("selector.predicate.complete");
-        return Ok(TargetSelector::StackItem(stack_item));
+        return Ok((TargetSelector::StackItem(stack_item), false));
     }
 
-    let query = recognize_object_noun_query(cursor, ObjectQueryContext::DECLARED_TARGET)?
-        .into_object_query(cursor)?;
-    Ok(match query.controller {
-        Some(controller) => TargetSelector::ControlledObject {
-            predicate: query.predicate,
-            controller,
+    let mut recognized = recognize_object_noun_query(cursor, ObjectQueryContext::DECLARED_TARGET)?;
+    let excluded = source_exclusion && recognized.take_source_exclusion();
+    let query = recognized.into_object_query(cursor)?;
+    Ok((
+        match query.controller {
+            Some(controller) => TargetSelector::ControlledObject {
+                predicate: query.predicate,
+                controller,
+            },
+            None => TargetSelector::Object(query.predicate),
         },
-        None => TargetSelector::Object(query.predicate),
-    })
+        excluded,
+    ))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2844,10 +2866,8 @@ fn recognize_numeric_comparison_from(
                     operator = prefix_operator;
                     strict = true;
                 }
-                // `toughness greater than its power`: inside a candidate
-                // filter the possessive names the candidate under test, an
-                // operand no consumer evaluates per candidate yet. It is
-                // never read as the environment's object.
+                // Inside a candidate filter the possessive names the
+                // candidate under test, never the environment's object.
                 if cursor.peek().is_some_and(|raw| {
                     raw.eq_ignore_ascii_case("its") || raw.eq_ignore_ascii_case("their")
                 }) && numeric_property_starts_at(cursor, 1)
@@ -2877,6 +2897,8 @@ fn recognize_numeric_comparison_from(
                         },
                     ));
                 }
+                // Any other possessive operand (`its loyalty`) names a
+                // candidate property the comparison does not read.
                 if cursor.peek().is_some_and(|raw| {
                     raw.eq_ignore_ascii_case("its") || raw.eq_ignore_ascii_case("their")
                 }) {

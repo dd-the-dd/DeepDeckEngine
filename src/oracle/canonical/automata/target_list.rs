@@ -475,7 +475,9 @@ fn recognize_target_slot(
             }
             TargetSlotState::Selector => {
                 cursor.enter("target-list.slot.selector");
-                let first = recognize_target_slot_selector(cursor)?;
+                let (first, excluded) =
+                    super::recognize_target_slot_selector_excluding_source(cursor)?;
+                exclude_source |= excluded;
                 let read = recognize_heterogeneous_selector_list(cursor, first)?;
                 selector = Some(
                     if read == TargetSelector::Any && any_target_exception_starts(cursor) {

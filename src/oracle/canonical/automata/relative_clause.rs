@@ -256,7 +256,7 @@ fn zone_arrival_history_at(
     ];
     FORMS
         .iter()
-        .find_map(|(phrase, status)| phrase_at(phrase).map(|width| (*status, width)))
+        .find_map(|(phrase, status)| phrase_at(*phrase).map(|width| (*status, width)))
 }
 
 /// `was|were put there from the battlefield this turn` (and the other
