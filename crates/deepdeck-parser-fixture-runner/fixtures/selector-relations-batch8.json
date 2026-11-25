@@ -1,0 +1,259 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "selector-relations-batch8",
+  "cases": [
+    {
+      "id": "exact-chief-engineer-convoke",
+      "request": {
+        "cardName": "Chief Engineer",
+        "typeLine": "Creature — Human Artificer",
+        "manaCost": "{2}",
+        "oracleText": "Artifact spells you cast have convoke. (Your creatures can help cast those spells. Each creature you tap while casting an artifact spell pays for {1} or one mana of that creature's color.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "grantConvoke",
+                  "spells": {
+                    "kind": "spells",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-spell-has-conspire",
+      "request": {
+        "cardName": "Raiding Schemes",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{R}{G}",
+        "oracleText": "Each noncreature spell you cast has conspire. (As you cast a noncreature spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose new targets for the copy.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantConspire"
+              },
+              {
+                "pointer": "/modifiers/0/spells/where",
+                "equals": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-numeric-cascade",
+      "request": {
+        "cardName": "Imoti, Celebrant of Bounty",
+        "typeLine": "Legendary Creature — Naga Druid",
+        "manaCost": "{2}",
+        "oracleText": "Spells you cast with mana value 6 or greater have cascade.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantCascadeToSpells"
+              },
+              {
+                "pointer": "/modifiers/0/minimumManaValue",
+                "equals": 0
+              },
+              {
+                "pointer": "/modifiers/0/where/kind",
+                "equals": "compare"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-graveyard-cast-reduction",
+      "request": {
+        "cardName": "Gravebreaker Lamia",
+        "typeLine": "Creature — Snake Lamia",
+        "manaCost": "{2}",
+        "oracleText": "Spells you cast from your graveyard cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZoneOwner",
+                "equals": "caster"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-anywhere-other-than-hand",
+      "request": {
+        "cardName": "Savvy Trader",
+        "typeLine": "Creature — Human Citizen",
+        "manaCost": "{2}",
+        "oracleText": "Spells you cast from anywhere other than your hand cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              },
+              {
+                "pointer": "/modifiers/0/sourceZoneNot",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-keyword-without-spell-grant",
+      "request": {
+        "cardName": "Storm Grant Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}",
+        "oracleText": "Instant and sorcery spells you cast have storm.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-library-cast-origin",
+      "request": {
+        "cardName": "Library Origin Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}",
+        "oracleText": "Spells you cast from your library cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponent-caster-grant",
+      "request": {
+        "cardName": "Opponent Grant Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}",
+        "oracleText": "Spells your opponents cast have convoke.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

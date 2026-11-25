@@ -335,9 +335,33 @@ pub(in crate::oracle::canonical) fn recognize_spell_cast_collection(
 ) -> MachineResult<SpellCastQueryNode> {
     let set = recognize_object_set_query(cursor)?;
     let query = set.query.into_spell_cast_query(cursor)?;
+    validate_spell_cast_collection(cursor, set.exclude_source, query)
+}
+
+/// The same spell collection for a parent that records the zone a spell is
+/// cast from (CR 601.2a): a cast origin (`spells you cast from your
+/// graveyard`) is kept as a `CastFrom` member of the spell predicate's
+/// conjunction, which that parent's lowering splits off.
+pub(in crate::oracle::canonical) fn recognize_spell_cast_collection_with_origin(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<SpellCastQueryNode> {
+    let mut set = recognize_object_set_query(cursor)?;
+    let origin = set.query.take_cast_origin();
+    let mut query = set.query.into_spell_cast_query(cursor)?;
+    if let Some(origin) = origin {
+        query.predicate = SelectorPredicate::Intersection(vec![query.predicate, origin]);
+    }
+    validate_spell_cast_collection(cursor, set.exclude_source, query)
+}
+
+fn validate_spell_cast_collection(
+    cursor: &mut OracleTokenCursor<'_>,
+    exclude_source: bool,
+    query: SpellCastQueryNode,
+) -> MachineResult<SpellCastQueryNode> {
     cursor.enter("spell-cast-set.domain");
     cursor.require(
-        !set.exclude_source,
+        !exclude_source,
         "a spell collection without a source exclusion",
     )?;
     cursor.require(

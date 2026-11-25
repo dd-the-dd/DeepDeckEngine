@@ -1253,6 +1253,23 @@ fn parse_existing_native_rule(
             }
             StaticSpellReductionParseAttempt::NotClaimed => {}
         }
+        // `Artifact spells you cast have convoke.`: a keyword granted to a
+        // spell set, claimed once its subject and verb read.
+        match try_parse_spell_set_grant(input) {
+            SpellSetGrantParseAttempt::Parsed(draft) => {
+                return CanonicalParseOutcome::Parsed {
+                    draft,
+                    recognizer: RecognizerProvenance::Native,
+                };
+            }
+            SpellSetGrantParseAttempt::Failed(failure) => {
+                return CanonicalParseOutcome::Failed {
+                    failure,
+                    recognizer: RecognizerProvenance::Native,
+                };
+            }
+            SpellSetGrantParseAttempt::NotClaimed => {}
+        }
     }
 
     if claims_promoted_activation_prohibition_family(input) {

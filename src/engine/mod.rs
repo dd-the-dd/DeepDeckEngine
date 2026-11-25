@@ -5405,6 +5405,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         Some("grantCascadeToSpells") => {
             player_reference_supported(&modifier["player"])
                 && integer_value(&modifier["minimumManaValue"]).is_some_and(|minimum| minimum >= 0)
+                && stack_filter_supported(&modifier["where"])
         }
         Some("playCardsFromTopLibrary") => {
             player_reference_supported(&modifier["player"])
@@ -25895,6 +25896,7 @@ impl GameEngine {
                             && value_kind(modifier) == Some("grantCascadeToSpells")
                             && integer_value(&modifier["minimumManaValue"])
                                 .is_some_and(|minimum| spell_mana_value >= minimum)
+                            && matches_stack_filter(&spell_definition, &modifier["where"])
                     })
                     .count();
                 let cascade_count = keyword_count(&spell_definition, "cascade")

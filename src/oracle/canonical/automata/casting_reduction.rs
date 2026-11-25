@@ -42,7 +42,9 @@ fn read_reduction(
         if each {
             cursor.consume("each")?;
         }
-        let query = recognize_spell_cast_collection(cursor)?;
+        // `spells you cast from your graveyard`: the reduction records the
+        // zone a spell is cast from (CR 601.2a, 601.2f).
+        let query = recognize_spell_cast_collection_with_origin(cursor)?;
         (CastingReductionSubject::SpellSet(query), each)
     };
     cursor.enter("casting-reduction.cost-action");
