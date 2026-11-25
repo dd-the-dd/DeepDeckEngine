@@ -303,6 +303,10 @@ pub(super) fn graveyard_destination_modifier_supported(modifier: &Value) -> bool
 fn event_player_pattern_supported(reference: &Value) -> bool {
     match value_kind(reference) {
         Some("abilityController" | "eachPlayer") => true,
+        Some("controllerOf") => matches!(
+            value_kind(&reference["object"]),
+            Some("self" | "abilitySource")
+        ),
         Some("opponentsOf") => event_player_pattern_supported(&reference["player"]),
         _ => false,
     }
