@@ -952,6 +952,78 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-shadow-of-the-enemy",
+      "request": {
+        "cardName": "Shadow of the Enemy",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{B}{B}",
+        "oracleText": "Exile all creature cards from target player's graveyard. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/1/action/spendManaAsAnyType",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fiend-of-the-shadows",
+      "request": {
+        "cardName": "Fiend of the Shadows",
+        "typeLine": "Creature \u2014 Vampire Wizard",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Flying\nWhenever this creature deals combat damage to a player, that player exiles a card from their hand. You may play that card for as long as it remains exiled.\nSacrifice a Human: Regenerate this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "sibling-exile-opponents-hand-play-this-turn",
+      "request": {
+        "cardName": "Exile Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Exile all cards from target opponent's hand. You may play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
     }
   ]
 }

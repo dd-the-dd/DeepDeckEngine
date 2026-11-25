@@ -2668,12 +2668,19 @@ impl CardCollectionMemory {
                     self.last_exiled = Some((cards.clone(), maximum));
                 }
                 let mut movement = json!({"kind":"moveCards", "cards":cards, "to":to});
-                if matches!(operand, CardOperandNode::Targets(_))
-                    && destination.zone == CardZoneName::Exile
+                // `exile target card ... Copy it.`, `that player exiles a card
+                // from their hand. You may play that card ...`, `exile all
+                // creature cards from target player's graveyard. You may cast
+                // spells from among those cards ...`: declared or zone-chosen
+                // cards are fixed by the declaration or the choice (CR
+                // 608.2c), and the exiled cards they became are the observed
+                // collection of later card references.
+                if matches!(
+                    operand,
+                    CardOperandNode::Targets(_) | CardOperandNode::ZoneCollection(_)
+                ) && destination.zone == CardZoneName::Exile
                 {
-                    // `exile target card ... Copy it.`: the exiled targets
-                    // are the observed collection a later `it` / `that card`
-                    // names, bound to the objects they became (CR 400.7).
+                    // Bound to the objects they became (CR 400.7).
                     movement["bind"] = json!(match maximum {
                         Some(1) => self.observe_exiled_object(),
                         maximum => self.observe_exiled_objects(maximum),
