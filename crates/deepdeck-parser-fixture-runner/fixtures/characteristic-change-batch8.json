@@ -330,6 +330,45 @@
       }
     },
     {
+      "id": "real-hulkling-gendered-copy-exceptions",
+      "request": {
+        "cardName": "Hulkling, Young Avenger",
+        "typeLine": "Legendary Creature — Shapeshifter Hero",
+        "manaCost": "{1}",
+        "oracleText": "Whenever you cast a noncreature spell, Hulkling becomes a copy of up to one other target creature until end of turn, except his name is Hulkling, Young Avenger, he's 4/4, and he has flying and this ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "becomeCopyOfPermanent"
+              },
+              {
+                "pointer": "/effects/0/retainResolvingAbility",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/except/0",
+                "equals": {
+                  "kind": "setName",
+                  "name": "Hulkling, Young Avenger"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "real-living-lands-static-copula",
       "request": {
         "cardName": "Living Lands",
@@ -405,6 +444,45 @@
           }
         ],
         "abilityCount": 2
+      }
+    },
+    {
+      "id": "real-kormus-bell-plural-colored-animation",
+      "request": {
+        "cardName": "Kormus Bell",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "All Swamps are 1/1 black creatures that are still lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "setColor"
+              },
+              {
+                "pointer": "/modifiers/1/colors",
+                "equals": [
+                  "B"
+                ]
+              },
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "setBasePowerToughness"
+              }
+            ]
+          }
+        ]
       }
     },
     {

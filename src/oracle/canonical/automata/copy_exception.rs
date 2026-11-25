@@ -357,10 +357,7 @@ fn recognize_copula_exception(
         // A copy exception that adds types keeps the copied ones only when
         // the text says so; a replacing type exception has no primitive.
         cursor.consume_phrase(&["in", "addition", "to"])?;
-        cursor.consume(match number {
-            TypeChangeNumber::Singular => "its",
-            TypeChangeNumber::Plural => "their",
-        })?;
+        consume_retention_possessive(cursor, number)?;
         cursor.consume("other")?;
         if word_at(cursor, 0, "creature") {
             // `its other creature types` keeps the copied creature types: it
@@ -388,10 +385,7 @@ fn recognize_copula_exception(
             // is added; the retention clause restates it (CR 205.4).
             cursor.enter("token.copy.except.supertype.retention");
             cursor.consume_phrase(&["in", "addition", "to"])?;
-            cursor.consume(match number {
-                TypeChangeNumber::Singular => "its",
-                TypeChangeNumber::Plural => "their",
-            })?;
+            consume_retention_possessive(cursor, number)?;
             cursor.consume_phrase(&["other", "types"])?;
         }
         cursor.require(
@@ -406,6 +400,26 @@ fn recognize_copula_exception(
         )?;
     }
     Ok(())
+}
+
+/// The possessive of `in addition to its other types`, agreeing with the
+/// copy: `its`, or the gendered `his`/`her` of a named character's copy
+/// (CR 201.5); `their` for plural copies.
+fn consume_retention_possessive(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+) -> super::super::MachineResult<()> {
+    cursor.enter("token.copy.except.retention.possessive");
+    let accepted: &[&str] = match number {
+        TypeChangeNumber::Singular => &["its", "his", "her"],
+        TypeChangeNumber::Plural => &["their"],
+    };
+    let raw = cursor
+        .peek()
+        .filter(|raw| accepted.iter().any(|word| raw.eq_ignore_ascii_case(word)))
+        .ok_or_else(|| cursor.fail("a possessive agreeing with the copy"))?
+        .to_string();
+    cursor.consume(&raw)
 }
 
 impl<Subject> BecomeTypesNode<Subject> {
