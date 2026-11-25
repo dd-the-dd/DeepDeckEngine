@@ -1874,16 +1874,11 @@ pub(in crate::oracle::canonical) fn resolve_subtype_antecedent(
     departed_readable: bool,
 ) -> Result<PermanentEffectReference, &'static str> {
     let lexical = environment.object.as_ref().filter(|antecedent| {
-        matches!(
-            antecedent.reference,
-            PermanentEffectReference::Target(_)
-                | PermanentEffectReference::Observed(
-                    TypedObservedEventObject::MovedOntoBattlefield
-                )
-        ) && antecedent
-            .selector
-            .as_ref()
-            .is_some_and(|selector| selector_guarantees_subtype(selector, subtype))
+        singular_reference(antecedent.reference)
+            && antecedent
+                .selector
+                .as_ref()
+                .is_some_and(|selector| selector_guarantees_subtype(selector, subtype))
     });
     if let Some(result) = environment.result_object.as_ref().filter(|result| {
         result.number == GrammaticalNumber::Singular
@@ -2431,6 +2426,18 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
                 if names_one_permanent_kind(nominals) =>
             {
                 return Ok(antecedent.reference);
+            }
+            // An antecedent a producer registered with its selector
+            // (`with_registered_antecedent`): named when that selector
+            // names the nominal, as a declared target is.
+            reference
+                if singular_reference(reference)
+                    && antecedent
+                        .selector
+                        .as_ref()
+                        .is_some_and(|selector| selector_names_nominals(selector, nominals)) =>
+            {
+                return Ok(reference);
             }
             _ => {}
         }
@@ -3219,6 +3226,48 @@ pub(in crate::oracle::canonical) fn with_clause_subject<T>(
 ) -> T {
     let mut environment = installed_binding_environment(cursor);
     environment.subject = subject;
+    with_installed_environment(cursor, environment, read)
+}
+
+/// The producer registration contract: a parent that produced or recorded
+/// exactly one object (an embedded trigger's event object, a reflexive
+/// ability's producer, a card a frame put onto the battlefield) reads its
+/// child with that object as the singular lexical antecedent, with the
+/// selector its production guarantees. `it`, `its PROPERTY`, `that NOUN`
+/// and `that SUBTYPE` then resolve against it by that selector (a nominal
+/// it does not guarantee keeps its committed diagnostic). The parent owns
+/// the object's lowering; nothing here declares or binds it.
+// The registration API other producers (embedded triggers, event
+// objects) call; it has no caller of its own in this module yet.
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn with_registered_antecedent<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    reference: PermanentEffectReference,
+    selector: Option<TargetSelector>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.local_object_scope = true;
+    environment.object = Some(ObjectSubjectAntecedent {
+        reference,
+        selector,
+    });
+    with_installed_environment(cursor, environment, read)
+}
+
+/// The plural form of [`with_registered_antecedent`]: a parent that
+/// produced a set of objects (`those creatures`, `they`, `each of them`)
+/// reads its child with that set as the object-set antecedent.
+// The registration API other producers (embedded triggers, event
+// objects) call; it has no caller of its own in this module yet.
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn with_registered_object_set<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    set: ObjectSetAntecedent,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.objects = Some(set);
     with_installed_environment(cursor, environment, read)
 }
 
