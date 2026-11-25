@@ -70,12 +70,12 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         declined: Option<EffectSequenceNode>,
     },
     /// `If OBJECTS would die this turn, MOVE instead.` / `Until end of turn,
-    /// if ...`: a sentence that creates a departure replacement lasting this
-    /// turn (CR 611.2a, 614.1a), read by the shared departure frame
-    /// (`graveyard_destination.rs`). The sentence has no instruction of its
-    /// own: `sentence` is its empty instruction sequence.
+    /// if one or more tokens would be created ...`: a sentence that creates
+    /// a replacement lasting this turn (CR 611.2a, 614.1a), read by the
+    /// shared replacement frames (`replacement_event.rs`). The sentence has
+    /// no instruction of its own: `sentence` is its empty sequence.
     CreatedReplacement {
-        replacement: Box<DepartureReplacementNode>,
+        replacement: Box<CreatedReplacementRuleNode>,
         sentence: EffectSequenceNode,
     },
 }
@@ -205,9 +205,10 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         cursor.consume("then")?;
     }
     // `If OBJECTS would die this turn, MOVE instead.` (CR 614.1a): a
-    // sentence of this program that creates a departure replacement. It is
-    // its own step; the sentences around it are ordinary program steps.
-    if let Some(program) = try_created_departure_program(cursor, name_links, name_failure, context)
+    // sentence of this program that creates a replacement. It is its own
+    // step; the sentences around it are ordinary program steps.
+    if let Some(program) =
+        try_created_replacement_program(cursor, name_links, name_failure, context)
     {
         return program;
     }
@@ -1448,10 +1449,10 @@ fn sentence_then_width(cursor: &OracleTokenCursor<'_>) -> usize {
 }
 
 /// Absolute index of the first top-level sentence, from the cursor on, that
-/// the shared departure frame may open (`If a creature would die this
-/// turn, ...`). Lexical lookahead only; the frame proves it afterwards.
+/// a created replacement may open (`If a creature would die this turn,
+/// ...`). Lexical lookahead only; the frame proves it afterwards.
 /// Reminders and quoted abilities are other frames' text.
-fn departure_sentence_start(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+fn created_replacement_sentence_start(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
     let mut depth = 0usize;
     let mut quoted = false;
     let mut offset = 0;
@@ -1460,7 +1461,7 @@ fn departure_sentence_start(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
         if sentence_start && depth == 0 && !quoted {
             let mut probe = cursor.clone();
             if probe.advance_to(cursor.position() + offset).is_ok()
-                && departure_replacement_starts(&probe)
+                && created_replacement_sentence_starts(&probe)
             {
                 return Some(cursor.position() + offset);
             }
@@ -1495,29 +1496,25 @@ fn program_deals_damage(program: &EffectProgramNode) -> bool {
     })
 }
 
-/// The program around a sentence that creates a departure replacement:
-/// the leading sentences, the replacement, then the remaining sentences,
-/// each an independent step (CR 608.2c). `None` when no sentence opens the
-/// departure frame, so the ordinary readers keep the program.
-fn try_created_departure_program(
+/// The program around a sentence that creates a replacement: the leading
+/// sentences, the replacement, then the remaining sentences, each an
+/// independent step (CR 608.2c). `None` when no sentence opens a created
+/// replacement, so the ordinary readers keep the program.
+fn try_created_replacement_program(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> Option<MachineResult<EffectProgramNode>> {
-    let start = departure_sentence_start(cursor)?;
+    let start = created_replacement_sentence_start(cursor)?;
     let mut probe = cursor.clone();
     probe.advance_to(start).ok()?;
-    let replacement = match try_recognize_departure_replacement(
-        &mut probe,
-        DepartureFrame::Sentence,
-        name_links,
-        name_failure,
-    ) {
-        ChildOutcome::Matched(replacement) => replacement,
-        ChildOutcome::Committed(failure) => return Some(Err(failure)),
-        ChildOutcome::NoMatch(_) => return None,
-    };
+    let replacement =
+        match try_recognize_created_replacement_sentence(&mut probe, name_links, name_failure) {
+            ChildOutcome::Matched(replacement) => replacement,
+            ChildOutcome::Committed(failure) => return Some(Err(failure)),
+            ChildOutcome::NoMatch(_) => return None,
+        };
     let after = probe.position();
     Some(cursor.attempt(|cursor| {
         let mut steps = Vec::new();
@@ -1529,12 +1526,8 @@ fn try_created_departure_program(
             push_program_steps(&mut steps, leading);
         }
         cursor.enter("program.steps.created-replacement.damage-result");
-        let damaged_this_way = matches!(
-            &replacement.subject,
-            DepartureSubjectNode::Objects(objects) if objects.damaged_this_way
-        );
         cursor.require(
-            !damaged_this_way || steps.iter().any(program_deals_damage),
+            !replacement.follows_damaged_objects() || steps.iter().any(program_deals_damage),
             "an earlier damage action whose damaged objects `dealt damage this way` names",
         )?;
         cursor.advance_to(after)?;

@@ -132,8 +132,7 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         .map_err(program_failure);
     }
     if let EffectProgramNode::CreatedReplacement { replacement, .. } = step {
-        return lower_created_departure_replacement_step(cursor, replacement)
-            .map_err(program_failure);
+        return lower_created_replacement_step(cursor, replacement).map_err(program_failure);
     }
     if let EffectProgramNode::Alternatives { player, options } = step {
         let mut lowered = Vec::with_capacity(options.len());

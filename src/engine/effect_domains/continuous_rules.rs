@@ -50,6 +50,9 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("installGraveyardDestinationReplacement") => {
             super::super::replacement_pipeline::temporary_graveyard_destination_supported(effect)
         }
+        Some("installQuantityReplacement") => {
+            super::super::quantity_replacement::created_quantity_replacement_supported(effect)
+        }
         Some("installDeathExileReplacement") => {
             target_reference_supported(&effect["object"])
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
@@ -217,6 +220,9 @@ impl GameEngine {
         match value_kind(effect) {
             Some("installGraveyardDestinationReplacement") => {
                 self.install_created_graveyard_destination_replacement(effect, stack_object);
+            }
+            Some("installQuantityReplacement") => {
+                self.install_created_quantity_replacement(effect, stack_object);
             }
             Some("installUntapRestriction") => {
                 let permanent = if matches!(

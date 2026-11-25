@@ -14,10 +14,12 @@
 //! program the runtime cannot apply to the replaced event fails at its own
 //! state instead of being approximated.
 use super::super::{ChildOutcome, CommitPoint, MachineResult, OracleTokenCursor};
+use super::*;
 use super::{
     LocalPlayerReference, NumericAtom, VerbAgreement, VerbLemma, consume_lemma,
     recognize_numeric_atom,
 };
+use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 /// The replaced event.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -134,3 +136,141 @@ pub(in crate::oracle::canonical) fn try_recognize_event_replacement(
 #[cfg(test)]
 #[path = "replacement_event_tests.rs"]
 mod tests;
+
+/// A replacement effect one sentence of a resolving program creates
+/// (CR 611.2a, 614.1a): the shared departure frame, or a quantity
+/// replacement after a preposed `Until end of turn,`.
+#[derive(Clone, Debug)]
+pub(in crate::oracle::canonical) enum CreatedReplacementRuleNode {
+    Departure(DepartureReplacementNode),
+    Quantity {
+        replacement: QuantityReplacementNode,
+        lifetime: Option<CreatedRuleLifetime>,
+    },
+}
+
+impl CreatedReplacementRuleNode {
+    /// `dealt damage this way`: the replacement follows the objects an
+    /// earlier damage action of the program dealt damage to.
+    pub(in crate::oracle::canonical) fn follows_damaged_objects(&self) -> bool {
+        matches!(
+            self,
+            Self::Departure(DepartureReplacementNode {
+                subject: DepartureSubjectNode::Objects(objects),
+                ..
+            }) if objects.damaged_this_way
+        )
+    }
+}
+
+/// Lexical lookahead: a sentence that may open a created replacement.
+pub(in crate::oracle::canonical) fn created_replacement_sentence_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    departure_replacement_starts(cursor) || quantity_replacement_sentence_starts(cursor)
+}
+
+/// `[Until end of turn,] if ... would (be created|be put|create|put) ...`
+/// before the sentence's first comma after `if`.
+fn quantity_replacement_sentence_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let offset = preposed_end_of_turn_width(cursor);
+    if !word_at(cursor, offset, "if") {
+        return false;
+    }
+    (offset + 1..)
+        .take_while(|index| {
+            cursor
+                .peek_ahead(*index)
+                .is_some_and(|raw| raw != "," && raw != ".")
+        })
+        .any(|index| {
+            word_at(cursor, index, "would")
+                && (word_at(cursor, index + 1, "create")
+                    || word_at(cursor, index + 1, "put")
+                    || (word_at(cursor, index + 1, "be")
+                        && (word_at(cursor, index + 2, "created")
+                            || word_at(cursor, index + 2, "put"))))
+        })
+}
+
+fn preposed_end_of_turn_width(cursor: &OracleTokenCursor<'_>) -> usize {
+    if ["until", "end", "of", "turn", ","]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| word_at(cursor, offset, word))
+    {
+        5
+    } else {
+        0
+    }
+}
+
+/// End (exclusive, absolute) of the sentence starting at the cursor.
+fn sentence_end(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    (0..)
+        .take_while(|offset| cursor.peek_ahead(*offset).is_some())
+        .find(|offset| cursor.peek_ahead(*offset) == Some("."))
+        .map(|offset| cursor.position() + offset + 1)
+}
+
+/// Reads one sentence creating a replacement, through its period; `NoMatch`
+/// until the departure frame or the quantity event commits.
+pub(in crate::oracle::canonical) fn try_recognize_created_replacement_sentence(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> ChildOutcome<CreatedReplacementRuleNode> {
+    match try_recognize_departure_replacement(
+        cursor,
+        DepartureFrame::Sentence,
+        name_links,
+        name_failure,
+    ) {
+        ChildOutcome::Matched(node) => {
+            return ChildOutcome::Matched(CreatedReplacementRuleNode::Departure(node));
+        }
+        ChildOutcome::Committed(failure) => return ChildOutcome::Committed(failure),
+        ChildOutcome::NoMatch(_) => {}
+    }
+    let checkpoint = cursor.checkpoint();
+    cursor.enter("replacement.created-quantity.lifetime");
+    let lifetime = if preposed_end_of_turn_width(cursor) > 0 {
+        if let Err(failure) = cursor.consume_phrase(&["until", "end", "of", "turn", ","]) {
+            cursor.rollback(checkpoint);
+            return ChildOutcome::NoMatch(failure);
+        }
+        Some(CreatedRuleLifetime::ThisTurn)
+    } else {
+        None
+    };
+    let Some(end) = sentence_end(cursor) else {
+        let failure = cursor.fail("a sentence closed by a period");
+        cursor.rollback(checkpoint);
+        return ChildOutcome::NoMatch(failure);
+    };
+    let mut claimed = true;
+    let result = cursor.bounded(end, |cursor| {
+        match try_recognize_quantity_replacement(cursor) {
+            QuantityReplacementRecognition::Parsed(node) => Ok(node),
+            QuantityReplacementRecognition::Failed(failure) => Err(failure),
+            QuantityReplacementRecognition::NotClaimed => {
+                claimed = false;
+                Err(cursor.fail("a quantity replacement event"))
+            }
+        }
+    });
+    match result {
+        Ok(replacement) => ChildOutcome::Matched(CreatedReplacementRuleNode::Quantity {
+            replacement,
+            lifetime,
+        }),
+        Err(failure) => {
+            cursor.rollback(checkpoint);
+            if claimed {
+                ChildOutcome::Committed(failure)
+            } else {
+                ChildOutcome::NoMatch(failure)
+            }
+        }
+    }
+}

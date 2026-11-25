@@ -70,3 +70,35 @@ fn lower_event_replacement(
 #[cfg(test)]
 #[path = "replacement_event_tests.rs"]
 mod tests;
+
+/// One program step creating a replacement (CR 611.2a, 614.1a): its one
+/// install instruction, without declarations.
+pub(in crate::oracle::canonical) fn lower_created_replacement_step(
+    cursor: &mut OracleTokenCursor<'_>,
+    replacement: &CreatedReplacementRuleNode,
+) -> MachineResult<LoweredEffectSequence> {
+    let effect = match replacement {
+        CreatedReplacementRuleNode::Departure(node) => {
+            lower_created_departure_replacement(cursor, node)?
+        }
+        CreatedReplacementRuleNode::Quantity {
+            replacement,
+            lifetime,
+        } => {
+            cursor.enter("lower.created-quantity-replacement.lifetime");
+            cursor.require(
+                *lifetime == Some(CreatedRuleLifetime::ThisTurn),
+                "a created quantity replacement lasting this turn (`Until end of turn,`)",
+            )?;
+            json!({
+                "kind": "installQuantityReplacement",
+                "program": lower_quantity_replacement_program(cursor, replacement.clone())?,
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })
+        }
+    };
+    Ok(LoweredEffectSequence {
+        decisions: Vec::new(),
+        effects: vec![effect],
+    })
+}

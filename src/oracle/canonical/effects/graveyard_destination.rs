@@ -321,21 +321,6 @@ fn lower_departure_objects(
 ) -> MachineResult<()> {
     cursor.enter("lower.departure-replacement.objects");
     let (predicate, damaged_by_source) = split_damaged_by_source(&objects.predicate);
-    if from_battlefield {
-        let filter = lower_permanent_object_predicate(&predicate);
-        cursor.require(
-            !filter.is_null(),
-            "a permanent predicate the shared object filter lowers",
-        )?;
-        modifier["permanentWhere"] = filter;
-    } else {
-        let filter = lower_card_object_predicate(&predicate);
-        cursor.require(
-            !filter.is_null(),
-            "a card predicate the shared object filter lowers",
-        )?;
-        modifier["where"] = filter;
-    }
     if damaged_by_source {
         // `dealt damage by this creature this turn` (CR 120.1).
         cursor.require(
@@ -343,6 +328,32 @@ fn lower_departure_objects(
             "a permanent dealt damage by the source this turn",
         )?;
         modifier["damagedBySourceThisTurn"] = json!(true);
+    }
+    let domain = if from_battlefield {
+        ObjectKind::Permanent
+    } else {
+        ObjectKind::Card
+    };
+    cursor.require(
+        objects.domain == domain,
+        "an object noun of the departure's zone domain",
+    )?;
+    // The bare domain noun (`a permanent`, `a card`) filters nothing.
+    if predicate != ObjectPredicate::ObjectKind(domain) {
+        let filter = if from_battlefield {
+            lower_permanent_object_predicate(&predicate)
+        } else {
+            lower_card_object_predicate(&predicate)
+        };
+        cursor.require(
+            !filter.is_null(),
+            "a predicate the shared object filter lowers",
+        )?;
+        modifier[if from_battlefield {
+            "permanentWhere"
+        } else {
+            "where"
+        }] = filter;
     }
     cursor.enter("lower.departure-replacement.controller");
     if let Some(scope) = objects.controller {
@@ -408,16 +419,4 @@ fn split_damaged_by_source(predicate: &ObjectPredicate) -> (ObjectPredicate, boo
         other if damaged(other) => (ObjectPredicate::ObjectKind(ObjectKind::Permanent), true),
         other => (other.clone(), false),
     }
-}
-
-/// One program step creating a departure replacement: its one install
-/// instruction, without declarations.
-pub(in crate::oracle::canonical) fn lower_created_departure_replacement_step(
-    cursor: &mut OracleTokenCursor<'_>,
-    replacement: &DepartureReplacementNode,
-) -> MachineResult<LoweredEffectSequence> {
-    Ok(LoweredEffectSequence {
-        decisions: Vec::new(),
-        effects: vec![lower_created_departure_replacement(cursor, replacement)?],
-    })
 }
