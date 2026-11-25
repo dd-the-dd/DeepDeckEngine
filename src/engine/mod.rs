@@ -109,6 +109,7 @@ mod characteristic_observation;
 mod chosen_object_costs;
 mod city_blessing;
 mod copy_program;
+mod cost_paid_card_properties;
 mod cost_payment;
 mod cost_query;
 mod counter_placement;

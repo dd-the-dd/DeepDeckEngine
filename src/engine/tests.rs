@@ -33,6 +33,10 @@ mod league_reference_runtime;
 mod linked_duration_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/antecedent_producers_runtime.rs"]
+mod antecedent_producers_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/rebound_runtime.rs"]
 mod rebound_runtime;
 
