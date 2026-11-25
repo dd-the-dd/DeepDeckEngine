@@ -8,9 +8,12 @@ use super::*;
 /// reference into its definition atom (`nameEquals`, `colorContains`) before
 /// any candidate is read (CR 608.2d); a reference whose choice has not been
 /// made stays unmaterialized and the definition-only card domain refuses it
-/// at resolution (`runtime_collections`), never reading it as false.
+/// at resolution (`runtime_collections`), never reading it as false. A
+/// card zone-history status (`put there from the battlefield this turn`) is
+/// bound per candidate card by `object_event_history`.
 pub(super) fn card_zone_query_atom_supported(leaf: &Value) -> bool {
     object_predicate::definition_atom_supported(leaf)
+        || value_kind(leaf).is_some_and(object_event_history::is_card_history_kind)
         || (matches!(value_kind(leaf), Some("chosenCardName" | "chosenColor"))
             && leaf["decisionId"].is_string())
 }

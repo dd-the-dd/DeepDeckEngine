@@ -191,6 +191,7 @@ mod nominal_choices;
 mod numeric_evaluation;
 mod object_condition;
 mod object_context;
+mod object_event_history;
 mod object_identity;
 mod object_identity_initialization;
 #[cfg(test)]
@@ -2398,6 +2399,7 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "hasAttachedAura"
             | "dealtDamageThisTurn"
             | "enteredGraveyardThisTurn"
+            | object_event_history::PUT_THERE_FROM_BATTLEFIELD
             | "dealtDamageToControllerThisTurn"
             | "wasDealtDamageThisTurn"
             | "attackedThisTurn"
@@ -11188,6 +11190,9 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> bool {
         match value_kind(filter) {
+            Some(object_event_history::PUT_THERE_FROM_BATTLEFIELD) => {
+                self.card_put_there_from_battlefield_this_turn(&card.instance_id)
+            }
             Some("enteredGraveyardThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
                     && ((event.kind == "cardsEnteredGraveyard"
