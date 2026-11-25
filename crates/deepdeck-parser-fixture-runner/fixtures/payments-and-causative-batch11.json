@@ -465,7 +465,16 @@
           {
             "index": 0,
             "status": "canonical",
-            "ruleAssertions": []
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "payCost"
+              }
+            ]
           }
         ]
       }
@@ -482,7 +491,23 @@
       },
       "expect": {
         "outcome": "success",
-        "cardStatus": "canonical"
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "payCost"
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -604,7 +629,17 @@
         "abilities": [
           {
             "index": 0,
-            "status": "canonical"
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/0/action/cost/kind",
+                "equals": "payLife"
+              }
+            ]
           }
         ]
       }

@@ -608,14 +608,22 @@ fn lower_gated_outcome(
                 body,
             );
         }
-        return lower_optional_action(
-            cursor,
-            optional["player"].clone(),
-            inner.clone(),
-            outcome,
-            body,
-            otherwise,
-        );
+        // Another player's permission (`defending player may pay {U}. If
+        // that player does, ...`): the performer decides and performs. Its
+        // instruction was read in the performer's person, so the controller
+        // it names is the performer (CR 608.2c, 608.2d); the outcomes stay
+        // the ability controller's instructions.
+        let (player, inner) = match optional.get("performer") {
+            Some(performer) => (
+                performer.clone(),
+                inner
+                    .iter()
+                    .map(|effect| performer_as_controller(effect, performer))
+                    .collect(),
+            ),
+            None => (optional["player"].clone(), inner.clone()),
+        };
+        return lower_optional_action(cursor, player, inner, outcome, body, otherwise);
     }
     if let Some(result) = result {
         return lower_reflexive_result(cursor, player, effects, result, body);
@@ -623,6 +631,29 @@ fn lower_gated_outcome(
     match player {
         Some(player) => lower_optional_action(cursor, player, effects, outcome, body, otherwise),
         None => lower_performed_action(cursor, effects, outcome, body, otherwise),
+    }
+}
+
+/// `effect` with every reference to the ability controller replaced by the
+/// performer whose person the instruction was read in.
+fn performer_as_controller(effect: &Value, performer: &Value) -> Value {
+    if *effect == controller() {
+        return performer.clone();
+    }
+    match effect {
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| performer_as_controller(item, performer))
+                .collect(),
+        ),
+        Value::Object(fields) => Value::Object(
+            fields
+                .iter()
+                .map(|(key, value)| (key.clone(), performer_as_controller(value, performer)))
+                .collect(),
+        ),
+        other => other.clone(),
     }
 }
 
