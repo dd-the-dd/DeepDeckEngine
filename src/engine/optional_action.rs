@@ -42,6 +42,7 @@
 //!   one already attached to it doesn't move (CR 701.3b).
 //! - `modifyPowerToughness` / `grantKeyword` on one object: the object was a
 //!   permanent the effect applied to (CR 611.2c, 400.7).
+//! - `payCost`: the payer paid the whole resolution cost (CR 118.3, 608.2c).
 //! - `chooseOneEffect` (`sacrifice an artifact or discard a card`): the
 //!   option the performer chose was performed, as its own instruction group.
 //!
@@ -95,6 +96,8 @@ pub(super) fn optional_action_witness_supported(action: &Value) -> bool {
         }
         Some("attachPermanent") => action["attachment"].is_object() && action["to"].is_object(),
         Some("modifyPowerToughness" | "grantKeyword") => action["object"].is_object(),
+        // The payer actually paid the resolution cost (`payments.rs`).
+        Some("payCost") => single_player(&action["player"]),
         _ => false,
     }
 }
@@ -697,6 +700,13 @@ impl GameEngine {
                     required,
                 }
             }
+            // CR 608.2c: the payment instruction's cost was paid.
+            Some("payCost") => events(
+                &["resolutionCostPaid"],
+                player(&action["player"]),
+                EventMeasure::Count,
+                1,
+            ),
             // CR 120.1, 615.1: damage was dealt; prevented damage is not.
             Some("dealDamage") => PerformanceWitness::Events {
                 kinds: &["damageDealt"],

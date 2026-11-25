@@ -91,6 +91,9 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// `PLAYER's life total becomes N` (CR 119.5): the player gains or loses
     /// the difference between N and their life total.
     SetLifeTotal(NumericExpression),
+    /// `pay(s) RESOURCE` (CR 608.2c, 119.4): the acting player pays if able;
+    /// the shared payment instruction child (`resource_payment.rs`).
+    Pay(super::PaymentInstructionNode),
 }
 
 /// A player's own game-status change (`player_action.rs` cell of the
@@ -642,6 +645,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             && super::player_designation_follows(cursor).is_some())
         || head.eq_ignore_ascii_case("venture")
         || head.eq_ignore_ascii_case("proliferate")
+        || super::payment_instruction_starts(cursor, VerbAgreement::Base)
     {
         // Imperative mood: an instruction without a subject is performed by
         // the ability's controller (`Mill two cards.`). Draw keeps its
@@ -712,7 +716,12 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     // `loses the game`, `gains hexproof until end of turn`: the acting
     // player's own status, for every player subject.
     let is_status = player_status_action_follows(cursor);
+    // `pay(s) RESOURCE`: every player subject and the controller's
+    // imperative; the fragment checks the subject's agreement.
+    let is_pay = super::payment_instruction_starts(cursor, VerbAgreement::Base)
+        || super::payment_instruction_starts(cursor, VerbAgreement::ThirdPersonSingular);
     let claimed = is_counters
+        || is_pay
         || is_status
         || is_extra_turn
         || is_designation
@@ -752,7 +761,12 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         || (is_create && !matches!(&player, Ok(PlayerEffectSubject::DeclaredTarget { .. })))
         || (is_scry && !matches!(&player, Ok(subject) if *subject != PlayerEffectSubject::Controller))
         // An unresolved subject leaves the performer reader in charge.
-        || ((is_extra_turn || is_designation || is_skip || is_prohibition || is_status)
+        || ((is_extra_turn
+            || is_designation
+            || is_skip
+            || is_prohibition
+            || is_status
+            || is_pay)
             && player.is_err())
     {
         cursor.rollback(checkpoint);
@@ -781,7 +795,11 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     } else {
         "their"
     };
-    let action = if is_designation {
+    let action = if is_pay {
+        SingularPlayerAction::Pay(super::recognize_payment_instruction_fragment(
+            cursor, form, None,
+        )?)
+    } else if is_designation {
         SingularPlayerAction::Designation(super::PlayerDesignationAction::Acquire(
             super::recognize_player_designation_fragment(cursor, form)?,
         ))

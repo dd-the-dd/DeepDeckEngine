@@ -379,8 +379,10 @@ fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
             "you may sacrifice X creatures. If you do, draw a card.",
             "cost.resolution.sacrifice.quantity",
         ),
+        // Mana and a battlefield object compete for the same permanents
+        // (a land tapped for mana or sacrificed); mana and life do not.
         (
-            "you may pay {1} and pay 2 life. If you do, draw a card.",
+            "you may pay {1} and sacrifice a creature. If you do, draw a card.",
             "cost.resolution.sequence.resources",
         ),
         (

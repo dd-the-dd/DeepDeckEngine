@@ -113,7 +113,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "optionalAction" | "performAction" | "bind" | "conditional" | "conditionalEffect"
             | "ifTargetWasChosen" | "chooseUnusedMode",
         ) => Some(Domain::Control),
-        Some("optionalPayLife") => Some(Domain::Payments),
+        Some("optionalPayLife" | "payCost") => Some(Domain::Payments),
 
         Some("optionalPayCostPerformEffects" | "tryPayCost") => Some(Domain::CostTransactions),
         Some("optionalPayCostCreateReflexiveTrigger") => Some(Domain::ReflexiveCostTransactions),

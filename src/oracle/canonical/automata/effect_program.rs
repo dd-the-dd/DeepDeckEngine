@@ -906,6 +906,33 @@ fn recognize_otherwise_complement(
     // declined branch is a permission of its own sentence, read by the
     // shared permission reader (Mistbreath Elder, CR 608.2c, 608.2d).
     let body_end = sentence_end_with_reminders(cursor);
+    // `Otherwise, you may pay {1}. If you do, BODY.`: the declined branch is
+    // an optional resolution cost with its own outcome sentence, read by the
+    // same permission reader over both sentences. Only a cost producer is
+    // claimed here: its block is one lowered program node.
+    if sentence_has_root_may(cursor, body_end) {
+        let mut after = cursor.clone();
+        if after.advance_to(body_end).is_ok() && outcome_connector_at(&after, 0).is_some() {
+            let outcome_end = sentence_end_with_reminders(&after);
+            let before_block = cursor.checkpoint();
+            let block = cursor.attempt(|attempt| {
+                attempt.bounded(outcome_end, |cursor| {
+                    recognize_permission_program(cursor, name_links, name_failure, context)
+                })
+            });
+            if let Ok(
+                block @ EffectProgramNode::Outcome {
+                    producer: OutcomeProducer::Cost(_),
+                    otherwise: None,
+                    ..
+                },
+            ) = block
+            {
+                return Ok(Some(Box::new(block)));
+            }
+            cursor.rollback(before_block);
+        }
+    }
     if sentence_has_root_may(cursor, body_end) {
         let permission = cursor.attempt(|attempt| {
             attempt.bounded(body_end, |cursor| {
@@ -1645,6 +1672,8 @@ pub(in crate::oracle::canonical) fn effect_program_operator_follows(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     optional_program_starts(cursor)
+        // `any [other] player|opponent may ...` (CR 608.2d): an offer.
+        || offered_permission_width(cursor).is_some()
         || sentence_then_width(cursor) == 1
         || cursor
             .peek()

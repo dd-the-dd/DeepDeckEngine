@@ -303,6 +303,7 @@ fn payer_relative(payment: &PaymentActionNode) -> bool {
         | PaymentActionNode::ReturnToHand(_)
         | PaymentActionNode::PutCounters(_)
         | PaymentActionNode::Reveal { .. }
+        | PaymentActionNode::PutInLibrary { .. }
         | PaymentActionNode::Exert(_) => false,
         PaymentActionNode::Mill { .. } => true,
     }

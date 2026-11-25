@@ -113,6 +113,11 @@ fn activation_cost_counter_holder_id(cost: &ChosenCounterPlacementCostNode) -> S
     format!("activationCostCounterHolder{}", cost.cost_index)
 }
 
+/// The declared choice of the cards a cost puts into a library.
+fn activation_cost_library_id(cost: &ChosenLibraryCostNode) -> String {
+    format!("activationCostLibrary{}", cost.cost_index)
+}
+
 fn activation_cost_reveal_id(cost: &ChosenRevealCostNode) -> String {
     format!("activationCostReveal{}", cost.cost_index)
 }
@@ -269,6 +274,15 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                 &activation_cost_chosen_x_id(cost),
                 chosen_x_candidates(cost, taps_source),
                 json!({ "kind": "exactly", "value": decision_result(cost.amount.decision_id()) }),
+            )),
+            LocalActivationCostNode::PutCardsInLibrary(cost) => Some(object_choice(
+                &activation_cost_library_id(cost),
+                json!({
+                    "kind": "cards",
+                    "zone": payment_zone(cost.zone),
+                    "where": lower_card_object_predicate(&cost.filter),
+                }),
+                json!({ "kind": "exactly", "value": integer(cost.count) }),
             )),
             LocalActivationCostNode::Blight(cost) => Some(object_choice(
                 &activation_cost_blight_id(cost),
@@ -499,6 +513,21 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
         LocalActivationCostNode::ExertSelf => json!({
             "kind": "exert",
             "object": self_ref(),
+        }),
+        // One cost over every card of the declared choice (CR 401.4).
+        LocalActivationCostNode::PutCardsInLibrary(cost) => json!({
+            "kind": "chosenObjectsCost",
+            "action": match cost.position {
+                PaymentLibraryEnd::Top => "putOnLibraryTop",
+                PaymentLibraryEnd::Bottom => "putOnLibraryBottom",
+            },
+            "choice": activation_cost_library_id(cost),
+            "from": payment_zone(cost.zone),
+        }),
+        LocalActivationCostNode::PutSourceInLibrary(position) => json!({
+            "kind": "putSourceInLibrary",
+            "zone": "graveyard",
+            "position": position.engine_position(),
         }),
         LocalActivationCostNode::Mill { count } => json!({
             "kind": "millCards",

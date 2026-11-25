@@ -76,7 +76,11 @@ pub(in crate::oracle::canonical) enum ResolutionCostNode {
 enum CostResource {
     Hand,
     Graveyard,
-    /// Mana, life and battlefield objects: mana abilities may consume any.
+    /// The payer's life (CR 119.4): paid before any mana or battlefield
+    /// part, so its payability is checked against the life total the payer
+    /// has while the cost is paid (`pay {1} and 1 life`).
+    Life,
+    /// Mana and battlefield objects: mana abilities may consume any.
     Battlefield,
     /// The payer's own counters (`{E}`): no other part consumes them.
     PlayerCounters,
@@ -98,6 +102,7 @@ impl ResolutionCostNode {
                 ..
             } => CostResource::Graveyard,
             Self::Payment(ResourcePaymentNode::PlayerCounters(_)) => CostResource::PlayerCounters,
+            Self::Payment(ResourcePaymentNode::Life(_)) => CostResource::Life,
             _ => CostResource::Battlefield,
         }
     }
@@ -149,7 +154,7 @@ pub(in crate::oracle::canonical) fn project_resolution_cost_sequence(
     resources.sort();
     cursor.require(
         resources.windows(2).all(|pair| pair[0] != pair[1]),
-        "resolution cost parts drawing on distinct resources (one mana, life or battlefield payment; one card per zone)",
+        "resolution cost parts drawing on distinct resources (one mana or battlefield payment, one life payment; one card per zone)",
     )?;
     Ok(ResolutionCostNode::Sequence(parts))
 }
@@ -177,6 +182,7 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         | PaymentActionNode::PutCounters(_)
         | PaymentActionNode::Reveal { .. }
         | PaymentActionNode::Mill { .. }
+        | PaymentActionNode::PutInLibrary { .. }
         | PaymentActionNode::Exert(_) => {
             cursor.enter("cost.resolution.unsupported-action");
             Err(cursor.engine_gap(

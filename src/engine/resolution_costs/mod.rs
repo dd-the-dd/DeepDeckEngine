@@ -30,7 +30,10 @@ pub(super) enum CostProgram {
 enum CostResource {
     Hand,
     Graveyard,
-    /// Mana, life and battlefield objects (mana abilities may consume any).
+    /// The payer's life (CR 119.4): paid before the mana and battlefield
+    /// parts, against the life total checked when the cost was prepared.
+    Life,
+    /// Mana and battlefield objects (mana abilities may consume any).
     Battlefield,
 }
 
@@ -41,6 +44,7 @@ impl CostProgram {
                 Some("discardCard") => CostResource::Hand,
                 Some("exileCard") if cost["zone"].as_str() == Some("hand") => CostResource::Hand,
                 Some("exileCard") => CostResource::Graveyard,
+                Some("payLife") => CostResource::Life,
                 _ => CostResource::Battlefield,
             },
             Self::Mana(_) | Self::Sequence(_) => CostResource::Battlefield,
@@ -77,6 +81,17 @@ impl CostProgram {
         parts.sort_by_key(|part| part.resource() == CostResource::Battlefield);
         Ok(Self::Sequence(parts))
     }
+}
+
+/// `payPlayerCounters` whose count is a numeric expression evaluated at
+/// resolution (`pay an amount of {E} equal to ...`, a chosen amount): the
+/// nonmana preparation evaluates `count` before checking payability.
+fn counted_payment_supported(cost: &Value) -> bool {
+    value_kind(cost) == Some("payPlayerCounters")
+        && cost.get("player").is_none_or(player_reference_supported)
+        && cost["counter"].is_string()
+        && integer_value(&cost["count"]).is_none()
+        && numeric_expression_supported(&cost["count"])
 }
 
 /// `returnPermanentToOwnersHand`: one permanent the payer controls,
@@ -192,7 +207,7 @@ impl CostProgram {
                         | "sacrificePermanent"
                         | "discardCard"
                 )
-            ) && cost_supported(cost);
+            ) && (cost_supported(cost) || counted_payment_supported(cost));
             let has_resource_selector = match value_kind(cost) {
                 Some("sacrificePermanent") => {
                     cost.get("where").is_some()
@@ -300,6 +315,30 @@ impl GameEngine {
         }
     }
 
+    /// A payment instruction (`pay {E}{E}`, `you may pay 2 life`, CR 608.2c):
+    /// the payer pays the whole program when able (no decline is offered: a
+    /// permission over the instruction already asked) and nothing happens
+    /// otherwise (CR 118.3). Returns whether the cost was paid.
+    pub(in crate::engine) fn pay_resolution_cost_if_able<P: DecisionProvider>(
+        &mut self,
+        payer_id: &str,
+        program: CostProgram,
+        source: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+        provider: &mut P,
+    ) -> Result<bool, EngineError> {
+        let mut prepared =
+            self.prepare_resolution_cost_payment(payer_id, program, source, bindings, decisions)?;
+        if !prepared.payable() {
+            return Ok(false);
+        }
+        prepared.require_payment();
+        Ok(self
+            .choose_and_commit_resolution_payment(prepared, None, source, provider)?
+            .paid())
+    }
+
     /// CR 118.3: an unpayable part makes the whole list unpayable, so the
     /// payer is offered only to decline. Otherwise the first part carries the
     /// pay-or-decline choice and each later part is a mandatory payment.
@@ -353,7 +392,7 @@ pub(super) fn cost_program_supported(cost: &Value) -> bool {
 pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
     matches!(
         value_kind(value),
-        Some("tryPayCost" | "optionalPayCostPerformEffects" | "changeTargets")
+        Some("tryPayCost" | "payCost" | "optionalPayCostPerformEffects" | "changeTargets")
     ) || (matches!(value_kind(value), Some("costWasPaid" | "decisionWas"))
         && value["required"].as_bool() == Some(true))
         || (matches!(
