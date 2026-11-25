@@ -30,6 +30,9 @@ pub(in crate::oracle::canonical) enum ReplacedEventNode {
         player: LocalPlayerReference,
         except_first_in_draw_step: bool,
     },
+    /// `PLAYER would lose unspent mana` (CR 500.4): the player's mana pool
+    /// empties as a step or phase ends.
+    LoseUnspentMana { player: LocalPlayerReference },
 }
 
 /// The program performed instead of the replaced event.
@@ -37,6 +40,9 @@ pub(in crate::oracle::canonical) enum ReplacedEventNode {
 pub(in crate::oracle::canonical) enum ReplacementProgramNode {
     /// `draw N cards`: the replaced draw becomes N draws.
     Draw { count: i64 },
+    /// `that mana becomes COLOR`: the mana stays in the pool as that type
+    /// (`W`, `U`, `B`, `R`, `G` or `C`, CR 106.4).
+    ManaBecomes { symbol: &'static str },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -99,6 +105,27 @@ fn recognize_draw_program(
     Ok(ReplacementProgramNode::Draw { count })
 }
 
+/// `that mana becomes COLOR instead`: the unspent mana stays as one type.
+fn recognize_mana_type_program(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ReplacementProgramNode> {
+    cursor.enter("replacement.program.mana-type");
+    cursor.consume_phrase(&["that", "mana", "becomes"])?;
+    cursor.enter("replacement.program.mana-type.color");
+    let symbol = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("white") => "W",
+        Some("blue") => "U",
+        Some("black") => "B",
+        Some("red") => "R",
+        Some("green") => "G",
+        Some("colorless") => "C",
+        _ => return Err(cursor.fail("a color or `colorless` naming the retained mana type")),
+    };
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&raw)?;
+    Ok(ReplacementProgramNode::ManaBecomes { symbol })
+}
+
 fn recognize_event_replacement(
     cursor: &mut OracleTokenCursor<'_>,
     commit: &mut CommitPoint,
@@ -110,13 +137,27 @@ fn recognize_event_replacement(
     cursor.consume("you")?;
     cursor.consume("would")?;
     cursor.enter("replacement.event.verb");
-    consume_lemma(cursor, VerbLemma::Draw, VerbAgreement::Base)?;
-    commit.commit();
-    let event = recognize_draw_event(cursor)?;
+    let event = if word_at(cursor, 0, "lose")
+        && word_at(cursor, 1, "unspent")
+        && word_at(cursor, 2, "mana")
+    {
+        consume_lemma(cursor, VerbLemma::Lose, VerbAgreement::Base)?;
+        commit.commit();
+        cursor.enter("replacement.event.unspent-mana");
+        cursor.consume_phrase(&["unspent", "mana"])?;
+        ReplacedEventNode::LoseUnspentMana {
+            player: LocalPlayerReference::Controller,
+        }
+    } else {
+        consume_lemma(cursor, VerbLemma::Draw, VerbAgreement::Base)?;
+        commit.commit();
+        recognize_draw_event(cursor)?
+    };
     cursor.enter("replacement.event.separator");
     cursor.consume(",")?;
     let program = match &event {
         ReplacedEventNode::Draw { .. } => recognize_draw_program(cursor)?,
+        ReplacedEventNode::LoseUnspentMana { .. } => recognize_mana_type_program(cursor)?,
     };
     cursor.enter("replacement.event.instead");
     cursor.consume_phrase(&["instead", "."])?;
@@ -147,6 +188,9 @@ pub(in crate::oracle::canonical) enum CreatedReplacementRuleNode {
         replacement: QuantityReplacementNode,
         lifetime: Option<CreatedRuleLifetime>,
     },
+    /// A damage replacement or prevention through this turn
+    /// (`damage_replacement.rs`).
+    Damage(DamageReplacementNode),
 }
 
 impl CreatedReplacementRuleNode {
@@ -167,7 +211,9 @@ impl CreatedReplacementRuleNode {
 pub(in crate::oracle::canonical) fn created_replacement_sentence_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    departure_replacement_starts(cursor) || quantity_replacement_sentence_starts(cursor)
+    departure_replacement_starts(cursor)
+        || created_damage_replacement_starts(cursor)
+        || quantity_replacement_sentence_starts(cursor)
 }
 
 /// `[Until end of turn,] if ... would (be created|be put|create|put) ...`
@@ -228,6 +274,18 @@ pub(in crate::oracle::canonical) fn try_recognize_created_replacement_sentence(
     ) {
         ChildOutcome::Matched(node) => {
             return ChildOutcome::Matched(CreatedReplacementRuleNode::Departure(node));
+        }
+        ChildOutcome::Committed(failure) => return ChildOutcome::Committed(failure),
+        ChildOutcome::NoMatch(_) => {}
+    }
+    let context = DamageReplacementContext {
+        name_links,
+        name_failure,
+        attachment_word: None,
+    };
+    match try_recognize_created_damage_replacement(cursor, &context) {
+        ChildOutcome::Matched(node) => {
+            return ChildOutcome::Matched(CreatedReplacementRuleNode::Damage(node));
         }
         ChildOutcome::Committed(failure) => return ChildOutcome::Committed(failure),
         ChildOutcome::NoMatch(_) => {}

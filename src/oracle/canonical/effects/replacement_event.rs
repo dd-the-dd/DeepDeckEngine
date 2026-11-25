@@ -51,6 +51,25 @@ fn lower_event_replacement(
                 "exceptFirstInDrawStep": except_first_in_draw_step,
             })
         }
+        // CR 500.4: the unspent mana of the controller's pool is kept as
+        // one type instead of emptying.
+        (
+            ReplacedEventNode::LoseUnspentMana { player },
+            ReplacementProgramNode::ManaBecomes { symbol },
+        ) => {
+            cursor.require(
+                *player == LocalPlayerReference::Controller,
+                "the ability controller's unspent mana",
+            )?;
+            json!({
+                "kind": "convertUnspentMana",
+                "player": controller(),
+                "to": symbol,
+            })
+        }
+        _ => {
+            return Err(cursor.fail("a replacement program that applies to the replaced event"));
+        }
     };
     Ok(draft(
         json!({
@@ -135,6 +154,11 @@ pub(in crate::oracle::canonical) fn lower_created_replacement_step(
                 "duration": { "kind": "untilEndOfCurrentTurn" },
             })
         }
+        CreatedReplacementRuleNode::Damage(replacement) => json!({
+            "kind": "installDamageReplacement",
+            "program": lower_damage_replacement(cursor, replacement)?,
+            "duration": { "kind": "untilEndOfCurrentTurn" },
+        }),
     };
     Ok(LoweredEffectSequence {
         decisions: Vec::new(),

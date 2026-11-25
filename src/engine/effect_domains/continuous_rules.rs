@@ -53,6 +53,9 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("installQuantityReplacement") => {
             super::super::quantity_replacement::created_quantity_replacement_supported(effect)
         }
+        Some("installDamageReplacement") => {
+            super::super::damage_replacement::created_damage_replacement_supported(effect)
+        }
         Some("installDeathExileReplacement") => {
             target_reference_supported(&effect["object"])
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
@@ -223,6 +226,9 @@ impl GameEngine {
             }
             Some("installQuantityReplacement") => {
                 self.install_created_quantity_replacement(effect, stack_object);
+            }
+            Some("installDamageReplacement") => {
+                self.install_created_damage_replacement(effect, stack_object);
             }
             Some("installUntapRestriction") => {
                 let permanent = if matches!(

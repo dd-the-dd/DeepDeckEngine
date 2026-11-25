@@ -413,6 +413,126 @@
       }
     },
     {
+      "id": "exact-goblin-goliath-created-damage-doubler",
+      "request": {
+        "cardName": "Goblin Goliath",
+        "typeLine": "Creature — Goblin Mutant",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "When this creature enters, create a number of 1/1 red Goblin creature tokens equal to the number of opponents you have.\n{3}{R}, {T}: If a source you control would deal damage to an opponent this turn, it deals double that damage to that player instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDamageReplacement"
+              },
+              {
+                "pointer": "/effects/0/program/kind",
+                "equals": "replaceDamage"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-blind-fury-created-combat-damage-doubler",
+      "request": {
+        "cardName": "Blind Fury",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "All creatures lose trample until end of turn. If a creature would deal combat damage to a creature this turn, it deals double that damage to that creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDamageReplacement"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-horizon-stone-unspent-mana-colorless",
+      "request": {
+        "cardName": "Horizon Stone",
+        "typeLine": "Artifact",
+        "manaCost": "{5}",
+        "oracleText": "If you would lose unspent mana, that mana becomes colorless instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "convertUnspentMana"
+              },
+              {
+                "pointer": "/modifiers/0/to",
+                "equals": "C"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kruphix-unspent-mana-colorless",
+      "request": {
+        "cardName": "Kruphix, God of Horizons",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{3}{G}{U}",
+        "oracleText": "Indestructible\nAs long as your devotion to green and blue is less than seven, Kruphix isn't a creature.\nYou have no maximum hand size.\nIf you would lose unspent mana, that mana becomes colorless instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 3,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "convertUnspentMana"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "sibling-until-end-of-turn-return-to-hand",
       "request": {
         "cardName": "Sibling Rescue",
@@ -496,6 +616,64 @@
             "abilityIndex": 1,
             "code": "oracle_machine_failure",
             "state": "replacement.departure.additional-action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unspent-mana-becomes-red",
+      "request": {
+        "cardName": "Sibling Furnace",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "If you would lose unspent mana, that mana becomes red instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/to",
+                "equals": "R"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-created-prevention-this-turn",
+      "request": {
+        "cardName": "Sibling Shelter",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "If a source an opponent controls would deal damage to you this turn, prevent that damage. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDamageReplacement"
+              },
+              {
+                "pointer": "/effects/0/program/replacement/kind",
+                "equals": "prevent"
+              }
+            ]
           }
         ]
       }

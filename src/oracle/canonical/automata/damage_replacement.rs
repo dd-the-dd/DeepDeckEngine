@@ -648,3 +648,106 @@ fn recognize_damage_prevention(
     cursor.consume_phrase(&["of", "that", "damage"])?;
     Ok(DamageModificationNode::Prevent(amount))
 }
+
+/// `[Until end of turn,] if EVENT [this turn], MODIFICATION.` read as one
+/// sentence of a resolving effect: a damage replacement the effect creates
+/// through this turn (CR 611.2a, 614.1a). Lexical lookahead only.
+pub(in crate::oracle::canonical) fn created_damage_replacement_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let offset = if ["until", "end", "of", "turn", ","]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| ahead_is(cursor, offset, word))
+    {
+        5
+    } else {
+        0
+    };
+    if !ahead_is(cursor, offset, "if") {
+        return false;
+    }
+    (offset + 1..)
+        .take_while(|index| {
+            cursor
+                .peek_ahead(*index)
+                .is_some_and(|raw| raw != "," && raw != ".")
+        })
+        .any(|index| {
+            (ahead_is(cursor, index, "would") && ahead_is(cursor, index + 1, "deal"))
+                || (ahead_is(cursor, index, "damage")
+                    && ahead_is(cursor, index + 1, "would")
+                    && ahead_is(cursor, index + 2, "be"))
+        })
+}
+
+/// Reads one created damage replacement sentence through its period. The
+/// lifetime is a preposed `Until end of turn,` or a `this turn` closing the
+/// event before its comma; the event and the modification are the static
+/// frame's children. `NoMatch` until the damage event commits.
+pub(in crate::oracle::canonical) fn try_recognize_created_damage_replacement(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &DamageReplacementContext<'_>,
+) -> super::super::ChildOutcome<DamageReplacementNode> {
+    use super::super::ChildOutcome;
+    let checkpoint = cursor.checkpoint();
+    let mut committed = false;
+    match recognize_created_damage_replacement(cursor, context, &mut committed) {
+        Ok(node) => ChildOutcome::Matched(node),
+        Err(failure) => {
+            cursor.rollback(checkpoint);
+            if committed {
+                ChildOutcome::Committed(failure)
+            } else {
+                ChildOutcome::NoMatch(failure)
+            }
+        }
+    }
+}
+
+fn recognize_created_damage_replacement(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &DamageReplacementContext<'_>,
+    committed: &mut bool,
+) -> MachineResult<DamageReplacementNode> {
+    cursor.enter("replacement.created-damage.lifetime");
+    let preposed = peek_is(cursor, "until");
+    if preposed {
+        cursor.consume_phrase(&["until", "end", "of", "turn", ","])?;
+    }
+    cursor.enter("replacement.created-damage.envelope");
+    cursor.consume("if")?;
+    let comma = (0..)
+        .take_while(|offset| cursor.peek_ahead(*offset).is_some())
+        .find(|offset| cursor.peek_ahead(*offset) == Some(","))
+        .map(|offset| cursor.position() + offset)
+        .ok_or_else(|| cursor.fail("the comma closing the damage event"))?;
+    let postposed = comma >= cursor.position() + 2 && {
+        let mut probe = cursor.clone();
+        probe.advance_to(comma - 2).is_ok()
+            && peek_is(&probe, "this")
+            && ahead_is(&probe, 1, "turn")
+    };
+    let event_end = if postposed { comma - 2 } else { comma };
+    let event = cursor.bounded(event_end, |cursor| {
+        recognize_damage_event(cursor, context, committed)
+    })?;
+    *committed = true;
+    cursor.enter("replacement.created-damage.lifetime.postposed");
+    if postposed {
+        cursor.consume_phrase(&["this", "turn"])?;
+    }
+    cursor.require(
+        preposed != postposed,
+        "exactly one lifetime: `Until end of turn,` or `this turn`",
+    )?;
+    cursor.enter("replacement.damage-event.separator");
+    cursor.consume(",")?;
+    let modification = recognize_damage_modification(cursor, &event, context)?;
+    cursor.enter("replacement.damage-event.terminator");
+    cursor.consume(".")?;
+    Ok(DamageReplacementNode {
+        event,
+        modification,
+    })
+}
