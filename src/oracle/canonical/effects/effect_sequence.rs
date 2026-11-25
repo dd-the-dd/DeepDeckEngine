@@ -1260,6 +1260,26 @@ fn lower_local_effect_sequence_with_collections(
                     let later = &sequence.effects[effect_index + 1..];
                     observe_bound_library_search(cursor, collections, search, later)?;
                 }
+                // `Search that player's library ...`, `Search its controller's
+                // graveyard, hand, and library ...`: the holder is a player
+                // this program already binds (CR 108.3, 109.4).
+                SearchedPlayer::Bound(subject) => {
+                    cursor.enter("lower.library-search.bound-holder");
+                    let holder = lower_bound_player_subject(
+                        cursor,
+                        subject,
+                        &target_bindings,
+                        &declared_player_targets,
+                    )?;
+                    let lowered = lower_controller_search_of_holder(cursor, search, holder)?;
+                    collections.register_collection_binding_ids(
+                        &lowered,
+                        &lower_collection_binding(search.binding),
+                    );
+                    effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
+                }
             },
             LocalEffectNode::OptionalLibrarySearch(search) => {
                 cursor.enter("lower.optional-library-search.player");
@@ -3943,6 +3963,8 @@ fn apply_performer(
                 cursor.fail("a performer other than the controller"),
             ));
         }
+        // `the player to your left|right` (CR 101.4).
+        PerformerNode::SeatNeighbor(direction) => lower_seat_neighbor(*direction),
         // CR 608.2d: the controller chooses one player of the population on
         // resolution; every primitive of the action (and of the verbs that
         // continue it) names the same choice. The choice is the shared
@@ -4045,18 +4067,55 @@ fn apply_performer(
             }));
             return Ok(());
         }
-        PerformerNode::Population {
-            players,
-            excluding_controller,
-        } => {
+        PerformerNode::Population { .. } | PerformerNode::FilteredPopulation(_) => {
             let bind = format!("performer{effect_index}");
-            // CR 102.3: `each other player` is every player but the
-            // controller, teammates included, not the opponents set.
-            let players = if *excluding_controller {
-                json!({"kind": "playersExcept", "player": controller()})
-            } else {
-                lower_player_set_reference(*players)
+            let players = match &performer {
+                // `each player who ...`, `each player other than its
+                // controller` (CR 102.1-102.3): the shared player-set filter.
+                PerformerNode::FilteredPopulation(query) => {
+                    let except = match &query.except {
+                        None => None,
+                        Some(subject) => Some(lower_bound_player_subject(
+                            cursor,
+                            subject,
+                            target_bindings,
+                            declared_player_targets,
+                        )?),
+                    };
+                    lower_player_population_query(query, except).map_err(|expected| {
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                            cursor.fail(expected),
+                        )
+                    })?
+                }
+                // CR 102.3: `each other player` is every player but the
+                // controller, teammates included, not the opponents set.
+                PerformerNode::Population {
+                    excluding_controller: true,
+                    ..
+                } => json!({"kind": "playersExcept", "player": controller()}),
+                PerformerNode::Population { players, .. } => lower_player_set_reference(*players),
+                _ => {
+                    return Err(EffectSequenceLoweringFailure::FailedInvariant(
+                        cursor.fail("a player population performer"),
+                    ));
+                }
             };
+            // A restriction is read once, when its instruction begins: a
+            // later verb the same restricted subject continues (`each
+            // opponent who has seven or more cards in hand discards a card,
+            // then draws a card`) would read it again after the first
+            // action changed the game, so it is refused explicitly.
+            if players["kind"] == "filterPlayers"
+                && effects[..start]
+                    .iter()
+                    .any(|effect| effect["kind"] == "forEachPlayer" && effect["players"] == players)
+            {
+                cursor.enter("lower.performer.restricted-population.continued");
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("one action per restricted player population"),
+                ));
+            }
             let body = effects
                 .drain(start..)
                 .map(|mut effect| {
@@ -4084,6 +4143,42 @@ fn apply_performer(
         effect["performer"] = player.clone();
     }
     Ok(())
+}
+
+/// A player the program already binds (`that player`, `its controller`,
+/// the triggering event's player), as one singular runtime reference: the
+/// player excluded from a population (`each player other than its
+/// controller`) or the holder of searched zones (`its controller's library`).
+fn lower_bound_player_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: &PlayerEffectSubject,
+    target_bindings: &[(TargetBinding, String)],
+    declared_player_targets: &[(PlayerTargetBinding, String)],
+) -> Result<Value, EffectSequenceLoweringFailure> {
+    cursor.enter("lower.bound-player");
+    match subject {
+        PlayerEffectSubject::EventPlayer => Ok(json!({"kind": "triggeringPlayer"})),
+        PlayerEffectSubject::ObjectRelation { relation, object } => Ok(json!({
+            "kind": match relation {
+                ObjectPlayerRelation::Controller => "controllerOf",
+                ObjectPlayerRelation::Owner => "ownerOf",
+            },
+            "object": lower_bound_permanent_reference(cursor, *object, target_bindings)?,
+        })),
+        PlayerEffectSubject::Bound(binding) => declared_player_targets
+            .iter()
+            .find_map(|(key, id)| (key.effect_index == binding.0).then(|| chosen_target(id)))
+            .ok_or_else(|| {
+                EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("an earlier declared player for the bound player"),
+                )
+            }),
+        PlayerEffectSubject::Controller | PlayerEffectSubject::DeclaredTarget { .. } => {
+            Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("a player this program already binds"),
+            ))
+        }
+    }
 }
 
 /// The player targets that query possessors (`target opponent controls`)

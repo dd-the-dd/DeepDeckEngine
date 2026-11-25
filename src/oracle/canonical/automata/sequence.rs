@@ -3794,6 +3794,16 @@ fn object_player_mention(
     effects: &[LocalEffectNode],
     antecedent: Option<&super::ObjectSubjectAntecedent>,
 ) -> Option<(super::ObjectPlayerRelation, super::PermanentEffectReference)> {
+    // `Search its controller's library ... . Then that player shuffles.`:
+    // the searched zones' holder named through its object.
+    if let Some(LocalEffectNode::ControllerLibrarySearch(search)) = effects.last()
+        && let super::SearchedPlayer::Bound(super::PlayerEffectSubject::ObjectRelation {
+            relation,
+            object,
+        }) = &search.origin.holder
+    {
+        return Some((*relation, *object));
+    }
     let antecedent = antecedent?;
     let super::PermanentEffectReference::Target(binding) = antecedent.reference else {
         return None;

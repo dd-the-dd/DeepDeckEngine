@@ -73,6 +73,11 @@ impl GameEngine {
             });
             return Ok(players);
         }
+        // A restricted population (`each player who ...`): its base
+        // population in turn order, then its restriction.
+        if value_kind(selector) == Some("filterPlayers") {
+            return self.filtered_player_iteration_ids(selector, stack_object, bindings);
+        }
         // Fail closed for an explicit player reference. An empty opponent set
         // is valid, whereas an unresolved reference is not an empty set.
         let reference = match value_kind(selector) {

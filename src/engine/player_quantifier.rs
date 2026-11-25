@@ -69,7 +69,7 @@ fn population(players: &Value) -> Option<Population> {
     }
 }
 
-fn names_only_the_quantified_player(value: &Value, depth: usize) -> bool {
+pub(super) fn names_only_the_quantified_player(value: &Value, depth: usize) -> bool {
     if depth >= MAX_DEPTH {
         return false;
     }
@@ -89,7 +89,7 @@ fn names_only_the_quantified_player(value: &Value, depth: usize) -> bool {
 
 /// Rewrites `quantifiedPlayer` as the reference player of the evaluation
 /// context, which is then bound to one population member.
-fn bind_quantified_player(value: &Value) -> Value {
+pub(super) fn bind_quantified_player(value: &Value) -> Value {
     match value {
         Value::Array(values) => Value::Array(values.iter().map(bind_quantified_player).collect()),
         Value::Object(object) => {
