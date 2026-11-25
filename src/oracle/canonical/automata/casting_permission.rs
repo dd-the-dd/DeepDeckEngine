@@ -9,6 +9,8 @@
 //!             | "have" SOURCE "assign" ... "as" "though" ... "weren't" "blocked"
 //!             | "pay" MANA "rather" "than" "pay" "the" "mana" "cost" "for" SPELLS
 //!             | "choose" "not" "to" "untap" SOURCE "during" "your" "untap" "step"
+//!             | "activate" "abilities" "of" PERMANENTS
+//!               "as" "though" ("it" | "they" | "those" NOUN) "had" "haste"
 //! MANNER     := "as" "though" ("it" | "they") "had" "flash"         CR 702.8a
 //! CONDITION  := ("if" | "as" "long" "as") STATIC-CONDITION          CR 611.3a
 //! ```
@@ -119,6 +121,12 @@ pub(in crate::oracle::canonical) enum PlayerPermissionNode {
     /// `you may choose not to untap SOURCE during your untap step` (CR
     /// 502.3).
     MayChooseNotToUntap,
+    /// `you may activate abilities of PERMANENTS as though those creatures
+    /// had haste` (CR 302.6): their tap-symbol costs ignore summoning
+    /// sickness for the permission's holder.
+    ActivateAsThoughHaste {
+        objects: ObjectQueryNode,
+    },
     /// `PERMISSION, and you may PERMISSION`: allowances granted together by
     /// one static ability, in written order.
     Conjoined(Vec<PlayerPermissionNode>),
@@ -381,6 +389,20 @@ pub(in crate::oracle::canonical) fn try_recognize_casting_permission(
     CastingPermissionRecognition::Parsed(node)
 }
 
+/// One collection allowance clause (`you may play lands and cast spells from
+/// your graveyard`) without its sentence envelope: the body of a temporary
+/// rule a resolving effect creates (CR 611.2a), whose lifetime and sentence
+/// boundary belong to that parent. Any other permission kind is refused.
+pub(in crate::oracle::canonical) fn recognize_casting_permission_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CastingPermissionNode> {
+    let mut committed = false;
+    match recognize_permission_clause(cursor, &mut committed)? {
+        PlayerPermissionNode::Act(node) => Ok(node),
+        _ => Err(cursor.fail("a play or cast allowance over a collection")),
+    }
+}
+
 /// `[,] and you may` / `[,] and PLAYERS may` after a complete clause.
 fn permission_conjunction_follows(cursor: &OracleTokenCursor<'_>) -> bool {
     let offset = usize::from(peek_is(cursor, 0, ","));
@@ -597,6 +619,8 @@ pub(in crate::oracle::canonical) enum StaticPermissionKind {
     MayNotUntap,
     /// `pay MANA rather than pay the mana cost for SPELLS`.
     AlternativeManaCost,
+    /// `activate abilities of PERMANENTS as though ... had haste`.
+    ActivateAsThoughHaste,
 }
 
 impl StaticPermissionKind {
@@ -607,6 +631,7 @@ impl StaticPermissionKind {
             Self::UnblockedDamage => recognize_unblocked_damage_permission,
             Self::MayNotUntap => recognize_may_not_untap_permission,
             Self::AlternativeManaCost => recognize_alternative_mana_cost_permission,
+            Self::ActivateAsThoughHaste => recognize_haste_activation_permission,
         }
     }
 }
@@ -634,6 +659,7 @@ pub(in crate::oracle::canonical) fn static_permission_kind(
                     VerbLemma::Have,
                     VerbLemma::Pay,
                     VerbLemma::Choose,
+                    VerbLemma::Activate,
                 ],
             )
         })
@@ -671,6 +697,9 @@ pub(in crate::oracle::canonical) fn static_permission_kind(
         VerbLemma::Choose if peek_is(cursor, 3, "not") => Some(StaticPermissionKind::MayNotUntap),
         VerbLemma::Pay if alternative_mana_cost_follows(cursor) => {
             Some(StaticPermissionKind::AlternativeManaCost)
+        }
+        VerbLemma::Activate if peek_is(cursor, 3, "abilities") && peek_is(cursor, 4, "of") => {
+            Some(StaticPermissionKind::ActivateAsThoughHaste)
         }
         _ => None,
     }
@@ -716,6 +745,48 @@ pub(in crate::oracle::canonical) fn try_recognize_static_player_permission(
         }
         Err(failure) => CastingPermissionRecognition::FailedCommitted(failure),
     }
+}
+
+/// `activate abilities of PERMANENTS as though THEY had haste` (CR 302.6).
+/// The permanents are the shared object collection in the permanent domain;
+/// the pronoun of the manner agrees with it (`it`, `they`, `those NOUN`).
+fn recognize_haste_activation_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    _inputs: &SourcePermissionInputs<'_>,
+) -> MachineResult<PlayerPermissionNode> {
+    cursor.enter("permission.haste-activation.verb");
+    consume_words(cursor, &["activate", "abilities", "of"])?;
+    cursor.enter("permission.haste-activation.objects");
+    let objects = recognize_object_collection(cursor)?;
+    cursor.require(
+        objects.denotes_battlefield_permanents(),
+        "permanents whose abilities are activated",
+    )?;
+    cursor.enter("permission.haste-activation.manner");
+    consume_words(cursor, &["as", "though"])?;
+    if word_is(cursor, 0, "those") {
+        consume_word(cursor, "those")?;
+        cursor.require(
+            cursor.peek().is_some_and(|raw| {
+                crate::oracle::characteristic_vocabulary::lookup_permanent_card_type(
+                    raw,
+                    crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOrPlural,
+                )
+                .is_some()
+                    || raw.eq_ignore_ascii_case("permanents")
+            }),
+            "the collection's noun after `those`",
+        )?;
+        cursor.advance_to(cursor.position() + 1)?;
+    } else {
+        cursor.require(
+            word_is(cursor, 0, "they") || word_is(cursor, 0, "it"),
+            "`they`, `it` or `those NOUN`",
+        )?;
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    consume_words(cursor, &["had", "haste"])?;
+    Ok(PlayerPermissionNode::ActivateAsThoughHaste { objects })
 }
 
 /// `you may cast SOURCE [from ZONE] [as though it had flash] [CONDITION]`.

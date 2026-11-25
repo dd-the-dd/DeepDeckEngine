@@ -7433,7 +7433,8 @@ impl GameEngine {
             .players
             .iter()
             .find(|player| !player.has_lost)
-            .map(|player| player.id.clone());
+            .map(|player| player.id.clone())
+            .filter(|player_id| self.player_can_win(player_id));
         let mut all_losers = self
             .state
             .players
@@ -7680,7 +7681,9 @@ impl GameEngine {
             .battlefield_static_modifiers()
             .iter()
             .any(|(_, modifier)| value_kind(modifier) == Some("preventPlayersDrawCards"));
-        let draw_prevented = draw_prevented || self.static_draw_limit_reached(player_id);
+        let draw_prevented = draw_prevented
+            || self.static_draw_limit_reached(player_id)
+            || self.player_draw_prohibited(player_id);
         if draw_prevented {
             self.record_event(
                 "cardDrawPrevented",
@@ -10525,7 +10528,8 @@ impl GameEngine {
         permanent.tapped
             || (permanent.summoning_sick
                 && self.permanent_is_creature(permanent)
-                && !self.permanent_has_effective_keyword(permanent, "haste"))
+                && !self.permanent_has_effective_keyword(permanent, "haste")
+                && !self.activates_as_though_haste(permanent))
     }
 
     fn ring_bearer_level(&self, permanent: &CardInstance) -> i64 {
@@ -21217,10 +21221,14 @@ impl GameEngine {
                         "controlWhileSourceTapped"
                             | "controlWhileSourceAttached"
                             | "controlWhileSourceControlled"
+                            | "controlWhileSourceState"
                     )
                 )
             })
             .filter(|modifier| {
+                if let Some(lapsed) = self.source_state_control_lapsed(modifier) {
+                    return lapsed;
+                }
                 let Some(source_id) = modifier["sourceCardInstanceId"].as_str() else {
                     return true;
                 };
@@ -21276,6 +21284,7 @@ impl GameEngine {
                     "controlWhileSourceTapped"
                         | "controlWhileSourceAttached"
                         | "controlWhileSourceControlled"
+                        | "controlWhileSourceState"
                 )
             ) || !expired.contains(modifier)
         });
@@ -29004,11 +29013,12 @@ impl GameEngine {
             .any(|(source, modifier)| {
                 value_kind(modifier) == Some("permanentsEnterTapped")
                     && matches_card_filter(&card.definition, &modifier["objects"]["where"])
-                    && self.event_player_reference_matches(
-                        &modifier["objects"]["controller"],
-                        source,
-                        &card.controller,
-                    )
+                    && (modifier["objects"]["controller"].is_null()
+                        || self.event_player_reference_matches(
+                            &modifier["objects"]["controller"],
+                            source,
+                            &card.controller,
+                        ))
             })
         {
             card.tapped = true;
@@ -35750,7 +35760,7 @@ impl GameEngine {
             }));
             self.record_event("cityBlessingGained", Some(player_id), None, json!({}));
         }
-        let legend_rule_exemptions = self
+        let mut legend_rule_exemptions = self
             .battlefield_static_modifiers()
             .into_iter()
             .filter(|(_, modifier)| value_kind(modifier) == Some("ignoreLegendRuleForSubtype"))
@@ -35768,6 +35778,7 @@ impl GameEngine {
                     .map(|permanent| permanent.instance_id.clone())
             })
             .collect::<BTreeSet<_>>();
+        legend_rule_exemptions.extend(self.legend_rule_waived_permanents());
         let legendary_groups = self
             .state
             .players
@@ -36283,31 +36294,15 @@ impl GameEngine {
                                     |source_id| self.permanent_position(source_id).is_some(),
                                 )
                         })
+                        || self.source_state_untap_restriction_holds(permanent)
                 })
                 .map(|permanent| permanent.instance_id.clone()),
         );
-        let skip_next_untap = self
-            .state
-            .rule_modifiers
-            .iter()
-            .filter(|modifier| value_kind(modifier) == Some("skipNextUntap"))
-            .filter_map(|modifier| modifier["cardInstanceId"].as_str())
-            .filter(|instance_id| {
-                self.permanent_position(instance_id)
-                    .is_some_and(|(player_index, _)| {
-                        self.state.players[player_index].id == active_player_id
-                    })
-            })
-            .map(ToOwned::to_owned)
-            .collect::<BTreeSet<_>>();
+        let skip_next_untap = self.next_untap_step_restricted(&active_player_id);
         remain_tapped.extend(skip_next_untap.iter().cloned());
         self.skip_untap_step_if_scheduled(active, &mut remain_tapped);
-        self.state.rule_modifiers.retain(|modifier| {
-            value_kind(modifier) != Some("skipNextUntap")
-                || !modifier["cardInstanceId"]
-                    .as_str()
-                    .is_some_and(|instance_id| skip_next_untap.contains(instance_id))
-        });
+        self.skip_untap_step_by_static_rule(active, &mut remain_tapped);
+        self.expire_next_untap_restrictions(&active_player_id, &skip_next_untap);
         let candidates = self.state.players[active]
             .battlefield
             .iter()
@@ -36545,6 +36540,7 @@ impl GameEngine {
                                     == Some("kulrathCounteredCreaturesCantAttackOrBlock")
                         }))
                 && !selected.contains(&card.instance_id)
+                && selected.len() < self.combat_participant_limit("attack")
                 && !selected_has_attack_alone
                 && (selected.is_empty() || !attacks_alone(card))
         }) {
@@ -37023,6 +37019,7 @@ impl GameEngine {
                 && !card.tapped
                 && !self.permanent_has_keyword(card, "cantBlock")
                 && !used_blockers.contains(&card.instance_id)
+                && used_blockers.len() < self.combat_participant_limit("block")
         }) {
             for attacker_id in attackers {
                 if !incomplete_menace_attackers.is_empty()

@@ -1477,6 +1477,13 @@ pub(super) enum EffectDurationNode {
     /// ability's controller no longer controls that source object. Produced
     /// only by `recognize_source_control_duration` for consumers opting in.
     WhileSourceControlled,
+    /// `for as long as SOURCE remains tapped` (CR 611.2b): ends the first
+    /// time the same source object is untapped or leaves. Produced only by
+    /// `SourceStateDuration::effect_duration` for consumers opting in.
+    WhileSourceTapped,
+    /// `for as long as SOURCE remains on the battlefield` (CR 611.2b): ends
+    /// when that source object leaves the battlefield.
+    WhileSourceOnBattlefield,
     /// No stated duration (CR 611.2a): the effect lasts indefinitely, and an
     /// effect on an object ends when that object becomes a new object
     /// (CR 400.7). Produced only at the end of a continuous-effect clause.
@@ -2598,8 +2605,8 @@ pub(in crate::oracle::canonical) use referenced_permanent_action::{
     recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
-    SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,
-    untap_restriction_starts,
+    SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, UntapStepOwner,
+    recognize_untap_restriction, untap_restriction_starts,
 };
 mod permanent_subject;
 mod token_window;

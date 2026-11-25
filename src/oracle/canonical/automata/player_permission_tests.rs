@@ -49,7 +49,7 @@ fn persistent_lifetime_remains_with_static_parent_and_rolls_back_temporary_child
     let tokens = recognize_entities("you may play an additional land on each of your turns.");
     let mut cursor = OracleTokenCursor::new("persistent-lifetime", &tokens);
     assert!(matches!(
-        try_recognize_temporary_player_permission(&mut cursor),
+        try_recognize_temporary_player_permission(&mut cursor, None),
         TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_)
     ));
     assert_eq!(cursor.position(), 0);
@@ -66,7 +66,7 @@ fn typed_temporary_lifetime_failure_is_committed_but_unrelated_play_is_not() {
     assert!(temporary_land_permission_owns_head(&mut cursor));
     assert_eq!(cursor.position(), 0);
     let TemporaryPlayerPermissionParseAttempt::FailedCommitted(failure) =
-        try_recognize_temporary_player_permission(&mut cursor)
+        try_recognize_temporary_player_permission(&mut cursor, None)
     else {
         panic!("typed lifetime owns its missing turn")
     };
@@ -74,7 +74,7 @@ fn typed_temporary_lifetime_failure_is_committed_but_unrelated_play_is_not() {
     let tokens = recognize_entities("you may play cards from your graveyard.");
     let mut cursor = OracleTokenCursor::new("different-permission", &tokens);
     assert!(matches!(
-        try_recognize_temporary_player_permission(&mut cursor),
+        try_recognize_temporary_player_permission(&mut cursor, None),
         TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_)
     ));
     assert_eq!(cursor.position(), 0);
@@ -83,7 +83,7 @@ fn typed_temporary_lifetime_failure_is_committed_but_unrelated_play_is_not() {
 fn temporary_rule(text: &str) -> TemporaryPlayerPermissionParseAttempt {
     let tokens = recognize_entities(text);
     let mut cursor = OracleTokenCursor::new("temporary-rule", &tokens);
-    try_recognize_temporary_player_permission(&mut cursor)
+    try_recognize_temporary_player_permission(&mut cursor, None)
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn a_static_clause_without_lifetime_is_left_to_the_static_frame() {
         let mut cursor = OracleTokenCursor::new("static-near-miss", &tokens);
         assert!(
             matches!(
-                try_recognize_temporary_player_permission(&mut cursor),
+                try_recognize_temporary_player_permission(&mut cursor, None),
                 TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_)
                     | TemporaryPlayerPermissionParseAttempt::NotClaimed
             ),
@@ -183,4 +183,49 @@ fn a_static_clause_without_lifetime_is_left_to_the_static_frame() {
         );
         assert_eq!(cursor.position(), 0, "{text}");
     }
+}
+
+/// A preposed lifetime is the lifetime of each rule of its sentence; the
+/// same rule may not state a second one, and without either lifetime the
+/// rule body is not this frame's (it rolls back).
+#[test]
+fn a_supplied_lifetime_is_exclusive_and_required() {
+    let supplied = EffectDurationNode::UntilNextTurn {
+        player: LocalPlayerReference::Controller,
+    };
+    for text in [
+        "artifacts your opponents control enter tapped.",
+        "the \"legend rule\" doesn't apply to permanents you control.",
+        "players can't draw cards.",
+        "you may play lands and cast spells from your graveyard.",
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("supplied-lifetime", &tokens);
+        let TemporaryPlayerPermissionParseAttempt::Parsed(node) =
+            try_recognize_temporary_player_permission(&mut cursor, Some(&supplied))
+        else {
+            panic!("{text}: the supplied lifetime closes the rule");
+        };
+        assert_eq!(
+            node.duration,
+            TemporaryRuleDuration::Effect(supplied.clone()),
+            "{text}"
+        );
+        let mut cursor = OracleTokenCursor::new("missing-lifetime", &tokens);
+        assert!(
+            matches!(
+                try_recognize_temporary_player_permission(&mut cursor, None),
+                TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_)
+                    | TemporaryPlayerPermissionParseAttempt::NotClaimed
+            ),
+            "{text}: a rule body without a lifetime is not a temporary rule"
+        );
+        assert_eq!(cursor.position(), 0, "{text}");
+    }
+    let tokens = recognize_entities("players can't draw cards this turn.");
+    let mut cursor = OracleTokenCursor::new("second-lifetime", &tokens);
+    assert!(matches!(
+        try_recognize_temporary_player_permission(&mut cursor, Some(&supplied)),
+        TemporaryPlayerPermissionParseAttempt::FailedCommitted(_)
+    ));
 }

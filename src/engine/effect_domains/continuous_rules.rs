@@ -10,15 +10,21 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
 fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
         Some("installUntapRestriction") => {
-            (target_reference_supported(&effect["permanent"])
+            ((target_reference_supported(&effect["permanent"])
                 && matches!(
                     value_kind(&effect["duration"]),
-                    Some("nextUntapStep" | "whileSourceControlled")
+                    Some(
+                        "nextUntapStep"
+                            | "whileSourceControlled"
+                            | "whileSourceTapped"
+                            | "whileSourceOnBattlefield"
+                    )
                 ))
                 || (matches!(
                     value_kind(&effect["permanent"]),
                     Some("self" | "abilitySource")
-                ) && value_kind(&effect["duration"]) == Some("nextUntapStep"))
+                ) && value_kind(&effect["duration"]) == Some("nextUntapStep")))
+                && GameEngine::untap_window_player_supported(&effect["duration"])
         }
         Some("installRegenerationShield") => {
             (matches!(
@@ -219,16 +225,12 @@ impl GameEngine {
                     self.resolve_target(&effect["permanent"], stack_object, bindings)
                 };
                 if let Some(TargetRef::Permanent { instance_id }) = permanent {
-                    let kind = if value_kind(&effect["duration"]) == Some("nextUntapStep") {
-                        "skipNextUntap"
-                    } else {
-                        "doesNotUntapWhileSourceControlled"
-                    };
-                    self.state.rule_modifiers.push(json!({
-                        "kind": kind,
-                        "sourceCardInstanceId": stack_object.card.instance_id,
-                        "cardInstanceId": instance_id,
-                    }));
+                    self.install_untap_restriction(
+                        &instance_id,
+                        &effect["duration"],
+                        stack_object,
+                        bindings,
+                    );
                 }
             }
             Some("installRegenerationShield") => {

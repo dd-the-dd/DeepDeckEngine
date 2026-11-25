@@ -1914,6 +1914,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         LocalEffectNode::CardAction(super::CardActionNode::Permit(node)) => {
                             node.duration.as_ref() == Some(duration)
                         }
+                        LocalEffectNode::TemporaryPlayerPermission(node) => {
+                            node.duration == super::TemporaryRuleDuration::Effect(duration.clone())
+                        }
                         LocalEffectNode::ControlChange(super::ControlChangeEffectNode {
                             change:
                                 super::ControlChange::Gain {
@@ -3586,7 +3589,7 @@ fn recognize_subject_frame(
         object_set_antecedent: _,
         context,
     } = *inputs;
-    match try_recognize_temporary_player_permission(cursor) {
+    match try_recognize_temporary_player_permission(cursor, context.preposed_duration.as_ref()) {
         TemporaryPlayerPermissionParseAttempt::Parsed(node) => {
             return Ok(LocalEffectNode::TemporaryPlayerPermission(node));
         }

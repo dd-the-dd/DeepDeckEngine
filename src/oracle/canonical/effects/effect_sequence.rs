@@ -80,7 +80,47 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         // Only the keyword grant has an indefinite primitive so far.
         EffectDurationNode::Indefinite => return None,
         EffectDurationNode::WhileSourceControlled => json!({ "kind": "whileSourceControlled" }),
+        EffectDurationNode::WhileSourceTapped => json!({ "kind": "whileSourceTapped" }),
+        EffectDurationNode::WhileSourceOnBattlefield => {
+            json!({ "kind": "whileSourceOnBattlefield" })
+        }
     })
+}
+
+/// The untap-step window of an untap restriction (CR 502.3, 611.2b): its
+/// kind and, for one named player's next untap step, that player.
+fn lower_untap_restriction_window(
+    cursor: &OracleTokenCursor<'_>,
+    restriction: &UntapRestrictionNode,
+    declared_player_targets: &[(PlayerTargetBinding, String)],
+) -> Result<Value, EffectSequenceLoweringFailure> {
+    let kind = match restriction.duration {
+        UntapRestrictionDuration::NextUntapStep => "nextUntapStep",
+        UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
+        UntapRestrictionDuration::WhileSourceTapped => "whileSourceTapped",
+        UntapRestrictionDuration::WhileSourceOnBattlefield => "whileSourceOnBattlefield",
+    };
+    let mut window = json!({ "kind": kind });
+    if let UntapStepOwner::Player(player) = &restriction.step_owner {
+        let player = match player {
+            LocalPlayerReference::Controller => Some(controller()),
+            LocalPlayerReference::Bound(BoundPlayerReference::EventPlayer) => {
+                Some(json!({ "kind": "triggeringPlayer" }))
+            }
+            LocalPlayerReference::Bound(BoundPlayerReference::Bound(binding)) => {
+                declared_player_targets.iter().find_map(|(key, id)| {
+                    (key.effect_index == binding.0).then(|| chosen_target(id))
+                })
+            }
+            _ => None,
+        };
+        window["player"] = player.ok_or_else(|| {
+            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("an untap step owner the runtime resolves (you, the event player or a declared player)"),
+            )
+        })?;
+    }
+    Ok(window)
 }
 
 pub(in crate::oracle::canonical) fn target_id_for_ordinal(
@@ -1500,10 +1540,8 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 // CR 502.3: the permanent stays tapped during its
                 // controller's untap step for the stated window.
-                let duration = match restriction.duration {
-                    UntapRestrictionDuration::NextUntapStep => "nextUntapStep",
-                    UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
-                };
+                let duration =
+                    lower_untap_restriction_window(cursor, restriction, &declared_player_targets)?;
                 for object in objects {
                     // A plural operand (`those creatures`, `up to two target
                     // creatures`, `all nonblue creatures`) restricts each of
@@ -1520,7 +1558,7 @@ fn lower_local_effect_sequence_with_collections(
                             "effects": [{
                                 "kind": "installUntapRestriction",
                                 "permanent": {"kind": "boundValue", "id": id},
-                                "duration": {"kind": duration},
+                                "duration": duration.clone(),
                             }],
                         }));
                         continue;
@@ -1528,7 +1566,7 @@ fn lower_local_effect_sequence_with_collections(
                     effects.push(json!({
                         "kind": "installUntapRestriction",
                         "permanent": object,
-                        "duration": {"kind": duration},
+                        "duration": duration.clone(),
                     }));
                 }
             }
@@ -1569,13 +1607,15 @@ fn lower_local_effect_sequence_with_collections(
                             None => None,
                             Some(
                                 duration @ (EffectDurationNode::UntilEndOfCurrentTurn
-                                | EffectDurationNode::WhileSourceControlled),
+                                | EffectDurationNode::WhileSourceControlled
+                                | EffectDurationNode::WhileSourceTapped
+                                | EffectDurationNode::WhileSourceOnBattlefield),
                             ) => lower_duration(duration),
                             Some(_) => {
                                 return Err(
                                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                                         cursor.fail(
-                                            "an indefinite, until-end-of-turn or while-source-controlled control duration",
+                                            "an indefinite, until-end-of-turn or source-state control duration",
                                         ),
                                     ),
                                 );
