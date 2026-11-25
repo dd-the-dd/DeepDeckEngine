@@ -55,6 +55,49 @@ pub(in crate::oracle::canonical) fn lower_player_prohibition(
     }
 }
 
+/// A player's own status change: `loses the game` (CR 104.3a), or one
+/// `grantPlayerKeyword` per granted keyword with the stated duration
+/// (CR 702.11d hexproof, 702.18d shroud). Protection from everything is the
+/// shared player protection primitive, until the controller's next turn
+/// (CR 702.16k). The failure names the unsupported duration.
+pub(in crate::oracle::canonical) fn lower_player_status_action(
+    status: &PlayerStatusAction,
+    player: Value,
+) -> Result<Vec<Value>, &'static str> {
+    let PlayerStatusAction::GainKeywords(grant) = status else {
+        return Ok(vec![json!({ "kind": "loseGame", "player": player })]);
+    };
+    let duration = match &grant.duration {
+        EffectDurationNode::UntilEndOfCurrentTurn => json!({ "kind": "untilEndOfCurrentTurn" }),
+        EffectDurationNode::UntilNextTurn {
+            player: LocalPlayerReference::Controller,
+        } => json!({ "kind": "untilNextTurn", "player": controller() }),
+        _ => return Err("a player keyword duration: until end of turn or until your next turn"),
+    };
+    Ok(grant
+        .keywords
+        .iter()
+        .map(|keyword| match keyword {
+            PlayerGrantedKeyword::Hexproof | PlayerGrantedKeyword::Shroud => json!({
+                "kind": "grantPlayerKeyword",
+                "player": player.clone(),
+                "keyword": if *keyword == PlayerGrantedKeyword::Hexproof {
+                    "hexproof"
+                } else {
+                    "shroud"
+                },
+                "duration": duration.clone(),
+            }),
+            PlayerGrantedKeyword::ProtectionFromEverything => json!({
+                "kind": "grantPlayerProtection",
+                "player": player.clone(),
+                "from": ["everything"],
+                "duration": duration.clone(),
+            }),
+        })
+        .collect())
+}
+
 /// `distribute N counters among TARGETS` (CR 601.2d): the division of the
 /// one declared target slot `objects` names, announced with the targets
 /// (each at least one), then the counters each target receives.

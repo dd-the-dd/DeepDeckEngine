@@ -84,6 +84,168 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// `can't cast spells this turn` (CR 101.2): a prohibition on the acting
     /// player for the rest of the turn.
     Prohibition(PlayerProhibition),
+    /// A change of the acting player's own game status: `loses the game`
+    /// (CR 104.3a) or `gains hexproof|shroud|protection from everything
+    /// DURATION` (CR 702.11d, 702.18d, 702.16k).
+    Status(PlayerStatusAction),
+}
+
+/// A player's own game-status change (`player_action.rs` cell of the
+/// player subject x verb table).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum PlayerStatusAction {
+    /// `lose(s) the game` (CR 104.3a): the acting player loses the game.
+    LoseGame,
+    /// `gain(s) KEYWORDS DURATION`: the keywords a player can have, for the
+    /// stated duration.
+    GainKeywords(PlayerKeywordGrantNode),
+}
+
+/// A keyword the engine applies to a player (CR 702.11d hexproof, 702.18d
+/// shroud, 702.16k protection from everything).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::oracle::canonical) enum PlayerGrantedKeyword {
+    Hexproof,
+    Shroud,
+    ProtectionFromEverything,
+}
+
+impl PlayerGrantedKeyword {
+    /// The player keyword an object keyword grant names, when a player can
+    /// have it (`you and permanents you control gain hexproof`).
+    pub(in crate::oracle::canonical) fn of_granted_keyword(
+        keyword: super::GrantedKeyword,
+    ) -> Option<Self> {
+        match keyword {
+            super::GrantedKeyword::Hexproof => Some(Self::Hexproof),
+            super::GrantedKeyword::Shroud => Some(Self::Shroud),
+            _ => None,
+        }
+    }
+}
+
+/// `gain(s) KEYWORDS DURATION` on the acting player.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerKeywordGrantNode {
+    pub keywords: Vec<PlayerGrantedKeyword>,
+    pub duration: super::EffectDurationNode,
+}
+
+fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+}
+
+/// The player keyword word at `offset` (`hexproof`, `shroud`, `protection`).
+fn player_keyword_word_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    ["hexproof", "shroud", "protection"]
+        .iter()
+        .any(|word| word_at(cursor, offset, word))
+}
+
+/// True when the verb at the cursor (any agreement) opens a player status
+/// change: `lose(s) the game` or `gain(s) hexproof|shroud|protection`.
+/// Other `lose` / `gain` frames (life, control, an object's keyword) keep
+/// their own readers.
+pub(in crate::oracle::canonical) fn player_status_action_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let verb = |lemma: VerbLemma| {
+        cursor
+            .peek()
+            .is_some_and(|raw| lookup_verb(raw, &[lemma]).is_some())
+    };
+    (verb(VerbLemma::Lose) && word_at(cursor, 1, "the") && word_at(cursor, 2, "game"))
+        || (verb(VerbLemma::Gain) && player_keyword_word_at(cursor, 1))
+}
+
+/// Subject-free `lose(s) the game` | `gain(s) KEYWORDS DURATION`; the caller
+/// resolves the acting player and its agreement. A preposed duration of the
+/// sentence (`Until your next turn, ... you gain protection from
+/// everything`) is the grant's own (CR 611.2a). A keyword or duration the
+/// engine does not apply to players fails here explicitly.
+pub(in crate::oracle::canonical) fn recognize_player_status_fragment(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: VerbAgreement,
+    supplied: Option<&super::EffectDurationNode>,
+) -> MachineResult<PlayerStatusAction> {
+    cursor.enter("player-action.status.verb");
+    if cursor
+        .peek()
+        .is_some_and(|raw| lookup_verb(raw, &[VerbLemma::Lose]).is_some())
+    {
+        cursor.consume(super::verb_entry(VerbLemma::Lose).surface(form.form()))?;
+        cursor.enter("player-action.lose-game.object");
+        cursor.consume_phrase(&["the", "game"])?;
+        return Ok(PlayerStatusAction::LoseGame);
+    }
+    cursor.consume(super::verb_entry(VerbLemma::Gain).surface(form.form()))?;
+    let mut keywords = Vec::new();
+    loop {
+        cursor.enter("player-action.keyword-grant.keyword");
+        let keyword = if word_at(cursor, 0, "hexproof") {
+            cursor.consume("hexproof")?;
+            PlayerGrantedKeyword::Hexproof
+        } else if word_at(cursor, 0, "shroud") {
+            cursor.consume("shroud")?;
+            PlayerGrantedKeyword::Shroud
+        } else if word_at(cursor, 0, "protection") {
+            cursor.enter("player-action.keyword-grant.protection");
+            cursor.require(
+                word_at(cursor, 1, "from") && word_at(cursor, 2, "everything"),
+                "`protection from everything`, the player protection the engine applies",
+            )?;
+            cursor.consume_phrase(&["protection", "from", "everything"])?;
+            PlayerGrantedKeyword::ProtectionFromEverything
+        } else {
+            return Err(cursor.fail(
+                "a keyword the engine grants to a player (hexproof, shroud, protection from everything)",
+            ));
+        };
+        cursor.require(
+            !keywords.contains(&keyword),
+            "distinct keywords granted to the player",
+        )?;
+        keywords.push(keyword);
+        // `hexproof and shroud`, `hexproof, shroud, and ...`.
+        let width = if word_at(cursor, 0, "and") && player_keyword_word_at(cursor, 1) {
+            1
+        } else if cursor.peek() == Some(",") && player_keyword_word_at(cursor, 1) {
+            1
+        } else if cursor.peek() == Some(",")
+            && word_at(cursor, 1, "and")
+            && player_keyword_word_at(cursor, 2)
+        {
+            2
+        } else {
+            break;
+        };
+        cursor.advance_to(cursor.position() + width)?;
+    }
+    cursor.enter("player-action.keyword-grant.duration");
+    let duration = super::recognize_trailing_or_supplied_duration(cursor, supplied)?;
+    cursor.require(
+        matches!(
+            duration,
+            super::EffectDurationNode::UntilEndOfCurrentTurn
+                | super::EffectDurationNode::UntilNextTurn {
+                    player: super::LocalPlayerReference::Controller,
+                }
+        ),
+        "a player keyword duration: `until end of turn` or `until your next turn`",
+    )?;
+    if keywords.contains(&PlayerGrantedKeyword::ProtectionFromEverything) {
+        cursor.enter("player-action.keyword-grant.protection-duration");
+        cursor.require(
+            matches!(duration, super::EffectDurationNode::UntilNextTurn { .. }),
+            "protection from everything until your next turn, the player protection the engine applies",
+        )?;
+    }
+    Ok(PlayerStatusAction::GainKeywords(PlayerKeywordGrantNode {
+        keywords,
+        duration,
+    }))
 }
 
 /// The part of a player's turn a `skip` instruction names (CR 500.11).
@@ -161,6 +323,11 @@ pub(in crate::oracle::canonical) fn player_counters_follow(cursor: &OracleTokenC
         if matches!(raw, "." | "," | ";" | ":" | "(") {
             return false;
         }
+        // `get an amount of {E}`, `get that many {E}`: the symbol is the
+        // counter after a written amount (CR 107.14, 122.1).
+        if counter_symbol_at(cursor, offset) {
+            return true;
+        }
         if raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters") {
             return !cursor.peek_ahead(offset + 1).is_some_and(|next| {
                 next.eq_ignore_ascii_case("on") || next.eq_ignore_ascii_case("from")
@@ -170,13 +337,70 @@ pub(in crate::oracle::canonical) fn player_counters_follow(cursor: &OracleTokenC
     false
 }
 
-/// `get(s) {E}{E} [(two energy counters)]` | `get(s) N KIND counter(s)`.
+fn counter_symbol_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    let at = cursor.position() + offset;
+    cursor
+        .token_slice(at, at + 1)
+        .first()
+        .is_some_and(|token| token.token_type == "counterSymbol")
+}
+
+/// One registered player-counter symbol after a written amount: only the
+/// energy symbol `{E}` names a player counter (CR 107.14).
+fn recognize_written_amount_symbol(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CounterName> {
+    cursor.enter("player-action.counters.amount-symbol");
+    let symbol = cursor.consume_type("counterSymbol")?;
+    cursor.require(
+        symbol.raw.eq_ignore_ascii_case("{E}"),
+        "the registered energy-counter symbol `{E}`",
+    )?;
+    cursor.require(
+        !counter_symbol_at(cursor, 0),
+        "one counter symbol after a written amount",
+    )?;
+    Ok(CounterName::from_parts(["energy"]).expect("a non-empty counter name"))
+}
+
+/// `(energy counters)` after a written amount of `{E}`: the reminder names
+/// the counter kind without restating the amount (CR 207.2).
+fn recognize_uncounted_energy_reminder(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    if cursor.peek() != Some("(") {
+        return Ok(());
+    }
+    cursor.enter("player-action.counters.amount-reminder");
+    cursor.consume("(")?;
+    let name = cursor.consume_type("counterTypeWord")?;
+    cursor.require(
+        name.raw.eq_ignore_ascii_case("energy"),
+        "the energy counter the symbol names",
+    )?;
+    cursor.consume("counters")?;
+    cursor.consume(")")
+}
+
+/// `get(s) {E}{E} [(two energy counters)]` | `get(s) N KIND counter(s)` |
+/// `get(s) an amount of {E} [(energy counters)] equal to N` | `get(s) N
+/// {E} [(energy counters)]` with a written amount (`that many {E}`).
 pub(in crate::oracle::canonical) fn recognize_player_counters_fragment(
     cursor: &mut OracleTokenCursor<'_>,
     form: VerbAgreement,
 ) -> MachineResult<PlayerCountersNode> {
     cursor.enter("player-action.counters.verb");
     cursor.consume(super::verb_entry(VerbLemma::Get).surface(form.form()))?;
+    // `an amount of {E} (energy counters) equal to EXPR` (CR 122.1): the
+    // amount is the shared `equal to` quantity.
+    if word_at(cursor, 0, "an") && word_at(cursor, 1, "amount") && word_at(cursor, 2, "of") {
+        cursor.enter("player-action.counters.amount-of");
+        cursor.consume_phrase(&["an", "amount", "of"])?;
+        let counter = recognize_written_amount_symbol(cursor)?;
+        recognize_uncounted_energy_reminder(cursor)?;
+        cursor.enter("player-action.counters.amount-of.equal");
+        cursor.consume_phrase(&["equal", "to"])?;
+        let count = super::recognize_equal_to_amount_expression(cursor, None)?;
+        return Ok(PlayerCountersNode { counter, count });
+    }
     cursor.enter("player-action.counters.symbol");
     let mut symbols = 0_i64;
     while cursor
@@ -216,6 +440,12 @@ pub(in crate::oracle::canonical) fn recognize_player_counters_fragment(
     }
     cursor.enter("player-action.counters.count");
     let count = recognize_numeric_expression(cursor, None)?;
+    // `that many {E} (energy counters)`: a written amount of one symbol.
+    if counter_symbol_at(cursor, 0) {
+        let counter = recognize_written_amount_symbol(cursor)?;
+        recognize_uncounted_energy_reminder(cursor)?;
+        return Ok(PlayerCountersNode { counter, count });
+    }
     cursor.enter("player-action.counters.name");
     let counter = recognize_counter_name(cursor)?;
     recognize_counter_noun(cursor, &count)?;
@@ -459,7 +689,11 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     let is_designation = super::player_designation_follows(cursor).is_some();
     let is_skip = skip_turn_part_follows(cursor);
     let is_prohibition = player_prohibition_follows(cursor);
+    // `loses the game`, `gains hexproof until end of turn`: the acting
+    // player's own status, for every player subject.
+    let is_status = player_status_action_follows(cursor);
     let claimed = is_counters
+        || is_status
         || is_extra_turn
         || is_designation
         || is_skip
@@ -498,7 +732,8 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         || (is_create && !matches!(&player, Ok(PlayerEffectSubject::DeclaredTarget { .. })))
         || (is_scry && !matches!(&player, Ok(subject) if *subject != PlayerEffectSubject::Controller))
         // An unresolved subject leaves the performer reader in charge.
-        || ((is_extra_turn || is_designation || is_skip || is_prohibition) && player.is_err())
+        || ((is_extra_turn || is_designation || is_skip || is_prohibition || is_status)
+            && player.is_err())
     {
         cursor.rollback(checkpoint);
         return Ok(None);
@@ -530,6 +765,12 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         SingularPlayerAction::Designation(super::PlayerDesignationAction::Acquire(
             super::recognize_player_designation_fragment(cursor, form)?,
         ))
+    } else if is_status {
+        SingularPlayerAction::Status(recognize_player_status_fragment(
+            cursor,
+            form,
+            context.preposed_duration.as_ref(),
+        )?)
     } else if is_skip {
         SingularPlayerAction::Skip(recognize_skip_turn_part_fragment(cursor, form, possessive)?)
     } else if is_prohibition {
@@ -609,12 +850,15 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     Ok(Some(PlayerActionNode { player, action }))
 }
 
-/// `SUBJECT and SUBJECT each ACTION [and ACTION]...` (CR 109.5): one sentence
-/// whose coordinated player subjects each perform the same ordered actions.
-/// The verbs take the plural base form after `each`. The result is the
-/// distributed per-player list, action-major: every subject completes one
+/// `SUBJECT and SUBJECT each ACTION [and|, then ACTION]...` (CR 109.5): one
+/// sentence whose coordinated player subjects each perform the same ordered
+/// actions. The verbs take the plural base form after `each`. The result is
+/// the distributed per-player list, action-major: every subject completes one
 /// action before the next action begins (CR 608.2c). A declared target subject
-/// keeps one declaration; its later uses are bound to it.
+/// keeps one declaration; its later uses are bound to it. A subject is any
+/// singular player subject of the shared readers: `you`, a declared target
+/// player, the bound `that player` (the event's player included) and
+/// `defending player`.
 ///
 /// Returns `Ok(None)` (cursor restored) unless the coordinated subject frame
 /// `... and ... each` is present; after `each` the frame owns its failures.
@@ -626,11 +870,11 @@ pub(in crate::oracle::canonical) fn try_recognize_coordinated_player_actions(
 ) -> MachineResult<Option<Vec<PlayerActionNode>>> {
     let checkpoint = cursor.checkpoint();
     let starts_subject = |cursor: &OracleTokenCursor<'_>| {
-        cursor.peek().is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("you")
-                || raw.eq_ignore_ascii_case("target")
-                || raw.eq_ignore_ascii_case("that")
-        })
+        defending_player_starts(cursor)
+            || player_anaphor_at(cursor).is_some()
+            || cursor.peek().is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("you") || raw.eq_ignore_ascii_case("target")
+            })
     };
     if !starts_subject(cursor) {
         return Ok(None);
@@ -639,12 +883,17 @@ pub(in crate::oracle::canonical) fn try_recognize_coordinated_player_actions(
     // index its first distributed action will occupy, fixed below.
     let mut subjects = Vec::new();
     loop {
-        let Ok(subject) = recognize_player_effect_subject(
-            cursor,
-            PlayerBinding(usize::MAX),
-            antecedent,
-            context.frame.event_player,
-        ) else {
+        let subject = if defending_player_starts(cursor) {
+            recognize_defending_player_subject(cursor, context.frame.defending_player)
+        } else {
+            recognize_player_effect_subject(
+                cursor,
+                PlayerBinding(usize::MAX),
+                antecedent,
+                context.frame.event_player,
+            )
+        };
+        let Ok(subject) = subject else {
             cursor.rollback(checkpoint);
             return Ok(None);
         };
@@ -673,54 +922,37 @@ pub(in crate::oracle::canonical) fn try_recognize_coordinated_player_actions(
     }
     cursor.enter("player-subject.coordinated.each");
     cursor.consume("each")?;
+    // `each` distributes the actions over the written subjects; the same
+    // written subject twice is no coordination.
     cursor.require(
-        subjects.iter().enumerate().all(|(index, subject)| {
-            !subjects[..index].contains(subject)
-                && !matches!(subject, PlayerEffectSubject::EventPlayer)
-        }),
+        subjects
+            .iter()
+            .enumerate()
+            .all(|(index, subject)| !subjects[..index].contains(subject)),
         "distinct coordinated player subjects",
     )?;
     let mut actions = Vec::new();
     loop {
         cursor.enter("player-subject.coordinated.action");
-        let verb = cursor.peek().unwrap_or("").to_ascii_lowercase();
-        actions.push(match verb.as_str() {
-            "draw" => SingularPlayerAction::Draw(recognize_draw_action_fragment(
-                cursor,
-                VerbAgreement::Base,
-                context,
-            )?),
-            _ if crate::oracle::canonical::automata::lemma_at(
-                cursor,
-                VerbLemma::Mill,
-                VerbAgreement::Base,
-            ) =>
-            {
-                SingularPlayerAction::Mill(recognize_mill_action_fragment(
-                    cursor,
-                    VerbAgreement::Base,
-                )?)
-            }
-            _ => match recognize_supplied_life_action(cursor, VerbAgreement::Base, None)? {
-                Some(life) => SingularPlayerAction::Life(life),
-                None => {
-                    return Err(cursor.fail(
-                        "a supported coordinated player action (`draw`, `mill`, `gain`, or `lose`)",
-                    ));
-                }
-            },
-        });
+        let Some(action) = recognize_coordinated_player_action(cursor, &subjects[0], context)?
+        else {
+            return Err(cursor.fail(
+                "a supported coordinated player action (`draw`, `mill`, `discard`, `sacrifice`, `get` counters, `gain`, or `lose`)",
+            ));
+        };
+        actions.push(action);
+        // `and VERB`, `, then VERB`, `then VERB`: the same subjects' next
+        // action (CR 608.2c).
         let list_checkpoint = cursor.checkpoint();
-        let and = cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"));
-        if and {
-            cursor.consume("and")?;
-            if cursor.peek().is_some_and(|raw| {
-                raw.eq_ignore_ascii_case("draw")
-                    || is_verb_form(&raw, VerbLemma::Mill, VerbForm::Base)
-            }) || supplied_life_action_starts(cursor, VerbAgreement::Base)
-            {
+        let width = match (cursor.peek(), cursor.peek_ahead(1)) {
+            (Some(","), Some(next)) if next.eq_ignore_ascii_case("then") => 2,
+            (Some(word), _) if word.eq_ignore_ascii_case("and") => 1,
+            (Some(word), _) if word.eq_ignore_ascii_case("then") => 1,
+            _ => 0,
+        };
+        if width > 0 {
+            cursor.advance_to(cursor.position() + width)?;
+            if coordinated_player_action_starts(cursor) {
                 continue;
             }
         }
@@ -748,13 +980,74 @@ pub(in crate::oracle::canonical) fn try_recognize_coordinated_player_actions(
                 }
                 (other, _) => other.clone(),
             };
-            distributed.push(PlayerActionNode {
-                player,
-                action: action.clone(),
-            });
+            let mut action = action.clone();
+            // The discard node repeats its acting player.
+            if let SingularPlayerAction::Discard(discard) = &mut action {
+                discard.player = player.clone();
+            }
+            distributed.push(PlayerActionNode { player, action });
         }
     }
     Ok(Some(distributed))
+}
+
+/// True when a verb of a coordinated player action starts at the cursor in
+/// the plural base form. Lexical lookahead only.
+fn coordinated_player_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_some_and(|raw| {
+        [
+            VerbLemma::Draw,
+            VerbLemma::Mill,
+            VerbLemma::Discard,
+            VerbLemma::Sacrifice,
+        ]
+        .iter()
+        .any(|lemma| is_verb_form(raw, *lemma, VerbForm::Base))
+    }) || player_counters_follow(cursor)
+        || supplied_life_action_starts(cursor, VerbAgreement::Base)
+}
+
+/// One action of coordinated player subjects, in the plural base form, read
+/// by the same children as a singular subject's action. `Ok(None)` when no
+/// coordinated action starts here. `subject` fills the acting player the
+/// discard node repeats; the distribution rewrites it per subject.
+fn recognize_coordinated_player_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: &PlayerEffectSubject,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<SingularPlayerAction>> {
+    let head = cursor.peek().unwrap_or("").to_string();
+    let base = |lemma: VerbLemma| is_verb_form(&head, lemma, VerbForm::Base);
+    Ok(Some(if base(VerbLemma::Draw) {
+        SingularPlayerAction::Draw(recognize_draw_action_fragment(
+            cursor,
+            VerbAgreement::Base,
+            context,
+        )?)
+    } else if base(VerbLemma::Mill) {
+        SingularPlayerAction::Mill(recognize_mill_action_fragment(cursor, VerbAgreement::Base)?)
+    } else if base(VerbLemma::Discard) {
+        SingularPlayerAction::Discard(recognize_player_discard_action_fragment(
+            cursor,
+            subject.clone(),
+            ActingSubject::THIRD_PLURAL,
+        )?)
+    } else if base(VerbLemma::Sacrifice) {
+        SingularPlayerAction::Sacrifice(recognize_player_sacrifice_action_with_form(
+            cursor,
+            ActingSubject::THIRD_PLURAL,
+        )?)
+    } else if player_counters_follow(cursor) {
+        SingularPlayerAction::Counters(recognize_player_counters_fragment(
+            cursor,
+            VerbAgreement::Base,
+        )?)
+    } else {
+        match recognize_supplied_life_action(cursor, VerbAgreement::Base, None)? {
+            Some(life) => SingularPlayerAction::Life(life),
+            None => return Ok(None),
+        }
+    }))
 }
 
 /// True when the verb at the cursor is followed by a bound card reference

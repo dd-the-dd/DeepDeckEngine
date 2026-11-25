@@ -1,0 +1,948 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared/player-performers-cells-batch8",
+  "cases": [
+    {
+      "id": "gilded-light-exact",
+      "request": {
+        "cardName": "Gilded Light",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You gain shroud until end of turn. (You can't be the target of spells or abilities.)"
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "kind": "grantPlayerKeyword",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "keyword": "shroud",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "blossoming-calm-exact",
+      "request": {
+        "cardName": "Blossoming Calm",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You gain hexproof until your next turn. You gain 2 life."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "grantPlayerKeyword",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "keyword": "hexproof",
+                  "duration": {
+                    "kind": "untilNextTurn",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "target-player-hexproof-sibling",
+      "request": {
+        "cardName": "Shared player keyword source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player gains hexproof until end of turn."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "grantPlayerKeyword",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  },
+                  "keyword": "hexproof",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "controller-protection-from-everything-sibling",
+      "request": {
+        "cardName": "Shared player protection source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You gain protection from everything until your next turn."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "grantPlayerProtection",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": [
+                    "everything"
+                  ],
+                  "duration": {
+                    "kind": "untilNextTurn",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "hexproof-and-shroud-list-sibling",
+      "request": {
+        "cardName": "Shared player keyword list source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You gain hexproof and shroud until end of turn."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "hexproof"
+              },
+              {
+                "pointer": "/effects/1/keyword",
+                "equals": "shroud"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "protection-from-color-near-miss",
+      "request": {
+        "cardName": "Shared player protection source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You gain protection from red until end of turn."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-action.keyword-grant.protection"
+          }
+        ]
+      }
+    },
+    {
+      "id": "player-keyword-without-duration-near-miss",
+      "request": {
+        "cardName": "Shared player keyword source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You gain hexproof."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "you-and-permanents-hexproof-exact-sentence",
+      "request": {
+        "cardName": "Lazotep Plating",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You and permanents you control gain hexproof until end of turn. (You and they can't be the targets of spells or abilities your opponents control.)"
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "grantPlayerKeyword",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "keyword": "hexproof",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/1/keyword",
+                "equals": "hexproof"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "you-and-creatures-shroud-sibling",
+      "request": {
+        "cardName": "Shared coordinated keyword source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You and creatures you control gain shroud until your next turn."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "shroud"
+              },
+              {
+                "pointer": "/effects/0/duration",
+                "equals": {
+                  "kind": "untilNextTurn",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantKeyword"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "you-and-permanents-indestructible-near-miss",
+      "request": {
+        "cardName": "Shared coordinated keyword source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You and permanents you control gain indestructible until end of turn."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.subject.controller-and-objects.keywords"
+          }
+        ]
+      }
+    },
+    {
+      "id": "you-and-target-creature-draw-near-miss",
+      "request": {
+        "cardName": "Shared coordinated player source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You and target creature each draw a card."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "robobrain-war-mind-exact",
+      "request": {
+        "cardName": "Robobrain War Mind",
+        "typeLine": "Artifact Creature — Robot",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "When this creature enters, you get an amount of {E} (energy counters) equal to the number of artifact creatures you control."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addPlayerCounters"
+              },
+              {
+                "pointer": "/effects/0/counter",
+                "equals": "energy"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "empyreal-voyager-exact",
+      "request": {
+        "cardName": "Empyreal Voyager",
+        "typeLine": "Creature — Vedalken Scout",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Flying, trample\nWhenever this creature deals combat damage to a player, you get that many {E} (energy counters)."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addPlayerCounters"
+              },
+              {
+                "pointer": "/effects/0/counter",
+                "equals": "energy"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "target-player-energy-amount-sibling",
+      "request": {
+        "cardName": "Shared energy source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target player gets an amount of {E} equal to the number of creatures you control."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addPlayerCounters"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "energy-amount-two-symbols-near-miss",
+      "request": {
+        "cardName": "Shared energy source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You get an amount of {E}{E} equal to the number of creatures you control."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-action.counters.amount-symbol"
+          }
+        ]
+      }
+    },
+    {
+      "id": "door-to-nothingness-exact",
+      "request": {
+        "cardName": "Door to Nothingness",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Door to Nothingness enters tapped.\n{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice Door to Nothingness: Target player loses the game."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "loseGame",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "controller-loses-game-sibling",
+      "request": {
+        "cardName": "Shared lose game source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You lose the game."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "loseGame",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "lose-the-match-near-miss",
+      "request": {
+        "cardName": "Shared lose game source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You lose the match."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "diviner-spirit-exact",
+      "request": {
+        "cardName": "Diviner Spirit",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Whenever this creature deals combat damage to a player, you and that player each draw that many cards."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/player",
+                "equals": {
+                  "kind": "triggeringPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "you-and-defending-player-loot-sibling",
+      "request": {
+        "cardName": "Shared coordinated source",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Whenever this creature attacks, you and defending player each draw a card, then discard a card."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/player",
+                "equals": {
+                  "kind": "triggeringPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "you-and-target-opponent-discard-sibling",
+      "request": {
+        "cardName": "Shared coordinated source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You and target opponent each discard a card."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "you-and-target-opponent-sacrifice-sibling",
+      "request": {
+        "cardName": "Shared coordinated source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You and target opponent each sacrifice a creature."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "same-subject-twice-near-miss",
+      "request": {
+        "cardName": "Shared coordinated source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You and you each draw a card."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "goblin-guide-exact",
+      "request": {
+        "cardName": "Goblin Guide",
+        "typeLine": "Creature — Goblin Scout",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Haste\nWhenever this creature attacks, defending player reveals the top card of their library. If it's a land card, that player puts it into their hand."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "defending-player-then-that-player-sibling",
+      "request": {
+        "cardName": "Shared event player source",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Whenever this creature attacks, defending player draws a card. That player loses 1 life."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "loseLife"
+              },
+              {
+                "pointer": "/effects/1/player",
+                "equals": {
+                  "kind": "triggeringPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "that-player-without-event-player-near-miss",
+      "request": {
+        "cardName": "Shared event player source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Draw a card. That player loses 1 life."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "funeral-pyre-exact",
+      "request": {
+        "cardName": "Funeral Pyre",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Exile target card from a graveyard. Its owner creates a 1/1 white Spirit creature token with flying."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exileTargetCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/1/performer",
+                "equals": {
+                  "kind": "ownerOf",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetCard"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "card-owner-gains-life-sibling",
+      "request": {
+        "cardName": "Shared card owner source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Exile target card from a graveyard. Its owner gains 3 life."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/1/player",
+                "equals": {
+                  "kind": "ownerOf",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetCard"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "its-owner-without-antecedent-near-miss",
+      "request": {
+        "cardName": "Shared card owner source",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Its owner creates a 1/1 white Spirit creature token with flying."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "destroy-then-controller-discards-no-code",
+      "request": {
+        "cardName": "Shared recombination source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target creature. Its controller discards a card."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "card-owner-draws-recombination",
+      "request": {
+        "cardName": "Shared recombination source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Exile target card from a graveyard. Its owner draws a card."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-performers/target-player-loses-the-game",
+  "seed": 8104,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "loseGame",
+        "player": {
+          "kind": "chosenTarget",
+          "id": "targetPlayer"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Door controller",
+        "battlefield": [
+          {
+            "id": "door-source",
+            "name": "Door Source",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "loseGame",
+                    "player": {
+                      "kind": "chosenTarget",
+                      "id": "targetPlayer"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Losing player"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "door-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPlayer": {
+          "kind": "player",
+          "playerId": "p1"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "playerLostGame",
+      "playerId": "p1",
+      "equals": 1
+    }
+  ]
+}

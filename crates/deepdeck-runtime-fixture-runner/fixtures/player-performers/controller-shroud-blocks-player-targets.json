@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-performers/controller-shroud-until-end-of-turn-blocks-player-targets",
+  "seed": 8102,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "grantPlayerKeyword",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "keyword": "shroud",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Shrouded player",
+        "battlefield": [
+          {
+            "id": "shroud-source",
+            "name": "Shroud Source",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "grantPlayerKeyword",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "keyword": "shroud",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "ping-source",
+            "name": "Ping Source",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "chosenTarget",
+                      "id": "targetPlayer"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "shroud-source",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "grantedPlayerKeyword",
+        "playerId": "p0",
+        "keyword": "playerShroud"
+      },
+      "equals": 1
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "ping-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPlayer": {
+          "kind": "player",
+          "playerId": "p0"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "ping-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPlayer": {
+          "kind": "player",
+          "playerId": "p1"
+        }
+      },
+      "equals": true
+    }
+  ]
+}

@@ -10693,6 +10693,7 @@ impl GameEngine {
 
     fn player_has_battlefield_static_modifier(&self, player_id: &str, modifier_kind: &str) -> bool {
         self.player_static_modifier_present(player_id, modifier_kind)
+            || self.player_has_granted_keyword(player_id, modifier_kind)
     }
 
     fn permanent_has_card_type(&self, permanent: &CardInstance, card_type: &str) -> bool {
@@ -36209,6 +36210,7 @@ impl GameEngine {
                     value_kind(modifier),
                     Some(
                         "protectionFromEverything"
+                            | "grantedPlayerKeyword"
                             | "temporaryProtection"
                             | "temporaryActivationProhibition"
                             | "lifeTotalCannotChange"

@@ -791,6 +791,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             | SingularPlayerAction::Designation(_)
             | SingularPlayerAction::Skip(_)
             | SingularPlayerAction::Prohibition(_)
+            | SingularPlayerAction::Status(_)
             | SingularPlayerAction::ReferencedCards { .. } => return false,
         },
         _ => return false,
