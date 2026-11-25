@@ -385,7 +385,12 @@ const RULES: &[LexicalRule] = &[
         &["wasn't", "wasn’t", "doesn't", "doesn’t"],
         ("syntax", "negativePredicateWord"),
     ),
-    Words(&["equipped"], ("entityReference", "attachmentStateWord")),
+    // CR 303.4e, 301.5c: the attachment adjectives of `enchanted PERMANENT`
+    // and `equipped creature`, never part of a card name.
+    Words(
+        &["enchanted", "equipped"],
+        ("entityReference", "attachmentStateWord"),
+    ),
     Words(&["came", "under"], ("syntax", "relationWord")),
     Words(
         &["addition", "maximum", "only"],

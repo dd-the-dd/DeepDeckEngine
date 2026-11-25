@@ -3863,6 +3863,18 @@ fn recognize_return_frame(
         TargetCardZoneChangeParseAttempt::NotClaimed
         | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
     }
+    // `return enchanted creature to its owner's hand`: the one permanent the
+    // source is attached to (CR 303.4e), the shared bound-reference action.
+    if super::attached_object_operand_follows_verb(cursor) {
+        return super::recognize_referenced_permanent_action(
+            cursor,
+            super::ReferencedPermanentAction::ReturnToOwnerHand,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::ReferencedPermanentAction);
+    }
     if source_or_anaphor_reference_starts_at(
         cursor.position() + 1,
         cursor.peek_ahead(1),

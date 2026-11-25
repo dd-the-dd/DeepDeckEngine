@@ -427,6 +427,79 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-sun-clasp-return-enchanted-creature",
+      "request": {
+        "cardName": "Sun Clasp",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{W}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+3.\n{W}: Return enchanted creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-phantom-wings-return-enchanted-creature",
+      "request": {
+        "cardName": "Phantom Wings",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "Enchant creature\nEnchanted creature has flying.\nSacrifice this Aura: Return enchanted creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-equipment-returns-equipped-creature",
+      "request": {
+        "cardName": "Recall Harness Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "{3}: Return equipped creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-enchanted-without-an-aura-source",
+      "request": {
+        "cardName": "Unattached Recall Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{3}: Return enchanted creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "state": "reference.attached-object.role"
+          }
+        ]
+      }
     }
   ]
 }
