@@ -2589,7 +2589,52 @@ fn recognize_card_permission_frame(
         CardPermissionVerb::Cast
     };
     cursor.enter("card-action.permit.cards");
-    let cards = match try_recognize_permitted_card_query(cursor, verb, frame) {
+    // `play lands and cast spells from ORIGIN` (CR 305.1, 601.2): a land is
+    // played and any other card cast, which is the play verb over every
+    // card of the origin; the coordinated nouns name no narrower query.
+    let lands_and_spells = verb == CardPermissionVerb::Play
+        && ["lands", "and", "cast", "spells", "from"]
+            .iter()
+            .enumerate()
+            .all(|(offset, word)| peek_word(cursor, offset, word));
+    let attempt = if lands_and_spells {
+        cursor.enter("card-action.permit.lands-and-spells");
+        cursor.consume_phrase(&["lands", "and", "cast", "spells", "from"])?;
+        *committed = true;
+        let cards = match recognize_permitted_card_origin(cursor)? {
+            PermittedCardOrigin::Collection {
+                from,
+                qualifier,
+                via,
+            } => CardOperandNode::Selection(CardSelectionOperandNode {
+                quantity: CardSelectionQuantityNode::All { except_cast: false },
+                predicate: qualifier,
+                from,
+                via,
+            }),
+            PermittedCardOrigin::Zone {
+                zone,
+                owner,
+                additional,
+            } => CardOperandNode::ZoneCollection(CardZoneCollectionNode {
+                zone,
+                owner,
+                predicate: None,
+                quantity: None,
+                additional_zones: additional,
+            }),
+            PermittedCardOrigin::CommandZone => {
+                return Err(cursor.fail("lands and spells from a hand, graveyard or exile"));
+            }
+        };
+        CollectionOperandAttempt::Recognized(RecognizedEffectFragment {
+            node: cards,
+            end_position: cursor.position(),
+        })
+    } else {
+        try_recognize_permitted_card_query(cursor, verb, frame)
+    };
+    let cards = match attempt {
         CollectionOperandAttempt::Recognized(fragment) => {
             *committed = true;
             fragment.node

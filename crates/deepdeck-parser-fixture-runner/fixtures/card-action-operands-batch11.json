@@ -807,6 +807,78 @@
           }
         ]
       }
+    },
+    {
+      "id": "sibling-play-lands-and-cast-spells-from-among-exiled",
+      "request": {
+        "cardName": "Play Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}",
+        "oracleText": "Exile the top three cards of target opponent's library. You may play lands and cast spells from among cards exiled this way without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/playLands",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/2/withoutPayingManaCost",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gix-yawgmoth-praetor",
+      "request": {
+        "cardName": "Gix, Yawgmoth Praetor",
+        "typeLine": "Legendary Creature \u2014 Phyrexian Praetor",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Whenever a creature deals combat damage to one of your opponents, its controller may pay 1 life. If they do, they draw a card.\n{4}{B}{B}{B}, Discard X cards: Exile the top X cards of target opponent's library. You may play lands and cast spells from among cards exiled this way without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-emergent-ultimatum-the-other-cards",
+      "request": {
+        "cardName": "Emergent Ultimatum",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}{B}{G}{G}{U}{U}",
+        "oracleText": "Search your library for up to three monocolored cards with different names and exile them. An opponent chooses one of those cards. Shuffle that card into your library. You may cast the other cards without paying their mana costs. Exile Emergent Ultimatum.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
     }
   ]
 }

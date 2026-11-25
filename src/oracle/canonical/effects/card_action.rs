@@ -2695,7 +2695,19 @@ impl CardCollectionMemory {
                     movement["bind"] = json!(id);
                     effects.push(movement);
                     effects.push(lower_shuffle_libraries_holding(bound(&id)));
-                    self.clear_antecedent();
+                    // `An opponent chooses one of those cards. Shuffle that
+                    // card into your library. You may cast the other cards`:
+                    // shuffling a selection out of the observed collection
+                    // leaves its complement (CR 608.2c); only the shuffled
+                    // cards stop being an antecedent. Anything else shuffled
+                    // ends the observation.
+                    let selection_out_of_view = !moves_whole_view && self.selected.contains(&cards);
+                    if selection_out_of_view {
+                        self.singular_focus = None;
+                        self.plural_focus = None;
+                    } else {
+                        self.clear_antecedent();
+                    }
                 } else {
                     effects.push(movement);
                     if moves_whole_view {
