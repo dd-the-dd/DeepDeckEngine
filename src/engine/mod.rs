@@ -38640,7 +38640,8 @@ impl GameEngine {
         }
 
         self.run_priority_window(provider)?;
-        let forced_turn_end = self.finish_forced_turn(provider)?;
+        let forced_turn_end = self.finish_forced_turn(provider)?
+            || (self.state.outcome.is_none() && self.run_phases_added_after_main_phase(provider)?);
         if !forced_turn_end && self.state.outcome.is_none() {
             self.transition_to_step(GameStep::EndStep);
             self.enqueue_step_triggers("endStep");

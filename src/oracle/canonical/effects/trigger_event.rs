@@ -16,6 +16,9 @@ pub(in crate::oracle::canonical) fn lower_source_transition_event(
                 SourceTriggerEventKind::Entered => "enterBattlefield",
                 SourceTriggerEventKind::Died => "permanentDied",
                 SourceTriggerEventKind::Tapped => "permanentTapped",
+                // CR 701.28: the transformed source's own abilities, read
+                // after the transformation, observe its turning face.
+                SourceTriggerEventKind::Transformed => "permanentTransformed",
             };
             json!({"kind": kind, "object": self_ref()})
         })

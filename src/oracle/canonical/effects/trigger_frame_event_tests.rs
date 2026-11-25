@@ -217,7 +217,7 @@ fn claimed_frames_report_the_furthest_event_failure() {
             "event.source.put-into-graveyard.origin",
         ),
         (
-            "At end of combat, draw a card.",
+            "At end of turn, draw a card.",
             "trigger.envelope.step-prefix",
         ),
         (
@@ -226,7 +226,7 @@ fn claimed_frames_report_the_furthest_event_failure() {
         ),
         // A label naming a mechanic is not a rules-free flavor word (CR 207.2c).
         (
-            "Exile Cannon \u{2014} When this creature enters, draw a card.",
+            "Max speed \u{2014} When this creature enters, draw a card.",
             "trigger.envelope.label",
         ),
     ] {

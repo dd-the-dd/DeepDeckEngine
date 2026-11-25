@@ -115,6 +115,18 @@ impl GenericTriggerEventNode {
         entering.then_some(TypedObservedEventObject::EnteringPermanent)
     }
 
+    /// The face a `transforms into FACE` event names (CR 701.28); the
+    /// ability parent requires it to be the face that prints the ability,
+    /// whose abilities are the ones read after the transformation.
+    pub(in crate::oracle::canonical) fn transformed_into(&self) -> Option<&str> {
+        match self {
+            Self::SourceTransition(event) => event.transformed_into.as_deref(),
+            Self::Conditioned { event, .. } => event.transformed_into(),
+            Self::Compound(members) => members.iter().find_map(Self::transformed_into),
+            _ => None,
+        }
+    }
+
     pub(in crate::oracle::canonical) fn observed_object_is_source(&self) -> bool {
         matches!(self, Self::SourceTransition(event) if event.event == SourceTriggerEventKind::Entered && !event.is_union())
             || matches!(

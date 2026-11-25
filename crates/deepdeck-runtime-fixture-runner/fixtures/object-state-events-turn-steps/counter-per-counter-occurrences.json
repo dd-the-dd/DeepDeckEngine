@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "counter-events/each-counter-of-one-placement-triggers",
+  "seed": 1004,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "countersPlaced",
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "counter": "+1/+1",
+      "object": {
+        "kind": "self"
+      },
+      "perCounter": true
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Mage",
+        "battlefield": [
+          {
+            "id": "counter-mage",
+            "name": "Counter Mage",
+            "typeLine": "Creature — Human Wizard",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "countersPlaced",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "counter": "+1/+1",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "perCounter": true
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "1",
+            "toughness": "3"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "counter-mage",
+        "executeInPlace": true
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "putCounters",
+            "permanent": {
+              "kind": "self"
+            },
+            "counter": "+1/+1",
+            "count": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "counter-mage",
+      "counter": "+1/+1",
+      "equals": 2
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 22
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

@@ -389,7 +389,10 @@ fn absorb_modifiers(
         GenericTriggerEventNode::SourceTransition(node)
             if tail.during_combat
                 && !node.is_union()
-                && node.event != super::SourceTriggerEventKind::Tapped =>
+                && matches!(
+                    node.event,
+                    super::SourceTriggerEventKind::Entered | super::SourceTriggerEventKind::Died
+                ) =>
         {
             GenericTriggerEventNode::SourceEvent(super::SourceEventUnionNode {
                 source: node.source,

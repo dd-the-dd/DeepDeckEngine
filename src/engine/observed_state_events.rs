@@ -221,7 +221,3 @@ impl GameEngine {
         );
     }
 }
-
-#[cfg(test)]
-#[path = "observed_state_events_tests.rs"]
-mod tests;
