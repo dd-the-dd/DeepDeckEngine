@@ -345,7 +345,7 @@ impl GameEngine {
                                 )
                             })?;
                         let (discarded, destination) =
-                            self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                            self.take_hand_card_for_discard(player_index, card_index)?;
                         self.put_owned_card_into_prepared_graveyard(
                             player_index,
                             discarded,
@@ -639,6 +639,254 @@ pub(super) fn cascade_trigger_rule(source_mana_value: i32) -> Value {
             },
         ],
     })
+}
+
+// ---------------------------------------------------------------------------
+// Madness (CR 702.35a)
+
+/// The decision detail a madness exile records on the replaced graveyard
+/// destination; the linked trigger reads it back (`this way`, CR 607.2).
+const MADNESS_REPLACEMENT: &str = "madness";
+
+/// A resolution-time permission to cast one named card with an alternative
+/// cost instead of its mana cost (CR 118.9): installed by the effect that
+/// offers the cast, read by the cast-action builder, removed afterward.
+pub(super) const RESOLUTION_ALTERNATIVE_COST_PERMISSION: &str =
+    "resolutionAlternativeCostPermission";
+
+/// `Madness [mana cost]` (CR 702.35a): a static ability of the card in hand
+/// and the triggered ability linked to it, both executed by the runtime.
+pub(super) fn madness_ability_supported(value: &Value) -> bool {
+    value_kind(value) == Some("madness")
+        && value_kind(&value["cost"]) == Some("payMana")
+        && cost_supported(&value["cost"])
+}
+
+/// The madness cost of a card, as a payment (CR 702.35a).
+fn madness_cost(card: &CardDefinition) -> Option<&Value> {
+    card.printed_rules().iter().find_map(|rule| {
+        (value_kind(rule) == Some("keywordAbility") && madness_ability_supported(&rule["ability"]))
+            .then_some(&rule["ability"]["cost"])
+    })
+}
+
+/// CR 702.35a, second ability: `When this card is exiled this way, its owner
+/// may cast it by paying [cost] rather than paying its mana cost. If that
+/// player doesn't, they put this card into their graveyard.` Composed from
+/// the ordinary resolution-time cast and card movement instructions: the
+/// cast pays the madness cost as the spell's alternative cost (CR 702.35b),
+/// and the card still in exile afterward (not cast) goes to its owner's
+/// graveyard. A card that left exile is a new object neither step finds.
+pub(super) fn madness_trigger_rule(cost: &Value) -> Value {
+    let owner = json!({ "kind": "ownerOf", "object": { "kind": "self" } });
+    json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "effects": [
+            {
+                "kind": "castOneCard",
+                "player": owner.clone(),
+                "cards": { "kind": "self" },
+                "sourceZone": "exile",
+                "normalCostsApply": true,
+                "optional": true,
+                "bind": "madnessCast",
+                "alternativeCost": {
+                    "kind": "alternativeCost",
+                    "mode": "madness",
+                    "costs": [cost.clone()],
+                },
+            },
+            {
+                "kind": "moveCards",
+                "cards": { "kind": "self" },
+                "from": { "kind": "exile", "player": owner.clone() },
+                "to": { "kind": "graveyard", "player": owner },
+            },
+        ],
+    })
+}
+
+/// Whether a resolution-time cast effect's alternative cost is one the
+/// casting runtime pays (`castOneCard.alternativeCost`).
+pub(super) fn resolution_alternative_cost_supported(effect: &Value) -> bool {
+    effect.get("alternativeCost").is_none_or(|alternative| {
+        super::alternative_cost_supported(alternative) && alternative.get("condition").is_none()
+    })
+}
+
+impl GameEngine {
+    /// The destination of a card discarded from a hand (CR 701.9a). A card
+    /// with madness is exiled instead of being put into its owner's
+    /// graveyard (CR 702.35a); its owner applies that replacement, which
+    /// also yields the exile any other proposal would (CR 616.1). Otherwise
+    /// the ordinary graveyard-destination replacements apply.
+    pub(super) fn prepare_discard_destination(
+        &self,
+        instance_id: &str,
+    ) -> Result<super::card_zone_transition::PreparedGraveyardDestination, EngineError> {
+        let plan = self.prepare_card_graveyard_destination(instance_id)?;
+        let has_madness = self
+            .card_outside_battlefield(instance_id)
+            .is_some_and(|card| madness_cost(&card.definition).is_some());
+        if !has_madness {
+            return Ok(plan);
+        }
+        Ok(
+            super::card_zone_transition::PreparedGraveyardDestination::Exile {
+                source_card_id: instance_id.to_string(),
+                one_shot_modifier: None,
+                detail: json!({
+                    "destination": "exile",
+                    "replacement": MADNESS_REPLACEMENT,
+                }),
+            },
+        )
+    }
+
+    /// Takes a hand card being discarded with its prepared destination.
+    pub(super) fn take_hand_card_for_discard(
+        &mut self,
+        player_index: usize,
+        card_index: usize,
+    ) -> Result<
+        (
+            super::card_zone_transition::OwnedMovementCard,
+            super::card_zone_transition::PreparedGraveyardDestination,
+        ),
+        EngineError,
+    > {
+        let instance_id = self
+            .state
+            .players
+            .get(player_index)
+            .and_then(|player| player.hand.get(card_index))
+            .map(|card| card.instance_id.clone())
+            .ok_or_else(|| EngineError::new("missing discarded hand card"))?;
+        let plan = self.prepare_discard_destination(&instance_id)?;
+        Ok((
+            self.take_zone_card_for_movement(player_index, "hand", card_index)?,
+            plan,
+        ))
+    }
+
+    /// CR 702.35a: the madness trigger of the card `discarding_player_id`
+    /// just discarded, when that discard exiled it by its madness ability.
+    /// Its owner controls the trigger (CR 603.3a: the card's owner casts
+    /// it); a discard that went anywhere else triggers nothing.
+    pub(super) fn enqueue_madness_trigger(&mut self, discarding_player_id: &str) {
+        let Some(discard_index) = self.state.events.iter().rposition(|event| {
+            event.kind == "cardDiscarded"
+                && event.player_id.as_deref() == Some(discarding_player_id)
+        }) else {
+            return;
+        };
+        let Some(card_id) = self.state.events[discard_index].card_instance_id.clone() else {
+            return;
+        };
+        // The replaced destination of this discard is the madness exile
+        // (`exiled this way`): the latest destination recorded for the card
+        // before its discard event, while the card is still in exile below.
+        let exiled_this_way = self.state.events[..discard_index]
+            .iter()
+            .rev()
+            .find(|event| {
+                event.kind == "graveyardDestinationReplaced"
+                    && event.card_instance_id.as_deref() == Some(card_id.as_str())
+            })
+            .is_some_and(|event| event.detail["replacement"].as_str() == Some(MADNESS_REPLACEMENT));
+        if !exiled_this_way {
+            return;
+        }
+        let Some(mut source) = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.exile.iter())
+            .find(|card| card.instance_id == card_id)
+            .cloned()
+        else {
+            return;
+        };
+        let Some(cost) = madness_cost(&source.definition).cloned() else {
+            return;
+        };
+        source.controller = source.owner.clone();
+        let _ = self.put_triggered_ability_on_stack(&source, madness_trigger_rule(&cost));
+        self.record_event(
+            "madnessTriggered",
+            Some(source.owner.clone()),
+            Some(card_id),
+            json!({ "cost": cost }),
+        );
+    }
+
+    /// Installs the alternative-cost permission of a resolution-time cast
+    /// (`castOneCard.alternativeCost`) for each offered card.
+    pub(super) fn open_resolution_alternative_cost(
+        &mut self,
+        effect: &Value,
+        stack_id: &str,
+        player_id: &str,
+        cards: &[CardInstance],
+    ) {
+        let Some(alternative) = effect
+            .get("alternativeCost")
+            .filter(|value| !value.is_null())
+        else {
+            return;
+        };
+        for card in cards {
+            self.state.permissions.push(json!({
+                "kind": RESOLUTION_ALTERNATIVE_COST_PERMISSION,
+                "cardInstanceId": card.instance_id,
+                "playerId": player_id,
+                "sourceStackId": stack_id,
+                "alternativeCost": alternative,
+            }));
+        }
+    }
+
+    /// Removes the permissions `open_resolution_alternative_cost` installed.
+    pub(super) fn close_resolution_alternative_cost(&mut self, stack_id: &str) {
+        self.state.permissions.retain(|permission| {
+            value_kind(permission) != Some(RESOLUTION_ALTERNATIVE_COST_PERMISSION)
+                || permission["sourceStackId"].as_str() != Some(stack_id)
+        });
+    }
+
+    /// Selects the alternative cost a resolution-time permission grants for
+    /// `card` (CR 118.9): the declaration pays it instead of the mana cost.
+    /// Returns `false` for a declaration that already chose another base,
+    /// since only one alternative cost applies to a spell (CR 118.9a).
+    /// Without such a permission the declaration is unchanged.
+    pub(super) fn select_resolution_alternative_cost(
+        &self,
+        card: &CardInstance,
+        player_id: &str,
+        decisions: &mut BTreeMap<String, Value>,
+    ) -> bool {
+        let Some(permission) = self.state.permissions.iter().find(|permission| {
+            value_kind(permission) == Some(RESOLUTION_ALTERNATIVE_COST_PERMISSION)
+                && permission["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
+                && permission["playerId"].as_str() == Some(player_id)
+        }) else {
+            return true;
+        };
+        if !super::casting_cost::CastingMode::of(decisions).uses_ordinary_base() {
+            return false;
+        }
+        let alternative = permission["alternativeCost"].clone();
+        if let Some(mode) = alternative["mode"].as_str() {
+            decisions.insert(
+                "alternativeCostMode".to_string(),
+                Value::String(mode.to_string()),
+            );
+        }
+        decisions.insert("useAlternativeCost".to_string(), Value::Bool(true));
+        decisions.insert("effectiveAlternativeCost".to_string(), alternative);
+        true
+    }
 }
 
 #[cfg(all(

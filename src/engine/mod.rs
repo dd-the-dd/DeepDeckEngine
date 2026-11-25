@@ -4070,6 +4070,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || rebound::rebound_ability_supported(&rule["ability"])
                 || suspend_ability_supported(&rule["ability"])
                 || mayhem_ability_supported(&rule["ability"])
+                || keyword_programs::madness_ability_supported(&rule["ability"])
                 || value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
                 || escape_ability_supported(&rule["ability"])
                 || blitz_ability_supported(&rule["ability"])
@@ -13631,7 +13632,7 @@ impl GameEngine {
                 .position(|candidate| candidate.instance_id == instance_id)
                 .ok_or_else(|| EngineError::new("discard cost card is no longer in hand"))?;
             let (discarded, graveyard_destination) =
-                self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                self.take_hand_card_for_discard(player_index, card_index)?;
             self.put_owned_card_into_prepared_graveyard(
                 player_index,
                 discarded,
@@ -14124,7 +14125,7 @@ impl GameEngine {
                     })
                     .ok_or_else(|| EngineError::new("keyword discard is no longer payable"))?;
                 let (discarded, graveyard_destination) =
-                    self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                    self.take_hand_card_for_discard(player_index, card_index)?;
                 self.put_owned_card_into_prepared_graveyard(
                     player_index,
                     discarded,
@@ -17289,6 +17290,13 @@ impl GameEngine {
                     declaration
                         .decisions
                         .insert("xValue".to_string(), Value::from(0));
+                }
+                if !self.select_resolution_alternative_cost(
+                    card,
+                    &player_id,
+                    &mut declaration.decisions,
+                ) {
+                    continue;
                 }
                 if source_zone == "hand"
                     && declaration.targets.values().any(|target| {
@@ -23275,6 +23283,7 @@ impl GameEngine {
     }
 
     fn enqueue_card_discarded_triggers(&mut self, discarding_player_id: &str) {
+        self.enqueue_madness_trigger(discarding_player_id);
         let discarded_id = self
             .state
             .events
@@ -27122,7 +27131,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
                     let (card, graveyard_destination) =
-                        self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                        self.take_hand_card_for_discard(player_index, card_index)?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -27223,7 +27232,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("typed cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
                     let (card, graveyard_destination) =
-                        self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                        self.take_hand_card_for_discard(player_index, card_index)?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -28853,8 +28862,8 @@ impl GameEngine {
                             .iter()
                             .position(|candidate| candidate.instance_id == instance_id)
                         {
-                            let (discarded, graveyard_destination) = self
-                                .take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                            let (discarded, graveyard_destination) =
+                                self.take_hand_card_for_discard(player_index, card_index)?;
                             self.put_owned_card_into_prepared_graveyard(
                                 player_index,
                                 discarded,
@@ -38212,7 +38221,7 @@ impl GameEngine {
                 .ok_or_else(|| EngineError::new("discard action has no card"))?;
             let card_index = self.hand_position(active, instance_id)?;
             let (card, graveyard_destination) =
-                self.take_zone_card_for_graveyard(active, "hand", card_index)?;
+                self.take_hand_card_for_discard(active, card_index)?;
             let card_id = card.instance_id.clone();
             self.put_owned_card_into_prepared_graveyard(active, card, graveyard_destination)?;
             eprintln!(

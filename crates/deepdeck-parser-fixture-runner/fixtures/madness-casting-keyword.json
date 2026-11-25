@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/madness-casting-keyword",
+  "cases": [
+    {
+      "id": "exact-reckless-wurm",
+      "request": {
+        "cardName": "Reckless Wurm",
+        "typeLine": "Creature — Wurm",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Trample\nMadness {2}{R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": {
+                "kind": "madness",
+                "cost": { "kind": "payMana", "manaCost": "{2}{R}" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-fiery-temper-instant-single-symbol",
+      "request": {
+        "cardName": "Fiery Temper",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Fiery Temper deals 3 damage to any target.\nMadness {R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": {
+                "kind": "madness",
+                "cost": { "kind": "payMana", "manaCost": "{R}" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-madness-zero-cost-no-reminder",
+      "request": {
+        "cardName": "Generic Madness Source",
+        "typeLine": "Creature — Lizard",
+        "manaCost": "{G}",
+        "oracleText": "Madness {0}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": {
+                "kind": "madness",
+                "cost": { "kind": "payMana", "manaCost": "{0}" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-madness-nonmana-payment",
+      "request": {
+        "cardName": "Generic Madness Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Madness—{2}{B}, Pay 8 life. (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.lowering",
+            "expectedContains": "a mana madness cost"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-madness-play-land-reminder",
+      "request": {
+        "cardName": "Generic Madness Source",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "Madness {0} (If you discard this card, discard it into exile. When you do, play it for its madness cost or put it into your graveyard. You can play a land only during your turn and only if you have an available land play remaining.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.reminder.body"
+          }
+        ]
+      }
+    }
+  ]
+}

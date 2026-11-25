@@ -10,7 +10,7 @@
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem,
 //!                                          emerge, sneak, bestow)
-//!            | MANA | "—" COSTS          (blitz, escalate, entwine)
+//!            | MANA | "—" COSTS          (blitz, escalate, entwine, madness)
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
 //!            | MANA "—" P "/" T          (prototype)
@@ -62,6 +62,9 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     /// CR 702.33a with a nonmana cost (`Kicker—Sacrifice a land.`); a mana
     /// kicker cost is read by `keyword.rs`.
     Kicker,
+    /// CR 702.35a: a discard replaced by an exile and the linked trigger
+    /// that casts the card for its madness cost.
+    Madness,
     Mayhem,
     Paradigm,
     Prototype,
@@ -223,6 +226,15 @@ const DEFINITIONS: &[Definition] = &[
         rules_section: "702.33a",
         parameter: Parameter::CostSequence,
         reminders: &[],
+    },
+    Definition {
+        keyword: CastingKeyword::Madness,
+        lexeme: "madness",
+        rules_section: "702.35a",
+        parameter: Parameter::ManaOrCostSequence,
+        reminders: &[
+            "If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.",
+        ],
     },
     Definition {
         keyword: CastingKeyword::Mayhem,

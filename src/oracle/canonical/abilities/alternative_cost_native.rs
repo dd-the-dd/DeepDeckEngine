@@ -566,6 +566,17 @@ fn lower_casting_keyword(
                 "a mana blitz cost (no other blitz payment has a runtime)",
             )?,
         }),
+        // CR 702.35a: the discard is replaced by an exile and the linked
+        // trigger lets the owner cast the card for this mana cost rather
+        // than its mana cost; the runtime owns both abilities.
+        CastingKeyword::Madness => json!({
+            "kind": "madness",
+            "cost": keyword_mana(
+                cursor,
+                node,
+                "a mana madness cost (a nonmana madness payment has no runtime)",
+            )?,
+        }),
         // CR 702.187b: the graveyard route admits a card discarded this turn.
         CastingKeyword::Mayhem => json!({
             "kind": "mayhem",

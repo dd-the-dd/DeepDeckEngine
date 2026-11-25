@@ -139,7 +139,7 @@ impl GameEngine {
                                 .any(|card| &card.instance_id == *id)
                         })
                         .map(|id| {
-                            self.prepare_card_graveyard_destination(id)
+                            self.prepare_discard_destination(id)
                                 .map(|plan| (id.clone(), plan))
                         })
                         .collect::<Result<BTreeMap<_, _>, EngineError>>()?;
@@ -236,7 +236,7 @@ impl GameEngine {
                     .hand
                     .iter()
                     .map(|card| {
-                        self.prepare_card_graveyard_destination(&card.instance_id)
+                        self.prepare_discard_destination(&card.instance_id)
                             .map(|plan| (card.instance_id.clone(), plan))
                     })
                     .collect::<Result<BTreeMap<_, _>, EngineError>>()?;
