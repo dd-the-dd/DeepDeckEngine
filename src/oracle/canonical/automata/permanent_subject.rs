@@ -228,6 +228,10 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::UntapRestriction(node) => {
             Local(subject_after_operand(&node.objects, effect_index))
         }
+        LocalEffectNode::RuleChange(node) => match node.objects() {
+            Some(objects) => Local(subject_after_operand(objects, effect_index)),
+            None => previous,
+        },
         // Another player's action ends the local permanent subject, except
         // the one permanent that player chose on resolution (`target opponent
         // chooses a creature they control. Destroy that creature.`).
@@ -517,6 +521,7 @@ fn ordinary_permanent_operand(effect: &LocalEffectNode) -> Option<&PermanentOper
         LocalEffectNode::PutCounters(node) => Some(&node.permanent),
         LocalEffectNode::TapPermanents(node) => Some(&node.targets),
         LocalEffectNode::UntapRestriction(node) => Some(&node.objects),
+        LocalEffectNode::RuleChange(node) => node.objects(),
         LocalEffectNode::PermanentKeywordAction(node) => Some(&node.targets),
         LocalEffectNode::ControlChange(node) => Some(&node.objects),
         _ => None,
@@ -1075,6 +1080,7 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::PutCounters(node) => &node.permanent,
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::UntapRestriction(node) => &node.objects,
+        LocalEffectNode::RuleChange(node) => node.objects()?,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
         LocalEffectNode::Attach(node) => &node.recipient,

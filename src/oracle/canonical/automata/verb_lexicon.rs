@@ -286,6 +286,10 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     /// `OBJECTS from combat` (CR 506.4): the objects stop being attacking or
     /// blocking creatures.
     CombatRemoval,
+    /// `[RECIPIENT] WINDOW if able` after `attack` / `block` (CR 508.1d,
+    /// 509.1c): a requirement on the subject, optionally directed at the
+    /// player it attacks or the attacker it blocks.
+    CombatRequirement,
     /// `N coin(s)` (CR 705.1): the coins the acting player flips.
     CoinFlip,
     /// `N dK` | `N K-sided die|dice` (CR 706.1): the dice the acting player
@@ -341,6 +345,7 @@ impl ArgumentFrame {
             | Self::PhasingDirection
             | Self::CountersAmong
             | Self::CombatRemoval
+            | Self::CombatRequirement
             | Self::CoinFlip
             | Self::DieRoll
             | Self::ClashOpponent
@@ -650,7 +655,10 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "attacked",
             present_participle: "attacking",
         },
-        frames: &[ArgumentFrame::Intransitive],
+        frames: &[
+            ArgumentFrame::Intransitive,
+            ArgumentFrame::CombatRequirement,
+        ],
         voices: &[Voice::Active],
     },
     VerbEntry {
@@ -662,7 +670,10 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "blocked",
             present_participle: "blocking",
         },
-        frames: &[ArgumentFrame::Intransitive],
+        frames: &[
+            ArgumentFrame::Intransitive,
+            ArgumentFrame::CombatRequirement,
+        ],
         voices: &[Voice::Active, Voice::Passive],
     },
     VerbEntry {

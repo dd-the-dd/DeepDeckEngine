@@ -34,6 +34,13 @@ pub(in crate::oracle::canonical) fn claims_promoted_block_only_family(
             .tokens
             .get(cursor.position().saturating_add(1))
             .is_some_and(|token| token.token_type == "actionWord")
+        // `can block an additional creature` / `any number of creatures` is
+        // a block capacity of the shared combat clause (CR 509.1a), not an
+        // attacker restriction: only `can block only QUERY` is this family.
+        && input
+            .tokens
+            .get(cursor.position().saturating_add(2))
+            .is_some_and(|token| token.raw.eq_ignore_ascii_case("only"))
 }
 
 pub(in crate::oracle::canonical) fn recognize_block_only_restriction(

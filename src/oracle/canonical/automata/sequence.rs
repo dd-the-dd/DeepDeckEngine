@@ -2067,6 +2067,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         LocalEffectNode::TemporaryPlayerPermission(node) => {
                             node.duration == super::TemporaryRuleDuration::Effect(duration.clone())
                         }
+                        LocalEffectNode::RuleChange(node) => node.duration() == Some(duration),
                         LocalEffectNode::ControlChange(super::ControlChangeEffectNode {
                             change:
                                 super::ControlChange::Gain {

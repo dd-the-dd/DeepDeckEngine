@@ -109,6 +109,7 @@ mod casting_permission_modes;
 mod characteristic_observation;
 mod chosen_object_costs;
 mod city_blessing;
+mod combat_requirements;
 mod copy_program;
 mod cost_paid_card_properties;
 mod cost_payment;
@@ -3439,6 +3440,10 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "canAttackAsThoughNoDefender"
                 | "cantBeRegenerated"
                 | "allMustBlockIfAble"
+                | "cantAttackAlone"
+                | "cantBlockAlone"
+                | "canBlockAdditionalCreature"
+                | "canBlockAnyNumber"
                 | "maxOneBlocker"
                 | "openingHandBattlefield"
                 | "prowess"
@@ -5629,6 +5634,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                     .is_some_and(|keyword| keyword_kind_supported(&json!({ "kind": keyword })))
         }
         Some("grantRiot") => static_object_selector_supported(&modifier["objects"]),
+        Some("blockCapacity") => combat_requirements::block_capacity_modifier_supported(modifier),
         Some("allStackObjectsCantBeCountered") => true,
         Some("grantKeyword") => {
             static_keyword_selector_supported(&modifier["objects"])
@@ -36563,9 +36569,10 @@ impl GameEngine {
 
     fn clear_combat_state(&mut self) {
         self.state.combat = CombatState::default();
-        self.state
-            .rule_modifiers
-            .retain(|modifier| value_kind(modifier) != Some("delayedCombatDamageTrigger"));
+        self.state.rule_modifiers.retain(|modifier| {
+            value_kind(modifier) != Some("delayedCombatDamageTrigger")
+                && !combat_requirements::ends_with_combat(modifier)
+        });
         for player in &mut self.state.players {
             for permanent in &mut player.battlefield {
                 permanent.flags.remove("attacking");
@@ -36731,6 +36738,7 @@ impl GameEngine {
                 && selected.len() < self.combat_participant_limit("attack")
                 && !selected_has_attack_alone
                 && (selected.is_empty() || !attacks_alone(card))
+                && self.lone_attack_restriction_allows(card, selected, &active.battlefield)
         }) {
             for (defender, defender_id) in &defenders {
                 let defending_player_id = self
@@ -36790,6 +36798,9 @@ impl GameEngine {
                 if defending_player_id.is_empty()
                     || planeswalker_attack_limit_reached
                     || jace_attack_prevented
+                    || self.attack_requirement_excludes_defender(
+                        card, defender, &defenders, &active_id,
+                    )?
                     || (self.permanent_has_self_static_modifier(card, "cantAttackOwner")
                         && defending_player_id == card.owner)
                     || self.defending_player_forbids_attack(card, &defending_player_id)?
@@ -36870,6 +36881,7 @@ impl GameEngine {
                     // are the same effective requirement (CR 508.1d).
                     self.permanent_has_keyword(card, "attackEachCombatIfAble")
                         || self.goad_source_for(card).is_some()
+                        || self.installed_attack_requirement_obeyed_by(card, action)
                 })
         });
         if allow_revisions {
@@ -36896,7 +36908,9 @@ impl GameEngine {
                 });
             }
         }
-        if !required_attack_available {
+        if !required_attack_available
+            && !self.lone_attacker_pending(selected, &active.battlefield, &actions)
+        {
             actions.push(LegalAction {
                 id: format!("finishAttackers:{}", self.state.turn_number),
                 kind: ActionKind::FinishAttackers,
@@ -37207,8 +37221,10 @@ impl GameEngine {
             self.permanent_is_creature(card)
                 && !card.tapped
                 && !self.permanent_has_keyword(card, "cantBlock")
-                && !used_blockers.contains(&card.instance_id)
-                && used_blockers.len() < self.combat_participant_limit("block")
+                && self.blocker_has_capacity(card, blocks)
+                && (used_blockers.contains(&card.instance_id)
+                    || used_blockers.len() < self.combat_participant_limit("block"))
+                && self.lone_block_restriction_allows(card, used_blockers, &defender.battlefield)
         }) {
             for attacker_id in attackers {
                 if !incomplete_menace_attackers.is_empty()
@@ -37223,7 +37239,9 @@ impl GameEngine {
                 else {
                     continue;
                 };
-                if !self.can_block(blocker, attacker) {
+                if !self.can_block(blocker, attacker)
+                    || self.block_pair_excluded(blocker, attacker_id, attackers, blocks)
+                {
                     continue;
                 }
                 let existing_blocker_count = blocks.get(attacker_id).map_or(0, Vec::len);
@@ -37298,11 +37316,14 @@ impl GameEngine {
                     .iter()
                     .find(|card| card.instance_id == blocker_id)
                     .is_some_and(|card| self.permanent_has_keyword(card, "blockEachCombatIfAble"))
+                    && !used_blockers.contains(blocker_id)
             })
         });
         if incomplete_menace_attackers.is_empty()
             && !must_block_available
             && !required_blocker_available
+            && !self.block_requirement_pending(defending_index, attackers, blocks, &actions)
+            && !self.lone_blocker_pending(used_blockers, &defender.battlefield, &actions)
         {
             actions.push(LegalAction {
                 id: format!("finishBlockers:{}:{}", self.state.turn_number, defender.id),
@@ -38096,6 +38117,8 @@ impl GameEngine {
                     }
                 }
                 for (blocker_id, blocker_power, blocker_deals_damage) in current_blockers {
+                    let blocker_power =
+                        self.blocker_damage_share(&blocker_id, attacker_id, blocker_power, blocks);
                     if blocker_deals_damage && blocker_power > 0 {
                         damage_instances.push((
                             blocker_id,

@@ -1373,6 +1373,16 @@ pub(super) enum GrantedKeyword {
     /// `can't be regenerated` (CR 701.15): no regeneration shield replaces
     /// the object's destruction while the marker lasts.
     CantBeRegenerated,
+    /// `can't attack alone` / `can't block alone` (CR 506.5).
+    CantAttackAlone,
+    CantBlockAlone,
+    /// `can block an additional creature` / `any number of creatures`
+    /// (CR 509.1a) for the duration of a temporary effect.
+    CanBlockAdditionalCreature,
+    CanBlockAnyNumber,
+    /// `All creatures able to block OBJECT do so` (CR 509.1c): every
+    /// creature able to block the marked object must block it.
+    AllMustBlockIfAble,
     Cascade,
     CantAttack,
     CantBeBlocked,
@@ -1441,6 +1451,11 @@ impl GrantedKeyword {
             Self::AssignsNoCombatDamage => "assignsNoCombatDamage",
             Self::AttackAsThoughNoDefender => "canAttackAsThoughNoDefender",
             Self::CantBeRegenerated => "cantBeRegenerated",
+            Self::CantAttackAlone => "cantAttackAlone",
+            Self::CantBlockAlone => "cantBlockAlone",
+            Self::CanBlockAdditionalCreature => "canBlockAdditionalCreature",
+            Self::CanBlockAnyNumber => "canBlockAnyNumber",
+            Self::AllMustBlockIfAble => "allMustBlockIfAble",
             Self::Cascade => "cascade",
             Self::CantAttack => "cantAttack",
             Self::CantBeBlocked => "cantBeBlocked",
@@ -2286,6 +2301,9 @@ pub(super) enum LocalEffectNode {
     TapPermanents(TapPermanentsEffectNode),
     /// `OBJECTS don't untap during their controller's next untap step`.
     UntapRestriction(UntapRestrictionNode),
+    /// A rule an effect sets for a duration (`object_rule_clause.rs`): a
+    /// combat requirement, an activation prohibition, a life-total lock.
+    RuleChange(RuleChangeNode),
     /// An action another player performs (`that player creates ...`).
     Performed(PerformedEffectNode),
     PermanentKeywordAction(PermanentKeywordActionNode),
