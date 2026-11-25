@@ -3731,10 +3731,14 @@ fn recognize_destroy_frame(
         }
         // `destroy that creature` / `destroy enchanted creature`: a bound
         // reference, never a declaration.
-        super::OperandDeterminer::That | super::OperandDeterminer::Other
-            if super::operand_determiner(cursor, 1) == super::OperandDeterminer::That
-                || super::attached_object_operand_follows_verb(cursor) =>
-        {
+        super::OperandDeterminer::That => super::recognize_destroy_reference_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::ReferencedPermanentAction),
+        super::OperandDeterminer::Other if super::attached_object_operand_follows_verb(cursor) => {
             super::recognize_destroy_reference_effect(
                 cursor,
                 inputs.name_links,

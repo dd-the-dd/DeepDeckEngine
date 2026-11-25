@@ -60,7 +60,11 @@ fn query_grammar_stays_shared_and_characteristics_read_the_departure_snapshot() 
     assert_eq!(event.actor, EventActorScope::Controller);
     assert!(event.exclude_source);
     assert_eq!(
-        event.object.predicate,
+        event
+            .object
+            .as_ref()
+            .expect("the event names a sacrificed-object query")
+            .predicate,
         ObjectPredicate::Union(vec![
             ObjectPredicate::CardType(ObjectCardType::Artifact),
             ObjectPredicate::CardType(ObjectCardType::Creature),

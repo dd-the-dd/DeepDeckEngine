@@ -620,9 +620,3 @@ fn source_noun_on_battlefield(noun: &str) -> bool {
             .is_some_and(|subtype| subtype == noun),
     }
 }
-
-fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
-    cursor
-        .peek_ahead(offset)
-        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
-}

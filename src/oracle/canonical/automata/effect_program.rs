@@ -1,5 +1,5 @@
 //! Program composition is independent of the enclosing ability and action.
-use super::super::{MachineResult, OracleTokenCursor};
+use super::super::{ChildOutcome, MachineResult, OracleTokenCursor};
 use super::*;
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
