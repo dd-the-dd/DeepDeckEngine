@@ -182,6 +182,7 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         | PaymentActionNode::PutCounters(_)
         | PaymentActionNode::Reveal { .. }
         | PaymentActionNode::Mill { .. }
+        | PaymentActionNode::PutInLibrary { .. }
         | PaymentActionNode::Exert(_) => {
             cursor.enter("cost.resolution.unsupported-action");
             Err(cursor.engine_gap(

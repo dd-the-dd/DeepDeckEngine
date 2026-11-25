@@ -9,7 +9,8 @@
 //!                  ResourcePayment (pay MANA | N life | {E}... ),
 //!                  ObjectSelection
 //!                  (tap, untap, sacrifice, discard, exile, reveal, exert),
-//!                  ObjectToZone (return ... to its owner's hand),
+//!                  ObjectToZone (return ... to its owner's hand, put ...
+//!                  [from your ZONE] on top of|on the bottom of a library),
 //!                  CountersOn (put N [KIND] counter(s) on CounterHolder),
 //!                  CountersFrom (remove N [KIND] counter(s) from CounterHolder),
 //!                  CardCount (mill N card(s)), KeywordAmount (blight N)
@@ -102,6 +103,30 @@ pub(in crate::oracle::canonical) enum PaymentActionNode {
     Mill { count: i64 },
     /// `exert SELECTION` (CR 701.43).
     Exert(PaymentObjectsNode),
+    /// `put SELECTION [from your ZONE] on top of|on the bottom of your
+    /// library` (CR 401.4): the ObjectToZone frame read as a payment.
+    PutInLibrary {
+        objects: PaymentObjectsNode,
+        origin: Option<PaymentOriginZone>,
+        position: PaymentLibraryEnd,
+    },
+}
+
+/// The end of a library a cost puts its objects at (CR 401.4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum PaymentLibraryEnd {
+    Top,
+    Bottom,
+}
+
+impl PaymentLibraryEnd {
+    /// The engine's library position word.
+    pub(in crate::oracle::canonical) fn engine_position(self) -> &'static str {
+        match self {
+            Self::Top => "top",
+            Self::Bottom => "bottom",
+        }
+    }
 }
 
 /// Counters put on a permanent while paying a cost.
@@ -331,6 +356,7 @@ impl PaymentActionNode {
             | Self::ReturnToHand(objects)
             | Self::Exert(objects)
             | Self::Exile { objects, .. }
+            | Self::PutInLibrary { objects, .. }
             | Self::Reveal { objects, .. } => objects,
             Self::RemoveCounters(RemoveCountersPaymentNode {
                 holder: CounterHolderNode::Source(noun),
@@ -477,6 +503,30 @@ fn recognize_listed_payment_action(
         (VerbLemma::Put, ArgumentFrame::CountersOn) => {
             recognize_counter_placement(cursor, antecedent).map(PaymentActionNode::PutCounters)
         }
+        (VerbLemma::Put, ArgumentFrame::ObjectToZone) => {
+            let objects = objects(cursor, PaymentVerb::Put)?;
+            cursor.enter("cost.payment.put.origin");
+            let origin = recognize_optional_origin_zone(cursor)?;
+            // Chosen cards name the zone they come from; the source names
+            // its own (`this card from your graveyard`, `this creature`).
+            cursor.require(
+                origin.is_some() || matches!(objects, PaymentObjectsNode::Source(_)),
+                "`from your hand` or `from your graveyard` after the cards put into a library",
+            )?;
+            cursor.enter("cost.payment.put.source-domain");
+            cursor.require(
+                !(origin.is_some()
+                    && objects == PaymentObjectsNode::Source(PaymentSourceNoun::Permanent)),
+                "`this card` for a source put from a card zone",
+            )?;
+            cursor.enter("cost.payment.put.destination");
+            let position = recognize_payment_library_end(cursor, &objects)?;
+            Ok(PaymentActionNode::PutInLibrary {
+                objects,
+                origin,
+                position,
+            })
+        }
         (VerbLemma::Remove, ArgumentFrame::CountersFrom) => {
             cursor.enter("action.remove.operand");
             recognize_counter_removal(cursor, antecedent).map(PaymentActionNode::RemoveCounters)
@@ -500,6 +550,50 @@ fn recognize_listed_payment_action(
             ))
         }
     }
+}
+
+/// `on top of|on the bottom of your library`, or `... its owner's library`
+/// for the source (CR 401.4: a card goes to its owner's library). A chosen
+/// card comes from the payer's own zone, so `your library` is its owner's.
+fn recognize_payment_library_end(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &PaymentObjectsNode,
+) -> MachineResult<PaymentLibraryEnd> {
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let position = if word(cursor, 0, "on") && word(cursor, 1, "top") && word(cursor, 2, "of") {
+        cursor.consume_phrase(&["on", "top", "of"])?;
+        PaymentLibraryEnd::Top
+    } else if word(cursor, 0, "on")
+        && word(cursor, 1, "the")
+        && word(cursor, 2, "bottom")
+        && word(cursor, 3, "of")
+    {
+        cursor.consume_phrase(&["on", "the", "bottom", "of"])?;
+        PaymentLibraryEnd::Bottom
+    } else {
+        return Err(cursor.fail("`on top of` or `on the bottom of` a library"));
+    };
+    cursor.enter("cost.payment.put.library-owner");
+    let owners = cursor
+        .peek_ahead(1)
+        .map(|raw| raw.replace('\u{2019}', "'").to_ascii_lowercase());
+    if word(cursor, 0, "your") {
+        cursor.consume("your")?;
+    } else if matches!(objects, PaymentObjectsNode::Source(_))
+        && (word(cursor, 0, "its") || word(cursor, 0, "their"))
+        && owners.as_deref() == Some("owner's")
+    {
+        cursor.advance_to(cursor.position() + 2)?;
+    } else {
+        return Err(cursor.fail("`your library`, or `its owner's library` for the source"));
+    }
+    cursor.enter("cost.payment.put.library");
+    cursor.consume("library")?;
+    Ok(position)
 }
 
 /// `to its owner's hand` / `to their owner's hand` / `to their owners' hands`.
@@ -533,6 +627,7 @@ enum PaymentVerb {
     Exert,
     Return,
     Remove,
+    Put,
 }
 
 impl PaymentVerb {
@@ -544,14 +639,14 @@ impl PaymentVerb {
             | Self::Remove
             | Self::Exert
             | Self::Return => OperandDomain::Permanent,
-            Self::Discard | Self::Exile | Self::Reveal => OperandDomain::Card,
+            Self::Discard | Self::Exile | Self::Reveal | Self::Put => OperandDomain::Card,
         }
     }
 
     /// Exile takes a card (`exile this card from your graveyard`) or the
     /// source permanent (`exile this artifact`); other card verbs take cards.
     fn admits_permanent_source(self) -> bool {
-        self == Self::Exile
+        matches!(self, Self::Exile | Self::Put)
     }
 
     fn operand_state(self) -> &'static str {
@@ -565,6 +660,7 @@ impl PaymentVerb {
             Self::Exert => "action.exert.operand",
             Self::Return => "action.return.operand",
             Self::Remove => "action.remove.operand",
+            Self::Put => "action.put.operand",
         }
     }
 }

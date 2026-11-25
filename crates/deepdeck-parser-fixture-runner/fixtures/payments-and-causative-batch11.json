@@ -377,6 +377,123 @@
       }
     },
     {
+      "id": "exact-leashling-put-hand-card-on-library-top",
+      "request": {
+        "cardName": "Leashling",
+        "typeLine": "Artifact Creature — Dog",
+        "manaCost": "{6}",
+        "oracleText": "Put a card from your hand on top of your library: Return this creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "chosenObjectsCost"
+              },
+              {
+                "pointer": "/costs/0/action",
+                "equals": "putOnLibraryTop"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-penance-put-hand-card-on-library-top",
+      "request": {
+        "cardName": "Penance",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Put a card from your hand on top of your library: The next time a black or red source of your choice would deal damage this turn, prevent that damage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-battlefield-scrounger-put-graveyard-cards-on-library-bottom",
+      "request": {
+        "cardName": "Battlefield Scrounger",
+        "typeLine": "Creature — Centaur",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Threshold — Put three cards from your graveyard on the bottom of your library: This creature gets +3/+3 until end of turn. Activate only once each turn and only if there are seven or more cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-daniels-put-source-from-graveyard-on-library-bottom",
+      "request": {
+        "cardName": "Daniels, Temporal Agent",
+        "typeLine": "Legendary Creature — Human Advisor",
+        "manaCost": "{2}{B/G}{B/G}",
+        "oracleText": "When Daniels enters, return target creature card from your graveyard to your hand.\n{2}, Put this card from your graveyard on the bottom of your library: You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-timestream-navigator-source-permanent-into-library",
+      "request": {
+        "cardName": "Timestream Navigator",
+        "typeLine": "Creature — Human Pirate Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\n{2}{U}{U}, {T}, Put this creature on the bottom of its owner's library: Take an extra turn after this one. Activate only if you have the city's blessing.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "engine.gap.activation-cost-action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-put-cards-without-their-zone",
+      "request": {
+        "cardName": "Probe Shelf",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}, Put a card on top of your library: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "cost.payment.put.origin"
+          }
+        ]
+      }
+    },
+    {
       "id": "known-gap-exact-pearl-shard-alternative-activation-costs",
       "request": {
         "cardName": "Pearl Shard",
@@ -393,27 +510,6 @@
           {
             "code": "oracle_machine_failure",
             "state": "activation.effect-sequence.separator"
-          }
-        ]
-      }
-    },
-    {
-      "id": "known-gap-exact-leashling-put-to-library-cost",
-      "request": {
-        "cardName": "Leashling",
-        "typeLine": "Artifact Creature — Dog",
-        "manaCost": "{6}",
-        "oracleText": "Put a card from your hand on top of your library: Return this creature to its owner's hand.",
-        "layout": "normal",
-        "faces": []
-      },
-      "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure",
-            "state": "cost.payment.frame"
           }
         ]
       }
