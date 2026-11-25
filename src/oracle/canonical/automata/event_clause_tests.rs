@@ -115,7 +115,7 @@ fn a_recognized_modifier_without_its_matcher_is_an_engine_gap() {
     for text in [
         "Whenever a creature you control blocks alone, draw a card.",
         "Whenever a creature you control attacks and isn't blocked for the first time each turn, draw a card.",
-        "Whenever you gain life for the first time each turn, draw a card.",
+        "Whenever an opponent gains life for the first time each turn, draw a card.",
     ] {
         assert_eq!(
             parse("Creature — Wall", text).1.as_deref(),

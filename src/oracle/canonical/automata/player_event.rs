@@ -9,6 +9,13 @@
 //!               | Actor "activate(s)" AbilityQuery
 //!               | Actor "tap(s)" PermanentObject "for mana"
 //!               | Actor "commit(s) a crime"
+//!               | Actor OutcomeVerb               -- random and contested outcomes
+//!               | Actor "proliferate(s)" | Actor "complete(s) a dungeon"
+//!               | Actor "exert(s)" PermanentObject
+//! OutcomeVerb  := "roll(s)" DieRoll | ("win(s)" | "lose(s)") "a coin flip"
+//!               | "clash(es)" ["and win(s)"] | "win(s) a clash"
+//! DieRoll      := "a die" | "one or more dice"
+//!               | "a" N ["or higher" | "or lower"] ["on a die"]
 //! Actor        := "you" | "a player" | "an opponent" | "one or more" PLAYERS
 //! FixedVerb    := "draw(s) a card" | "attack(s)" | ...
 //! ObjectVerb   := "discard(s)" | "cycle(s)"
@@ -107,6 +114,36 @@ pub(in crate::oracle::canonical) enum PlayerEventAction {
     /// `expend N` (CR 701.58): the player spends their Nth total mana to
     /// cast spells this turn.
     Expend(i64),
+    /// `roll a die`, `roll a 5 or higher`, `roll one or more dice` (CR 706):
+    /// one roll of the acting player, with the result filter it names.
+    RollDie(DieRollFilter),
+    /// `win a coin flip` / `lose a coin flip` (CR 705.2): one flip the
+    /// acting player won or lost.
+    FlipCoin {
+        won: bool,
+    },
+    /// `clash` / `clash and win` / `win a clash` (CR 701.30): every
+    /// clashing player clashes; `won` restricts to the clash winner.
+    Clash {
+        won: bool,
+    },
+    /// `proliferate` (CR 701.34): one proliferation of the acting player.
+    Proliferate,
+    /// `exert PERMANENT` (CR 701.43): the exerted permanent is the event's
+    /// `permanent` object.
+    Exert,
+    /// `complete a dungeon` (CR 309.7): the acting player completed one.
+    CompleteDungeon,
+}
+
+/// The die results a roll event observes (CR 706.2). Both bounds inclusive;
+/// `batch` reads `one or more dice`: one occurrence per roll instruction
+/// (CR 603.2c) rather than one per die.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DieRollFilter {
+    pub minimum: Option<i64>,
+    pub maximum: Option<i64>,
+    pub batch: bool,
 }
 
 impl PlayerEventAction {
@@ -152,6 +189,12 @@ impl PlayerEventAction {
                 | Self::NamedAction(_)
                 | Self::TapForMana
                 | Self::PlayLand
+                | Self::CommitCrime
+                | Self::RollDie(_)
+                | Self::FlipCoin { .. }
+                | Self::Clash { .. }
+                | Self::Proliferate
+                | Self::Exert
         )
     }
 
@@ -304,6 +347,7 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
             one_or_more,
             card: None,
             permanent: None,
+            first_time_each_turn: false,
         });
     }
     // `is|are dealt [combat|noncombat] damage`: the passive damage clause
@@ -324,6 +368,7 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
             one_or_more,
             card: None,
             permanent: None,
+            first_time_each_turn: false,
         });
     }
     // Action verbs with their own operand frames: an activated ability, a
@@ -365,6 +410,7 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
                 one_or_more,
                 card: None,
                 permanent: None,
+                first_time_each_turn: false,
             });
         }
     }
@@ -400,6 +446,7 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
         one_or_more,
         card,
         permanent: None,
+        first_time_each_turn: false,
     })
 }
 
@@ -438,6 +485,7 @@ fn recognize_player_action_frame(
             one_or_more,
             card: None,
             permanent,
+            first_time_each_turn: false,
         }
     };
     if lemma_form_at(cursor, VerbLemma::Activate, agreement) {
@@ -478,6 +526,47 @@ fn recognize_player_action_frame(
         cursor.enter("event.player.complete");
         return Ok(Some(event(vec![PlayerEventAction::CommitCrime], None)));
     }
+    // Random and contested outcomes of the acting player (CR 701.30, 705,
+    // 706): each verb is a lexicon lemma with its own complement.
+    if let Some(action) = recognize_outcome_verb(cursor, agreement)? {
+        cursor.enter("event.player.complete");
+        return Ok(Some(event(vec![action], None)));
+    }
+    // `exert(s) PERMANENT` (CR 701.43): the exerted permanent is read by the
+    // shared permanent-event object, as for `tap(s) PERMANENT for mana`.
+    if lemma_form_at(cursor, VerbLemma::Exert, agreement) {
+        cursor.enter("event.player.exert");
+        consume_verb_word(cursor)?;
+        let (query, exclude_source) = super::recognize_permanent_event_object(
+            cursor,
+            "event.player.exert.object-head",
+            "event.player.exert.object-domain",
+            "event.player.exert.object-controller",
+        )?;
+        cursor.enter("event.player.complete");
+        return Ok(Some(event(
+            vec![PlayerEventAction::Exert],
+            Some(PlayerEventCardObject {
+                query,
+                exclude_source,
+            }),
+        )));
+    }
+    // Keyword actions without a general effect lemma (CR 701.34 proliferate,
+    // CR 309.7 completing a dungeon): the surface agrees with the actor.
+    if keyword_surface_at(cursor, "proliferate", agreement) {
+        cursor.enter("event.player.proliferate");
+        consume_verb_word(cursor)?;
+        cursor.enter("event.player.complete");
+        return Ok(Some(event(vec![PlayerEventAction::Proliferate], None)));
+    }
+    if keyword_surface_at(cursor, "complete", agreement) {
+        cursor.enter("event.player.complete-dungeon");
+        consume_verb_word(cursor)?;
+        cursor.consume_phrase(&["a", "dungeon"])?;
+        cursor.enter("event.player.complete");
+        return Ok(Some(event(vec![PlayerEventAction::CompleteDungeon], None)));
+    }
     // `expend N` (CR 701.58) is a keyword action without a general effect
     // lemma: its surface agrees with the actor and takes a fixed ordinal.
     let expend = match agreement {
@@ -499,6 +588,127 @@ fn recognize_player_action_frame(
         return Ok(Some(event(vec![PlayerEventAction::Expend(amount)], None)));
     }
     Ok(None)
+}
+
+fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+/// The surface of a keyword action without a lexicon lemma, in `agreement`.
+fn keyword_surface_at(
+    cursor: &OracleTokenCursor<'_>,
+    base: &str,
+    agreement: VerbAgreement,
+) -> bool {
+    let expected = match agreement {
+        VerbAgreement::Base => base.to_string(),
+        VerbAgreement::ThirdPersonSingular => third_person_form(base),
+    };
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(&expected))
+}
+
+/// `roll(s) DIE-ROLL`, `win(s)|lose(s) a coin flip`, `clash(es) [and
+/// win(s)]`, `win(s) a clash`: the outcome events of CR 701.30, 705 and 706.
+/// `None` when no outcome lemma is at the cursor (nothing consumed); once
+/// the lemma is read, an unsupported complement fails explicitly.
+fn recognize_outcome_verb(
+    cursor: &mut OracleTokenCursor<'_>,
+    agreement: VerbAgreement,
+) -> MachineResult<Option<PlayerEventAction>> {
+    if lemma_form_at(cursor, VerbLemma::Roll, agreement) {
+        cursor.enter("event.player.roll");
+        consume_verb_word(cursor)?;
+        return recognize_die_roll(cursor).map(|filter| Some(PlayerEventAction::RollDie(filter)));
+    }
+    if lemma_form_at(cursor, VerbLemma::Clash, agreement) {
+        cursor.enter("event.player.clash");
+        consume_verb_word(cursor)?;
+        // `clash and win` (CR 701.30d): the clash this player won.
+        let won = word_at(cursor, 0, "and");
+        if won {
+            cursor.enter("event.player.clash.outcome");
+            cursor.consume("and")?;
+            cursor.require(
+                lemma_form_at(cursor, VerbLemma::Win, agreement),
+                "`win` agreeing with the clashing player",
+            )?;
+            consume_verb_word(cursor)?;
+        }
+        return Ok(Some(PlayerEventAction::Clash { won }));
+    }
+    let won = if lemma_form_at(cursor, VerbLemma::Win, agreement) {
+        true
+    } else if lemma_form_at(cursor, VerbLemma::Lose, agreement) && word_at(cursor, 1, "a") {
+        false
+    } else {
+        return Ok(None);
+    };
+    cursor.enter("event.player.outcome");
+    consume_verb_word(cursor)?;
+    if word_at(cursor, 0, "a") && word_at(cursor, 1, "clash") {
+        cursor.enter("event.player.outcome.clash");
+        cursor.require(won, "a won clash (no lost-clash event is read)")?;
+        cursor.consume_phrase(&["a", "clash"])?;
+        return Ok(Some(PlayerEventAction::Clash { won: true }));
+    }
+    cursor.enter("event.player.outcome.coin-flip");
+    cursor.consume_phrase(&["a", "coin", "flip"])?;
+    Ok(Some(PlayerEventAction::FlipCoin { won }))
+}
+
+/// `a die` | `one or more dice` | `a N [or higher|or lower] [on a die]`
+/// after `roll(s)` (CR 706.2): the result filter of the observed roll. Any
+/// other die (`the planar die`, an ordinal die) or comparator fails.
+fn recognize_die_roll(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<DieRollFilter> {
+    let any = DieRollFilter {
+        minimum: None,
+        maximum: None,
+        batch: false,
+    };
+    cursor.enter("event.player.roll.dice");
+    if word_at(cursor, 0, "one") {
+        cursor.consume_phrase(&["one", "or", "more", "dice"])?;
+        return Ok(DieRollFilter { batch: true, ..any });
+    }
+    cursor.consume("a")?;
+    if word_at(cursor, 0, "die") {
+        cursor.consume("die")?;
+        return Ok(any);
+    }
+    cursor.enter("event.player.roll.result");
+    let value = cursor
+        .peek()
+        .and_then(|raw| raw.parse::<i64>().ok())
+        .filter(|value| *value >= 1)
+        .ok_or_else(|| cursor.fail("`die`, `one or more dice` or a positive die result"))?;
+    consume_verb_word(cursor)?;
+    let (minimum, maximum) = if word_at(cursor, 0, "or") {
+        cursor.enter("event.player.roll.comparator");
+        if word_at(cursor, 1, "higher") {
+            cursor.consume_phrase(&["or", "higher"])?;
+            (Some(value), None)
+        } else if word_at(cursor, 1, "lower") {
+            cursor.consume_phrase(&["or", "lower"])?;
+            (None, Some(value))
+        } else {
+            return Err(cursor.fail("a die-result comparator (`or higher` or `or lower`)"));
+        }
+    } else {
+        (Some(value), Some(value))
+    };
+    if word_at(cursor, 0, "on") {
+        cursor.enter("event.player.roll.die");
+        cursor.consume_phrase(&["on", "a", "die"])?;
+    }
+    Ok(DieRollFilter {
+        minimum,
+        maximum,
+        batch: false,
+    })
 }
 
 /// `a loyalty ability` | `an ability that isn't a mana ability`: the kinds of

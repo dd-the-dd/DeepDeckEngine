@@ -81,6 +81,9 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         card: Option<super::PlayerEventCardObject>,
         /// The permanent of `tap PERMANENT for mana`.
         permanent: Option<super::PlayerEventCardObject>,
+        /// `for the first time each turn`: only the first occurrence of
+        /// this event in a turn (the shared modifier tail).
+        first_time_each_turn: bool,
     },
     /// `equipped|enchanted creature VERB`: the event subject is the object the
     /// ability source is attached to (CR 301.5a, 303.4a), not the source.

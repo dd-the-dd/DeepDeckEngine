@@ -286,7 +286,7 @@ fn player_action_lemmas_lower_to_their_activation_observers() {
     );
     // Recognized, without a runtime matcher: an explicit engine gap.
     assert_eq!(
-        failure("Whenever you commit a crime, draw a card.").state,
+        failure("Whenever an opponent completes a dungeon, draw a card.").state,
         "engine.gap.event-matcher"
     );
     // A bare ability names no kind the activation record distinguishes.

@@ -232,6 +232,7 @@ impl GameEngine {
                     "won": flip.won,
                 }),
             );
+            self.publish_coin_flipped(&player_id, flip.won);
         }
         totals.write(bindings, &bind);
         bindings.insert(format!("{bind}:player"), RuntimeBinding::Player(player_id));
@@ -280,6 +281,10 @@ impl GameEngine {
                     "result": result,
                 }),
             );
+            self.publish_die_rolled(&player_id, result);
+        }
+        if count > 0 {
+            self.publish_dice_rolled_batch(&player_id);
         }
         bindings.insert(bind.clone(), RuntimeBinding::Integer(total));
         bindings.insert(format!("{bind}:count"), RuntimeBinding::Integer(count));
@@ -394,6 +399,7 @@ impl GameEngine {
                 "winner": winner,
             }),
         );
+        self.publish_clashed(&clashers, winner.as_deref());
         bindings.insert(
             bind.clone(),
             RuntimeBinding::Integer(i32::from(winner.as_deref() == Some(player_id.as_str()))),

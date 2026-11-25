@@ -639,6 +639,7 @@ impl GameEngine {
                         Some(source_id.clone()),
                         json!({ "reason": "cost" }),
                     );
+                    self.publish_permanent_exerted(&action.player_id, &source_id);
                 }
                 Some("millCards") => {
                     mill += integer_value(&cost["count"])

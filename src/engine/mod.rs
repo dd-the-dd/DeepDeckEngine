@@ -214,10 +214,12 @@ mod player_action_events;
 mod player_damage_batch;
 mod player_damage_observation;
 mod player_damage_replacement_order;
+mod player_event_matchers;
 mod player_iteration;
 mod player_quantifier;
 mod player_query;
 mod player_static_modifiers;
+mod previous_turn_events;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
@@ -4909,6 +4911,9 @@ fn activation_cost_modifier_supported(modifier: &Value) -> bool {
 fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
+    }
+    if let Some(supported) = player_event_matchers::player_outcome_event_supported(event) {
+        return supported;
     }
     if let Some(supported) = player_action_events::player_milestone_event_supported(event) {
         return supported;
@@ -21519,6 +21524,9 @@ impl GameEngine {
         if self.event_condition_suppresses(&rule, source, &decisions) {
             return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
         }
+        if self.first_occurrence_suppresses(&rule, source) {
+            return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
+        }
         let trigger_limit_id = rule["triggerLimit"]["id"].as_str();
         let trigger_limit_kind = value_kind(&rule["triggerLimit"]);
         if trigger_limit_id.is_some_and(|limit_id| {
@@ -23188,14 +23196,8 @@ impl GameEngine {
                                 Some("manaAbilityActivated") => {
                                     trigger_source.instance_id == mana_source.instance_id
                                 }
-                                Some("controlledPermanentManaAbilityActivated") => {
-                                    (event["anyPlayer"].as_bool() == Some(true)
-                                        || trigger_source.controller == mana_source.controller)
-                                        && matches_card_filter(
-                                            &mana_source.definition,
-                                            &event["where"],
-                                        )
-                                }
+                                Some("controlledPermanentManaAbilityActivated") => self
+                                    .tapped_for_mana_observed(event, &trigger_source, mana_source),
                                 Some("abilityActivated") => {
                                     trigger_source.controller == mana_source.controller
                                         && matches_card_filter(
@@ -24462,6 +24464,7 @@ impl GameEngine {
                 return;
             }
         }
+        self.publish_attackers_attacked_player(attacker_ids);
         self.publish_created_attack_triggers(&attack_records);
     }
 
@@ -26421,6 +26424,7 @@ impl GameEngine {
                     decisions
                 });
                 self.enqueue_mana_expended_triggers(&action.player_id, &action.decisions);
+                self.publish_committed_crime(&stack_id, &stack_targets);
                 self.enqueue_targeting_triggers(&stack_id, &stack_targets)?;
                 self.check_state_based_actions_with_provider(Some(provider))?;
             }
@@ -26902,6 +26906,7 @@ impl GameEngine {
                             &action.player_id,
                             &stack_id,
                         );
+                        engine.publish_committed_crime(&stack_id, &stack_targets);
                         engine.enqueue_targeting_triggers(&stack_id, &stack_targets)?;
                         return Ok(());
                     });
@@ -27806,6 +27811,7 @@ impl GameEngine {
                         Some(source.instance_id.clone()),
                     );
                 }
+                self.publish_committed_crime(&stack_id, &stack_targets);
                 self.enqueue_targeting_triggers(&stack_id, &stack_targets)?;
                 self.check_state_based_actions_with_provider(Some(provider))?;
             }

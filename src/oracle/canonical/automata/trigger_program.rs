@@ -225,6 +225,17 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
             subject,
             ..
         }) if subject.multiplicity == EventMultiplicity::PerObject
+    ) || matches!(
+        event,
+        // `one or more creatures you control attack a player`: one event per
+        // attacked player, which the record binds (CR 508.1, 603.2c).
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            verb: ObjectEventVerb::Attack,
+            subject,
+            attacked,
+            ..
+        }) if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. })
+            && matches!(attacked.as_slice(), [super::AttackedRecipientNode::Player(_)])
     ) || event_damage_complement(event)
         .is_some_and(|complement| matches!(complement.recipient, Some(DamageRecipient::Player(_))))
         // The drawing player (CR 121.1) and the caster of a cast spell (CR
