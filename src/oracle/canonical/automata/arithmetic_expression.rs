@@ -119,7 +119,6 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     super::sacrificed_cost_object_property_starts(cursor)
-        || super::sacrificed_cost_object_of_starts(cursor)
         || super::greatest_property_among_starts(cursor)
         || super::number_of_count_starts(cursor)
         || super::action_result_quantity_starts(cursor)
@@ -343,11 +342,6 @@ fn recognize_primary(
             && super::sacrificed_cost_object_property_starts(cursor)
         {
             return super::recognize_sacrificed_cost_object_property(cursor);
-        }
-        if query_context.kind.reads_definition_families()
-            && super::sacrificed_cost_object_of_starts(cursor)
-        {
-            return super::recognize_sacrificed_cost_object_of(cursor);
         }
         if query_context.kind.reads_definition_families()
             && super::greatest_property_among_starts(cursor)

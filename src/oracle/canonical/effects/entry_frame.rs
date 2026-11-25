@@ -136,6 +136,11 @@ fn lower_entry_copy(
     if copy.exceptions.not_legendary {
         operation["removeLegendary"] = json!(true);
     }
+    cursor.enter("replacement.entry-frame.copy-exception.runtime");
+    cursor.require(
+        !copy.exceptions.no_mana_cost,
+        "a copy exception the entry copy applies: granted keywords or `isn't legendary`",
+    )?;
     if let Some(changes) = &copy.exceptions.changes {
         cursor.enter("replacement.entry-frame.copy-exception.runtime");
         cursor.require(

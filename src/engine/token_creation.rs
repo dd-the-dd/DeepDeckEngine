@@ -512,6 +512,8 @@ impl GameEngine {
                 definition.power = Some(power.to_string());
                 definition.toughness = Some(toughness.to_string());
             }
+            // CR 707.9b: the copy has no mana cost (embalm, eternalize).
+            Some("removeManaCost") => definition.mana_cost = String::new(),
             Some("removeSupertype") => {
                 let supertype = exception["supertype"].as_str().unwrap_or_default();
                 definition.type_line = definition

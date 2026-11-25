@@ -21,17 +21,13 @@ pub(in crate::oracle::canonical) fn lower_target_cardinality_bound(atom: Numeric
     }
 }
 
-/// Stack value bound when the sacrifice cost is paid (`bindPowerAs` /
-/// `bindToughnessAs` on the producing cost). Card composition installs the
-/// binding on the same-face cost that produces it.
+/// Stack value bound when the producing cost is paid (`bindPowerAs` /
+/// `bindToughnessAs` on that cost). Card composition installs the binding
+/// on the same-face cost that produces it (`cost_paid_object.rs`).
 pub(in crate::oracle::canonical) fn sacrificed_cost_object_binding(
-    property: NumericObjectProperty,
+    property: CostPaidObjectProperty,
 ) -> &'static str {
-    match property {
-        NumericObjectProperty::Power => "sacrificedPermanentPower",
-        NumericObjectProperty::Toughness => "sacrificedPermanentToughness",
-        NumericObjectProperty::ManaValue => "sacrificedPermanentManaValue",
-    }
+    property.binding()
 }
 
 /// Compiler-assigned identifier of the objects action `effect_index` of a

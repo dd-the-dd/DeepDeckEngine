@@ -246,16 +246,12 @@ pub(in crate::oracle::canonical) fn recognize_environment_possessive_property(
     .map_err(|expected| cursor.fail(expected))
 }
 
-/// Lexical lookahead for `the sacrificed NOUN's ...`.
+/// Lexical lookahead for `the sacrificed NOUN's ...` and the other
+/// cost-paid object properties (`cost_paid_object.rs`).
 pub(in crate::oracle::canonical) fn sacrificed_cost_object_property_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("sacrificed"))
+    super::cost_paid_object_property_starts(cursor)
 }
 
 /// `the sacrificed NOUN's power|toughness`: a characteristic of the permanent
@@ -266,80 +262,7 @@ pub(in crate::oracle::canonical) fn sacrificed_cost_object_property_starts(
 pub(in crate::oracle::canonical) fn recognize_sacrificed_cost_object_property(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
-    cursor.enter("numeric.sacrificed-cost-object.reference");
-    cursor.consume_phrase(&["the", "sacrificed"])?;
-    cursor.enter("numeric.sacrificed-cost-object.possessive-object");
-    let object = cursor.consume_type("possessiveTypeWord")?;
-    cursor.require(
-        registered_possessive_object(&object.raw),
-        "a registered possessive card type or object domain",
-    )?;
-    cursor.enter("numeric.sacrificed-cost-object.property");
-    let property = recognize_cost_object_property(cursor)?;
-    Ok(NumericExpression::SacrificedCostObjectProperty(property))
-}
-
-/// The characteristic a paid cost records for the permanent it took: power,
-/// toughness (CR 208.1) or mana value (CR 202.3), each recorded as last known
-/// information when the cost was paid.
-fn recognize_cost_object_property(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<NumericObjectProperty> {
-    Ok(match super::recognize_selector_numeric_property(cursor)? {
-        super::SelectorNumericProperty::Power => NumericObjectProperty::Power,
-        super::SelectorNumericProperty::Toughness => NumericObjectProperty::Toughness,
-        super::SelectorNumericProperty::ManaValue => NumericObjectProperty::ManaValue,
-    })
-}
-
-/// Lexical lookahead for `the PROPERTY of the sacrificed NOUN` (`the mana
-/// value of the sacrificed permanent`): the postposed genitive of the same
-/// paid-cost object.
-pub(in crate::oracle::canonical) fn sacrificed_cost_object_of_starts(
-    cursor: &OracleTokenCursor<'_>,
-) -> bool {
-    let word = |offset: usize, expected: &str| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
-    };
-    let property_width = if word(1, "mana") && word(2, "value") {
-        2
-    } else if word(1, "power") || word(1, "toughness") {
-        1
-    } else {
-        return false;
-    };
-    word(0, "the")
-        && word(1 + property_width, "of")
-        && word(2 + property_width, "the")
-        && word(3 + property_width, "sacrificed")
-}
-
-/// `the PROPERTY of the sacrificed NOUN`: the postposed form of `the
-/// sacrificed NOUN's PROPERTY`, with the same paid-cost producer.
-pub(in crate::oracle::canonical) fn recognize_sacrificed_cost_object_of(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<NumericExpression> {
-    cursor.enter("numeric.sacrificed-cost-object-of.property");
-    cursor.consume("the")?;
-    let property = recognize_cost_object_property(cursor)?;
-    cursor.enter("numeric.sacrificed-cost-object-of.reference");
-    cursor.consume_phrase(&["of", "the", "sacrificed"])?;
-    cursor.enter("numeric.sacrificed-cost-object-of.object");
-    let noun = cursor
-        .peek()
-        .ok_or_else(|| cursor.fail("a card type or object domain"))?
-        .to_owned();
-    cursor.require(
-        matches!(
-            lookup_object_selector_lexeme(&noun),
-            Some(CharacteristicLexeme::CardType(_) | CharacteristicLexeme::ObjectDomain(_))
-        ),
-        "a registered card type or object domain",
-    )?;
-    cursor.consume(&noun)?;
-    Ok(NumericExpression::SacrificedCostObjectProperty(property))
+    super::recognize_cost_paid_object_property(cursor)
 }
 
 /// A possessive registered card type or object domain (`creature's`,

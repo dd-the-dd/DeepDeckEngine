@@ -352,6 +352,9 @@ mod event_count_runtime;
 #[path = "tests/graveyard_source_return_runtime.rs"]
 mod graveyard_source_return_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/keyword_template_batch7_runtime.rs"]
+mod keyword_template_batch7_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_crew_runtime.rs"]
 mod keyword_template_crew_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]

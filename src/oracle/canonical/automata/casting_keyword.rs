@@ -500,6 +500,7 @@ fn read_reminder(
             .and_then(KeywordCostNode::single_mana)
             .map(ManaCostNode::as_oracle_cost),
         subtypes: Vec::new(),
+        threshold: None,
     };
     let matches = definition.reminders.iter().any(|reminder| {
         instantiate(reminder, &arguments)

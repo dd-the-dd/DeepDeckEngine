@@ -47,6 +47,7 @@ Schéma `deepdeck-keyword-templates/v1`, versionné avec le catalogue
 | `intrinsic` | définition sans phrase de la grammaire partagée (`ascend`, `storied`, `readAhead`, `ninjutsu`) ; `abilities` est alors vide et l'expansion typée la réduit en IR ordinaire |
 | `activationCosts` | coûts cités de la clause CR d'un intrinsèque activé (`$cost, Reveal this card from your hand, ...`), relus par la séquence de coûts d'activation partagée |
 | `faceKind` | type de face exigé quand la CR scinde la définition par face (`permanent`) |
+| `thresholdBand` | règle typée que désigne un seuil capturé dans le rappel par `$threshold` (`stationCreature`, CR 722.2b) |
 
 Lignes intrinsèques (lot 6) :
 
@@ -82,6 +83,7 @@ Emplacements (définitions et rappels) :
 | `$Ntimes[TEXTE]` | TEXTE, `twice TEXTE`, `three times TEXTE`… (multiple, rappel de Devour) |
 | `$subtypes` | les sous-types de la face, dans l'ordre imprimé (rappels seulement) |
 | `$subtypeAlternatives` | les sous-types joints par `and/or` (`Bird and/or Soldier`, rappels seulement) |
+| `$threshold` | un seuil de bande imprimé, capturé dans le rappel (`at $threshold+`, rappels seulement) |
 
 Un rappel peut reformuler la définition avec les sous-types de la carte
 (Embalm : `a white Zombie Human Warrior`, Amplify : `each Beast card`) : ces
@@ -543,13 +545,10 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 | Saddle | 34 | effet `becomes saddled until end of turn` (désignation à durée) ; le coût est celui de Crew |
 | Devour | 19 | `ability-frame.entry-replacement.modification` (`As this object enters, you may sacrifice …`) |
 | Firebending | 18 | `effect.start` (`Until end of combat, you don't lose this mana…`) |
-| Embalm | 15 | `reference.source.antecedent-kind` (copie `except it's white, it has no mana cost, …`) |
-| Scavenge | 14 | `collection.card-noun` (`a number of … equal to the power of the card you exiled`) |
 | Squad | 14 | `ability-frame.additional-cost.action` (`pay [cost] any number of times`) |
 | Transmute | 14 | `selector.search-card.basic-land-type` (`with the same mana value as the discarded card`) |
 | Enlist | 15 | `ability-frame.static.subject` (`As this creature attacks, you may tap …`) |
 | Ravenous | 12 | `binding.x-value.source` (X du sort d'un permanent, CR 107.3m) |
-| Eternalize | 11 | `effect.start` (copie `except it's black, it's 4/4, …`) |
 | Amplify | 9 | `ability-frame.entry-replacement.modification` (révélation à l'entrée) |
 
 Cinq lignes échouent sur un rappel de libellé ancien ou rare (`one fade
@@ -562,9 +561,8 @@ Embalm 14/14, Eternalize 10/11, Transmute 13/14, Firebending 16/16) : seule la
 définition reste à compiler, et chaque correction de la grammaire partagée
 nommée ci-dessus débloque le mot-clé sans code de plus.
 
-Non ajoutés : Station (une grammaire historique produit encore
-`stationCreaturePower` en mode complet, et le rappel `It's an artifact
-creature at N+` décrit la bande P/T de la carte, pas le mot-clé), Myriad
+Embalm, Eternalize et Scavenge sont débloqués (lot 7, ci-dessous). Non
+ajoutés : Myriad
 (programme moteur historique `resolveMyriad`), Champion (paramètre « an
 [object] »), Double team (`conjure`).
 
@@ -572,3 +570,93 @@ Hors périmètre (mécanismes moteur nouveaux), cartes bloquées seulement par
 eux : Madness 39, Partner 32 (règle de construction), Start your engines! 29,
 Power-up 28, Visit 25, Exhaust 23, Spree 21, Ninjutsu 14, Sneak 14, Escape 12,
 Banding 10, Blitz 9, Phasing 7.
+
+## Lot 7 : liste d'exceptions de copie, objets payés en coût, Station
+
+### Exceptions de copie (Embalm, Eternalize)
+
+`copy_exception.rs` est le lecteur unique des exceptions de copie (jeton,
+entrée comme copie, copie sur la pile). Il lit maintenant :
+
+- la liste sérielle `A, B, and C` (CR 702.128a : `except it's white, it has
+  no mana cost, and it's a Zombie in addition to its other types`). Les
+  éléments après une virgule nue sont tentatifs : seul le `and` final les
+  engage ; sans lui (ou si un élément tentatif est illisible), la liste
+  s'arrête avant la virgule, qui reste le séparateur de la phrase englobante ;
+- `has no mana cost` (CR 707.9b, 202.1b) → exception `removeManaCost` ; le
+  moteur vide le coût de mana copiable (`token_creation.rs`), la valeur de
+  mana devient 0 (CR 202.3a). L'entrée comme copie n'applique pas cette
+  exception : échec explicite `replacement.entry-frame.copy-exception.runtime` ;
+- `it's a 1/1` : l'article appartient à la force/endurance ; un article devant
+  une couleur seule exige toujours ses noms de type ;
+- `in addition to its other creature types` : forme additive admise seulement
+  si chaque nom ajouté est un sous-type de créature
+  (`token.copy.except.retention.creature-types`).
+
+Un élément hors de la liste typée (`except it's legendary`) échoue
+explicitement (`token.copy.except.complement`). Combinaison inédite sans
+code de mot-clé : `except it's a 1/1 and it's a Spirit in addition to its
+other types` sur une copie imprimée.
+
+### Objets payés en coût (`cost_paid_object.rs`)
+
+Une lecture numérique d'un objet payé en coût reste symbolique pendant
+l'analyse et est liée après composition de la carte
+(`contextual_binding.rs`), y compris dans les règles d'une expansion de
+mot-clé (chaque partie ne lit que ses propres coûts) :
+
+| Texte | Producteur | IR |
+|---|---|---|
+| `the sacrificed NOUN's power/toughness` | coût `sacrificePermanent` unique (ou coût additionnel du même sort) | `decisionResult sacrificedPermanent*` + `bindPowerAs`/`bindToughnessAs` |
+| `the tapped NOUN's power` (CR 702.184a) | coût `tap` unique d'un permanent choisi | `decisionResult tappedPermanentPower` + `bindPowerAs` sur ce coût |
+| `the power of the card you exiled` (CR 702.97a) | coût `exileSource` unique de la source | réécrit en `powerOf self` (la carte exilée garde ses caractéristiques) |
+
+`the tapped NOUN's toughness` est refusé (`numeric.cost-object.tapped-property`) :
+le coût d'engagement du moteur n'enregistre que la force. Sans producteur
+unique : `binding.sacrificed-cost-object.source`,
+`binding.exiled-source-card.source` ou `binding.cost-object.source`
+(expansion). Transmute (`the same mana value as the discarded card`) reste
+bloqué dans le sélecteur de recherche (`selector.search-card.basic-land-type`).
+
+### Station (CR 702.184a, 722.2b)
+
+Ligne `station` sans paramètre, `faceKind: permanent` : la définition
+`Tap another untapped creature you control: Put a number of charge counters
+on this permanent equal to the tapped creature's power. Activate only as a
+sorcery.` compose le coût d'engagement d'une autre créature, la lecture
+`the tapped creature's power` et le moment de rituel ; aucun code propre au
+mot-clé. Le programme historique `stationCreaturePower`
+(`resolveTriggeredInstruction`) n'est produit par aucun analyseur : seul le
+test moteur `station_requires_an_untapped_creature_and_unlocks_adagias_copy_ability`
+le cite encore ; la ligne le remplace pour toute carte.
+
+Le texte Oracle omet la case de force/endurance d'une carte à station ; le
+rappel `It's an artifact creature at N+.` est la seule preuve Oracle de la
+strie qui la porte. `$threshold` capture N et `thresholdBand:
+stationCreature` ajoute une capacité statique de la source, `addCardType
+Creature`, sous la porte `counterRange {charge, minimum: N}` de
+`band_gate.rs` (même lecteur moteur que les bandes de niveau). La force et
+l'endurance de base sont celles imprimées de la carte (sa seule case P/T).
+Une face d'artefact sans rappel laisse cette strie inconnue : échec explicite
+`keyword.template.threshold-band` (U.S.S. Discovery, Monoist Gravliner…) ;
+une phrase de créature-artefact sur une face non-artefact aussi. Une
+Planète (terrain) sans case P/T n'a pas de bande de créature.
+
+Preuves : fixtures `keyword-template-batch7.json` (Borg Scout Sphere, Lumen-
+Class Frigate, Kavaron, Sacred Cat, Champion of Wits, Deadbridge Goliath,
+sœurs imprimées et quasi-échecs), test d'analyse
+`a_station_reminder_names_the_creature_band_of_an_artifact_face`, tests
+moteur `keyword_template_batch7_runtime.rs` (station jusqu'à l'ouverture de
+la bande de créature, jeton embaumé blanc sans coût de mana, jeton
+éternalisé 4/4 noir, compteurs de scavenge égaux à la force de la carte
+exilée).
+
+Restent hors de ce lot (raison mesurée) : Devour et Amplify (le moteur n'a
+pas de choix de permanents à sacrifier ni de révélation dans un remplacement
+d'entrée), Squad et Multikicker (le moteur refuse un coût additionnel
+`repeatable` hors Replicate), Encore (exigence d'attaque contre un joueur
+désigné absente du moteur), Miracle (aucun producteur de
+`miraclePermission` à la pioche), Rampage (`beyond the first` exige un
+plancher à 0 que les évaluateurs numériques ne partagent pas), Gift
+(condition `the gift was promised` non typée), Dethrone et Training
+(prédicats d'événement d'attaque).
