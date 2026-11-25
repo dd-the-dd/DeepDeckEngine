@@ -323,6 +323,14 @@ impl GameEngine {
                         moved_ids.push(object.clone());
                         continue;
                     }
+                    // A permanent named by a typed reference leaves the
+                    // battlefield through its zone-specific lifecycle.
+                    if source_constraint.is_none()
+                        && self.move_referenced_permanent(object, &effect["to"])?
+                    {
+                        moved_ids.push(object.clone());
+                        continue;
+                    }
                     let source_zone = (destination == "battlefield")
                         .then(|| {
                             if let Some((zone_name, player_index)) = &source_constraint {

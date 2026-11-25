@@ -25,6 +25,17 @@ pub(in crate::oracle::canonical) enum CardOperandNode {
     CommandZone {
         predicate: ObjectPredicate,
     },
+    /// A card-collection pronoun (`it`, `that card`, `them`, `those cards`)
+    /// read where the binding environment names a typed object antecedent:
+    /// the ability's source, a declared target, the event's object, the
+    /// object an earlier action moved, or a set it produced. The lowerer
+    /// reads the program's observed card collection when it has one (the
+    /// collection is the nearer antecedent of a card pronoun) and the typed
+    /// object otherwise, as the card that object is or became (CR 400.7).
+    ObjectAntecedent {
+        reference: CardCollectionReferenceNode,
+        object: PermanentEffectReference,
+    },
 }
 
 /// The frame facts a card action reads from its enclosing program: whether
@@ -299,6 +310,12 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
                     from: fragment.node,
                 }));
             }
+            if let Some(object) = card_pronoun_object_antecedent(cursor, fragment.node) {
+                return Ok(CardOperandNode::ObjectAntecedent {
+                    reference: fragment.node,
+                    object,
+                });
+            }
             return Ok(CardOperandNode::Reference(fragment.node));
         }
         CardCollectionReferenceAttempt::FailedCommitted(failure) => return Err(failure),
@@ -314,6 +331,56 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
         CardSelectionOperandAttempt::NotClaimed => {
             Err(cursor.fail("a collection reference or quantified card query"))
         }
+    }
+}
+
+/// The typed object a card-collection pronoun names through the one binding
+/// environment. A singular pronoun reads the shared pronoun resolver (the
+/// source, a declared target, the event's object, the card a move put onto
+/// the battlefield), else the one permanent an earlier sacrifice put into a
+/// graveyard (a card action acts on the card it became, CR 400.7). A plural
+/// pronoun reads the declared target set or the created tokens. Every
+/// card-collection producer (look, reveal, search, mill, draw) clears these
+/// antecedents or is read first by the lowerer, so an observed collection
+/// stays the pronoun's nearer antecedent. When the event moved its object
+/// into a public zone, the frame's event card answers instead. Nothing is
+/// guessed: without such an antecedent the operand stays a collection
+/// reference whose lowering requires an observation.
+fn card_pronoun_object_antecedent(
+    cursor: &OracleTokenCursor<'_>,
+    reference: CardCollectionReferenceNode,
+) -> Option<PermanentEffectReference> {
+    let environment = cursor.binding_environment()?;
+    if environment.frame.event_card.is_some() {
+        return None;
+    }
+    match reference {
+        CardCollectionReferenceNode::Selected => {
+            resolve_pronoun_antecedent(environment).ok().or_else(|| {
+                environment
+                    .result_object
+                    .as_ref()
+                    .filter(|result| {
+                        result.number == GrammaticalNumber::Singular
+                            && result.verb == Some(ActionResultVerb::Sacrificed)
+                    })
+                    .map(ActionResultObject::permanent_reference)
+            })
+        }
+        CardCollectionReferenceNode::Antecedent => environment
+            .objects
+            .as_ref()
+            .filter(|set| set.number == GrammaticalNumber::Plural)
+            .and_then(|set| match &set.denotes {
+                ObjectSetDenotation::Bound(reference) => Some(*reference),
+                ObjectSetDenotation::Collection { .. } => None,
+            }),
+        CardCollectionReferenceNode::Remainder
+        | CardCollectionReferenceNode::Other
+        | CardCollectionReferenceNode::Zone
+        | CardCollectionReferenceNode::Exiled
+        | CardCollectionReferenceNode::Linked
+        | CardCollectionReferenceNode::Revealed => None,
     }
 }
 
@@ -387,7 +454,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
             cursor.enter("card-action.shuffle.object");
             let cards = operand(cursor)?;
             let destination = super::recognize_shuffle_library_destination(cursor)?;
-            return Ok(Some(CardActionNode::Move { cards, destination }));
+            return Ok(Some(moved_cards(cards, destination)));
         }
         if cursor
             .peek()
@@ -436,7 +503,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
         }
         let cards = operand(cursor)?;
         let destination = recognize_card_action_destination(cursor, "exile")?;
-        return Ok(Some(CardActionNode::Move { cards, destination }));
+        return Ok(Some(moved_cards(cards, destination)));
     }
     let explicit_move = is_verb_form(&head, VerbLemma::Put, VerbForm::Base)
         || is_verb_form(&head, VerbLemma::Return, VerbForm::Base);
@@ -450,12 +517,28 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
         // follows its destination (the same two children, reversed).
         if let Some(destination) = super::try_recognize_preposed_card_move_destination(cursor)? {
             let cards = operand(cursor)?;
-            return Ok(Some(CardActionNode::Move { cards, destination }));
+            return Ok(Some(moved_cards(cards, destination)));
         }
     }
     let cards = operand(cursor)?;
     let destination = recognize_card_action_destination(cursor, "move")?;
-    Ok(Some(CardActionNode::Move { cards, destination }))
+    Ok(Some(moved_cards(cards, destination)))
+}
+
+/// One card move. A declared target a pronoun puts onto the battlefield
+/// (`exile target creature, then return that card to the battlefield`) is
+/// the card an earlier action of the program moved out of play: a declared
+/// permanent never re-enters the battlefield itself (CR 400.7). The pronoun
+/// then names the program's observed card, as a collection reference.
+fn moved_cards(cards: CardOperandNode, destination: CardMoveDestinationNode) -> CardActionNode {
+    let cards = match cards {
+        CardOperandNode::ObjectAntecedent {
+            reference,
+            object: PermanentEffectReference::Target(_) | PermanentEffectReference::TargetSet(_),
+        } if destination.zone == CardZoneName::Battlefield => CardOperandNode::Reference(reference),
+        cards => cards,
+    };
+    CardActionNode::Move { cards, destination }
 }
 
 /// `look at OPERAND`: the shared library-position operand (the controller's
@@ -1917,6 +2000,7 @@ fn recognize_card_permission(
         matches!(
             cards,
             CardOperandNode::Reference(_)
+                | CardOperandNode::ObjectAntecedent { .. }
                 | CardOperandNode::Selection(_)
                 | CardOperandNode::ZoneCollection(_)
                 | CardOperandNode::Targets(_)

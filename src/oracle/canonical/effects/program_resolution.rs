@@ -82,7 +82,8 @@ fn independent_number(amount: &NumericExpression) -> bool {
 
 fn simple_operand(operand: &CardOperandNode) -> bool {
     match operand {
-        CardOperandNode::Reference(reference) => matches!(
+        CardOperandNode::Reference(reference)
+        | CardOperandNode::ObjectAntecedent { reference, .. } => matches!(
             reference,
             CardCollectionReferenceNode::Antecedent | CardCollectionReferenceNode::Selected
         ),
@@ -318,6 +319,21 @@ impl CollectionScope {
         match operand {
             CardOperandNode::Reference(reference) => {
                 let maximum = self.reference(*reference)?;
+                self.mention(maximum);
+                Ok(())
+            }
+            // The observed collection is the nearer antecedent of a card
+            // pronoun; without one the pronoun names its typed object (one
+            // object for `it` / `that card`, a set for `them`).
+            CardOperandNode::ObjectAntecedent { reference, .. } => {
+                let maximum = if self.observation {
+                    self.reference(*reference)?
+                } else {
+                    match reference {
+                        CardCollectionReferenceNode::Selected => Some(1),
+                        _ => None,
+                    }
+                };
                 self.mention(maximum);
                 Ok(())
             }

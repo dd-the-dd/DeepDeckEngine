@@ -31,6 +31,10 @@ pub(in super::super) fn damage_effect_supported(effect: &Value) -> Option<bool> 
                 && effect.get("source").is_none_or(|source| {
                     matches!(value_kind(source), Some("self" | "abilitySource"))
                         || target_reference_supported(source)
+                        // The entering object as it was observed (CR 400.7).
+                        || super::super::entry_observation::observed_object_reference_supported(
+                            source,
+                        )
                 })
                 && effect.get("bindExcessAs").is_none_or(Value::is_string)
                 && effect.get("bindRecipientAs").is_none_or(Value::is_string)

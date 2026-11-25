@@ -101,35 +101,19 @@ impl GameEngine {
                         decisions,
                     )
                     .unwrap_or(0);
-                let resolved_source = effect
-                    .get("source")
-                    .and_then(|source| self.resolve_target(source, stack_object, bindings))
-                    .and_then(|source| match source {
-                        TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
-                            Some(instance_id)
-                        }
-                        TargetRef::Player { .. } | TargetRef::StackObject { .. } => None,
-                    });
-                // A declared object source that became illegal deals no damage
-                // (CR 608.2b), nor does an attached object that is no longer
-                // attached; only the ability's own source keeps its LKI.
-                if resolved_source.is_none()
-                    && matches!(
-                        value_kind(&effect["source"]),
-                        Some("chosenTarget" | "chosenTargets" | "attachedPermanent")
-                    )
-                {
+                // The typed damage source (CR 120.1): an illegal declared or
+                // attached object deals nothing (CR 608.2b); a departed event
+                // object deals it as it last existed (CR 608.2h).
+                let Some(damage_source) = self.resolve_effect_damage_source(
+                    effect.get("source"),
+                    stack_object,
+                    bindings,
+                )?
+                else {
                     return Ok(());
-                }
-                let damage_source_id =
-                    resolved_source.unwrap_or_else(|| stack_object.card.instance_id.clone());
-                // A resolving spell has left the stack; its characteristics
-                // remain those of the spell for replacement effects that
-                // examine the damage source (CR 120.3, 609.7).
-                let spell_profile = (damage_source_id == stack_object.card.instance_id
-                    && stack_object_is_spell(stack_object))
-                .then(|| self.resolve_damage_source_lki(stack_object).ok())
-                .flatten();
+                };
+                let damage_source_id = damage_source.instance_id;
+                let spell_profile = damage_source.profile;
                 if value_kind(&effect["recipient"]) == Some("eachPlayer") {
                     let player_ids = self
                         .state
@@ -250,12 +234,29 @@ impl GameEngine {
                 } else if let Some(player_id) =
                     self.resolve_player(&effect["recipient"], stack_object, bindings)
                 {
-                    self.deal_damage_from_effect(
-                        TargetRef::Player { player_id },
-                        amount,
-                        &damage_source_id,
-                        provider,
-                    )?;
+                    // A departed source deals the damage with the effective
+                    // traits it last had (CR 608.2h).
+                    if spell_profile
+                        .as_ref()
+                        .is_some_and(|profile| profile.last_known)
+                    {
+                        self.deal_damage_amount_with_source_profile(
+                            TargetRef::Player { player_id },
+                            amount,
+                            &damage_source_id,
+                            false,
+                            QuantityOrigin::Effect,
+                            Some(provider),
+                            spell_profile.as_ref(),
+                        )?;
+                    } else {
+                        self.deal_damage_from_effect(
+                            TargetRef::Player { player_id },
+                            amount,
+                            &damage_source_id,
+                            provider,
+                        )?;
+                    }
                 }
             }
             Some("dealDividedDamage") => {

@@ -1,0 +1,411 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "typed-reference-consumers-batch7",
+  "cases": [
+    {
+      "id": "scourge-of-valkas-exact-entering-object-deals-damage",
+      "request": {
+        "cardName": "Scourge of Valkas",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}{R}{R}",
+        "oracleText": "Flying\nWhenever this creature or another Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.\n{R}: This creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "warstorm-surge-exact-entering-object-power-damage",
+      "request": {
+        "cardName": "Warstorm Surge",
+        "typeLine": "Enchantment",
+        "manaCost": "{5}{R}",
+        "oracleText": "Whenever a creature you control enters, it deals damage equal to its power to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "dragon-tempest-exact-two-entering-object-consumers",
+      "request": {
+        "cardName": "Dragon Tempest",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever a creature you control with flying enters, it gains haste until end of turn.\nWhenever a Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "aether-charge-exact-causative-entering-object-damage",
+      "request": {
+        "cardName": "Aether Charge",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{R}",
+        "oracleText": "Whenever a Beast you control enters, you may have it deal 4 damage to target opponent or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "ingris-stingerquill-exact-attacking-object-deals-damage",
+      "request": {
+        "cardName": "Ingris Stingerquill",
+        "typeLine": "Legendary Creature — Elder Sphinx",
+        "manaCost": "{B}{R}{R}",
+        "oracleText": "Flying\nWhenever a creature you control attacks, that creature deals 1 damage to each opponent.\n{4}: Create a 2/2 colorless Wizard Soldier creature token named Cadet. Then creatures you control gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "stalking-vengeance-exact-departed-object-deals-damage",
+      "request": {
+        "cardName": "Stalking Vengeance",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{5}{R}{R}",
+        "oracleText": "Haste\nWhenever another creature you control dies, it deals damage equal to its power to target player or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "too-greedily-too-deep-exact-moved-card-deals-damage-to-each-other",
+      "request": {
+        "cardName": "Too Greedily, Too Deep",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{B}{R}",
+        "oracleText": "Put target creature card from a graveyard onto the battlefield under your control. That creature deals damage equal to its power to each other creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "extra-arms-exact-attached-attacker-deals-damage",
+      "request": {
+        "cardName": "Extra Arms",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{4}{R}",
+        "oracleText": "Enchant creature\nWhenever enchanted creature attacks, it deals 2 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-attacking-goblin-deals-damage-to-any-target",
+      "request": {
+        "cardName": "Attack Damage Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a Goblin you control attacks, that creature deals 1 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-created-token-deals-damage-to-you",
+      "request": {
+        "cardName": "Token Damage Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Create a 3/3 black Horror creature token. It deals 3 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "inventors-goggles-exact-attach-source-to-entrant",
+      "request": {
+        "cardName": "Inventor's Goggles",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Equipped creature gets +1/+2.\nWhenever an Artificer you control enters, you may attach this Equipment to it.\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "prison-term-exact-attach-aura-to-nominal-entrant",
+      "request": {
+        "cardName": "Prison Term",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Enchant creature\nEnchanted creature can't attack or block, and its activated abilities can't be activated.\nWhenever a creature an opponent controls enters, you may attach this Aura to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "shielded-by-faith-exact-attach-aura-to-any-entrant",
+      "request": {
+        "cardName": "Shielded by Faith",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Enchant creature\nEnchanted creature has indestructible.\nWhenever a creature enters, you may attach this Aura to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "new-combination-entrant-receives-the-equipment-then-deals-damage",
+      "request": {
+        "cardName": "Combination Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature gets +1/+1.\nWhenever a creature you control enters, attach this Equipment to it. It deals 1 damage to each opponent.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "greasefang-exact-moved-card-returned-at-next-end-step",
+      "request": {
+        "cardName": "Greasefang, Okiba Boss",
+        "typeLine": "Legendary Creature — Rat Pilot",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Return it to its owner's hand at the beginning of your next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "narcomoeba-exact-source-card-put-onto-the-battlefield",
+      "request": {
+        "cardName": "Narcomoeba",
+        "typeLine": "Creature — Illusion",
+        "manaCost": "{1}{U}",
+        "oracleText": "Flying\nWhen this card is put into your graveyard from your library, you may put it onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "grazilaxx-exact-blocked-event-object-returned-to-hand",
+      "request": {
+        "cardName": "Grazilaxx, Illithid Scholar",
+        "typeLine": "Legendary Creature — Horror",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Whenever a creature you control becomes blocked, you may return it to its owner's hand.\nWhenever one or more creatures you control deal combat damage to a player, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "zephyr-spirit-exact-source-returned-to-hand",
+      "request": {
+        "cardName": "Zephyr Spirit",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{5}{U}",
+        "oracleText": "When this creature blocks, return it to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "slogurk-exact-activated-source-returned-to-hand",
+      "request": {
+        "cardName": "Slogurk, the Overslime",
+        "typeLine": "Legendary Creature — Ooze",
+        "manaCost": "{1}{G}{U}",
+        "oracleText": "Trample\nWhenever a land card is put into your graveyard from anywhere, put a +1/+1 counter on Slogurk.\nRemove three +1/+1 counters from Slogurk: Return it to its owner's hand.\nWhen Slogurk leaves the battlefield, return up to three target land cards from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wall-of-junk-exact-delayed-source-return",
+      "request": {
+        "cardName": "Wall of Junk",
+        "typeLine": "Artifact Creature — Wall",
+        "manaCost": "{2}",
+        "oracleText": "Defender (This creature can't attack.)\nWhen this creature blocks, return it to its owner's hand at end of combat. (Return it only if it's on the battlefield.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "feral-lightning-exact-created-tokens-exiled-later",
+      "request": {
+        "cardName": "Feral Lightning",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}{R}{R}",
+        "oracleText": "Create three 3/1 red Elemental creature tokens with haste. Exile them at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "dissipation-field-exact-damaging-permanent-returned",
+      "request": {
+        "cardName": "Dissipation Field",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Whenever a permanent deals damage to you, return it to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-target-creature-shuffled-into-library",
+      "request": {
+        "cardName": "Shuffle Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Tap target creature. Shuffle it into its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-attach-it-to-it-names-one-object",
+      "request": {
+        "cardName": "Self Attach Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature you control enters, attach it to it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-card-pronoun-without-any-antecedent",
+      "request": {
+        "cardName": "Pronoun Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. Return it to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-plural-pronoun-naming-one-target",
+      "request": {
+        "cardName": "Plural Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Tap target creature. Return them to their owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

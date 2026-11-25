@@ -219,6 +219,7 @@ mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
 mod rebound;
+mod referenced_object;
 mod resolution_casting;
 mod resolution_checkpoint;
 mod resolution_costs;
@@ -2908,6 +2909,7 @@ fn object_expression_supported(expression: &Value) -> bool {
                     .is_none_or(object_expression_supported)
         }
         Some("cardsExiledWithSource" | "triggeringCard") => true,
+        Some("referencedObject") => referenced_object::referenced_object_supported(expression),
         Some("libraryTopCards") => {
             library_zone_supported(&expression["zone"])
                 && numeric_expression_supported(&expression["count"])
@@ -22795,6 +22797,10 @@ impl GameEngine {
                 Value::Bool(died.definition.is_token),
             ),
             (
+                damage_preparation::DEPARTED_EVENT_OBJECT_IDENTITY.to_string(),
+                damage_preparation::departed_identity_value(died),
+            ),
+            (
                 "triggeringPermanentWasAttacking".to_string(),
                 Value::Bool(died.flags.get("attacking").copied().unwrap_or(false)),
             ),
@@ -32149,6 +32155,9 @@ impl GameEngine {
                 Some(drawn)
             }
             Some("triggeringCard") => Some(self.event_card_ids(stack_object)),
+            Some("referencedObject") => {
+                self.referenced_object_ids(expression, stack_object, bindings, decisions)
+            }
             Some("cardsExiledWithSource") => Some(
                 self.state
                     .rule_modifiers

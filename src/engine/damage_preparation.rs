@@ -3,6 +3,13 @@
 use super::counter_placement::PreparedCounterRemoval;
 use super::*;
 
+#[path = "damage_source_reference.rs"]
+mod source_reference;
+pub(super) use source_reference::{
+    DEPARTED_EVENT_OBJECT_IDENTITY, EffectDamageSource, departed_identity_value,
+    is_event_object_damage_source,
+};
+
 pub(super) struct DeferredDamageEvent {
     pub kind: &'static str,
     pub player_id: Option<String>,

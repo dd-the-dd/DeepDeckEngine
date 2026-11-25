@@ -15,7 +15,11 @@ fn supports_known_effect(effect: &Value) -> bool {
                 Some("self" | "abilitySource")
             ) || target_reference_supported(&effect["attachment"])
                 || object_expression_supported(&effect["attachment"]))
+                // The entering object the event observed (CR 400.7).
                 && (target_reference_supported(&effect["to"])
+                    || super::super::entry_observation::observed_object_reference_supported(
+                        &effect["to"],
+                    )
                     || value_kind(&effect["to"]) == Some("decisionResult")
                         && effect["to"]["decisionId"].is_string()
                     || object_expression_supported(&effect["to"]))

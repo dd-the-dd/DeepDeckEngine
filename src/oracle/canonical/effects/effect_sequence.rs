@@ -169,7 +169,10 @@ fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
             | CardActionNode::Reveal(cards)
             | CardActionNode::Copy { cards, .. }
             | CardActionNode::Permit(CardPermissionNode { cards, .. }),
-        ) => Some(matches!(cards, CardOperandNode::Reference(_))),
+        ) => Some(matches!(
+            cards,
+            CardOperandNode::Reference(_) | CardOperandNode::ObjectAntecedent { .. }
+        )),
         LocalEffectNode::CardAction(_) => Some(false),
         _ => None,
     }) == Some(true)
@@ -790,6 +793,8 @@ fn lower_local_effect_sequence_with_collections(
                     }
                 };
                 let first_decision = decisions.len();
+                // A card pronoun may name a target an earlier action declared.
+                collections.bind_object_references(&target_bindings);
                 effects.extend(
                     collections
                         .lower_action(cursor, action, declarations, &mut decisions)
@@ -1725,22 +1730,23 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
-                // The engine resolves an attached object and a destination
-                // as source, target, bound or decision references only. An
-                // event-object reference is not a supported attach operand.
-                cursor.require(
-                    attachments
-                        .iter()
-                        .chain(recipients.iter())
-                        .all(|object| value_kind_is_not_observed(object)),
-                    "an attach operand that is not an observed event object",
-                )?;
                 let ([attachment], [recipient]) = (attachments.as_slice(), recipients.as_slice())
                 else {
                     return Err(EffectSequenceLoweringFailure::FailedSupport(
                         cursor.fail("one attached object and one attachment destination"),
                     ));
                 };
+                // Any typed reference to one object is an attach operand: the
+                // source, a declared target, the entering object the event
+                // observed (`attach this Equipment to it`, CR 400.7) or an
+                // object bound earlier. An object is never attached to itself
+                // (CR 701.3c): two operands naming the same reference (`attach
+                // it to it`) leave the recipient ambiguous and are refused.
+                cursor.enter("lower.attach.distinct-operands");
+                cursor.require(
+                    attachment != recipient,
+                    "an attachment and a recipient that name different objects",
+                )?;
                 effects.push(json!({
                     "kind": "attachPermanent",
                     "attachment": attachment.clone(),
@@ -2036,14 +2042,15 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail("exactly one object dealing the damage"),
                     ));
                 };
-                // The permanent the source is attached to (`enchanted creature
-                // deals 1 damage to its owner`) is a live object reference
-                // the runtime resolves; an unattached source deals no damage.
-                cursor.require(
-                    source["kind"].as_str() == Some("chosenTarget")
-                        || (source["kind"].as_str() == Some("attachedPermanent")
-                            && source["attachment"]["kind"].as_str() == Some("self")),
-                    "a damage source declared as a target, bound to a declared target, or attached to the source",
+                // Any typed reference to one object deals the damage (CR
+                // 120.1): a declared target, the permanent the source is
+                // attached to, the event's object, an object bound earlier
+                // (a created token, the card a move put onto the
+                // battlefield) or the source itself. The runtime resolves
+                // each with its own departure rule (CR 608.2b, 608.2h).
+                let source = &cursor.require_value(
+                    super::permanent_subject::single_object_reference(source.clone()),
+                    "one object dealing the damage: a target, an attached, event, bound or source object",
                 )?;
                 let amount = lower_sequence_bound_amount(
                     cursor,
@@ -2060,9 +2067,9 @@ fn lower_local_effect_sequence_with_collections(
                         // earlier targets, never an attached object.
                         cursor
                             .require(
-                                source["kind"].as_str() != Some("attachedPermanent")
+                                source["kind"].as_str() == Some("chosenTarget")
                                     || targets.slots.iter().all(|slot| !slot.exclude_source),
-                                "an `other` recipient relation to the attached damage source",
+                                "an `other` recipient relation to a damage source that is not a declared target",
                             )
                             .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                         let (base_id, candidates, minimum, maximum) = lower_single_target(targets);
@@ -2119,7 +2126,8 @@ fn lower_local_effect_sequence_with_collections(
                             .as_object_mut()
                             .expect("a collection recipient is an object")
                             .remove("excludeSource");
-                        recipient["exclude"] = json!({"kind":"chosenTargets","id":source["id"]});
+                        recipient["exclude"] =
+                            super::permanent_subject::exclusion_of_single_object(source);
                     }
                     effects.push(json!({
                         "kind": "dealDamage",
@@ -3532,10 +3540,6 @@ fn references_x_value_here(value: &Value) -> bool {
         && value.get("decisionId").and_then(Value::as_str) == Some("xValue")
 }
 
-fn value_kind_is_not_observed(object: &Value) -> bool {
-    object["kind"].as_str() != Some("observedEventObject")
-}
-
 #[cfg(test)]
 #[path = "effect_sequence_tests.rs"]
 mod tests;
@@ -3818,7 +3822,9 @@ fn milled_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index:
                 | CardActionNode::Permit(CardPermissionNode { cards, .. }),
             ) => matches!(
                 cards,
-                CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                CardOperandNode::Reference(_)
+                    | CardOperandNode::ObjectAntecedent { .. }
+                    | CardOperandNode::Selection(_)
             ),
             LocalEffectNode::CardAction(CardActionNode::Choose(_)) => true,
             LocalEffectNode::OptionalSequence(inner) => inner.effects.first().is_some_and(reads),
@@ -4314,11 +4320,14 @@ fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: 
     matches!(
         sequence.effects.get(effect_index + 1),
         Some(LocalEffectNode::CardAction(
-            CardActionNode::Reveal(CardOperandNode::Reference(_))
-                | CardActionNode::Permit(CardPermissionNode {
-                    cards: CardOperandNode::Reference(_) | CardOperandNode::Selection(_),
-                    ..
-                })
+            CardActionNode::Reveal(
+                CardOperandNode::Reference(_) | CardOperandNode::ObjectAntecedent { .. }
+            ) | CardActionNode::Permit(CardPermissionNode {
+                cards: CardOperandNode::Reference(_)
+                    | CardOperandNode::ObjectAntecedent { .. }
+                    | CardOperandNode::Selection(_),
+                ..
+            })
         ))
     )
 }

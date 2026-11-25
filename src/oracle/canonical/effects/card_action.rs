@@ -46,6 +46,9 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     next_cast: usize,
     next_permission: usize,
     next_copy: usize,
+    /// The declared target slots of the enclosing program, by binding: a
+    /// card pronoun whose antecedent is a declared target reads its slot.
+    object_bindings: Vec<(TargetBinding, String)>,
 }
 
 /// The card collection this program put onto the battlefield; `it` after
@@ -121,6 +124,84 @@ impl CardCollectionMemory {
         }
         for effect in effects {
             visit(effect, binding, &mut self.allocated_ids);
+        }
+    }
+
+    /// Installs the declared target slots the enclosing program lowered so
+    /// far; a card pronoun naming a declared target reads its slot.
+    pub(in crate::oracle::canonical) fn bind_object_references(
+        &mut self,
+        bindings: &[(TargetBinding, String)],
+    ) {
+        self.object_bindings = bindings.to_vec();
+    }
+
+    /// A card pronoun with a typed object antecedent names the program's
+    /// observed card collection when the program has one: that collection is
+    /// the nearer antecedent of a card pronoun. Every other reading keeps
+    /// the typed object. Returns the action with each such operand restored
+    /// to its collection reference, or `None` when nothing changes.
+    fn observed_collection_reading(&self, action: &CardActionNode) -> Option<CardActionNode> {
+        self.view.as_ref()?;
+        let restore = |operand: &mut CardOperandNode| {
+            if let CardOperandNode::ObjectAntecedent { reference, .. } = operand {
+                *operand = CardOperandNode::Reference(*reference);
+                true
+            } else {
+                false
+            }
+        };
+        let mut action = action.clone();
+        let changed = match &mut action {
+            CardActionNode::LookAt(operand)
+            | CardActionNode::Reveal(operand)
+            | CardActionNode::Move { cards: operand, .. }
+            | CardActionNode::Copy { cards: operand, .. }
+            | CardActionNode::Permit(CardPermissionNode { cards: operand, .. }) => restore(operand),
+            CardActionNode::Look { .. }
+            | CardActionNode::RevealUntil { .. }
+            | CardActionNode::Choose(_)
+            | CardActionNode::Shuffle { .. } => false,
+        };
+        changed.then_some(action)
+    }
+
+    /// The cards a typed object antecedent names for a card action (CR
+    /// 400.7): the object itself while it is one, the card it became once a
+    /// zone change the ability can follow moved it. One object is read
+    /// through the shared single-object adapter, which finds nothing once
+    /// the object became a new object; a declared target set or the created
+    /// tokens are read as their collection.
+    fn object_antecedent_cards(
+        &self,
+        cursor: &OracleTokenCursor<'_>,
+        reference: CardCollectionReferenceNode,
+        object: PermanentEffectReference,
+    ) -> MachineResult<(Value, Option<i64>)> {
+        let value = super::permanent_subject::bound_permanent_reference_value(
+            object,
+            &self.object_bindings,
+        )
+        .ok_or_else(|| cursor.fail("the declared object the card pronoun names"))?;
+        match reference {
+            CardCollectionReferenceNode::Selected => {
+                let single =
+                    super::permanent_subject::single_object_reference(value).ok_or_else(|| {
+                        cursor.fail("one object as the antecedent of a singular card pronoun")
+                    })?;
+                Ok((
+                    super::permanent_subject::referenced_object_collection(single),
+                    Some(1),
+                ))
+            }
+            CardCollectionReferenceNode::Antecedent => {
+                cursor.require(
+                    matches!(value_kind_name(&value), Some("chosenTargets" | "boundObjects")),
+                    "a declared target set or created tokens as the antecedent of a plural card pronoun",
+                )?;
+                Ok((value, None))
+            }
+            _ => Err(cursor.fail("`it`, `that card`, `them` or `those cards` naming an object")),
         }
     }
 
@@ -579,6 +660,11 @@ impl CardCollectionMemory {
             // Only a cast reads the command zone (CR 903.8); no other verb
             // has a command-zone writer.
             return Err(cursor.fail("the command zone only as the origin of a cast"));
+        }
+        if let CardOperandNode::ObjectAntecedent { reference, object } = operand {
+            let value = self.object_antecedent_cards(cursor, *reference, *object)?;
+            self.mention(value.clone());
+            return Ok(value);
         }
         if let CardOperandNode::Targets(target) = operand {
             validate_object_predicate_numeric_expressions(&target.predicate, declarations)
@@ -1389,6 +1475,8 @@ impl CardCollectionMemory {
         target_decisions: &mut Vec<Value>,
     ) -> MachineResult<Vec<Value>> {
         cursor.enter("lower.card-action.bindings");
+        let observed_reading = self.observed_collection_reading(action);
+        let action = observed_reading.as_ref().unwrap_or(action);
         let mut effects = Vec::new();
         match action {
             CardActionNode::Look {
@@ -1602,6 +1690,7 @@ impl CardCollectionMemory {
                     matches!(
                         permit.cards,
                         CardOperandNode::Reference(_)
+                            | CardOperandNode::ObjectAntecedent { .. }
                             | CardOperandNode::Selection(_)
                             | CardOperandNode::ZoneCollection(_)
                             | CardOperandNode::Targets(_)
@@ -1896,6 +1985,9 @@ impl CardCollectionMemory {
                         // zone or from outside the game: the choice fixed
                         // its identity (CR 400.11, 608.2c).
                         CardOperandNode::HiddenChoice(_) => is_choice_result(&cards),
+                        // The typed object a pronoun names: its reference
+                        // fixes the identity it follows (CR 400.7).
+                        CardOperandNode::ObjectAntecedent { .. } => true,
                         // Card copies are refused by `operand` before this
                         // point; they exist only to be cast (CR 707.12).
                         CardOperandNode::LibraryTop(_)
@@ -2121,6 +2213,7 @@ fn moved_cards_owned_by_controller(operand: &CardOperandNode) -> bool {
                 )
         }
         CardOperandNode::Reference(_)
+        | CardOperandNode::ObjectAntecedent { .. }
         | CardOperandNode::Selection(_)
         | CardOperandNode::LibraryTop(_)
         | CardOperandNode::CardCopies { .. }
