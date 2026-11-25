@@ -1,0 +1,625 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/antecedent-producers-batch10",
+  "cases": [
+    {
+      "id": "exact-ardoz-named-source-or-another-creature-names-that-creature",
+      "request": {
+        "cardName": "Ardoz, Cobbler of War",
+        "typeLine": "Legendary Creature — Goblin Shaman",
+        "manaCost": "{1}{R}",
+        "oracleText": "Haste\nWhenever Ardoz or another creature you control enters, that creature gets +2/+0 until end of turn.\n{3}{R}: Create a 1/1 red Goblin creature token with haste. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kemba-named-source-or-another-cat-names-that-creature",
+      "request": {
+        "cardName": "Kemba, Kha Enduring",
+        "typeLine": "Legendary Creature — Cat Cleric",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever Kemba or another Cat you control enters, attach up to one target Equipment you control to that creature.\nEquipped creatures you control get +1/+1.\n{3}{W}{W}: Create a 2/2 white Cat creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sokka-and-suki-named-source-or-another-ally-names-that-creature",
+      "request": {
+        "cardName": "Sokka and Suki",
+        "typeLine": "Legendary Creature — Human Warrior Ally",
+        "manaCost": "{U}{R}{W}",
+        "oracleText": "Whenever Sokka and Suki or another Ally you control enters, attach up to one target Equipment you control to that creature.\nWhenever an Equipment you control enters, create a 1/1 white Ally creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-named-source-or-another-artifact-names-that-artifact",
+      "request": {
+        "cardName": "Probe",
+        "typeLine": "Legendary Artifact Creature — Golem",
+        "manaCost": "{3}",
+        "oracleText": "Whenever Probe or another artifact you control enters, untap that artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-named-source-or-a-cat-presupposes-no-nominal",
+      "request": {
+        "cardName": "Probe",
+        "typeLine": "Legendary Creature — Cat",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever Probe or a Cat you control enters, that creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mob-rule-control-change-keeps-a-collection-without-controller",
+      "request": {
+        "cardName": "Mob Rule",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Choose one —\n• Gain control of all creatures with power 4 or greater until end of turn. Untap those creatures. They gain haste until end of turn.\n• Gain control of all creatures with power 3 or less until end of turn. Untap those creatures. They gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rowan-fearless-sparkmage-untap-them-they-gain-haste",
+      "request": {
+        "cardName": "Rowan, Fearless Sparkmage",
+        "typeLine": "Legendary Planeswalker — Rowan",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "+1: Up to one target creature gets +3/+0 and gains first strike until end of turn.\n−2: Rowan deals 1 damage to each of up to two target creatures. Those creatures can't block this turn.\n−9: Gain control of all creatures until end of turn. Untap them. They gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-insurrection-untap-all-and-gain-control-of-them-they-gain-haste",
+      "request": {
+        "cardName": "Insurrection",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{R}{R}{R}",
+        "oracleText": "Untap all creatures and gain control of them until end of turn. They gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-karlach-untap-attacking-creatures-they-gain-first-strike",
+      "request": {
+        "cardName": "Karlach, Fury of Avernus",
+        "typeLine": "Legendary Creature — Tiefling Barbarian",
+        "manaCost": "{4}{R}",
+        "oracleText": "Whenever you attack, if it's the first combat phase of the turn, untap all attacking creatures. They gain first strike until end of turn. After this phase, there is an additional combat phase.\nChoose a Background (You can have a Background as a second commander.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-taunt-from-the-rampart-goaded-collection-can-not-block",
+      "request": {
+        "cardName": "Taunt from the Rampart",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}{W}",
+        "oracleText": "Goad all creatures your opponents control. Until your next turn, those creatures can't block. (Until your next turn, those creatures attack each combat if able and attack a player other than you if able.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-control-change-mana-value-collection-untap-them",
+      "request": {
+        "cardName": "Probe Coup",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Gain control of all creatures with mana value 2 or less until end of turn. Untap them. They gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-tap-all-artifacts-they-do-not-untap",
+      "request": {
+        "cardName": "Probe Freeze",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Tap all artifacts. They don't untap during their controllers' next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-broadcast-takeover-collection-relative-to-the-old-controller",
+      "request": {
+        "cardName": "Broadcast Takeover",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}{R}{R}",
+        "oracleText": "Gain control of all artifacts your opponents control until end of turn. Untap them. They gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-untapping-tapped-creatures-changes-the-queried-status",
+      "request": {
+        "cardName": "Probe Wakeup",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Untap all tapped creatures you control. They gain vigilance until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-spined-sliver-that-sliver-names-the-blocked-sliver",
+      "request": {
+        "cardName": "Spined Sliver",
+        "typeLine": "Creature — Sliver",
+        "manaCost": "{R}{G}",
+        "oracleText": "Whenever a Sliver becomes blocked, that Sliver gets +1/+1 until end of turn for each creature blocking it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zirilan-that-dragon-names-the-searched-dragon",
+      "request": {
+        "cardName": "Zirilan of the Claw",
+        "typeLine": "Legendary Creature — Lizard Shaman",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "{1}{R}{R}, {T}: Search your library for a Dragon permanent card, put that card onto the battlefield, then shuffle. That Dragon gains haste until end of turn. Exile it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-that-goblin-names-the-searched-goblin",
+      "request": {
+        "cardName": "Probe Warchief",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{2}{R}",
+        "oracleText": "{2}{R}, {T}: Search your library for a Goblin permanent card, put that card onto the battlefield, then shuffle. That Goblin gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-dragon-after-a-non-dragon-target",
+      "request": {
+        "cardName": "Probe Snare",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Tap target creature. That Dragon doesn't untap during its controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent",
+            "expectedContains": "guarantees this subtype"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-outmuscle-adamant-the-creature-you-control",
+      "request": {
+        "cardName": "Outmuscle",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Put a +1/+1 counter on target creature you control, then it fights target creature you don't control. (Each deals damage equal to its power to the other.)\nAdamant — If at least three green mana was spent to cast this spell, the creature you control gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-the-creature-an-opponent-controls-names-the-declared-slot",
+      "request": {
+        "cardName": "Probe Duel",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Choose target creature you control and target creature an opponent controls. The creature an opponent controls gets -2/-2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-the-creature-you-control-with-two-declared-matches",
+      "request": {
+        "cardName": "Probe Muddle",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put a +1/+1 counter on target creature you control. Tap target creature you control. The creature you control gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent",
+            "expectedContains": "several declared targets"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-volrath-the-discarded-cards-mana-value",
+      "request": {
+        "cardName": "Volrath the Fallen",
+        "typeLine": "Legendary Creature — Phyrexian Shapeshifter",
+        "manaCost": "{3}{B}{B}{B}",
+        "oracleText": "{1}{B}, Discard a creature card: Volrath gets +X/+X until end of turn, where X is the discarded card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "discardCard"
+              },
+              {
+                "pointer": "/costs/1/bindManaValueAs",
+                "equals": "discardedCardManaValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mercurial-chemister-the-discarded-cards-mana-value",
+      "request": {
+        "cardName": "Mercurial Chemister",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}{R}",
+        "oracleText": "{U}, {T}: Draw two cards.\n{R}, {T}, Discard a card: This creature deals damage to target creature equal to the discarded card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-corpse-lunge-the-exiled-additional-cost-cards-power",
+      "request": {
+        "cardName": "Corpse Lunge",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "As an additional cost to cast this spell, exile a creature card from your graveyard.\nCorpse Lunge deals damage equal to the exiled card's power to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-induce-despair-the-revealed-cards-mana-value",
+      "request": {
+        "cardName": "Induce Despair",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "As an additional cost to cast this spell, reveal a creature card from your hand.\nTarget creature gets -X/-X until end of turn, where X is the revealed card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "exact-living-destiny-the-revealed-cards-mana-value",
+      "request": {
+        "cardName": "Living Destiny",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "As an additional cost to cast this spell, reveal a creature card from your hand.\nYou gain life equal to the revealed card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "sibling-discard-cost-life-gain-from-the-discarded-cards-mana-value",
+      "request": {
+        "cardName": "Probe Reliquary",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, Discard a card: You gain life equal to the discarded card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/bindManaValueAs",
+                "equals": "discardedCardManaValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-postposed-genitive-of-the-revealed-card",
+      "request": {
+        "cardName": "Probe Insight",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "As an additional cost to cast this spell, reveal a creature card from your hand.\nYou gain life equal to the mana value of the revealed card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": []
+      }
+    },
+    {
+      "id": "near-miss-discarded-card-without-a-discard-cost",
+      "request": {
+        "cardName": "Probe Altar",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, Sacrifice a creature: You gain life equal to the discarded card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.sacrificed-cost-object.source"
+          }
+        ]
+      }
+    }
+  ]
+}

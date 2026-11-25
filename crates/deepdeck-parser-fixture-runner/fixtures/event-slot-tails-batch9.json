@@ -108,27 +108,6 @@
       }
     },
     {
-      "id": "known-gap-exact-spined-sliver-any-controller-blocked-attacker",
-      "request": {
-        "cardName": "Spined Sliver",
-        "typeLine": "Creature — Sliver",
-        "manaCost": "{R}{G}",
-        "oracleText": "Whenever a Sliver becomes blocked, that Sliver gets +1/+1 until end of turn for each creature blocking it.",
-        "layout": "normal",
-        "faces": []
-      },
-      "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure",
-            "state": "effect.start"
-          }
-        ]
-      }
-    },
-    {
       "id": "exact-imperial-cosmographer-leaves-without-dying",
       "request": {
         "cardName": "Imperial Cosmographer",

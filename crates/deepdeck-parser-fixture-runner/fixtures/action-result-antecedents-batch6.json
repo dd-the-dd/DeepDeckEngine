@@ -343,8 +343,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "code": "oracle_machine_failure",
-            "state": "numeric.participle.antecedent"
+            "code": "oracle_context_binding_failure",
+            "state": "binding.sacrificed-cost-object.source"
           }
         ]
       }
