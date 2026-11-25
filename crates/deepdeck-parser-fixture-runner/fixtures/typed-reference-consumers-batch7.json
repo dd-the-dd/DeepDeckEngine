@@ -348,6 +348,66 @@
       }
     },
     {
+      "id": "ghostway-exact-exiled-collection-returned-at-end-step",
+      "request": {
+        "cardName": "Ghostway",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Exile each creature you control. Return those cards to the battlefield under their owner's control at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "planar-guide-exact-exiled-collection-returned-under-owners-control",
+      "request": {
+        "cardName": "Planar Guide",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{W}",
+        "oracleText": "{3}{W}, Exile this creature: Exile all creatures. At the beginning of the next end step, return those cards to the battlefield under their owners' control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "ignorant-bliss-exact-exiled-hand-returned-at-end-step",
+      "request": {
+        "cardName": "Ignorant Bliss",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Exile all cards from your hand face down. At the beginning of the next end step, return those cards to your hand, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-exiled-graveyard-returned-to-hand",
+      "request": {
+        "cardName": "Exile Return Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Exile all cards from your graveyard. Return those cards to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
       "id": "near-miss-attach-it-to-it-names-one-object",
       "request": {
         "cardName": "Self Attach Probe",

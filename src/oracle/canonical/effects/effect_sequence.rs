@@ -795,11 +795,29 @@ fn lower_local_effect_sequence_with_collections(
                 let first_decision = decisions.len();
                 // A card pronoun may name a target an earlier action declared.
                 collections.bind_object_references(&target_bindings);
-                effects.extend(
-                    collections
-                        .lower_action(cursor, action, declarations, &mut decisions)
-                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
-                );
+                let mut lowered = collections
+                    .lower_action(cursor, action, declarations, &mut decisions)
+                    .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                // `exile all cards from your hand. ... return those cards`:
+                // the cards a zone-wide exile moved are the observed exile
+                // collection of the next card action (CR 400.7: the cards
+                // they became), bound only when read.
+                if let CardActionNode::Move {
+                    cards: CardOperandNode::ZoneCollection(query),
+                    destination,
+                } = action
+                    && destination.zone == CardZoneName::Exile
+                    && query.quantity.is_none()
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && let Some(movement) = lowered
+                        .iter_mut()
+                        .rev()
+                        .find(|value| value["kind"] == "moveCards")
+                    && movement.get("bind").is_none()
+                {
+                    movement["bind"] = json!(collections.observe_exiled_objects(None));
+                }
+                effects.extend(lowered);
                 // `look at target player's hand`: the declared zone owner is
                 // the player a later `that player` names (CR 115.1, 608.2c).
                 if let [id] = decisions[first_decision..]
@@ -2596,6 +2614,20 @@ fn lower_local_effect_sequence_with_collections(
                         _ => None,
                     };
                     draw_effect["bind"] = json!(collections.observe_drawn_cards(maximum));
+                }
+                // `exile all creatures. Return those cards ...`: the
+                // permanents a collection exile moved are the observed exile
+                // collection of the next card action (CR 400.7: the cards
+                // they became), bound only when read.
+                if let LocalEffectNode::SelectedPermanents(selected) = effect
+                    && selected.action == SelectedPermanentAction::Exile
+                    && selected.operand.bounds.is_none()
+                    && selected.until.is_none()
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    && let [exile] = lowered.as_mut_slice()
+                    && exile["kind"] == "exilePermanent"
+                {
+                    exile["bind"] = json!(collections.observe_exiled_objects(None));
                 }
                 effects.extend(lowered);
             }
