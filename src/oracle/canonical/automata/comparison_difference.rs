@@ -18,7 +18,8 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ConditionAtom, ConditionComparison, ConditionContext, ConditionNumber, ConditionPlayerSubject,
-    ConditionScope, NumericComparisonOperator, NumericExpression, NumericQuantity,
+    ConditionScope, NumericComparisonOperator, NumericExpression, NumericObjectProperty,
+    NumericQuantity, ObjectKind, ObjectPredicate, SelectorNumericProperty,
     recognize_condition_atom,
 };
 
@@ -100,6 +101,109 @@ pub(in crate::oracle::canonical) fn recognize_comparison_difference(
         )),
         _ => Err(cursor.fail(NO_ANTECEDENT)),
     }
+}
+
+/// Lexical lookahead for `the difference between`.
+pub(in crate::oracle::canonical) fn difference_between_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    word_is(cursor, 0, "the") && word_is(cursor, 1, "difference") && word_is(cursor, 2, "between")
+}
+
+/// A bare property word after `and` (`its power and toughness`): the right
+/// operand restates the left operand's object with another property.
+fn elliptic_property(cursor: &OracleTokenCursor<'_>) -> Option<(usize, SelectorNumericProperty)> {
+    if word_is(cursor, 0, "power") {
+        Some((1, SelectorNumericProperty::Power))
+    } else if word_is(cursor, 0, "toughness") {
+        Some((1, SelectorNumericProperty::Toughness))
+    } else if word_is(cursor, 0, "mana") && word_is(cursor, 1, "value") {
+        Some((2, SelectorNumericProperty::ManaValue))
+    } else {
+        None
+    }
+}
+
+/// The same one-object property read with another property: the object of
+/// `left` is kept, only the property changes. Any other operand has no
+/// object to restate and is `None`.
+fn restate_property(
+    left: &NumericExpression,
+    property: SelectorNumericProperty,
+) -> Option<NumericExpression> {
+    Some(match left {
+        NumericExpression::BoundObjectProperty { object, .. } => {
+            NumericExpression::BoundObjectProperty {
+                object: *object,
+                property,
+            }
+        }
+        NumericExpression::QualifiedTargetProperty {
+            object,
+            required_nominal,
+            ..
+        } => NumericExpression::QualifiedTargetProperty {
+            object: *object,
+            required_nominal: required_nominal.clone(),
+            property,
+        },
+        NumericExpression::PowerOf(object) | NumericExpression::ManaValueOf(object) => {
+            match property {
+                SelectorNumericProperty::Power => NumericExpression::PowerOf(*object),
+                SelectorNumericProperty::ManaValue => NumericExpression::ManaValueOf(*object),
+                // The typed toughness of a declared object keeps the
+                // permanent nominal the bare primary gives it.
+                SelectorNumericProperty::Toughness => NumericExpression::QualifiedTargetProperty {
+                    object: *object,
+                    required_nominal: ObjectPredicate::ObjectKind(ObjectKind::Permanent),
+                    property,
+                },
+            }
+        }
+        NumericExpression::ObjectProperty { object, .. } => NumericExpression::ObjectProperty {
+            object: *object,
+            property: match property {
+                SelectorNumericProperty::Power => NumericObjectProperty::Power,
+                SelectorNumericProperty::Toughness => NumericObjectProperty::Toughness,
+                SelectorNumericProperty::ManaValue => return None,
+            },
+        },
+        _ => return None,
+    })
+}
+
+/// `the difference between A and B` (CR 107.1): the absolute value of `A -
+/// B`, read by the enclosing arithmetic grammar's operand reader. `POSSESSOR
+/// power and toughness` restates the left operand's object with the second
+/// property (`the difference between its power and toughness`).
+pub(in crate::oracle::canonical) fn recognize_difference_between(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut read_operand: impl FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<NumericExpression>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.difference-between.reference");
+    cursor.consume_phrase(&["the", "difference", "between"])?;
+    cursor.enter("numeric.difference-between.left");
+    let left = read_operand(cursor)?;
+    cursor.enter("numeric.difference-between.connector");
+    cursor.consume("and")?;
+    cursor.enter("numeric.difference-between.right");
+    let right = match elliptic_property(cursor) {
+        Some((width, property)) => {
+            let restated = cursor.require_value(
+                restate_property(&left, property),
+                "a left operand naming one object whose other property `and` restates",
+            )?;
+            for _ in 0..width {
+                let raw = cursor.peek().unwrap_or_default().to_owned();
+                cursor.consume(&raw)?;
+            }
+            restated
+        }
+        None => read_operand(cursor)?,
+    };
+    Ok(NumericExpression::Quantity(Box::new(
+        NumericQuantity::Difference(left, right),
+    )))
 }
 
 #[cfg(test)]

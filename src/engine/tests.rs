@@ -305,6 +305,9 @@ mod saga_chapter_program_runtime;
 #[path = "tests/aggregate_numeric_runtime.rs"]
 mod aggregate_numeric_runtime;
 
+#[path = "tests/numeric_aggregate_runtime.rs"]
+mod numeric_aggregate_runtime;
+
 #[path = "tests/barrowgoyf_runtime.rs"]
 mod barrowgoyf_runtime;
 

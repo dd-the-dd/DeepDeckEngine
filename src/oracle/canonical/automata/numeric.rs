@@ -475,6 +475,195 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
     /// (`for each storage counter removed this way`, CR 601.2h via 602.2b):
     /// the activation's `costChosenAmount` declaration (`quantity_slot.rs`).
     CostChosenAmount,
+    /// One function of one property over the objects of a set (`the
+    /// greatest power among creatures target opponent controls`, `the number
+    /// of creature types among cards in your graveyard`, `for each of its
+    /// colors`, CR 107.1): the shared aggregate over any object set.
+    Aggregate(ObjectAggregateNode),
+    /// `the difference between A and B` (CR 107.1): the absolute value of
+    /// `A - B`, never negative.
+    Difference(NumericExpression, NumericExpression),
+}
+
+/// `FUNCTION PROPERTY among|of OBJECTS` (CR 107.1, 202.3, 105.2, 205.2a,
+/// 205.3, 122.1): one aggregate function of one property over an object
+/// set. Every reader of a set (`among`, `of`, `for each ... among`, `its`)
+/// produces this one node; the set is any object set the shared readers
+/// name, so a new set or property needs no new numeric grammar.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectAggregateNode {
+    pub function: AggregateFunction,
+    pub property: AggregateProperty,
+    pub objects: AggregateObjects,
+    /// The value is undefined, not zero, over an empty set: a comparison
+    /// that reads it is false (`you control the creature with the greatest
+    /// power` holds only when you control a creature).
+    pub require_members: bool,
+}
+
+/// How the values of the members are combined.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AggregateFunction {
+    /// The greatest value (`the greatest|highest PROPERTY among`); zero over
+    /// an empty set.
+    Greatest,
+    /// The least value (`the least|lowest PROPERTY among`); zero over an
+    /// empty set.
+    Least,
+    /// The sum of the values (`the total PROPERTY of`); zero over an empty
+    /// set.
+    Total,
+    /// The number of different values among the members (`the number of
+    /// colors among`, `for each kind of counter on`); a member with several
+    /// values (a multicolored permanent) contributes each of them.
+    Distinct,
+    /// The number of members that have the most common value (`the
+    /// greatest number of creatures you control that have a creature type
+    /// in common`); zero over an empty set.
+    MostCommon,
+}
+
+impl AggregateFunction {
+    /// Whether the function counts values, so a value-set property (colors,
+    /// card types) is readable; an extremum or a total needs a number.
+    pub(in crate::oracle::canonical) const fn reads_any_property(self) -> bool {
+        matches!(self, Self::Distinct | Self::MostCommon)
+    }
+
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Greatest => "greatest",
+            Self::Least => "least",
+            Self::Total => "total",
+            Self::Distinct => "distinct",
+            Self::MostCommon => "mostCommon",
+        }
+    }
+}
+
+/// The property an aggregate reads on each member.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AggregateProperty {
+    /// CR 208.1.
+    Power,
+    /// CR 208.1.
+    Toughness,
+    /// CR 202.3.
+    ManaValue,
+    /// CR 105.2: an object's colors (colorless is no color).
+    Colors,
+    /// CR 205.2a: the card types; subtypes and supertypes are not card types.
+    CardTypes,
+    /// CR 205.3m: the creature types (a changeling has every one).
+    CreatureTypes,
+    /// CR 205.3i, 305.6: the basic land types.
+    BasicLandTypes,
+    /// CR 122.1: the kinds of counters on an object.
+    CounterKinds,
+    /// CR 201.2: the names.
+    Names,
+}
+
+impl AggregateProperty {
+    /// Whether the property is one number per member, which every function
+    /// reads; the other properties are value sets only `Distinct` counts.
+    pub(in crate::oracle::canonical) const fn is_numeric(self) -> bool {
+        matches!(self, Self::Power | Self::Toughness | Self::ManaValue)
+    }
+
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Power => "power",
+            Self::Toughness => "toughness",
+            Self::ManaValue => "manaValue",
+            Self::Colors => "colors",
+            Self::CardTypes => "cardTypes",
+            Self::CreatureTypes => "creatureTypes",
+            Self::BasicLandTypes => "basicLandTypes",
+            Self::CounterKinds => "counterKinds",
+            Self::Names => "names",
+        }
+    }
+
+    pub(in crate::oracle::canonical) const fn from_selector(
+        property: super::SelectorNumericProperty,
+    ) -> Self {
+        match property {
+            super::SelectorNumericProperty::Power => Self::Power,
+            super::SelectorNumericProperty::Toughness => Self::Toughness,
+            super::SelectorNumericProperty::ManaValue => Self::ManaValue,
+        }
+    }
+}
+
+/// The objects an aggregate reads, each read by a shared reader: a
+/// battlefield collection of the shared object query (any player relation,
+/// `other`), the cards of one zone of the shared scoped query, a union of
+/// such sets, one object a reference names, the spell a cast event records,
+/// or the objects an earlier action of the program affected.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AggregateObjects {
+    Permanents(super::ObjectQueryNode),
+    Cards(Box<super::ScopedObjectQueryNode>),
+    Union(Vec<AggregateObjects>),
+    Object(super::PermanentEffectReference),
+    /// `that spell`: the spell the cast event observed (CR 601.2i).
+    EventSpell,
+    /// `cards discarded this way`: the objects the nearest earlier action of
+    /// the restated verb affected, bound by the program lowering (CR 608.2c).
+    ActionResult {
+        reader: usize,
+        reference: super::ActionResultReferenceNode,
+    },
+}
+
+impl AggregateObjects {
+    fn uses_x(&self) -> bool {
+        match self {
+            Self::Permanents(query) => super::object_predicate_uses_x(&query.predicate),
+            Self::Cards(cards) => cards.uses_x(),
+            Self::Union(parts) => parts.iter().any(Self::uses_x),
+            Self::Object(_) | Self::EventSpell | Self::ActionResult { .. } => false,
+        }
+    }
+
+    /// Whether the set names a declared target slot of the reading action
+    /// (`its colors` of a target). A player relation to a declared player
+    /// (`creatures target opponent controls`) is declared by the program
+    /// lowering, like every count of such a collection.
+    fn requires_target_binding(&self) -> bool {
+        match self {
+            Self::Permanents(_) => false,
+            Self::Cards(cards) => cards.requires_target_binding(),
+            Self::Union(parts) => parts.iter().any(Self::requires_target_binding),
+            Self::Object(
+                super::PermanentEffectReference::Target(_)
+                | super::PermanentEffectReference::TargetSet(_),
+            ) => true,
+            Self::Object(_) | Self::EventSpell | Self::ActionResult { .. } => false,
+        }
+    }
+
+    /// Whether the set excludes the ability source (`other creatures you
+    /// control`): only a permanent collection states it.
+    fn excludes_source(&self) -> bool {
+        match self {
+            Self::Permanents(query) => query.exclude_source,
+            Self::Union(parts) => parts.iter().any(Self::excludes_source),
+            Self::Cards(_) | Self::Object(_) | Self::EventSpell | Self::ActionResult { .. } => {
+                false
+            }
+        }
+    }
+}
+
+impl ObjectAggregateNode {
+    /// The aggregate as a numeric expression. An extremum or a total of a
+    /// non-numeric property is no number and is refused.
+    pub(in crate::oracle::canonical) fn into_expression(self) -> Option<NumericExpression> {
+        (self.function.reads_any_property() || self.property.is_numeric())
+            .then(|| NumericExpression::Quantity(Box::new(NumericQuantity::Aggregate(self))))
+    }
 }
 
 /// The per-turn record of the resolving ability itself (CR 113.3, 602.1,
@@ -567,6 +756,8 @@ impl NumericQuantity {
             } => super::object_predicate_uses_x(&query.predicate),
             Self::DistinctCardValues { collection, .. }
             | Self::ManaSymbolsAmongCards { collection, .. } => collection.uses_x(),
+            Self::Aggregate(node) => node.objects.uses_x(),
+            Self::Difference(left, right) => left.uses_x() || right.uses_x(),
             Self::ManaSpentToCast { .. }
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
@@ -594,6 +785,10 @@ impl NumericQuantity {
             | Self::ManaSymbolsAmongCards { collection, .. } => {
                 collection.requires_target_binding()
             }
+            Self::Aggregate(node) => node.objects.requires_target_binding(),
+            Self::Difference(left, right) => {
+                left.requires_target_binding() || right.requires_target_binding()
+            }
             Self::ManaSpentToCast { .. }
             | Self::CommanderCastsFromCommandZone
             | Self::ActingPlayerCards { .. }
@@ -617,6 +812,10 @@ impl NumericQuantity {
                 ..
             } => query.exclude_source,
             Self::Greatest(operands) => operands.iter().any(super::count_excludes_source),
+            Self::Aggregate(node) => node.objects.excludes_source(),
+            Self::Difference(left, right) => {
+                super::count_excludes_source(left) || super::count_excludes_source(right)
+            }
             Self::ManaSpentToCast { .. }
             | Self::CommanderCastsFromCommandZone
             | Self::Counters {
@@ -1353,25 +1552,48 @@ pub(in crate::oracle::canonical) fn recognize_excess_damage_result(
     })
 }
 
-/// Lexical lookahead for `their library`: the acting player's library.
+/// The width of the partitive `the cards in` before `their ZONE`.
+fn acting_player_zone_offset(cursor: &OracleTokenCursor<'_>) -> usize {
+    if word_is(cursor, 0, "the") && word_is(cursor, 1, "cards") && word_is(cursor, 2, "in") {
+        3
+    } else {
+        0
+    }
+}
+
+/// Lexical lookahead for `their library`, `the cards in their hand|library`:
+/// the acting player's cards in one zone.
 pub(in crate::oracle::canonical) fn acting_player_zone_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    word_is(cursor, 0, "their") && word_is(cursor, 1, "library")
+    let offset = acting_player_zone_offset(cursor);
+    word_is(cursor, offset, "their")
+        && (word_is(cursor, offset + 1, "library")
+            || (offset > 0 && word_is(cursor, offset + 1, "hand")))
 }
 
-/// `their library` as a number of cards (`mills half their library`): the
-/// cards in the library of the player who performs the action (CR 401.1).
-/// The action's lowering names that player; nothing else binds `their`.
+/// `their library` / `the cards in their hand|library` as a number of cards
+/// (`mills half their library`, `discards half the cards in their hand`):
+/// the cards in that zone of the player who performs the action (CR 401.1,
+/// 402.1). The action's lowering names that player; nothing else binds
+/// `their`.
 pub(in crate::oracle::canonical) fn recognize_acting_player_zone(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.acting-player-zone");
-    cursor.consume_phrase(&["their", "library"])?;
+    if acting_player_zone_offset(cursor) > 0 {
+        cursor.consume_phrase(&["the", "cards", "in"])?;
+    }
+    cursor.consume("their")?;
+    let zone = if word_is(cursor, 0, "hand") {
+        cursor.consume("hand")?;
+        super::LocalZone::Hand
+    } else {
+        cursor.consume("library")?;
+        super::LocalZone::Library
+    };
     Ok(NumericExpression::Quantity(Box::new(
-        NumericQuantity::ActingPlayerCards {
-            zone: super::LocalZone::Library,
-        },
+        NumericQuantity::ActingPlayerCards { zone },
     )))
 }
 

@@ -28,9 +28,11 @@ use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    ActionResultVerb, NumericAtom, NumericExpression, NumericQuantity, ObjectKind, ObjectPredicate,
-    action_result_reference_starts, installed_binding_environment, positive_quantity,
-    recognize_action_result_reference, recognize_counter_name, recognize_numeric_expression,
+    ActionResultVerb, NumericAtom, NumericExpression, NumericQuantity, NumericRounding,
+    ObjectControllerScope, ObjectKind, ObjectPredicate, ObjectQueryNode, PermanentCountMeasure,
+    PermanentCountNode, action_result_reference_starts, installed_binding_environment,
+    positive_quantity, recognize_action_result_reference, recognize_counter_name,
+    recognize_numeric_expression,
 };
 
 /// The declared number a cost range pays: one per activation, chosen by the
@@ -436,6 +438,71 @@ pub(in crate::oracle::canonical) fn with_cost_chosen_amount<T>(
 /// The payer-chosen cost number as a numeric expression.
 pub(in crate::oracle::canonical) fn cost_chosen_amount() -> NumericExpression {
     NumericExpression::Quantity(Box::new(NumericQuantity::CostChosenAmount))
+}
+
+/// Lexical lookahead for the partitive quantity `half the` before an object
+/// query (`sacrifice half the lands you control, rounded up`).
+pub(in crate::oracle::canonical) fn partitive_half_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("half"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+}
+
+/// Reads the partitive introducer `half the`; the parent reads the operand
+/// query, then closes the quantity with [`recognize_partitive_rounding`].
+pub(in crate::oracle::canonical) fn recognize_partitive_half(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<()> {
+    cursor.enter("quantity.partitive.half");
+    cursor.consume_phrase(&["half", "the"])
+}
+
+/// `, rounded up|down` closing a partitive operand (CR 107.1a): the
+/// fraction is rounded as the text states; without a stated rounding the
+/// quantity is refused.
+pub(in crate::oracle::canonical) fn recognize_partitive_rounding(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericRounding> {
+    cursor.enter("quantity.partitive.rounding");
+    if cursor.peek().is_some_and(|raw| raw == ",") {
+        cursor.consume(",")?;
+    }
+    cursor.consume("rounded")?;
+    cursor.enter("quantity.partitive.rounding-direction");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("up"))
+    {
+        cursor.consume("up")?;
+        Ok(NumericRounding::Up)
+    } else {
+        cursor.consume("down")?;
+        Ok(NumericRounding::Down)
+    }
+}
+
+/// The count of `half the QUERY` (CR 107.1a): half the number of permanents
+/// the operand query names as the action begins, with the stated rounding.
+/// `counted_controller` is the player whose permanents are counted: the
+/// query's own relation, or the acting player its operand restates.
+pub(in crate::oracle::canonical) fn partitive_half_count(
+    query: &ObjectQueryNode,
+    counted_controller: Option<ObjectControllerScope>,
+    rounding: NumericRounding,
+) -> Option<NumericExpression> {
+    NumericExpression::divide(
+        NumericExpression::PermanentCount(Box::new(PermanentCountNode {
+            predicate: query.predicate.clone(),
+            controller: counted_controller,
+            exclude_source: query.exclude_source,
+            measure: PermanentCountMeasure::Objects,
+        })),
+        2,
+        rounding,
+    )
 }
 
 #[cfg(test)]

@@ -712,6 +712,10 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanents_atom(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.controlled-permanents.kind");
+    // `you control the creature with the greatest power or tied for ...`.
+    if super::superlative_holder_starts(cursor) {
+        return super::recognize_superlative_holder_atom(cursor);
+    }
     // `you control no QUERY` / `you control exactly N QUERY`: the absence or
     // exact count read by the shared threshold (CR 109.4 control).
     if word_is(cursor, 2, "no") || word_is(cursor, 2, "exactly") {

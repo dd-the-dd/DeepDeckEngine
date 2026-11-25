@@ -970,6 +970,179 @@ pub(in crate::oracle::canonical) fn split_cast_origin(
     Some((rest, origin))
 }
 
+/// The field of a pending restated result (`cards discarded this way`)
+/// whose bound objects an aggregate reads instead of counting them; the
+/// program lowering rewrites it with `bound_action_result_aggregate`.
+pub(in crate::oracle::canonical) const ACTION_RESULT_AGGREGATE_FIELD: &str = "aggregate";
+
+/// CR 107.1: one aggregate over an object set, as the engine's
+/// `aggregateObjects` evaluator reads it:
+///
+/// ```text
+/// { kind: aggregateObjects, function: greatest|least|total|distinct,
+///   property: power|toughness|manaValue|colors|cardTypes|creatureTypes|
+///             basicLandTypes|counterKinds|names,
+///   objects: COLLECTION | object: REFERENCE }
+/// ```
+///
+/// A collection is the shared runtime collection algebra (`eachPermanent`,
+/// `cardsInZone`, `union`, `chosenTargets`); a single object is one
+/// reference (`self`, `chosenTarget`, `attachedPermanent`,
+/// `triggeringPermanent`, `triggeringStackObject`). A declared target is
+/// resolved by `target` (the reading action's slots); without one the
+/// aggregate has no lowering and the consumer refuses it.
+pub(in crate::oracle::canonical) fn lower_object_aggregate(
+    node: &ObjectAggregateNode,
+    target: Option<&dyn Fn(TargetBinding) -> Option<Value>>,
+) -> Option<Value> {
+    if !node.function.reads_any_property() && !node.property.is_numeric() {
+        return None;
+    }
+    let mut aggregate = json!({
+        "kind": "aggregateObjects",
+        "function": node.function.ir_name(),
+        "property": node.property.ir_name(),
+    });
+    if node.require_members {
+        aggregate["requireMembers"] = json!(true);
+    }
+    match &node.objects {
+        AggregateObjects::Object(reference) => {
+            aggregate["object"] = lower_aggregate_reference(*reference, target)?;
+        }
+        AggregateObjects::EventSpell => {
+            aggregate["object"] = json!({ "kind": "triggeringStackObject" });
+        }
+        AggregateObjects::ActionResult { reader, reference } => {
+            let mut pending = lower_action_result_objects(reference).ok()?;
+            // Departed permanents are read on their last known information
+            // only by the restated total (`sumBoundObjectProperty`).
+            if pending.get("lastKnown").is_some() {
+                return None;
+            }
+            pending["reader"] = json!(reader);
+            if node.require_members {
+                return None;
+            }
+            pending[ACTION_RESULT_AGGREGATE_FIELD] = json!({
+                "function": node.function.ir_name(),
+                "property": node.property.ir_name(),
+            });
+            return Some(pending);
+        }
+        objects => aggregate["objects"] = lower_aggregate_collection(objects, target)?,
+    }
+    Some(aggregate)
+}
+
+/// The aggregate a pending restated result becomes once the program
+/// lowering bound its producer: the same function and property over the
+/// bound objects, filtered by the restated noun.
+pub(in crate::oracle::canonical) fn bound_action_result_aggregate(
+    aggregate: &Value,
+    bound: Value,
+    filter: Value,
+) -> Value {
+    json!({
+        "kind": "aggregateObjects",
+        "function": aggregate["function"].clone(),
+        "property": aggregate["property"].clone(),
+        "objects": if filter.is_null() {
+            bound
+        } else {
+            json!({ "kind": "filterObjects", "objects": bound, "where": filter })
+        },
+    })
+}
+
+/// One object an aggregate reads: a declared target through the reading
+/// action's slots, else the binding-free reference.
+fn lower_aggregate_reference(
+    reference: PermanentEffectReference,
+    target: Option<&dyn Fn(TargetBinding) -> Option<Value>>,
+) -> Option<Value> {
+    match reference {
+        PermanentEffectReference::Target(binding) => target?(binding),
+        PermanentEffectReference::TargetSet(_) => None,
+        reference => bound_permanent_reference_value(reference, &[]),
+    }
+}
+
+/// The runtime collection of an aggregate's set.
+fn lower_aggregate_collection(
+    objects: &AggregateObjects,
+    target: Option<&dyn Fn(TargetBinding) -> Option<Value>>,
+) -> Option<Value> {
+    match objects {
+        AggregateObjects::Permanents(query) => {
+            let (predicate, controller) = lower_fixed_controller_permanent_query(query).ok()?;
+            let mut collection = json!({ "kind": "eachPermanent", "where": predicate });
+            if let Some(player) = controller {
+                collection["player"] = player;
+            }
+            if query.exclude_source {
+                collection["excludeSource"] = json!(true);
+            }
+            Some(collection)
+        }
+        AggregateObjects::Cards(cards) => lower_aggregate_card_zone(cards),
+        AggregateObjects::Union(parts) => Some(json!({
+            "kind": "union",
+            "sets": parts
+                .iter()
+                .map(|part| lower_aggregate_collection(part, target))
+                .collect::<Option<Vec<_>>>()?,
+        })),
+        // `those creatures`: every object one plural slot declared.
+        AggregateObjects::Object(PermanentEffectReference::TargetSet(binding)) => {
+            let chosen = target?(*binding)?;
+            Some(json!({ "kind": "chosenTargets", "id": chosen["id"].clone() }))
+        }
+        AggregateObjects::Object(_)
+        | AggregateObjects::EventSpell
+        | AggregateObjects::ActionResult { .. } => None,
+    }
+}
+
+/// The cards of one zone of the shared scoped query (`creature cards in your
+/// graveyard`, `cards in all players' hands`): the runtime `cardsInZone`
+/// collection of that zone and its holders, filtered on the printed card.
+fn lower_aggregate_card_zone(cards: &ScopedObjectQueryNode) -> Option<Value> {
+    if cards.departures.is_some()
+        || cards.domain != ObjectKind::Card
+        || cards.objects.objects.controller.is_some()
+        || cards.objects.ownership.is_some()
+        || cards.objects.objects.exclude_source
+    {
+        return None;
+    }
+    let [zone] = cards.zones.as_slice() else {
+        return None;
+    };
+    if !matches!(
+        zone,
+        CardZoneName::Graveyard | CardZoneName::Hand | CardZoneName::Library | CardZoneName::Exile
+    ) {
+        return None;
+    }
+    let mut zone_reference = json!({ "kind": zone.ir_name() });
+    match cards.holders.as_ref()? {
+        ZoneHolderQueryNode::Player(LocalPlayerReference::Controller) => {
+            zone_reference["player"] = controller();
+        }
+        ZoneHolderQueryNode::Players(players) => {
+            zone_reference["players"] = lower_player_set_reference(*players);
+        }
+        ZoneHolderQueryNode::Player(_) => return None,
+    }
+    let mut collection = json!({ "kind": "cardsInZone", "zone": zone_reference });
+    let filter = lower_card_object_predicate(&cards.objects.objects.predicate);
+    if !filter.is_null() {
+        collection["where"] = filter;
+    }
+    Some(collection)
+}
+
 #[cfg(test)]
 #[path = "object_predicate_token_tests.rs"]
 mod token_tests;

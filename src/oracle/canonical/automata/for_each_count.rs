@@ -63,11 +63,19 @@ pub(in crate::oracle::canonical) fn recognize_for_each_count(
 
 /// True when the cursor is at the `the number of` quantity introducer.
 pub(in crate::oracle::canonical) fn number_of_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    ["the", "number", "of"].iter().enumerate().all(|(i, word)| {
+    let total = usize::from(
         cursor
-            .peek_ahead(i)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
-    })
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("total")),
+    );
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && ["number", "of"].iter().enumerate().all(|(i, word)| {
+            cursor
+                .peek_ahead(1 + total + i)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
 }
 
 /// Reads `the number of COUNTABLE`. The countable is the same typed child as
@@ -76,7 +84,16 @@ pub(in crate::oracle::canonical) fn recognize_number_of_count(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.number-of.quantifier");
-    cursor.consume_phrase(&["the", "number", "of"])?;
+    cursor.consume("the")?;
+    // `the total number of COUNTABLE` (CR 107.1): the same count; `total`
+    // only stresses that every member of the collection is counted.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("total"))
+    {
+        cursor.consume("total")?;
+    }
+    cursor.consume_phrase(&["number", "of"])?;
     recognize_counted_collection(cursor, "colors")
 }
 
@@ -95,6 +112,7 @@ pub(in crate::oracle::canonical) fn distinct_measure_among_starts(
     (word(0, "card") && types(1) && word(2, "among"))
         || ((word(0, "colors") || word(0, "color")) && word(1, "among"))
         || (word(0, "basic") && word(1, "land") && types(2) && word(3, "among"))
+        || distinct_measure_at(cursor).is_some()
 }
 
 /// Reads `MEASURE among COLLECTION` as the distinct-value aggregate the
@@ -119,6 +137,13 @@ pub(in crate::oracle::canonical) fn recognize_distinct_measure_among(
             NumericExpression::PermanentCount(node) => {
                 node.measure != PermanentCountMeasure::Objects
             }
+            NumericExpression::Quantity(quantity) => matches!(
+                quantity.as_ref(),
+                NumericQuantity::Aggregate(ObjectAggregateNode {
+                    function: AggregateFunction::Distinct,
+                    ..
+                })
+            ),
             _ => false,
         },
         "a distinct-value measure among a collection",
@@ -187,6 +212,21 @@ fn recognize_counted_collection(
     if history_count_collection_starts(cursor) {
         return recognize_history_count_collection(cursor);
     }
+    // `of its colors`, `of that spell's colors` (`for each of ...`): the
+    // colors of one object the binding environment names (CR 105.2).
+    if object_colors_starts(cursor) {
+        return recognize_object_colors(cursor);
+    }
+    // `colors that spell is`: the colors of the spell a cast event records.
+    if spell_colors_clause_starts(cursor, color_noun) {
+        return recognize_spell_colors_clause(cursor, color_noun);
+    }
+    // `kind(s) of counter(s) on|among HOLDER`, `creature types among SET`,
+    // `different powers among SET`: the distinct values of one property
+    // over any object set (`numeric.rs`, `ObjectAggregateNode`).
+    if let Some((width, property)) = distinct_measure_at(cursor) {
+        return recognize_distinct_measure_aggregate(cursor, width, property);
+    }
     let colors = cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case(color_noun))
@@ -196,6 +236,7 @@ fn recognize_counted_collection(
     if colors {
         cursor.enter("numeric.for-each.colors");
         cursor.consume_phrase(&[color_noun, "among"])?;
+        return recognize_distinct_among(cursor, AggregateProperty::Colors);
     }
     // `basic land type(s) among`: the distinct basic land types measure.
     let basic_land_types = ["basic", "land"].iter().enumerate().all(|(i, word)| {
@@ -230,7 +271,14 @@ fn recognize_counted_collection(
         cursor.require(!colors && !basic_land_types, "one counting measure")?;
         let noun = cursor.peek_ahead(1).unwrap_or_default().to_string();
         cursor.consume_phrase(&["card", noun.as_str(), "among"])?;
-        return recognize_distinct_card_type_collection(cursor);
+        // A graveyard collection keeps the established graveyard count;
+        // any other set is the shared distinct aggregate.
+        let mut trial = cursor.clone();
+        if let Ok(count) = recognize_distinct_card_type_collection(&mut trial) {
+            *cursor = trial;
+            return Ok(count);
+        }
+        return recognize_distinct_among(cursor, AggregateProperty::CardTypes);
     }
     let distinct_names = cursor
         .peek()
@@ -850,62 +898,442 @@ pub(in crate::oracle::canonical) fn operand_is_source(operand: &PermanentOperand
     )
 }
 
-/// Lexical lookahead for `the greatest power|toughness among ...`.
+/// Lexical lookahead for `the greatest|highest|least|lowest ...`.
 pub(in crate::oracle::canonical) fn greatest_property_among_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
-        && cursor.peek_ahead(1).is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("greatest") || raw.eq_ignore_ascii_case("highest")
-        })
+        && cursor.peek_ahead(1).and_then(extremum_function).is_some()
 }
 
-/// `the greatest power|toughness among COLLECTION`: a maximum aggregate over
-/// the same battlefield collection the counting introducers read. The engine
-/// evaluates it for the ability controller's permanents only, so any other
-/// controller relation is refused explicitly.
+/// The aggregate function a superlative names.
+fn extremum_function(raw: &str) -> Option<AggregateFunction> {
+    match raw.to_ascii_lowercase().as_str() {
+        "greatest" | "highest" => Some(AggregateFunction::Greatest),
+        "least" | "lowest" => Some(AggregateFunction::Least),
+        _ => None,
+    }
+}
+
+/// `the greatest|highest|least|lowest PROPERTY among OBJECTS` (CR 107.1):
+/// the extremum of one numeric property over any object set of the shared
+/// aggregate reader. The greatest value among the ability controller's
+/// permanents keeps its established evaluator (`GreatestPropertyAmong`);
+/// every other set is the shared aggregate. A set that names an earlier
+/// action's result is read only where the parent reads program results.
 pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
     cursor: &mut OracleTokenCursor<'_>,
+    allow_action_results: bool,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.greatest-among.quantifier");
     cursor.consume("the")?;
     let superlative = cursor.peek().unwrap_or_default().to_string();
-    cursor.require(
-        superlative.eq_ignore_ascii_case("greatest") || superlative.eq_ignore_ascii_case("highest"),
-        "`greatest` or `highest`",
+    let function = cursor.require_value(
+        extremum_function(&superlative),
+        "`greatest`, `highest`, `least` or `lowest`",
     )?;
     cursor.consume(&superlative)?;
+    // `the greatest number of PERMANENTS that have a creature type in
+    // common`: the members sharing the most common creature type.
+    if function == AggregateFunction::Greatest
+        && word_at(cursor, 0, "number")
+        && word_at(cursor, 1, "of")
+    {
+        return recognize_shared_value_count(cursor);
+    }
     cursor.enter("numeric.greatest-among.property");
     // The same numeric properties a selector compares (CR 208, 202.3).
     let property = recognize_selector_numeric_property(cursor)?;
     cursor.enter("numeric.greatest-among.among");
     cursor.consume("among")?;
     cursor.enter("numeric.greatest-among.collection");
-    let query = recognize_object_collection(cursor)?;
-    cursor.require(
-        !query.exclude_source,
-        "an aggregated collection without a source exclusion",
+    let objects = recognize_aggregate_objects(cursor, allow_action_results)?;
+    if function == AggregateFunction::Greatest
+        && let AggregateObjects::Permanents(query) = &objects
+        && query.controller == Some(ObjectControllerScope::AbilityController)
+        && !query.exclude_source
+    {
+        return Ok(NumericExpression::GreatestPropertyAmong {
+            property,
+            predicate: query.predicate.clone(),
+            aggregate: PropertyAggregate::Greatest,
+        });
+    }
+    aggregate_expression(
+        cursor,
+        function,
+        AggregateProperty::from_selector(property),
+        objects,
+    )
+}
+
+/// The shared value a `greatest number of` count ranks its members by.
+const SHARED_CREATURE_TYPE: [&str; 7] = ["that", "have", "a", "creature", "type", "in", "common"];
+
+/// `number of SET that have a creature type in common` after `the
+/// greatest` (CR 205.3m): the number of members of the set that have the
+/// creature type most of them have (a changeling has every one).
+fn recognize_shared_value_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.most-common.quantifier");
+    cursor.consume_phrase(&["number", "of"])?;
+    cursor.enter("numeric.most-common.collection");
+    let end = (1..12)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            SHARED_CREATURE_TYPE
+                .iter()
+                .enumerate()
+                .all(|(index, word)| word_at(cursor, offset + index, word))
+        })
+        .map(|offset| cursor.position() + offset);
+    let end = cursor.require_value(
+        end,
+        "`that have a creature type in common` after the counted set",
     )?;
+    let objects = cursor.bounded(end, recognize_aggregate_operand)?;
+    cursor.enter("numeric.most-common.shared-value");
+    cursor.consume_phrase(&SHARED_CREATURE_TYPE)?;
+    aggregate_expression(
+        cursor,
+        AggregateFunction::MostCommon,
+        AggregateProperty::CreatureTypes,
+        objects,
+    )
+}
+
+/// One aggregate node as a numeric expression; a non-numeric property is
+/// readable only by the distinct count.
+fn aggregate_expression(
+    cursor: &mut OracleTokenCursor<'_>,
+    function: AggregateFunction,
+    property: AggregateProperty,
+    objects: AggregateObjects,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.aggregate.function");
+    let node = ObjectAggregateNode {
+        function,
+        property,
+        objects,
+        require_members: false,
+    };
+    cursor.require_value(
+        node.into_expression(),
+        "a numeric property for a greatest, least or total aggregate",
+    )
+}
+
+fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.replace('\u{2019}', "'").eq_ignore_ascii_case(expected))
+}
+
+/// The set an aggregate reads (`among SET`, `of SET`):
+///
+/// ```text
+/// Objects := ActionResult | Operand ("and" Operand)*
+/// Operand := CARDS "in" HOLDERS ZONE          (shared scoped query)
+///          | ["other"] PERMANENTS [RELATION]  (shared object collection)
+///          | PERMANENTS "on the battlefield"
+/// ActionResult := OBJECTS VERBed "this way" | "the" VERBed OBJECTS
+/// ```
+///
+/// A coordination of operands is their union (`creatures you control and
+/// creature cards in your graveyard`). A program result is read only where
+/// the parent admits it and only after an earlier action (CR 608.2c).
+pub(in crate::oracle::canonical) fn recognize_aggregate_objects(
+    cursor: &mut OracleTokenCursor<'_>,
+    allow_action_results: bool,
+) -> MachineResult<AggregateObjects> {
+    cursor.enter("numeric.aggregate.objects");
+    if action_result_reference_starts(cursor) || participle_collection_starts(cursor) {
+        return recognize_aggregate_action_result(cursor, allow_action_results);
+    }
+    let mut parts = vec![recognize_aggregate_operand(cursor)?];
+    while word_at(cursor, 0, "and") {
+        let mut trial = cursor.clone();
+        trial.consume("and")?;
+        let Ok(part) = recognize_aggregate_operand(&mut trial) else {
+            break;
+        };
+        *cursor = trial;
+        parts.push(part);
+    }
+    Ok(match parts.len() {
+        1 => parts.pop().expect("one aggregated operand"),
+        _ => AggregateObjects::Union(parts),
+    })
+}
+
+/// One operand of an aggregated set: the cards of one zone, else a
+/// battlefield collection (any player relation, `other`, `on the
+/// battlefield`). A predicate that needs a declaration is refused.
+fn recognize_aggregate_operand(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<AggregateObjects> {
+    cursor.enter("numeric.aggregate.operand");
+    let mut trial = cursor.clone();
+    if let Ok(scoped) = recognize_scoped_object_query(&mut trial)
+        && scoped.departures.is_none()
+        && scoped.domain != ObjectKind::Spell
+    {
+        *cursor = trial;
+        if scoped.domain == ObjectKind::Card {
+            cursor.require(
+                !scoped.requires_target_binding() && !scoped.uses_x(),
+                "an aggregated card collection independent of targets and declared variables",
+            )?;
+            return Ok(AggregateObjects::Cards(Box::new(scoped)));
+        }
+        // `creatures on the battlefield`: every permanent there.
+        let query = scoped.objects.objects;
+        cursor.require(
+            !predicate_needs_declaration(&query.predicate),
+            "an aggregated collection predicate independent of targets and declared variables",
+        )?;
+        return Ok(AggregateObjects::Permanents(query));
+    }
+    let query = recognize_object_collection(cursor)?;
+    cursor.enter("numeric.aggregate.permanents");
+    // CR 110.1: `on the battlefield` names every permanent there.
+    let explicit_battlefield = query.controller.is_none()
+        && word_at(cursor, 0, "on")
+        && word_at(cursor, 1, "the")
+        && word_at(cursor, 2, "battlefield");
+    if explicit_battlefield {
+        cursor.consume_phrase(&["on", "the", "battlefield"])?;
+    }
     cursor.require(
-        query.denotes_battlefield_permanents(),
+        query.denotes_battlefield_permanents()
+            || (explicit_battlefield
+                && query.predicate.supports_domain(ObjectKind::Permanent)
+                && query.predicate.has_nominal_head()),
         "an aggregated collection anchored in the battlefield-permanent domain",
     )?;
     cursor.require(
         !predicate_needs_declaration(&query.predicate),
         "an aggregated collection predicate independent of targets and declared variables",
     )?;
-    cursor.enter("numeric.greatest-among.controller");
+    refuse_unread_relative_tail(cursor)?;
+    Ok(AggregateObjects::Permanents(query))
+}
+
+/// `OBJECTS VERBed this way` / `the VERBed OBJECTS` as an aggregated set:
+/// the objects the nearest earlier action of the verb affected (CR 608.2c),
+/// bound by the program lowering.
+fn recognize_aggregate_action_result(
+    cursor: &mut OracleTokenCursor<'_>,
+    allow_action_results: bool,
+) -> MachineResult<AggregateObjects> {
+    cursor.enter("numeric.aggregate.action-result");
     cursor.require(
-        query.controller == Some(ObjectControllerScope::AbilityController),
-        "an aggregated collection controlled by you",
+        allow_action_results,
+        "an aggregate over an earlier action's result where the parent reads program results",
     )?;
-    Ok(NumericExpression::GreatestPropertyAmong {
-        property,
-        predicate: query.predicate,
-        aggregate: PropertyAggregate::Greatest,
-    })
+    let reference = if action_result_reference_starts(cursor) {
+        recognize_action_result_reference(cursor)?
+    } else {
+        recognize_participle_collection(cursor)?
+    };
+    cursor.enter("numeric.aggregate.reader");
+    let reader = cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
+        .filter(|index| *index > 0);
+    let reader = cursor.require_value(
+        reader,
+        "an earlier action of this program whose affected objects the aggregate reads",
+    )?;
+    Ok(AggregateObjects::ActionResult { reader, reference })
+}
+
+/// `MEASURE among SET` read after its measure: the distinct values of one
+/// property over the set. The colors among the ability controller's
+/// permanents keep their established count (`countDistinctColors`).
+fn recognize_distinct_among(
+    cursor: &mut OracleTokenCursor<'_>,
+    property: AggregateProperty,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.for-each.distinct.collection");
+    let objects = recognize_aggregate_objects(cursor, true)?;
+    if property == AggregateProperty::Colors
+        && let AggregateObjects::Permanents(query) = &objects
+        && query.controller == Some(ObjectControllerScope::AbilityController)
+    {
+        return Ok(NumericExpression::PermanentCount(Box::new(
+            PermanentCountNode {
+                predicate: query.predicate.clone(),
+                controller: query.controller,
+                exclude_source: query.exclude_source,
+                measure: PermanentCountMeasure::DistinctColors,
+            },
+        )));
+    }
+    aggregate_expression(cursor, AggregateFunction::Distinct, property, objects)
+}
+
+/// The width of a distinct-value measure before its relation word (`among`,
+/// `on`) and the property it counts: `creature type(s)`, `different
+/// power(s)`, `[different] kind(s) of counter(s)` (`on` only for counters).
+fn distinct_measure_at(cursor: &OracleTokenCursor<'_>) -> Option<(usize, AggregateProperty)> {
+    let types = |offset: usize| word_at(cursor, offset, "type") || word_at(cursor, offset, "types");
+    let different = usize::from(word_at(cursor, 0, "different"));
+    let (width, property) = if different == 0 && word_at(cursor, 0, "creature") && types(1) {
+        (2, AggregateProperty::CreatureTypes)
+    } else if different == 1 && (word_at(cursor, 1, "power") || word_at(cursor, 1, "powers")) {
+        (2, AggregateProperty::Power)
+    } else if (word_at(cursor, different, "kind") || word_at(cursor, different, "kinds"))
+        && word_at(cursor, different + 1, "of")
+        && (word_at(cursor, different + 2, "counter") || word_at(cursor, different + 2, "counters"))
+    {
+        (different + 3, AggregateProperty::CounterKinds)
+    } else {
+        return None;
+    };
+    let relation = word_at(cursor, width, "among")
+        || (property == AggregateProperty::CounterKinds && word_at(cursor, width, "on"));
+    relation.then_some((width, property))
+}
+
+/// `MEASURE among SET` / `kind(s) of counter(s) on HOLDER` (CR 205.3m,
+/// 208.1, 122.1): the number of different values of the measured property.
+fn recognize_distinct_measure_aggregate(
+    cursor: &mut OracleTokenCursor<'_>,
+    width: usize,
+    property: AggregateProperty,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.for-each.distinct-measure");
+    for _ in 0..width {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+    }
+    if word_at(cursor, 0, "among") {
+        cursor.consume("among")?;
+        return recognize_distinct_among(cursor, property);
+    }
+    cursor.enter("numeric.for-each.distinct-measure.holder");
+    cursor.consume("on")?;
+    let objects = recognize_aggregate_holder(cursor)?;
+    aggregate_expression(cursor, AggregateFunction::Distinct, property, objects)
+}
+
+/// The holder of `kind(s) of counter(s) on HOLDER`: the ability's source
+/// (`this creature`, its name), a pronoun the binding environment resolves,
+/// or a battlefield set. A target cannot be declared inside a count.
+fn recognize_aggregate_holder(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<AggregateObjects> {
+    let names = cursor.source_names().to_vec();
+    if word_at(cursor, 0, "this")
+        || (!names.is_empty() && source_reference_starts_at(cursor.position(), None, &names, None))
+    {
+        cursor.enter("numeric.aggregate.holder.source");
+        let source = recognize_source_reference(cursor, &names, None)?;
+        return Ok(AggregateObjects::Object(PermanentEffectReference::Source(
+            source,
+        )));
+    }
+    if ["it", "him", "her"]
+        .iter()
+        .any(|pronoun| word_at(cursor, 0, pronoun))
+    {
+        cursor.enter("numeric.aggregate.holder.pronoun");
+        let environment = installed_binding_environment(cursor);
+        let reference = resolve_possessive_antecedent(&environment)
+            .map_err(|expected| cursor.fail(expected))?;
+        let pronoun = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&pronoun)?;
+        return Ok(AggregateObjects::Object(reference));
+    }
+    cursor.enter("numeric.aggregate.holder.collection");
+    cursor.require(
+        !word_at(cursor, 0, "target"),
+        "a holder that needs no target declaration inside a count",
+    )?;
+    recognize_aggregate_objects(cursor, true)
+}
+
+/// Lexical lookahead: `of its colors` / `of that NOUN's colors`.
+fn object_colors_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "of")
+        && ((word_at(cursor, 1, "its") && word_at(cursor, 2, "colors"))
+            || (word_at(cursor, 1, "that")
+                && cursor
+                    .token_slice(cursor.position() + 2, cursor.position() + 3)
+                    .first()
+                    .is_some_and(|token| token.token_type == "possessiveTypeWord")
+                && word_at(cursor, 3, "colors")))
+}
+
+/// `of its colors` / `of that spell's colors` after `for each` (CR 105.2):
+/// the colors of one object. `its` names the binding environment's
+/// possessive antecedent; `that spell's` the spell a cast event records.
+/// Any other nominal has no antecedent this reader resolves and fails.
+fn recognize_object_colors(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.for-each.object-colors");
+    cursor.consume("of")?;
+    let environment = installed_binding_environment(cursor);
+    let objects = if word_at(cursor, 0, "its") {
+        cursor.enter("numeric.for-each.object-colors.possessive");
+        let reference = resolve_possessive_antecedent(&environment)
+            .map_err(|expected| cursor.fail(expected))?;
+        cursor.consume("its")?;
+        AggregateObjects::Object(reference)
+    } else {
+        cursor.enter("numeric.for-each.object-colors.genitive");
+        cursor.consume("that")?;
+        cursor.require(
+            word_at(cursor, 0, "spell's") && environment.frame.event_spell,
+            "`that spell's` after a cast event that records the spell",
+        )?;
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+        AggregateObjects::EventSpell
+    };
+    cursor.enter("numeric.for-each.object-colors.noun");
+    cursor.consume("colors")?;
+    aggregate_expression(
+        cursor,
+        AggregateFunction::Distinct,
+        AggregateProperty::Colors,
+        objects,
+    )
+}
+
+/// Lexical lookahead: `colors that spell is`.
+fn spell_colors_clause_starts(cursor: &OracleTokenCursor<'_>, color_noun: &str) -> bool {
+    word_at(cursor, 0, color_noun)
+        && word_at(cursor, 1, "that")
+        && word_at(cursor, 2, "spell")
+        && word_at(cursor, 3, "is")
+}
+
+/// `the number of colors that spell is` (CR 105.2): the colors of the spell
+/// a cast event records.
+fn recognize_spell_colors_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+    color_noun: &str,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.number-of.spell-colors");
+    cursor.consume_phrase(&[color_noun, "that", "spell", "is"])?;
+    cursor.require(
+        installed_binding_environment(cursor).frame.event_spell,
+        "a cast event that records the spell `that spell` names",
+    )?;
+    aggregate_expression(
+        cursor,
+        AggregateFunction::Distinct,
+        AggregateProperty::Colors,
+        AggregateObjects::EventSpell,
+    )
 }
 
 /// Lexical lookahead for `the total power|toughness|mana value of`.
@@ -1012,30 +1440,26 @@ pub(in crate::oracle::canonical) fn recognize_property_total(
             }),
         )));
     }
-    let query = recognize_object_collection(cursor)?;
+    // Any other set is the shared aggregate; the ability controller's
+    // permanents keep their established total (`sumPowers`).
+    let objects = recognize_aggregate_objects(cursor, false)?;
     cursor.enter("numeric.property-total.battlefield");
-    cursor.require(
-        !query.exclude_source,
-        "a totaled collection without a source exclusion",
-    )?;
-    cursor.require(
-        query.denotes_battlefield_permanents(),
-        "a totaled collection anchored in the battlefield-permanent domain",
-    )?;
-    cursor.require(
-        !predicate_needs_declaration(&query.predicate),
-        "a totaled collection predicate independent of targets and declared variables",
-    )?;
-    cursor.enter("numeric.property-total.controller");
-    cursor.require(
-        query.controller == Some(ObjectControllerScope::AbilityController),
-        "a totaled collection controlled by you",
-    )?;
-    Ok(NumericExpression::GreatestPropertyAmong {
-        property,
-        predicate: query.predicate,
-        aggregate: PropertyAggregate::Sum,
-    })
+    if let AggregateObjects::Permanents(query) = &objects
+        && query.controller == Some(ObjectControllerScope::AbilityController)
+        && !query.exclude_source
+    {
+        return Ok(NumericExpression::GreatestPropertyAmong {
+            property,
+            predicate: query.predicate.clone(),
+            aggregate: PropertyAggregate::Sum,
+        });
+    }
+    aggregate_expression(
+        cursor,
+        AggregateFunction::Total,
+        AggregateProperty::from_selector(property),
+        objects,
+    )
 }
 
 /// Multiplies an action's literal base quantity by a shared count. A base of
@@ -1129,6 +1553,134 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         }
         None => false,
     }
+}
+
+/// Offset of `with the EXTREMUM` after `you control the NOUN`, before the
+/// end of the clause.
+fn superlative_holder_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    if !(word_at(cursor, 0, "you") && word_at(cursor, 1, "control") && word_at(cursor, 2, "the")) {
+        return None;
+    }
+    (4..12)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            word_at(cursor, *offset, "with")
+                && word_at(cursor, offset + 1, "the")
+                && cursor
+                    .peek_ahead(offset + 2)
+                    .and_then(extremum_function)
+                    .is_some()
+        })
+}
+
+/// Lexical lookahead for `you control the NOUN with the greatest|least ...`.
+pub(in crate::oracle::canonical) fn superlative_holder_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    superlative_holder_offset(cursor).is_some()
+}
+
+/// `you control the NOUN with the greatest|least PROPERTY [among SET] or
+/// tied for the greatest|least PROPERTY` (CR 107.1): one of the controller's
+/// NOUNs holds the extremum of the population (every NOUN on the
+/// battlefield, or SET). It is the comparison of two shared aggregates:
+/// the extremum among the controller's NOUNs, undefined when there is none,
+/// reaches the extremum of the population. The strict form (`the creature
+/// with the greatest power` without the tie) is refused: a strict
+/// comparison with another population's empty extremum has no value.
+pub(in crate::oracle::canonical) fn recognize_superlative_holder_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.superlative-holder.subject");
+    let offset = cursor.require_value(
+        superlative_holder_offset(cursor),
+        "`you control the NOUN with the greatest|least PROPERTY`",
+    )?;
+    let with = cursor.position() + offset;
+    cursor.consume_phrase(&["you", "control", "the"])?;
+    cursor.enter("condition.superlative-holder.noun");
+    let noun = cursor.bounded(with, recognize_object_collection)?;
+    cursor.require(
+        noun.controller.is_none()
+            && !noun.exclude_source
+            && noun.predicate.has_nominal_head()
+            && noun.predicate.supports_domain(ObjectKind::Permanent)
+            && !predicate_needs_declaration(&noun.predicate),
+        "a permanent noun without a relation of its own, ranked by the superlative",
+    )?;
+    cursor.enter("condition.superlative-holder.extremum");
+    cursor.consume_phrase(&["with", "the"])?;
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    let function = cursor.require_value(
+        extremum_function(&raw),
+        "`greatest`, `highest`, `least` or `lowest`",
+    )?;
+    cursor.consume(&raw)?;
+    let property = recognize_selector_numeric_property(cursor)?;
+    cursor.enter("condition.superlative-holder.population");
+    let population = if word_at(cursor, 0, "among") {
+        cursor.consume("among")?;
+        match recognize_aggregate_operand(cursor)? {
+            AggregateObjects::Permanents(query) => query,
+            _ => return Err(cursor.fail("a population of battlefield permanents")),
+        }
+    } else {
+        ObjectQueryNode {
+            predicate: noun.predicate.clone(),
+            controller: None,
+            exclude_source: false,
+        }
+    };
+    cursor.enter("condition.superlative-holder.tie");
+    cursor.require(
+        word_at(cursor, 0, "or") && word_at(cursor, 1, "tied"),
+        "`or tied for the ...`: a holder that may share the extremum",
+    )?;
+    cursor.consume_phrase(&["or", "tied", "for", "the"])?;
+    let restated = cursor.peek().unwrap_or_default().to_owned();
+    cursor.require(
+        extremum_function(&restated) == Some(function),
+        "the same extremum restated after `tied for the`",
+    )?;
+    cursor.consume(&restated)?;
+    let restated_property = recognize_selector_numeric_property(cursor)?;
+    cursor.require(
+        restated_property == property,
+        "the same property restated after `tied for the`",
+    )?;
+    let property = AggregateProperty::from_selector(property);
+    let held = ObjectAggregateNode {
+        function,
+        property,
+        objects: AggregateObjects::Permanents(ObjectQueryNode {
+            predicate: noun.predicate,
+            controller: Some(ObjectControllerScope::AbilityController),
+            exclude_source: false,
+        }),
+        require_members: true,
+    };
+    let ranked = ObjectAggregateNode {
+        function,
+        property,
+        objects: AggregateObjects::Permanents(population),
+        require_members: true,
+    };
+    let (Some(held), Some(ranked)) = (held.into_expression(), ranked.into_expression()) else {
+        return Err(cursor.fail("a numeric property ranked by the superlative"));
+    };
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(held),
+        operator: match function {
+            AggregateFunction::Least => NumericComparisonOperator::LessThanOrEqual,
+            _ => NumericComparisonOperator::GreaterThanOrEqual,
+        },
+        right: ConditionNumber::Expression(ranked),
+    }))
 }
 
 #[cfg(test)]

@@ -200,6 +200,7 @@ mod mana_public_path_tests;
 mod mana_spend_prohibition;
 mod mana_value_execution;
 mod nominal_choices;
+mod numeric_aggregate;
 mod numeric_evaluation;
 mod numeric_quantities;
 mod object_condition;
@@ -2673,6 +2674,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = numeric_quantities::numeric_quantity_supported(expression) {
+        return supported;
+    }
+    if let Some(supported) = numeric_aggregate::aggregate_objects_supported(expression) {
         return supported;
     }
     match value_kind(expression) {
@@ -9367,6 +9371,9 @@ impl GameEngine {
         if let Some(value) = self.numeric_quantity(expression, controller_id) {
             return value;
         }
+        if let Some(value) = self.source_numeric_aggregate(expression, controller_id, None) {
+            return value;
+        }
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
@@ -9886,6 +9893,9 @@ impl GameEngine {
         controller_id: &str,
         source: Option<&CardInstance>,
     ) -> Option<i32> {
+        if let Some(value) = self.source_numeric_aggregate(expression, controller_id, source) {
+            return value;
+        }
         if let Some(count) =
             self.related_permanent_count_with_source(expression, controller_id, source)
         {
@@ -31353,6 +31363,11 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        if let Some(value) =
+            self.runtime_numeric_aggregate(expression, stack_object, bindings, decisions)
+        {
+            return value;
         }
         if let Some(value) =
             self.resolution_record_numeric(expression, stack_object, bindings, decisions)
