@@ -247,3 +247,97 @@ fn ordinary_card_selection_and_random_card_selection_request_shared_rollback() {
         &json!({"kind":"gainLife","player":{"kind":"abilityController"},"amount":{"kind":"integer","value":1},"name":"chooseCards"})
     ));
 }
+
+struct NoChoiceAsked;
+
+impl DecisionProvider for NoChoiceAsked {
+    fn choose(
+        &mut self,
+        _: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        Err(EngineError::new(format!(
+            "no choice is asked: {}",
+            request.id
+        )))
+    }
+}
+
+/// `For as long as that card remains exiled, its owner may play it.` (CR
+/// 108.3, 611.2a): the permission belongs to the owner of the exiled card,
+/// not to the ability's controller, and lasts across turns while the card
+/// stays in exile.
+#[test]
+fn derived_owner_play_permission_follows_the_exiled_cards_owner_across_turns() {
+    let definition: CardDefinition = serde_json::from_value(json!({
+        "id":"exiled","name":"exiled","typeLine":"Creature","manaCost":"{2}",
+        "power":"2","toughness":"2","rules":[]
+    }))
+    .unwrap();
+    let mut engine = GameEngine::new(
+        GameSetup {
+            opening_hand_size: 0,
+            starting_player: 0,
+            players: (0..2)
+                .map(|i| PlayerDeck {
+                    id: format!("player-{i}"),
+                    name: format!("P{i}"),
+                    starting_life: 20,
+                    cards: vec![definition.clone(); 10],
+                })
+                .collect(),
+        },
+        611,
+    )
+    .unwrap();
+    let card = card_instance("player-1", &definition, 40);
+    let card_id = card.instance_id.clone();
+    engine.state.players[1].exile.push(card);
+    let stack_object = StackObject {
+        id: "stack:release".to_string(),
+        controller: "player-0".to_string(),
+        card: card_instance("player-0", &definition, 41),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let card_reference = json!({"kind":"boundObject","binding":"exiledObject"});
+    let effect = json!({
+        "kind":"grantPermission",
+        "player":{"kind":"ownerOf","object":card_reference},
+        "action":{"kind":"play","card":card_reference,
+            "normalTimingApplies":true,"normalCostsApply":true},
+        "duration":{"kind":"whileInExile"},
+    });
+    assert!(effect_supported(&effect));
+    let mut bindings = BTreeMap::from([(
+        "exiledObject".to_string(),
+        RuntimeBinding::Objects(vec![card_id.clone()]),
+    )]);
+    let mut decisions = BTreeMap::new();
+    engine
+        .execute_effect_in_batch(
+            &effect,
+            None,
+            &stack_object,
+            &mut bindings,
+            &mut decisions,
+            &mut NoChoiceAsked,
+        )
+        .unwrap();
+    let permission = engine
+        .state
+        .permissions
+        .iter()
+        .find(|permission| permission["cardInstanceId"].as_str() == Some(card_id.as_str()))
+        .cloned()
+        .expect("the owner's permission is granted");
+    assert_eq!(permission["playerId"].as_str(), Some("player-1"));
+    assert!(permission.get("expiresAfterTurn").is_none());
+    engine.state.turn_number += 3;
+    assert!(engine.card_permission_in_scope(&permission, "player-1", None));
+    assert!(!engine.card_permission_in_scope(&permission, "player-0", None));
+}

@@ -812,6 +812,11 @@ impl CardCollectionMemory {
         if let CardOperandNode::HiddenChoice(choice) = operand {
             return self.hidden_choice(cursor, choice, declarations, effects, target_decisions);
         }
+        if let CardOperandNode::PermanentTargets(_) = operand {
+            // A declared permanent is a card operand only of a look at its
+            // hidden face (CR 708.5); every other verb has its own frame.
+            return Err(cursor.fail("declared face-down permanents only as the object of a look"));
+        }
         if let CardOperandNode::CommandZone { .. } = operand {
             // Only a cast reads the command zone (CR 903.8); no other verb
             // has a command-zone writer.
@@ -967,6 +972,15 @@ impl CardCollectionMemory {
                     "zone":{"kind":"library", "player":player}, "count":count_ir}}));
             return Ok((bound(&id), maximum));
         }
+        if let CardOperandNode::GraveyardPosition(position) = operand {
+            return self.graveyard_position_cards(
+                cursor,
+                position,
+                declarations,
+                effects,
+                target_decisions,
+            );
+        }
         if let CardOperandNode::ZoneCollection(query) = operand {
             let objects =
                 self.zone_collection_objects(cursor, query, declarations, target_decisions)?;
@@ -980,16 +994,23 @@ impl CardCollectionMemory {
                 let mut choose = json!({"kind":"chooseCards", "id":id, "player":controller(),
                     "from":objects.clone()});
                 let fixed = match quantity {
-                    CardSelectionQuantityNode::Exactly(amount) => {
-                        let NumericExpression::Atom(NumericAtom::Integer(fixed)) = amount else {
-                            return Err(
-                                cursor.fail("a literal number of cards chosen from the zone")
-                            );
-                        };
+                    CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                        NumericAtom::Integer(fixed),
+                    )) => {
                         cursor.require(*fixed > 0, "a positive number of chosen cards")?;
                         choose["count"] =
                             json!({"kind":"minimum", "operands":[integer(*fixed), available]});
                         Some(*fixed)
+                    }
+                    // `reveal X cards from your hand` (CR 107.3): the same
+                    // choice of exactly that many cards, or all of them if
+                    // fewer exist; the amount is the shared expression the
+                    // program binds, never a guessed literal.
+                    CardSelectionQuantityNode::Exactly(amount) => {
+                        let value = lower_targetless_numeric_expression(amount, declarations)
+                            .map_err(|error| cursor.fail(error.expectation()))?;
+                        choose["count"] = json!({"kind":"minimum", "operands":[value, available]});
+                        None
                     }
                     CardSelectionQuantityNode::UpTo(amount) => {
                         let value = lower_targetless_numeric_expression(amount, declarations)
@@ -1138,6 +1159,43 @@ impl CardCollectionMemory {
             self.removed_up_to_size = self.removed_up_to_size.max(fixed.unwrap_or(0));
         }
         Ok((result, fixed))
+    }
+
+    /// `the top|bottom [N] [QUERY] card(s) of OWNER graveyard`: the
+    /// positioned cards, bound when the action begins (CR 608.2c) so every
+    /// later verb reads exactly them, in the graveyard.
+    fn graveyard_position_cards(
+        &mut self,
+        cursor: &OracleTokenCursor<'_>,
+        position: &CardGraveyardPositionNode,
+        declarations: TargetlessDeclarationSupport,
+        effects: &mut Vec<Value>,
+        target_decisions: &mut Vec<Value>,
+    ) -> MachineResult<(Value, Option<i64>)> {
+        let mut cursor = cursor.clone();
+        cursor.enter("lower.card-action.graveyard-position");
+        let player = self.zone_owner_player(&cursor, &position.owner, target_decisions)?;
+        let count_ir = lower_targetless_numeric_expression(&position.count, declarations)
+            .map_err(|error| cursor.fail(error.expectation()))?;
+        let maximum = match &position.count {
+            NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+            _ => None,
+        };
+        let mut value = json!({"kind":"graveyardEndCards",
+            "zone":{"kind":"graveyard", "player":player},
+            "end":position.end.ir_name(), "count":count_ir});
+        if let Some(predicate) = &position.predicate {
+            validate_object_predicate_numeric_expressions(predicate, declarations)
+                .map_err(|error| cursor.fail(error.expectation()))?;
+            require_lowerable_card_predicate(&cursor, predicate)?;
+            value["where"] = lower_card_object_predicate(predicate);
+        }
+        let id = fresh("graveyardPositionCards", &mut self.next_view);
+        self.allocated_ids.insert(id.clone());
+        effects.push(json!({"kind":"bind", "id":id, "value":value}));
+        self.observe(&id, maximum);
+        self.view_zone = Some(CardZoneName::Graveyard);
+        Ok((bound(&id), maximum))
     }
 
     /// The player-owned zone a zone collection names, with its filter. A
@@ -1326,6 +1384,22 @@ impl CardCollectionMemory {
     ) -> MachineResult<Value> {
         match owner {
             CardZoneOwnerNode::Player(LocalPlayerReference::Controller) => Ok(controller()),
+            // `its controller's hand` (CR 108.3, 109.4): the player of the
+            // declared or bound object the pronoun names, read by last known
+            // information once that object left its zone (CR 608.2h).
+            CardZoneOwnerNode::Player(LocalPlayerReference::Bound(
+                BoundPlayerReference::ObjectRelation { relation, object },
+            )) => {
+                let object = super::permanent_subject::bound_permanent_reference_value(
+                    *object,
+                    &self.object_bindings,
+                )
+                .ok_or_else(|| cursor.fail("the declared object whose player owns the zone"))?;
+                Ok(json!({"kind": match relation {
+                    ObjectPlayerRelation::Controller => "controllerOf",
+                    ObjectPlayerRelation::Owner => "ownerOf",
+                }, "object":object}))
+            }
             // The player the triggering event records (`that player's hand`
             // after `deals combat damage to a player`, `defending player's`).
             CardZoneOwnerNode::Player(LocalPlayerReference::Bound(player)) => {
@@ -1404,7 +1478,10 @@ impl CardCollectionMemory {
         cursor: &OracleTokenCursor<'_>,
         permit: &CardPermissionNode,
     ) -> bool {
-        if permit.duration.is_some() || permit.window.is_some() {
+        if permit.duration.is_some()
+            || permit.window.is_some()
+            || permit.verb == CardPermissionVerb::Look
+        {
             return false;
         }
         if !permit.optional
@@ -1440,6 +1517,12 @@ impl CardCollectionMemory {
         target_decisions: &mut Vec<Value>,
     ) -> MachineResult<Vec<Value>> {
         cursor.enter("lower.card-action.resolution-cast");
+        cursor.require(
+            permit.grantee == CardPermissionGranteeNode::Controller
+                && permit.verb != CardPermissionVerb::Look
+                && !permit.look,
+            "a cast while the effect resolves by the ability's controller",
+        )?;
         cursor.require(
             !permit.mana_of_any_type,
             "a spending policy only on a later casting permission",
@@ -1526,7 +1609,22 @@ impl CardCollectionMemory {
             }
             CardOperandNode::Reference(reference) => {
                 let (cards, maximum) = self.reference(cursor, *reference)?;
-                let zone = self.observed_cast_zone(cursor, *reference)?;
+                let zone = match (permit.origin, self.observed_cast_zone(cursor, *reference)) {
+                    (None, proved) => proved?,
+                    // The stated zone must agree with what the program proved.
+                    (Some(origin), Ok(proved)) => {
+                        cursor.enter("lower.card-action.resolution-cast.origin");
+                        cursor.require(
+                            origin == proved,
+                            "a stated origin that is where the bound card is",
+                        )?;
+                        proved
+                    }
+                    // `whenever you discard a card, you may cast it from your
+                    // graveyard` (CR 601.2a): the cast reads only the named
+                    // zone; the bound card is cast only if it is there.
+                    (Some(origin), Err(_)) => origin,
+                };
                 (Some(cards), maximum, vec![zone.ir_name()])
             }
             CardOperandNode::Selection(selection) => {
@@ -1786,6 +1884,40 @@ impl CardCollectionMemory {
                             "value":{"kind":"cardsInZone",
                                 "zone":{"kind":"hand", "player":player}}}));
                     }
+                    // `look at target face-down creature` (CR 708.5): the
+                    // controller alone learns each declared permanent's
+                    // front face; nothing is revealed and no card is
+                    // observed for later card references.
+                    CardOperandNode::PermanentTargets(targets) => {
+                        cursor.enter("lower.card-action.look-at.face-down");
+                        let mut objects = Vec::new();
+                        for slot in &targets.slots {
+                            cursor.require(
+                                slot.count.is_none(),
+                                "a literal number of face-down permanents to look at",
+                            )?;
+                            let (_, candidates) =
+                                lower_target_slot_candidates(slot).ok_or_else(|| {
+                                    cursor.fail("a permanent target selector to look at")
+                                })?;
+                            let id = fresh("targetLookedPermanent", &mut self.next_zone_target);
+                            self.allocated_ids.insert(id.clone());
+                            target_decisions.push(target_decision(
+                                &id,
+                                candidates,
+                                i64::from(slot.cardinality.minimum),
+                                i64::from(slot.cardinality.maximum),
+                            ));
+                            objects.push(json!({"kind":"chosenTargets", "id":id}));
+                        }
+                        let objects = if objects.len() == 1 {
+                            objects.remove(0)
+                        } else {
+                            json!({"kind":"union", "sets":objects})
+                        };
+                        effects.push(json!({"kind":"lookAtFaceDownPermanents",
+                            "objects":objects, "viewer":controller()}));
+                    }
                     _ => return Err(cursor.fail("a library top or a whole hand to look at")),
                 }
             }
@@ -1799,6 +1931,18 @@ impl CardCollectionMemory {
                 )?;
                 effects.push(json!({"kind":"revealCards", "cards":cards.clone()}));
                 if matches!(operand, CardOperandNode::LibraryTop(_)) {
+                    self.view_verb = Some(CardCollectionVerb::Revealed);
+                }
+                // `reveal three cards from your hand`: the revealing player's
+                // choice fixed the revealed cards (CR 608.2c, 701.20a); they
+                // are the observed collection a later `one of them`, `those
+                // cards` or `that card` names, in the chosen zone.
+                if let CardOperandNode::ZoneCollection(query) = operand
+                    && query.quantity.is_some()
+                {
+                    let single_zone = query.additional_zones.is_empty().then_some(query.zone);
+                    self.observe_chosen_cards(cards.clone(), maximum, single_zone);
+                    self.complement_basis = Some((cards.clone(), maximum));
                     self.view_verb = Some(CardCollectionVerb::Revealed);
                 }
                 self.last_revealed = Some((cards, maximum));
@@ -2012,6 +2156,10 @@ impl CardCollectionMemory {
             }
             CardActionNode::Permit(permit) => {
                 cursor.enter("lower.card-action.permit.window");
+                cursor.require(
+                    permit.origin.is_none(),
+                    "a stated origin only for a cast while the effect resolves",
+                )?;
                 // A window permission is a player's later choice to cast;
                 // a substituted cost has no runtime on it yet.
                 if matches!(
@@ -2112,6 +2260,20 @@ impl CardCollectionMemory {
                     "a bound card collection as the permission object",
                 )?;
                 let card = self.permission_card_reference(cards, maximum, &mut effects);
+                // `its owner may play it` (CR 108.3): the owner of the one
+                // permitted card, which is in exile when the permission
+                // begins, so the grantee is fixed then.
+                let grantee = match permit.grantee {
+                    CardPermissionGranteeNode::Controller => controller(),
+                    CardPermissionGranteeNode::CardOwner => {
+                        cursor.enter("lower.card-action.permit.grantee.owner");
+                        cursor.require(
+                            maximum == Some(1) && value_kind_name(&card) == Some("boundObject"),
+                            "one bound card whose owner receives the permission",
+                        )?;
+                        json!({"kind":"ownerOf", "object":card.clone()})
+                    }
+                };
                 let mut replace_from_source = false;
                 let duration = match (&permit.duration, permit.window) {
                     // CR 611.2a + 400.7: an unbounded permission over cards
@@ -2169,13 +2331,31 @@ impl CardCollectionMemory {
                         ));
                     }
                 };
+                // `you may look at [and play] CARDS` (CR 406.3): the grantee
+                // learns the hidden cards for the same window.
+                if permit.look || permit.verb == CardPermissionVerb::Look {
+                    effects.push(json!({"kind":"grantCardVisibility",
+                        "cards":card.clone(), "viewer":grantee.clone(),
+                        "duration":duration.clone()}));
+                }
+                let action_kind = match permit.verb {
+                    CardPermissionVerb::Play => "play",
+                    CardPermissionVerb::Cast => "cast",
+                    CardPermissionVerb::Look => {
+                        cursor.enter("lower.card-action.permit.look");
+                        cursor.require(
+                            !replace_from_source
+                                && permit.graveyard_exile.is_none()
+                                && !permit.mana_of_any_type,
+                            "a look permission without a play or cast",
+                        )?;
+                        return Ok(effects);
+                    }
+                };
                 // `without paying its mana cost` (CR 118.9): the permitted
                 // cast has no mana cost to pay.
                 let normal_costs_apply = !permit.without_paying_mana_cost();
-                let mut action = json!({"kind":match permit.verb {
-                        CardPermissionVerb::Play => "play",
-                        CardPermissionVerb::Cast => "cast",
-                    },
+                let mut action = json!({"kind":action_kind,
                     "card":card, "normalTimingApplies":true,
                     "normalCostsApply":normal_costs_apply});
                 if permit.mana_of_any_type {
@@ -2184,7 +2364,7 @@ impl CardCollectionMemory {
                 if let Some(replacement) = graveyard_exile {
                     action["exileInsteadOfGraveyard"] = replacement;
                 }
-                let mut grant = json!({"kind":"grantPermission", "player":controller(),
+                let mut grant = json!({"kind":"grantPermission", "player":grantee,
                     "action":action, "duration":duration});
                 if replace_from_source {
                     grant["replacePermissionsFromSource"] = json!(true);
@@ -2372,6 +2552,10 @@ impl CardCollectionMemory {
                         CardOperandNode::ObjectAntecedent { .. } => true,
                         // Card copies are refused by `operand` before this
                         // point; they exist only to be cast (CR 707.12).
+                        CardOperandNode::PermanentTargets(_) => false,
+                        // The positioned graveyard cards: the binding fixed
+                        // their identities when the action began (CR 608.2c).
+                        CardOperandNode::GraveyardPosition(_) => true,
                         CardOperandNode::LibraryTop(_)
                         | CardOperandNode::CardCopies { .. }
                         | CardOperandNode::CommandZone { .. } => false,
@@ -2484,12 +2668,19 @@ impl CardCollectionMemory {
                     self.last_exiled = Some((cards.clone(), maximum));
                 }
                 let mut movement = json!({"kind":"moveCards", "cards":cards, "to":to});
-                if matches!(operand, CardOperandNode::Targets(_))
-                    && destination.zone == CardZoneName::Exile
+                // `exile target card ... Copy it.`, `that player exiles a card
+                // from their hand. You may play that card ...`, `exile all
+                // creature cards from target player's graveyard. You may cast
+                // spells from among those cards ...`: declared or zone-chosen
+                // cards are fixed by the declaration or the choice (CR
+                // 608.2c), and the exiled cards they became are the observed
+                // collection of later card references.
+                if matches!(
+                    operand,
+                    CardOperandNode::Targets(_) | CardOperandNode::ZoneCollection(_)
+                ) && destination.zone == CardZoneName::Exile
                 {
-                    // `exile target card ... Copy it.`: the exiled targets
-                    // are the observed collection a later `it` / `that card`
-                    // names, bound to the objects they became (CR 400.7).
+                    // Bound to the objects they became (CR 400.7).
                     movement["bind"] = json!(match maximum {
                         Some(1) => self.observe_exiled_object(),
                         maximum => self.observe_exiled_objects(maximum),
@@ -2511,7 +2702,19 @@ impl CardCollectionMemory {
                     movement["bind"] = json!(id);
                     effects.push(movement);
                     effects.push(lower_shuffle_libraries_holding(bound(&id)));
-                    self.clear_antecedent();
+                    // `An opponent chooses one of those cards. Shuffle that
+                    // card into your library. You may cast the other cards`:
+                    // shuffling a selection out of the observed collection
+                    // leaves its complement (CR 608.2c); only the shuffled
+                    // cards stop being an antecedent. Anything else shuffled
+                    // ends the observation.
+                    let selection_out_of_view = !moves_whole_view && self.selected.contains(&cards);
+                    if selection_out_of_view {
+                        self.singular_focus = None;
+                        self.plural_focus = None;
+                    } else {
+                        self.clear_antecedent();
+                    }
                 } else {
                     effects.push(movement);
                     if moves_whole_view {
@@ -2631,6 +2834,11 @@ fn moved_cards_owned_by_controller(operand: &CardOperandNode) -> bool {
                     query.zone,
                     CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Library
                 )
+        }
+        CardOperandNode::PermanentTargets(_) => false,
+        // A card is only ever in its owner's graveyard (CR 400.3).
+        CardOperandNode::GraveyardPosition(position) => {
+            position.owner == CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
         }
         CardOperandNode::Reference(_)
         | CardOperandNode::ObjectAntecedent { .. }

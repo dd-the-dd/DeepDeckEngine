@@ -104,6 +104,173 @@ fn counted_from_top_starts(cursor: &OracleTokenCursor<'_>) -> bool {
         })
 }
 
+/// The end of an ordered zone a position names (CR 401.2 for a library;
+/// a graveyard keeps the order its cards were put into it, the most recent
+/// on top).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CardZoneEnd {
+    Top,
+    Bottom,
+}
+
+impl CardZoneEnd {
+    /// The runtime end name of `graveyardEndCards`.
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Top => "top",
+            Self::Bottom => "bottom",
+        }
+    }
+}
+
+/// `the top|bottom [N] [QUERY] card(s) of OWNER graveyard`: the N matching
+/// cards nearest that end of one player's graveyard, counted among the
+/// matching cards only (`the top creature card of your graveyard` is the
+/// most recently put creature card). Every card-action verb consumes it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CardGraveyardPositionNode {
+    pub end: CardZoneEnd,
+    pub count: NumericExpression,
+    /// The card query; `None` for the bare `card` noun.
+    pub predicate: Option<ObjectPredicate>,
+    pub owner: CardZoneOwnerNode,
+}
+
+/// The offset of the `of` that closes `the top|bottom ...` when the zone it
+/// introduces is a graveyard (`of your graveyard`, `of target player's
+/// graveyard`, `of defending player's graveyard`). Pure lookahead within
+/// the clause; a library position (`the top card of your library`) is
+/// `None` and stays with the library reader.
+fn graveyard_position_of_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !(word(0, "the") && (word(1, "top") || word(1, "bottom"))) {
+        return None;
+    }
+    let of = (2..12)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(*offset)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| word(*offset, "of"))?;
+    // The owner phrase is one to three words (`your`, `target player's`,
+    // `defending player's`) before the zone noun.
+    (of + 2..of + 5)
+        .any(|offset| word(offset, "graveyard"))
+        .then_some(of)
+}
+
+/// The graveyard position operand (see [`CardGraveyardPositionNode`]). It
+/// is committed once the lookahead proved `the top|bottom ... of ...
+/// graveyard`: every later failure (an unread query, an unsupported owner)
+/// is this operand's own diagnostic.
+pub(in crate::oracle::canonical) fn try_recognize_card_graveyard_position(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> CollectionOperandAttempt<CardGraveyardPositionNode> {
+    let Some(of_offset) = graveyard_position_of_offset(cursor) else {
+        return CollectionOperandAttempt::NotClaimed;
+    };
+    let of = cursor.position() + of_offset;
+    let mut trial = cursor.clone();
+    let result = (|| -> MachineResult<CardGraveyardPositionNode> {
+        trial.enter("collection.graveyard-position.end");
+        trial.consume("the")?;
+        let end = if trial
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("top"))
+        {
+            trial.consume("top")?;
+            CardZoneEnd::Top
+        } else {
+            trial.consume("bottom")?;
+            CardZoneEnd::Bottom
+        };
+        trial.enter("collection.graveyard-position.quantity");
+        // `the top three black cards`: a written count before the query;
+        // without one the position names one card.
+        let mut counted = trial.clone();
+        let count = match recognize_numeric_expression(&mut counted, None) {
+            Ok(count) if counted.position() < of => {
+                trial = counted;
+                Some(count)
+            }
+            _ => None,
+        };
+        trial.enter("collection.graveyard-position.cards");
+        let query = trial.bounded(of, |inner| {
+            recognize_object_noun_query(inner, ObjectQueryContext::ORDINARY)
+        })?;
+        let plural = trial
+            .token_slice(of - 1, of)
+            .first()
+            .is_some_and(|token| token.raw.eq_ignore_ascii_case("cards"));
+        let singular = trial
+            .token_slice(of - 1, of)
+            .first()
+            .is_some_and(|token| token.raw.eq_ignore_ascii_case("card"));
+        trial.require(
+            (plural || singular)
+                && query.relations().is_empty()
+                && query.predicate().is_in_domain(ObjectKind::Card),
+            "an unscoped card query ending with `card` or `cards`",
+        )?;
+        let count = count.unwrap_or_else(|| NumericExpression::from(1));
+        if let NumericExpression::Atom(NumericAtom::Integer(value)) = &count {
+            trial.require(*value > 0, "a positive number of positioned cards")?;
+            trial.require(
+                (*value == 1) == singular,
+                "`card` for one positioned card, `cards` for several",
+            )?;
+        } else {
+            trial.require(plural, "`cards` after a variable count")?;
+        }
+        let predicate = Some(query.predicate().clone())
+            .filter(|predicate| *predicate != ObjectPredicate::ObjectKind(ObjectKind::Card));
+        trial.enter("collection.graveyard-position.owner");
+        trial.consume("of")?;
+        let owner = if trial
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+        {
+            trial.consume("your")?;
+            CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
+        } else if starts_possessive_target_player(&trial) {
+            CardZoneOwnerNode::TargetPlayer(recognize_possessive_target_player(&mut trial)?)
+        } else if let Some(player) = try_recognize_bound_possessive_player(&mut trial)? {
+            CardZoneOwnerNode::Player(LocalPlayerReference::Bound(player))
+        } else {
+            return Err(trial.fail(
+                "`your`, a target player's or a bound player's graveyard after the position",
+            ));
+        };
+        trial.enter("collection.graveyard-position.zone");
+        let zone = recognize_card_zone_atom(&mut trial)?;
+        trial.require(
+            zone == CardZoneName::Graveyard,
+            "the graveyard whose order the position reads",
+        )?;
+        Ok(CardGraveyardPositionNode {
+            end,
+            count,
+            predicate,
+            owner,
+        })
+    })();
+    match result {
+        Ok(node) => {
+            trial.enter("collection.graveyard-position.complete");
+            let end_position = trial.position();
+            *cursor = trial;
+            CollectionOperandAttempt::Recognized(RecognizedEffectFragment { node, end_position })
+        }
+        Err(failure) => CollectionOperandAttempt::FailedCommitted(failure),
+    }
+}
+
 /// The library position operand of an action verb: the controller's
 /// library or, when `target_owner` is admitted, a declared player's
 /// (`the top N cards of target opponent's library`). Another zone after

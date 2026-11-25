@@ -222,7 +222,24 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
                     if let Err(f) = trial.consume("other") {
                         return CollectionOperandAttempt::FailedCommitted(f);
                     }
-                    CardCollectionReferenceNode::Other
+                    // `the other cards`: the plural complement of a preceding
+                    // selection, the same collection as `the rest`; `the
+                    // other [card]` stays the singular complement.
+                    match trial.peek().map(str::to_ascii_lowercase).as_deref() {
+                        Some("cards") => {
+                            if let Err(f) = trial.consume("cards") {
+                                return CollectionOperandAttempt::FailedCommitted(f);
+                            }
+                            CardCollectionReferenceNode::Remainder
+                        }
+                        Some("card") => {
+                            if let Err(f) = trial.consume("card") {
+                                return CollectionOperandAttempt::FailedCommitted(f);
+                            }
+                            CardCollectionReferenceNode::Other
+                        }
+                        _ => CardCollectionReferenceNode::Other,
+                    }
                 }
                 Some("cards")
                     if trial
