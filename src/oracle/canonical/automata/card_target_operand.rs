@@ -144,16 +144,20 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
         )?;
         // An explicit `from ZONE` origin commits the card-target reading:
         // the declaration is in that zone, never a battlefield permanent.
-        committed = trial
+        // `from ZONE` and the location tail `in ZONE` (`target instant card
+        // in your graveyard`) state the same declared zone.
+        let relation = trial
             .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("from"));
+            .filter(|raw| raw.eq_ignore_ascii_case("from") || raw.eq_ignore_ascii_case("in"))
+            .map(str::to_owned);
+        committed = relation.is_some();
         trial.enter("card-target.query-capability");
         trial.require(
             declaration_predicate_is_closed(&query.predicate),
             "a proved card-declaration predicate (no AnyZone P/T, color or resolution numeric context)",
         )?;
         trial.enter("card-target.source-relation");
-        trial.consume("from")?;
+        trial.consume(relation.as_deref().unwrap_or("from"))?;
         committed = true;
         trial.enter("card-target.source-owner");
         let (owner, plural) = match trial.peek().map(str::to_ascii_lowercase).as_deref() {

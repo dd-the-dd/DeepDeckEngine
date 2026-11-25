@@ -108,6 +108,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
             | CardActionNode::ChooseFromZone(_)
+            | CardActionNode::GrantKeyword(_)
             | CardActionNode::Copy { .. }
             | CardActionNode::Permit(_) => false,
             CardActionNode::Shuffle { .. } => true,

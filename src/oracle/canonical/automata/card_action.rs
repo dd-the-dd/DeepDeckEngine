@@ -246,6 +246,9 @@ pub(in crate::oracle::canonical) enum CardActionNode {
     /// The chosen cards are the observed collection (the chosen-card binding)
     /// a later `that card`, `it` or `them` names, in that zone.
     ChooseFromZone(CardZoneCollectionNode),
+    /// `CARDS gain(s) flashback until end of turn` (CR 702.34a): a keyword
+    /// the cards have where they are, fixed on resolution (CR 611.2c).
+    GrantKeyword(CardKeywordGrantNode),
     /// `shuffle [your library]` (CR 701.20a).
     Shuffle {
         owner: LocalPlayerReference,
@@ -333,6 +336,28 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     let Some(head) = cursor.peek() else {
         return Ok(None);
     };
+    if card_keyword_grant_follows(cursor) {
+        // `target instant card in your graveyard gains flashback until end
+        // of turn`: the card operand is the clause subject. Committed once
+        // the keyword is read; an unread subject leaves the clause to others.
+        let mut trial = cursor.clone();
+        let start = trial.position();
+        match recognize_card_keyword_grant(&mut trial, operand) {
+            Ok(node) => {
+                *cursor = trial;
+                return Ok(Some(CardActionNode::GrantKeyword(node)));
+            }
+            Err(failure)
+                if trial
+                    .token_slice(start, trial.position())
+                    .iter()
+                    .any(|token| token.raw.eq_ignore_ascii_case("flashback")) =>
+            {
+                return Err(failure);
+            }
+            Err(_) => {}
+        }
+    }
     if permission_head_starts(cursor) || imperative_cast_starts(cursor) {
         return recognize_card_permission(cursor, frame, None)
             .map(|node| Some(CardActionNode::Permit(node)));

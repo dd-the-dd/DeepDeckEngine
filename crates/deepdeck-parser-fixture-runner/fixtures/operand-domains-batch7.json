@@ -470,6 +470,171 @@
           }
         ]
       }
+    },
+    {
+      "id": "snapcaster-mage-exact-declared-graveyard-card-gains-flashback",
+      "request": {
+        "cardName": "Snapcaster Mage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Flash\nWhen this creature enters, target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. (You may cast that card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "past-in-flames-exact-graveyard-collection-gains-flashback",
+      "request": {
+        "cardName": "Past in Flames",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.\nFlashback {4}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "recoup-exact-sorcery-card-gains-flashback",
+      "request": {
+        "cardName": "Recoup",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. (Mana cost includes color.)\nFlashback {3}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "backdraft-hellkite-exact-attack-trigger-collection-flashback",
+      "request": {
+        "cardName": "Backdraft Hellkite",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Flying\nWhenever this creature attacks, each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sphinx-of-forgotten-lore-exact-that-cards-mana-cost",
+      "request": {
+        "cardName": "Sphinx of Forgotten Lore",
+        "typeLine": "Creature — Sphinx",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flash (You may cast this spell any time you could cast an instant.)\nFlying\nWhenever this creature attacks, target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to that card's mana cost. (You may cast that card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "past-in-flames-grant-ir",
+      "request": {
+        "cardName": "Past in Flames",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.\nFlashback {4}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantAbility"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "cardsInZone"
+              },
+              {
+                "pointer": "/effects/0/ability/kind",
+                "equals": "flashback"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-creature-card-gains-flashback",
+      "request": {
+        "cardName": "Flame Sibling",
+        "typeLine": "Creature — Phoenix",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature attacks, each creature card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-flashback-grant-without-cost",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your graveyard gains flashback until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-flashback-grant-in-hidden-hand",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target instant card in your hand gains flashback until end of turn. The flashback cost is equal to its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

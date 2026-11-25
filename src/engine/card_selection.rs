@@ -29,6 +29,13 @@ pub(super) fn library_top_cards_supported(expression: &Value) -> bool {
         && numeric_expression_supported(&expression["count"])
 }
 
+/// The cards a flashback grant names: one declared or bound card, or a card
+/// collection (`each instant and sorcery card in your graveyard`) whose
+/// members are fixed when the grant resolves (CR 611.2c).
+pub(super) fn flashback_grant_objects_supported(object: &Value) -> bool {
+    target_reference_supported(object) || object_collection_expression_supported(object)
+}
+
 pub(super) fn ordinary_bound_selection(effect: &Value) -> bool {
     value_kind(&effect["candidates"]) != Some("cards")
         && !effect["sameLandType"].as_bool().unwrap_or(false)
@@ -80,6 +87,53 @@ impl GameEngine {
             );
         }
         Some(cards)
+    }
+
+    /// `CARDS gain flashback until end of turn` (CR 702.34a): each card
+    /// outside the battlefield the object names when the grant resolves may
+    /// be cast this turn by the grant's controller for its mana cost, and is
+    /// exiled when it leaves the stack. A declared card that is no longer
+    /// there gains nothing (CR 400.7).
+    pub(super) fn grant_flashback_until_end_of_turn(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<(), EngineError> {
+        let object = &effect["object"];
+        let instance_ids = if target_reference_supported(object) {
+            match self.resolve_target(object, stack_object, bindings) {
+                Some(TargetRef::Card { instance_id }) => vec![instance_id],
+                _ => Vec::new(),
+            }
+        } else {
+            self.resolve_runtime_object_ids_checked(object, stack_object, bindings, decisions)?
+        };
+        for instance_id in instance_ids {
+            let Some(card) = self.card_outside_battlefield(&instance_id).cloned() else {
+                continue;
+            };
+            let permission = json!({
+                "action": "cast",
+                "alternativeManaCost": card.definition.mana_cost,
+                "cardInstanceId": instance_id,
+                "exileOnLeaveStack": true,
+                "expiresAfterTurn": self.state.turn_number,
+                "normalCostsApply": true,
+                "normalTimingApplies": true,
+                "playerId": stack_object.controller,
+                "sourceCardInstanceId": stack_object.card.instance_id,
+            });
+            self.state.permissions.push(permission.clone());
+            self.record_event(
+                "flashbackPermissionGranted",
+                Some(stack_object.controller.clone()),
+                Some(card.instance_id),
+                permission,
+            );
+        }
+        Ok(())
     }
 
     pub(super) fn execute_bound_card_selection<P: DecisionProvider>(

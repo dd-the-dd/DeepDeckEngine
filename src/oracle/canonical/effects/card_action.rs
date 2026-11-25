@@ -1630,6 +1630,33 @@ impl CardCollectionMemory {
                 let single_zone = zone.additional_zones.is_empty().then_some(zone.zone);
                 self.observe_chosen_cards(chosen, maximum, single_zone);
             }
+            CardActionNode::GrantKeyword(grant) => {
+                cursor.enter("lower.card-action.grant-keyword");
+                let (cards, maximum) = self.operand(
+                    cursor,
+                    &grant.cards,
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
+                // One declared card is the target reference the grant reads;
+                // any other collection is resolved into its cards, each of
+                // which gains the keyword (CR 611.2c).
+                let object =
+                    if value_kind_name(&cards) == Some("chosenTargets") && maximum == Some(1) {
+                        json!({"kind":"chosenTarget", "id":cards["id"].clone()})
+                    } else {
+                        cards
+                    };
+                let GrantedCardKeywordNode::Flashback(GrantedFlashbackCostNode::ManaCostOfCard) =
+                    grant.keyword;
+                // CR 702.34a: within the granted ability, `its mana cost` is
+                // the mana cost of the card that has it (`abilitySource`).
+                effects.push(json!({"kind":"grantAbility", "object":object,
+                    "duration":{"kind":"untilEndOfCurrentTurn"},
+                    "ability":{"kind":"flashback",
+                        "cost":{"kind":"manaCostOf", "card":{"kind":"abilitySource"}}}}));
+            }
             CardActionNode::Shuffle { owner } => {
                 cursor.enter("lower.card-action.shuffle");
                 cursor.require(

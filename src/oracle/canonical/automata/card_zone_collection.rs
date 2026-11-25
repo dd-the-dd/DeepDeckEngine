@@ -43,9 +43,20 @@ fn chosen_zone_cards_start(cursor: &OracleTokenCursor<'_>) -> bool {
             && cursor
                 .peek_ahead(1)
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("number")));
-    if !quantified {
-        return false;
-    }
+    quantified && card_noun_then_owned_zone(cursor)
+}
+
+/// `each QUERY card in|from OWNER ZONE`: the distributive universal of a
+/// named zone's matching cards (the same collection as `all ... cards`).
+fn each_zone_card_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+        && card_noun_then_owned_zone(cursor)
+}
+
+/// A card noun, then `from|in OWNER` before the sentence ends.
+fn card_noun_then_owned_zone(cursor: &OracleTokenCursor<'_>) -> bool {
     // The card noun, then `from|in OWNER` before the sentence ends. A
     // comma of a coordinated type list (`an artifact, creature, or land
     // card`) and a postposed qualifier (`with mana value 3 or less`) stay
@@ -133,7 +144,8 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> CollectionOperandAttempt<CardZoneCollectionNode> {
     let mut trial = cursor.clone();
-    let explicit_cards = trial.peek().is_some_and(|v| v.eq_ignore_ascii_case("all"));
+    let explicit_cards = trial.peek().is_some_and(|v| v.eq_ignore_ascii_case("all"))
+        || each_zone_card_starts(&trial);
     let direct_owner = trial
         .peek()
         .is_some_and(|v| v.eq_ignore_ascii_case("your") || v.eq_ignore_ascii_case("target"));
@@ -187,11 +199,9 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
                 ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Card]),
             )?;
             trial.require(
-                matches!(
-                    phrase.determiner,
-                    Some(ObjectDeterminer::Universal { each: false })
-                ) && !phrase.exclude_source,
-                "`all` cards of a zone without a source exclusion",
+                matches!(phrase.determiner, Some(ObjectDeterminer::Universal { .. }))
+                    && !phrase.exclude_source,
+                "`all` or `each` cards of a zone without a source exclusion",
             )?;
             trial.require(
                 phrase.query.relations().is_empty() && phrase.domain == Some(ObjectKind::Card),
