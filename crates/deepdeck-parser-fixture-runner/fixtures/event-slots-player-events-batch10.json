@@ -1417,6 +1417,111 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-rangers-refueler-activate-an-exhaust-ability",
+      "request": {
+        "cardName": "Rangers' Refueler",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever you activate an exhaust ability, draw a card.\nExhaust — {4}: This Vehicle becomes an artifact creature. Put a +1/+1 counter on it. (Activate each exhaust ability only once.)\nCrew 2",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "nonManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/abilityClass",
+                "equals": "exhaust"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-frenzied-raider-activate-a-boast-ability",
+      "request": {
+        "cardName": "Frenzied Raider",
+        "typeLine": "Creature — Demon Berserker",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever you activate a boast ability, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "nonManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/abilityClass",
+                "equals": "boast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-activates-an-exhaust-ability",
+      "request": {
+        "cardName": "Synthetic Exhaust Watch",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent activates an exhaust ability, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "nonManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/abilityClass",
+                "equals": "exhaust"
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

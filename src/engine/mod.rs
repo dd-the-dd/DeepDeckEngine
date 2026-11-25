@@ -5094,6 +5094,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 || event["opponentOfSourceController"].as_bool() == Some(true))
                 && event.get("where").is_none_or(card_filter_supported)
                 && event.get("loyaltyOnly").is_none_or(Value::is_boolean)
+                && event.get("abilityClass").is_none_or(Value::is_string)
                 && event
                     .get("minimumLoyaltyRemoved")
                     .is_none_or(|value| integer_value(value).is_some_and(|value| value > 0))
@@ -21822,6 +21823,14 @@ impl GameEngine {
                     })
                 })
             });
+        let triggering_class = self
+            .state
+            .stack
+            .iter()
+            .find(|object| object.id == triggering_stack_id)
+            .and_then(|object| object.ability_rule.as_ref())
+            .and_then(|rule| rule["abilityClass"].as_str())
+            .map(str::to_string);
         let triggering_loyalty_change = self
             .state
             .stack
@@ -21852,6 +21861,9 @@ impl GameEngine {
                                     ) && event["loyaltyOnly"]
                                         .as_bool()
                                         .is_none_or(|required| !required || triggering_is_loyalty)
+                                        && event["abilityClass"].as_str().is_none_or(|class| {
+                                            triggering_class.as_deref() == Some(class)
+                                        })
                                         && integer_value(&event["minimumLoyaltyRemoved"])
                                             .is_none_or(|minimum| {
                                                 triggering_loyalty_change <= -minimum

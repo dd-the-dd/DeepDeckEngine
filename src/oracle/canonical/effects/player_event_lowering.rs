@@ -177,8 +177,12 @@ pub(in crate::oracle::canonical) fn lower_ability_activation_event(
         EventActorScope::Opponent => lowered["opponentOfSourceController"] = json!(true),
         EventActorScope::AnyPlayer => lowered["player"] = json!({"kind": "eachPlayer"}),
     }
-    if kind == ActivatedAbilityKind::Loyalty {
-        lowered["loyaltyOnly"] = json!(true);
+    match kind {
+        ActivatedAbilityKind::Loyalty => lowered["loyaltyOnly"] = json!(true),
+        ActivatedAbilityKind::Labelled(keyword) => {
+            lowered["abilityClass"] = json!(keyword.ability_class());
+        }
+        ActivatedAbilityKind::NonMana => {}
     }
     Ok(lowered)
 }

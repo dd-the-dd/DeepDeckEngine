@@ -452,3 +452,50 @@ fn a_spell_you_control_countering_a_spell_is_observed_by_its_controller() {
         );
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_labelled_activation_is_observed_by_its_ability_class() {
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![parsed_card(
+        "refueler",
+        "player-0",
+        "Rangers' Refueler",
+        "Artifact — Vehicle",
+        "Whenever you activate an exhaust ability, you gain 1 life.",
+    )];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    for (stack_id, rule, triggers) in [
+        (
+            "stack:plain",
+            json!({"kind": "activatedAbility", "costs": []}),
+            0,
+        ),
+        (
+            "stack:boast",
+            json!({"kind": "activatedAbility", "costs": [], "abilityClass": "boast"}),
+            0,
+        ),
+        (
+            "stack:exhaust",
+            json!({"kind": "activatedAbility", "costs": [], "abilityClass": "exhaust"}),
+            1,
+        ),
+    ] {
+        engine.state.stack.push(StackObject {
+            id: stack_id.to_string(),
+            controller: "player-0".to_string(),
+            card: plain_card(&format!("{stack_id}-source"), "player-0", "Artifact"),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("activatedAbility".to_string()),
+            ability_rule: Some(rule),
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        });
+        engine.enqueue_nonmana_ability_activated_triggers("player-0", stack_id);
+        assert_eq!(triggers_from(&engine, "refueler"), triggers, "{stack_id}");
+    }
+}

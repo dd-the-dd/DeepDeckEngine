@@ -65,6 +65,10 @@ pub(in crate::oracle::canonical) enum ActivatedAbilityKind {
     NonMana,
     /// `a loyalty ability` (CR 606.3): never a mana ability.
     Loyalty,
+    /// `an exhaust ability`, `a boast ability`: an ability the activation
+    /// keyword labels (CR 702.142a, 702.177a, 702.193a), the ability class
+    /// the activated rule records.
+    Labelled(super::ActivationKeyword),
 }
 
 /// One declaration of attackers (CR 508.1) as a trigger event: the attacking
@@ -1036,6 +1040,16 @@ fn recognize_activated_ability_query(
     if loyalty {
         cursor.consume("loyalty")?;
     }
+    // `an exhaust ability`: the keyword labelling an activated ability, by
+    // its catalog identity (`power-up`).
+    let labelled = cursor
+        .peek()
+        .filter(|_| !loyalty && word_at(cursor, 1, "ability"))
+        .and_then(|raw| lookup_exact_lexeme(&raw.to_ascii_lowercase()))
+        .and_then(|entry| super::ActivationKeyword::from_canonical_id(&entry.canonical_id));
+    if labelled.is_some() {
+        consume_verb_word(cursor)?;
+    }
     cursor.consume("ability")?;
     let source = if word_at(cursor, 0, "of") {
         cursor.enter("event.player.ability-query.source");
@@ -1075,6 +1089,15 @@ fn recognize_activated_ability_query(
     if loyalty {
         // A loyalty ability is never a mana ability (CR 606.3).
         return Ok((ActivatedAbilityKind::Loyalty, source));
+    }
+    if let Some(keyword) = labelled {
+        // The labelling keywords add activation rules to abilities that
+        // are not mana abilities (CR 702.142a, 702.177a, 702.193a); the
+        // written restriction repeats that.
+        if non_mana_relative_at(cursor, 0) {
+            cursor.advance_to(cursor.position() + 5)?;
+        }
+        return Ok((ActivatedAbilityKind::Labelled(keyword), source));
     }
     cursor.require(
         non_mana_relative_at(cursor, 0),
