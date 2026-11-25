@@ -35,6 +35,15 @@ fn contains_pending_member(value: &Value) -> bool {
     }
 }
 
+fn contains_value(value: &Value, needle: &Value) -> bool {
+    value == needle
+        || match value {
+            Value::Object(map) => map.values().any(|child| contains_value(child, needle)),
+            Value::Array(items) => items.iter().any(|child| contains_value(child, needle)),
+            _ => false,
+        }
+}
+
 /// Replaces every occurrence of `from` under `value` by `to`.
 fn replace_value(value: &mut Value, from: &Value, to: &Value) {
     if value == from {
@@ -259,6 +268,18 @@ fn lower_player_iteration(
             .as_str()
             .ok_or_else(|| limit(cursor, "an identified target declaration"))?
             .to_owned();
+        // The slot now holds a permanent of each member: a later singular
+        // reference to it (`That creature's owner ...`) names no one object.
+        cursor.enter("lower.for-each-player.per-player-targets.later-reference");
+        if after
+            .iter()
+            .any(|effect| contains_value(effect, &chosen_target(&id)))
+        {
+            return Err(limit(
+                cursor,
+                "no singular reference after the frame to a target declared for each player",
+            ));
+        }
         return lower_per_player_target_body(cursor, first_effect, &id, body);
     }
     cursor.enter("lower.for-each-player.member");

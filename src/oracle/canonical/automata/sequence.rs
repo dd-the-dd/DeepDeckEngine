@@ -4495,11 +4495,15 @@ fn resolve_iterated_set(
 }
 
 /// True when the last action read restates an earlier action of the same
-/// program exactly (`proliferate, then proliferate again`).
+/// program: the same action (`proliferate, then proliferate again`), or the
+/// same kind of action on the object the earlier one named (`Target creature
+/// you control explores, then it explores again`).
 fn restates_earlier_action(effects: &[LocalEffectNode]) -> bool {
-    effects
-        .split_last()
-        .is_some_and(|(last, earlier)| earlier.contains(last))
+    effects.split_last().is_some_and(|(last, earlier)| {
+        earlier.iter().any(|action| {
+            action == last || std::mem::discriminant(action) == std::mem::discriminant(last)
+        })
+    })
 }
 
 /// CR 608.2c: `For each PLAYER, BODY` repeats the body once per player of
