@@ -56,7 +56,7 @@ impl AnchorPhase {
     }
 }
 
-fn current_phase(step: GameStep) -> Option<AnchorPhase> {
+fn current_phase(step: &GameStep) -> Option<AnchorPhase> {
     match step {
         GameStep::PrecombatMain | GameStep::PostcombatMain => Some(AnchorPhase::Main),
         GameStep::BeginningOfCombat
@@ -75,7 +75,7 @@ impl GameEngine {
     /// Resolves `addCombatPhase` with a written anchor (`after`): the added
     /// phases follow the phase the effect names, in the active player's turn.
     pub(super) fn schedule_added_combat_phase(&mut self, effect: &Value) {
-        let Some(current) = current_phase(self.state.step) else {
+        let Some(current) = current_phase(&self.state.step) else {
             return;
         };
         let anchor = match effect["after"].as_str() {

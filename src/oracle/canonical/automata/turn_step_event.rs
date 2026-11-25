@@ -195,18 +195,13 @@ pub(in crate::oracle::canonical) fn recognize_step_clause_head(
 ) -> MachineResult<StepEventNode> {
     cursor.enter("trigger.envelope.step-prefix");
     cursor.consume("at")?;
-    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
-    };
-    let article = usize::from(word(cursor, 0, "the"));
-    if word(cursor, article, "end") && word(cursor, article + 1, "of") {
+    let article = usize::from(word_at(cursor, 0, "the"));
+    if word_at(cursor, article, "end") && word_at(cursor, article + 1, "of") {
         if article == 1 {
             cursor.consume("the")?;
         }
         cursor.consume_phrase(&["end", "of", "combat"])?;
-        let player = if word(cursor, 0, "on") {
+        let player = if word_at(cursor, 0, "on") {
             cursor.enter("event.step.end-of-combat.turn");
             cursor.consume("on")?;
             let player = recognize_turn_owner(cursor)?;
