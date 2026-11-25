@@ -195,6 +195,10 @@ pub(in crate::oracle::canonical) enum ActionResultQuantity {
     /// `the number of OBJECTS VERBed this way`: the objects the nearest
     /// earlier action of the restated verb affected that satisfy the noun.
     Objects(ActionResultReferenceNode),
+    /// `the result`, `the flip`, `you win` (a clash): a quantity of the
+    /// latest random or contested outcome (`keyword_action.rs`), read from
+    /// that outcome's definite binding rather than a producer search.
+    RandomResult(super::RandomResultQuantity),
 }
 
 /// Where one runtime action records the quantity a reader restates.
@@ -241,6 +245,7 @@ impl ActionResultQuantity {
             Self::ObjectCount => "objectCount",
             Self::Amount => "amount",
             Self::Objects(_) => "objects",
+            Self::RandomResult(_) => "randomResult",
         }
     }
 
@@ -268,6 +273,9 @@ impl ActionResultQuantity {
             // A number chosen on resolution (CR 608.2d) is the amount or the
             // count a later `that much` / `that many` restates.
             (Self::Amount | Self::ObjectCount, "chooseNumber") => Some(ActionResultField::Integer),
+            // A die roll's result (CR 706.2) is the amount or the count a
+            // later `that much` / `that many` restates.
+            (Self::Amount | Self::ObjectCount, "rollDice") => Some(ActionResultField::Integer),
             (
                 Self::ObjectCount,
                 "discardCards"

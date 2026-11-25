@@ -429,6 +429,11 @@ fn lower_numeric_expression_in_context(
             pending["reader"] = json!(reader_effect);
             Some(pending)
         }
+        // The latest random or contested outcome: its definite binding.
+        NumericExpression::ActionResultQuantity {
+            quantity: ActionResultQuantity::RandomResult(outcome),
+            ..
+        } => Some(lower_random_result_quantity(*outcome)),
         NumericExpression::ActionResultQuantity {
             reader_effect,
             quantity,

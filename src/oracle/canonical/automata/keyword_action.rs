@@ -2,9 +2,30 @@
 //! grammar. Subjects and objects come from the shared permanent operand; the
 //! numeric argument from the shared numeric expression. Each action keeps its
 //! identity until lowering, where it expands into ordinary primitives.
+//!
+//! Random and contested outcomes are controller actions too, each with the
+//! argument frame of its lexicon row (`verb_lexicon.rs`):
+//!
+//! ```text
+//! CoinFlip := "flip" COUNT ("coin" | "coins")                         CR 705
+//! DieRoll  := "roll" COUNT ("d"K | K"-sided" ("die" | "dice"))         CR 706
+//! Clash    := "clash" "with" "an" "opponent"                          CR 701.30
+//! ```
+//!
+//! A performer subject (`each player flips a coin`) reaches the same frame
+//! through the performer's person shift. The outcome is a definite
+//! antecedent of the rest of the program: `the flip`, `the result` and a
+//! bare `you win` name the latest outcome of their kind
+//! (`RandomResultQuantity`), read by the shared condition comparison and the
+//! shared numeric definition grammar.
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
-use super::super::{MachineResult, OracleTokenCursor};
+use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
+use super::{
+    ActionResultQuantity, ConditionAtom, ConditionComparison, ConditionNumber,
+    ConditionPlayerSubject, ConditionScope, NumericComparisonOperator, VerbForm, VerbLemma,
+    is_verb_form, lookup_verb, recognize_numeric_atom,
+};
 use super::{
     ControllerKeywordAction, ControllerKeywordActionNode, EffectRecognitionContext,
     ExplicitActivationSourceAvailability, KeywordQuantityPolicy, LocalObjectReference, NumericAtom,
@@ -150,6 +171,14 @@ pub(in crate::oracle::canonical) fn recognize_controller_keyword_action(
     let action = ControllerKeywordAction::from_imperative_verb(&verb)
         .ok_or_else(|| cursor.fail("a controller keyword-action verb"))?;
     cursor.consume(&verb)?;
+    // Random and contested outcomes (CR 705, 706, 701.30) read their own
+    // argument frame: the coins, the dice or the opponent.
+    match action {
+        ControllerKeywordAction::FlipCoins => return recognize_coin_flip_arguments(cursor),
+        ControllerKeywordAction::RollDice(_) => return recognize_die_roll_arguments(cursor),
+        ControllerKeywordAction::Clash => return recognize_clash_arguments(cursor),
+        _ => {}
+    }
     if action == ControllerKeywordAction::Manifest {
         cursor.enter("effect.keyword-action.manifest.object");
         if cursor
@@ -192,6 +221,392 @@ pub(in crate::oracle::canonical) fn recognize_controller_keyword_action(
         None
     };
     Ok(ControllerKeywordActionNode { action, quantity })
+}
+
+/// The number of faces of each rolled die (CR 706.1). The claim of the verb
+/// (`ControllerKeywordAction::from_imperative_verb`) does not read the die:
+/// it carries `UNREAD`, which the argument frame replaces and the lowering
+/// refuses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DieSides(pub u16);
+
+impl DieSides {
+    /// The die before the argument frame read it.
+    pub(in crate::oracle::canonical) const UNREAD: Self = Self(0);
+}
+
+/// A quantity of the latest random or contested outcome of the program
+/// (CR 705, 706, 701.30). The written phrase is a definite description: `the
+/// flip`, `the result` and a bare `you win` after a clash denote the latest
+/// outcome of that kind the resolving program produced.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum RandomResultQuantity {
+    /// `the result`, `the total of those results` (CR 706.2): the result of
+    /// the latest die roll, the total when several dice were rolled.
+    DieResult,
+    /// The flips of the latest coin flip the flipping player won (CR 705.2).
+    CoinFlipsWon,
+    /// The flips of the latest coin flip the flipping player lost.
+    CoinFlipsLost,
+    /// The coins of the latest flip that came up heads (CR 705.3).
+    CoinsHeads,
+    /// The coins of the latest flip that came up tails.
+    CoinsTails,
+    /// 1 when the acting player won the latest clash, else 0 (CR 701.30d).
+    ClashWon,
+}
+
+/// The controller action a lexicon verb claims: the random and contested
+/// outcomes (`flip`, `roll`, `clash`), whose arguments are read by the
+/// action's own frame, and `recruit` (CR 701.70a), which takes none.
+pub(in crate::oracle::canonical) fn lexical_controller_action(
+    raw: &str,
+) -> Option<ControllerKeywordAction> {
+    if is_verb_form(raw, VerbLemma::Recruit, VerbForm::Base) {
+        Some(ControllerKeywordAction::Recruit)
+    } else if is_verb_form(raw, VerbLemma::Flip, VerbForm::Base) {
+        Some(ControllerKeywordAction::FlipCoins)
+    } else if is_verb_form(raw, VerbLemma::Roll, VerbForm::Base) {
+        Some(ControllerKeywordAction::RollDice(DieSides::UNREAD))
+    } else if is_verb_form(raw, VerbLemma::Clash, VerbForm::Base) {
+        Some(ControllerKeywordAction::Clash)
+    } else {
+        None
+    }
+}
+
+fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+}
+
+/// The written number of coins or dice: a positive literal or `X`, and
+/// whether it is singular (the noun that follows agrees with it).
+fn recognize_outcome_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(NumericExpression, bool)> {
+    let atom = recognize_numeric_atom(cursor)?;
+    match atom {
+        NumericAtom::Integer(value) if value > 0 => Ok((NumericExpression::Atom(atom), value == 1)),
+        NumericAtom::VariableX => Ok((NumericExpression::Atom(atom), false)),
+        NumericAtom::Integer(_) => Err(cursor.fail("a positive number of coins or dice")),
+    }
+}
+
+/// `flip a coin` / `flip N coins` (CR 705.1). `flip it` / `flip this
+/// creature` (the Kamigawa flip of a flip card, CR 712) is no coin flip: its
+/// operand is not a count and fails here.
+fn recognize_coin_flip_arguments(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ControllerKeywordActionNode> {
+    cursor.enter("effect.random-outcome.coin.count");
+    let (count, singular) = recognize_outcome_count(cursor)?;
+    cursor.enter("effect.random-outcome.coin.noun");
+    cursor.consume(if singular { "coin" } else { "coins" })?;
+    Ok(ControllerKeywordActionNode {
+        action: ControllerKeywordAction::FlipCoins,
+        quantity: Some(count),
+    })
+}
+
+/// The faces of a die token: `d20` (CR 706.1a), else `None`.
+fn polyhedral_die_sides(raw: &str) -> Option<u16> {
+    let digits = raw.strip_prefix('d').or_else(|| raw.strip_prefix('D'))?;
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse::<u16>().ok()
+}
+
+/// The faces of a `K-sided` adjective (`six-sided`), else `None`.
+fn sided_die_sides(raw: &str) -> Option<u16> {
+    let lower = raw.to_ascii_lowercase();
+    let faces = lower.strip_suffix("-sided")?;
+    parse_number_word(faces).and_then(|faces| u16::try_from(faces).ok())
+}
+
+/// `roll a d20` / `roll two d6` / `roll a six-sided die` / `roll X six-sided
+/// dice` (CR 706.1). A die has at least two faces; anything else after the
+/// count (`roll the planar die`, CR 901.9) fails here.
+fn recognize_die_roll_arguments(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ControllerKeywordActionNode> {
+    cursor.enter("effect.random-outcome.die.count");
+    let (count, singular) = recognize_outcome_count(cursor)?;
+    cursor.enter("effect.random-outcome.die.faces");
+    let raw = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("a die: `dN` or `N-sided die`"))?
+        .to_owned();
+    let sides = if let Some(sides) = polyhedral_die_sides(&raw) {
+        cursor.consume(&raw)?;
+        sides
+    } else if let Some(sides) = sided_die_sides(&raw) {
+        cursor.consume(&raw)?;
+        cursor.enter("effect.random-outcome.die.noun");
+        cursor.consume(if singular { "die" } else { "dice" })?;
+        sides
+    } else {
+        return Err(cursor.fail("a die: `dN` or `N-sided die`"));
+    };
+    cursor.require(sides >= 2, "a die with at least two faces (CR 706.1)")?;
+    Ok(ControllerKeywordActionNode {
+        action: ControllerKeywordAction::RollDice(DieSides(sides)),
+        quantity: Some(count),
+    })
+}
+
+/// `clash with an opponent` (CR 701.30b): the clashing player chooses the
+/// opponent while the action resolves. A named opponent (`with defending
+/// player`) has no frame yet and fails here.
+fn recognize_clash_arguments(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ControllerKeywordActionNode> {
+    cursor.enter("effect.random-outcome.clash.opponent");
+    cursor.consume_phrase(&["with", "an", "opponent"])?;
+    Ok(ControllerKeywordActionNode {
+        action: ControllerKeywordAction::Clash,
+        quantity: None,
+    })
+}
+
+/// The program position reading an outcome condition, when the program
+/// installed one. The lowering reads the outcome's definite binding
+/// (`RandomResultQuantity`), never this index.
+fn outcome_reader(cursor: &OracleTokenCursor<'_>) -> usize {
+    cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
+        .unwrap_or_default()
+}
+
+fn outcome_quantity(
+    cursor: &OracleTokenCursor<'_>,
+    quantity: RandomResultQuantity,
+) -> NumericExpression {
+    NumericExpression::ActionResultQuantity {
+        reader_effect: outcome_reader(cursor),
+        quantity: ActionResultQuantity::RandomResult(quantity),
+    }
+}
+
+/// The written shape of an outcome condition at the cursor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OutcomeConditionShape {
+    /// `you|they win|lose|won|lost the flip`.
+    Flip,
+    /// `it comes up heads|tails`, `both coins come up heads|tails`.
+    Face,
+    /// `you roll|rolled [a] N [or higher|lower]`.
+    Roll,
+    /// `you win` before the condition's comma: the latest clash.
+    Clash,
+}
+
+fn outcome_condition_shape(cursor: &OracleTokenCursor<'_>) -> Option<OutcomeConditionShape> {
+    let lemma_at = |offset: usize, lemmas: &[VerbLemma]| {
+        cursor
+            .peek_ahead(offset)
+            .and_then(|raw| lookup_verb(raw, lemmas))
+            .is_some_and(|(_, forms)| {
+                forms.contains(&VerbForm::Base) || forms.contains(&VerbForm::Past)
+            })
+    };
+    let subject = word_at(cursor, 0, "you") || word_at(cursor, 0, "they");
+    if subject
+        && lemma_at(1, &[VerbLemma::Win, VerbLemma::Lose])
+        && word_at(cursor, 2, "the")
+        && word_at(cursor, 3, "flip")
+    {
+        return Some(OutcomeConditionShape::Flip);
+    }
+    if (word_at(cursor, 0, "it") && word_at(cursor, 1, "comes") && word_at(cursor, 2, "up"))
+        || (word_at(cursor, 0, "both")
+            && word_at(cursor, 1, "coins")
+            && word_at(cursor, 2, "come")
+            && word_at(cursor, 3, "up"))
+    {
+        return Some(OutcomeConditionShape::Face);
+    }
+    if word_at(cursor, 0, "you") && lemma_at(1, &[VerbLemma::Roll]) {
+        return Some(OutcomeConditionShape::Roll);
+    }
+    if word_at(cursor, 0, "you") && lemma_at(1, &[VerbLemma::Win]) && word_at(cursor, 2, ",") {
+        return Some(OutcomeConditionShape::Clash);
+    }
+    None
+}
+
+fn consume_current(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.advance_to(cursor.position() + 1)
+}
+
+/// The die face written after `roll`: `a 1`, `12`, `a 6 or higher`.
+fn recognize_rolled_threshold(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(NumericComparisonOperator, i64)> {
+    if word_at(cursor, 0, "a") || word_at(cursor, 0, "an") {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.random-outcome.roll.face");
+    let face = cursor
+        .peek()
+        .and_then(parse_number_word)
+        .filter(|face| *face > 0)
+        .ok_or_else(|| cursor.fail("the die face rolled"))?;
+    consume_current(cursor)?;
+    cursor.enter("condition.random-outcome.roll.bound");
+    if !word_at(cursor, 0, "or") {
+        return Ok((NumericComparisonOperator::Equal, face));
+    }
+    let operator = match cursor.peek_ahead(1).map(str::to_ascii_lowercase).as_deref() {
+        Some("higher" | "more" | "greater") => NumericComparisonOperator::GreaterThanOrEqual,
+        Some("lower" | "less") => NumericComparisonOperator::LessThanOrEqual,
+        // `If you rolled 7 or 11`: a disjunction of faces belongs to the
+        // Boolean list's `or`, not to this bound.
+        _ => return Ok((NumericComparisonOperator::Equal, face)),
+    };
+    consume_current(cursor)?;
+    consume_current(cursor)?;
+    Ok((operator, face))
+}
+
+/// An outcome condition of a random or contested action at an effect
+/// program position: `you win|lose the flip` (CR 705.2), `it comes up
+/// heads` (CR 705.3), `you roll a 6 [or higher]` (CR 706.2) and `you win`
+/// after a clash (CR 701.30d). It is the shared numeric comparison over the
+/// outcome's quantity, so `Otherwise` and the Boolean connectives compose
+/// with it unchanged. `Ok(None)` when no outcome condition starts here; once
+/// claimed, any other scope than the program's is an explicit failure.
+pub(in crate::oracle::canonical) fn try_recognize_random_outcome_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    scope: ConditionScope,
+) -> MachineResult<Option<ConditionAtom>> {
+    let Some(shape) = outcome_condition_shape(cursor) else {
+        return Ok(None);
+    };
+    cursor.enter("condition.random-outcome");
+    cursor.require(
+        scope == ConditionScope::Program,
+        "the effect program whose random or contested action the condition reads",
+    )?;
+    let greater_than_zero = (NumericComparisonOperator::GreaterThan, 0);
+    let (quantity, (operator, right)) = match shape {
+        OutcomeConditionShape::Flip => {
+            consume_current(cursor)?;
+            cursor.enter("condition.random-outcome.flip.verb");
+            let won = cursor
+                .peek()
+                .and_then(|raw| lookup_verb(raw, &[VerbLemma::Win]))
+                .is_some();
+            consume_current(cursor)?;
+            cursor.consume_phrase(&["the", "flip"])?;
+            let quantity = if won {
+                RandomResultQuantity::CoinFlipsWon
+            } else {
+                RandomResultQuantity::CoinFlipsLost
+            };
+            (quantity, greater_than_zero)
+        }
+        OutcomeConditionShape::Face => {
+            let both = word_at(cursor, 0, "both");
+            if both {
+                cursor.consume_phrase(&["both", "coins", "come", "up"])?;
+            } else {
+                cursor.consume_phrase(&["it", "comes", "up"])?;
+            }
+            cursor.enter("condition.random-outcome.face");
+            let quantity = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+                Some("heads") => RandomResultQuantity::CoinsHeads,
+                Some("tails") => RandomResultQuantity::CoinsTails,
+                _ => return Err(cursor.fail("`heads` or `tails`")),
+            };
+            consume_current(cursor)?;
+            let bound = if both {
+                (NumericComparisonOperator::GreaterThanOrEqual, 2)
+            } else {
+                greater_than_zero
+            };
+            (quantity, bound)
+        }
+        OutcomeConditionShape::Roll => {
+            cursor.consume("you")?;
+            consume_current(cursor)?;
+            (
+                RandomResultQuantity::DieResult,
+                recognize_rolled_threshold(cursor)?,
+            )
+        }
+        OutcomeConditionShape::Clash => {
+            cursor.consume("you")?;
+            consume_current(cursor)?;
+            (RandomResultQuantity::ClashWon, greater_than_zero)
+        }
+    };
+    Ok(Some(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(outcome_quantity(cursor, quantity)),
+        operator,
+        right: ConditionNumber::Integer(right),
+    })))
+}
+
+/// `the result`, `the total of those results`, `the number of coins that
+/// came up heads|tails`: a quantity of the latest outcome as an operand of
+/// the shared numeric definition grammar (`equal to the result`, `where X
+/// is the result minus 1`, `If the result is 3 or less`).
+pub(in crate::oracle::canonical) fn random_result_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "the")
+        && ((word_at(cursor, 1, "result") && !word_at(cursor, 2, "of"))
+            || (word_at(cursor, 1, "total")
+                && word_at(cursor, 2, "of")
+                && word_at(cursor, 3, "those")
+                && word_at(cursor, 4, "results"))
+            || (word_at(cursor, 1, "number")
+                && word_at(cursor, 2, "of")
+                && word_at(cursor, 3, "coins")
+                && word_at(cursor, 4, "that")
+                && word_at(cursor, 5, "came")
+                && word_at(cursor, 6, "up")))
+}
+
+/// Reads the quantity `random_result_starts` claims. The program must have
+/// an earlier action: the first action of a program has no outcome to read.
+pub(in crate::oracle::canonical) fn recognize_random_result(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.random-result");
+    let quantity = if word_at(cursor, 1, "result") {
+        cursor.consume_phrase(&["the", "result"])?;
+        RandomResultQuantity::DieResult
+    } else if word_at(cursor, 1, "total") {
+        cursor.consume_phrase(&["the", "total", "of", "those", "results"])?;
+        RandomResultQuantity::DieResult
+    } else {
+        cursor.consume_phrase(&["the", "number", "of", "coins", "that", "came", "up"])?;
+        cursor.enter("numeric.random-result.face");
+        let quantity = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+            Some("heads") => RandomResultQuantity::CoinsHeads,
+            Some("tails") => RandomResultQuantity::CoinsTails,
+            _ => return Err(cursor.fail("`heads` or `tails`")),
+        };
+        consume_current(cursor)?;
+        quantity
+    };
+    cursor.enter("numeric.random-result.reader");
+    let reader = cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
+        .filter(|index| *index > 0);
+    let reader = cursor.require_value(
+        reader,
+        "an earlier random action of this program whose outcome the phrase restates",
+    )?;
+    Ok(NumericExpression::ActionResultQuantity {
+        reader_effect: reader,
+        quantity: ActionResultQuantity::RandomResult(quantity),
+    })
 }
 
 /// `support N` (CR 701.41a) is defined as "Put a +1/+1 counter on each of up

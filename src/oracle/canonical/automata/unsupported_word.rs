@@ -14,7 +14,8 @@ use crate::oracle::model::RecognizedEntity;
 /// Rules verbs written as imperatives in Oracle text that are neither CR 701
 /// keyword actions, nor in the tokenizer's action vocabulary, nor in the shared
 /// verb lexicon (`verb_lexicon.rs`). Diagnostic data only: it gives these verbs
-/// no grammar. A verb that gains a lexicon entry leaves this list.
+/// no grammar. A verb that gains a performed lexicon entry (`ALL_LEMMAS`, read
+/// below) leaves this list: `flip`, `roll`, `move`, `skip` and `take` did.
 const UNSUPPORTED_RULES_VERBS: &[&str] = &[
     "ask",
     "assign",
@@ -23,20 +24,15 @@ const UNSUPPORTED_RULES_VERBS: &[&str] = &[
     "distribute",
     "draft",
     "end",
-    "flip",
     "guess",
     "heist",
     "lock",
-    "move",
     "note",
     "repeat",
-    "roll",
     "say",
     "seek",
     "separate",
-    "skip",
     "switch",
-    "take",
     "turn",
     "unattach",
     "unlock",

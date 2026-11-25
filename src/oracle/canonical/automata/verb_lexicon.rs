@@ -140,6 +140,18 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Phase,
     /// `distribute N counters among TARGETS` (CR 601.2d).
     Distribute,
+    /// `flip N coin(s)` (CR 705): a random outcome of the flipping player.
+    Flip,
+    /// `roll N dK` / `roll N K-sided dice` (CR 706): a random outcome.
+    Roll,
+    /// `clash with an opponent` (CR 701.30): a contested outcome.
+    Clash,
+    /// `recruit` (CR 701.70a): draw, discard, then a Human Soldier token
+    /// when the discarded card was a nonland card.
+    Recruit,
+    /// `win the flip` (CR 705.2), `win` a clash (CR 701.30d): the outcome
+    /// a condition or an event reads; no instruction performs it.
+    Win,
 }
 
 /// One inflected form of a lemma.
@@ -249,6 +261,14 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     /// `OBJECTS from combat` (CR 506.4): the objects stop being attacking or
     /// blocking creatures.
     CombatRemoval,
+    /// `N coin(s)` (CR 705.1): the coins the acting player flips.
+    CoinFlip,
+    /// `N dK` | `N K-sided die|dice` (CR 706.1): the dice the acting player
+    /// rolls, with the number of faces of each.
+    DieRoll,
+    /// `with an opponent` (CR 701.30b): the player the acting player clashes
+    /// with.
+    ClashOpponent,
 }
 
 impl ArgumentFrame {
@@ -281,7 +301,10 @@ impl ArgumentFrame {
             | Self::PlayerObject
             | Self::PhasingDirection
             | Self::CountersAmong
-            | Self::CombatRemoval => None,
+            | Self::CombatRemoval
+            | Self::CoinFlip
+            | Self::DieRoll
+            | Self::ClashOpponent => None,
         }
     }
 }
@@ -798,6 +821,54 @@ const VERB_LEXICON: &[VerbEntry] = &[
         frames: &[ArgumentFrame::SkippedTurnPart],
         voices: &[Voice::Active],
     },
+    VerbEntry {
+        lemma: VerbLemma::Flip,
+        forms: VerbForms {
+            base: "flip",
+            third_person_singular: "flips",
+            past: "flipped",
+            past_participle: "flipped",
+            present_participle: "flipping",
+        },
+        frames: &[ArgumentFrame::CoinFlip],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Roll,
+        forms: VerbForms {
+            base: "roll",
+            third_person_singular: "rolls",
+            past: "rolled",
+            past_participle: "rolled",
+            present_participle: "rolling",
+        },
+        frames: &[ArgumentFrame::DieRoll],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Clash,
+        forms: VerbForms {
+            base: "clash",
+            third_person_singular: "clashes",
+            past: "clashed",
+            past_participle: "clashed",
+            present_participle: "clashing",
+        },
+        frames: &[ArgumentFrame::ClashOpponent],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Recruit,
+        forms: VerbForms {
+            base: "recruit",
+            third_person_singular: "recruits",
+            past: "recruited",
+            past_participle: "recruited",
+            present_participle: "recruiting",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
 ];
 
 /// Lemmas the effect clause dispatches on (`effect_head.rs`) whose actions
@@ -1089,6 +1160,18 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
             past: "descended",
             past_participle: "descended",
             present_participle: "descending",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Win,
+        forms: VerbForms {
+            base: "win",
+            third_person_singular: "wins",
+            past: "won",
+            past_participle: "won",
+            present_participle: "winning",
         },
         frames: &[ArgumentFrame::Intransitive],
         voices: &[Voice::Active],

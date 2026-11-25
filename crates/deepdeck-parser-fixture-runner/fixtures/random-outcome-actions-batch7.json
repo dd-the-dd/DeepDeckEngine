@@ -1,0 +1,865 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "random-outcome-actions-batch7/coin-die-clash-recruit",
+  "cases": [
+    {
+      "id": "exact-puppets-verdict-win-and-lose-branches",
+      "request": {
+        "cardName": "Puppet's Verdict",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Flip a coin. If you win the flip, destroy all creatures with power 2 or less. If you lose the flip, destroy all creatures with power 3 or greater.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "flipCoins",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bind": "randomOutcome:coinFlip"
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/2/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip:lost"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-viashino-sandswimmer-activated-flip",
+      "request": {
+        "cardName": "Viashino Sandswimmer",
+        "typeLine": "Creature — Lizard",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "{R}: Flip a coin. If you win the flip, return this creature to its owner's hand. If you lose the flip, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "flipCoins",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bind": "randomOutcome:coinFlip"
+                }
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/2/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip:lost"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mana-crypt-upkeep-flip",
+      "request": {
+        "cardName": "Mana Crypt",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "At the beginning of your upkeep, flip a coin. If you lose the flip, this artifact deals 3 damage to you.\n{T}: Add {C}{C}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "flipCoins",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bind": "randomOutcome:coinFlip"
+                }
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip:lost"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-chaotic-strike-win-only",
+      "request": {
+        "cardName": "Chaotic Strike",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Cast this spell only during combat after blockers are declared.\nFlip a coin. If you win the flip, target creature gets +1/+1 until end of turn.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "flipCoins",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bind": "randomOutcome:coinFlip"
+                }
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-two-headed-giant-two-coins-faces",
+      "request": {
+        "cardName": "Two-Headed Giant",
+        "typeLine": "Creature — Giant Warrior",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Whenever this creature attacks, flip two coins. If both coins come up heads, this creature gains double strike until end of turn. If both coins come up tails, this creature gains menace until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "flipCoins",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "bind": "randomOutcome:coinFlip"
+                }
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip:heads"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/2/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip:tails"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-growth-spurt-where-x-is-the-result",
+      "request": {
+        "cardName": "Growth Spurt",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Roll a six-sided die. Target creature gets +X/+X until end of turn, where X is the result.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 6,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-adorable-kitten-equal-to-the-result",
+      "request": {
+        "cardName": "Adorable Kitten",
+        "typeLine": "Host Creature — Cat",
+        "manaCost": "{W}",
+        "oracleText": "When this creature enters, roll a six-sided die. You gain life equal to the result.",
+        "layout": "host",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 6,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/1/amount",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "randomOutcome:dieRoll"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-ancient-copper-dragon-d20-treasures",
+      "request": {
+        "cardName": "Ancient Copper Dragon",
+        "typeLine": "Creature — Elder Dragon",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Flying\nWhenever this creature deals combat damage to a player, roll a d20. You create a number of Treasure tokens equal to the result.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 20,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-dissatisfied-customer-the-result-is-at-most",
+      "request": {
+        "cardName": "Dissatisfied Customer",
+        "typeLine": "Creature — Vampire Guest",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying, haste\nWhen this creature enters, roll a six-sided die. If the result is 3 or less, you lose that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 6,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:dieRoll"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/1/then/0/amount",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "randomOutcome:dieRoll"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-poultrygeist-you-roll-a-face-otherwise",
+      "request": {
+        "cardName": "Poultrygeist",
+        "typeLine": "Creature — Bird Spirit",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nWhenever a creature dies, you may roll a six-sided die. If you roll a 1, sacrifice this creature. Otherwise, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-oaken-brawler-clash-if-you-win",
+      "request": {
+        "cardName": "Oaken Brawler",
+        "typeLine": "Creature — Treefolk Warrior",
+        "manaCost": "{3}{W}",
+        "oracleText": "When this creature enters, clash with an opponent. If you win, put a +1/+1 counter on this creature. (Each clashing player reveals the top card of their library, then puts that card on their choice of the top or bottom. A player wins if their card had a greater mana value.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePlayers"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "clash"
+              },
+              {
+                "pointer": "/effects/1/bind",
+                "equals": "randomOutcome:clash"
+              },
+              {
+                "pointer": "/effects/2/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:clash"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lake-town-lookout-recruit",
+      "request": {
+        "cardName": "Lake-town Lookout",
+        "typeLine": "Creature — Human Scout",
+        "manaCost": "{W}",
+        "oracleText": "When this creature dies, recruit. (Draw a card, then discard a card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "discardCards"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/2/then/0/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-d8-target-player-mills-the-result",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Roll a d8. Target player mills cards equal to the result.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "rollDice",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "sides": 8,
+                  "bind": "randomOutcome:dieRoll"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-you-flip-then-draw-if-you-win",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "You flip three coins. If you win the flip, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "flipCoins",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "bind": "randomOutcome:coinFlip"
+                }
+              },
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "boundValue",
+                    "id": "randomOutcome:coinFlip"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-kamigawa-flip-is-not-a-coin-flip",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Creature — Human Monk",
+        "manaCost": "{0}",
+        "oracleText": "{T}: Flip this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-roll-without-a-die",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: Roll the planar die.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-result-before-any-roll",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "You gain life equal to the result.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-clash-with-a-named-player",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Clash with target player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

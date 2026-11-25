@@ -2387,6 +2387,14 @@ pub(super) enum ControllerKeywordAction {
     Learn,
     Manifest,
     ManifestDread,
+    /// `flip N coin(s)` (CR 705); the count is the quantity.
+    FlipCoins,
+    /// `roll N dK` (CR 706); the count is the quantity.
+    RollDice(DieSides),
+    /// `clash with an opponent` (CR 701.30).
+    Clash,
+    /// `recruit` (CR 701.70a).
+    Recruit,
 }
 
 impl ControllerKeywordAction {
@@ -2397,7 +2405,7 @@ impl ControllerKeywordAction {
             "discover" => Some(Self::Discover),
             "learn" => Some(Self::Learn),
             "manifest" => Some(Self::Manifest),
-            _ => None,
+            other => lexical_controller_action(other),
         }
     }
 

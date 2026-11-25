@@ -33196,6 +33196,10 @@ mod extra_turn_runtime;
 #[path = "tests/player_designations_runtime.rs"]
 mod player_designations_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/random_outcome_runtime.rs"]
+mod random_outcome_runtime;
+
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
