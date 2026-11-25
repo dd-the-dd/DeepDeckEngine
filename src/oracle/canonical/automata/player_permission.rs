@@ -95,6 +95,10 @@ pub(in crate::oracle::canonical) enum NextSpellModification {
     CantBeCountered,
     /// `can be cast as though it had flash` (CR 702.8a, 601.3e).
     CastAsThoughFlash,
+    /// `costs {N} less to cast`, `costs {X} less to cast` (X bound by the
+    /// sentence's `where X is` definition): a generic reduction of the
+    /// matched spell's total cost (CR 601.2f), fixed when the rule is made.
+    ReduceGenericCost(super::ReductionDelta),
 }
 
 /// How long a temporary rule lasts (CR 611.2a-b).
@@ -555,8 +559,22 @@ fn recognize_next_spell_modification(
         cursor.consume_phrase(&["can", "be", "cast", "as", "though", "it", "had", "flash"])?;
         return Ok(NextSpellModification::CastAsThoughFlash);
     }
+    // The shared cost-adjustment delta; a postposed `where X is` belongs to
+    // the enclosing sentence, which binds X for this action.
+    if word_at(cursor, 0, "costs") {
+        cursor.consume("costs")?;
+        cursor.enter("temporary-rule.next-spell.cost-delta");
+        let cost = super::recognize_mana_cost(cursor)?;
+        let delta = cursor.require_value(
+            super::ReductionDelta::of(&cost),
+            "one positive generic mana symbol or {X}, without colored mana",
+        )?;
+        cursor.enter("temporary-rule.next-spell.cost-direction");
+        cursor.consume_phrase(&["less", "to", "cast"])?;
+        return Ok(NextSpellModification::ReduceGenericCost(delta));
+    }
     Err(cursor.fail(
-        "a next-spell rule the runtime applies: `can't be countered` or `can be cast as though it had flash`",
+        "a next-spell rule the runtime applies: `can't be countered`, `can be cast as though it had flash` or `costs {N} less to cast`",
     ))
 }
 

@@ -5761,6 +5761,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
             player_query::population_supported(&modifier["player"])
                 && card_filter_supported(&modifier["where"])
                 && numeric_expression_supported(&modifier["amount"])
+                && modifier
+                    .get("coloredMana")
+                    .is_none_or(casting_cost::colored_reduction_supported)
                 && modifier.get("firstEachTurn").is_none_or(Value::is_boolean)
                 && modifier
                     .get("duringOtherPlayersTurns")
@@ -6010,12 +6013,16 @@ fn casting_static_rule_supported(rule: &Value) -> bool {
         && rule["modifiers"].as_array().is_some_and(|modifiers| {
             !modifiers.is_empty()
                 && modifiers.iter().all(|modifier| {
-                    value_kind(modifier) == Some("reduceOwnGenericCastingCost")
-                        && numeric_expression_supported(&modifier["amount"])
-                        && modifier
-                            .get("targetWhere")
-                            .is_none_or(card_filter_supported)
-                        && modifier.get("condition").is_none_or(condition_supported)
+                    casting_cost::own_casting_increase_supported(modifier)
+                        || (value_kind(modifier) == Some("reduceOwnGenericCastingCost")
+                            && numeric_expression_supported(&modifier["amount"])
+                            && modifier
+                                .get("coloredMana")
+                                .is_none_or(casting_cost::colored_reduction_supported)
+                            && modifier
+                                .get("targetWhere")
+                                .is_none_or(card_filter_supported)
+                            && modifier.get("condition").is_none_or(condition_supported))
                 })
         })
 }
@@ -18065,10 +18072,14 @@ impl GameEngine {
                 } else {
                     0
                 };
-                let commander_increases = (commander_tax > 0)
+                let mut commander_increases = (commander_tax > 0)
                     .then(|| format!("{{{commander_tax}}}"))
                     .into_iter()
                     .collect::<Vec<_>>();
+                commander_increases.extend(casting_cost::own_target_count_increases(
+                    &card.definition,
+                    &declaration.targets,
+                ));
                 let mut mana_costs = self.checked_casting_mana_costs_with_adjustments(
                     &card.definition,
                     &player.id,
@@ -22507,11 +22518,11 @@ impl GameEngine {
             }
             let mut trigger_decisions = decisions.clone();
             entry_observation.add_object_decision(&mut trigger_decisions);
-            if trigger_source.instance_id == source.instance_id
-                && let Some(x_value) =
-                    self.source_cast_x_value(&trigger_source.instance_id, &BTreeMap::new())
-            {
-                trigger_decisions.insert("xValue".to_string(), Value::from(x_value));
+            // CR 107.3m: the permanent's own enters trigger reads the X of the
+            // spell it was; an object that was not cast has X of 0.
+            if trigger_source.instance_id == source.instance_id {
+                let x_value = self.source_cast_x_value(&source.instance_id, &BTreeMap::new());
+                trigger_decisions.insert("xValue".to_string(), Value::from(x_value.unwrap_or(0)));
             }
             self.put_triggered_ability_on_stack_with_decisions(
                 &trigger_source,

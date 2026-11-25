@@ -138,7 +138,13 @@ fn compile_recognized_trigger_program(
             ..BindingEnvironment::default()
         })));
     let lowered = match &node.program.value {
-        TriggerBodyNode::Program(program) => lower_effect_program(cursor, program),
+        // X is lowered provisionally; the card-composition validator accepts
+        // it only with a typed producer of this rule (CR 107.3m).
+        TriggerBodyNode::Program(program) => lower_effect_program_with_context(
+            cursor,
+            program,
+            EffectSequenceLoweringContext::ValidateXAfterCardComposition,
+        ),
         TriggerBodyNode::Modal(modal) => lower_effect_sequence_modal(cursor, modal),
     };
     cursor.replace_binding_environment(enclosing);

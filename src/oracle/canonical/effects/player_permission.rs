@@ -114,6 +114,17 @@ fn lower_next_spell_rule(spells: &ObjectPredicate, modification: NextSpellModifi
             "modifier": {"kind": "cantBeCountered"},
         }),
         NextSpellModification::CastAsThoughFlash => json!({"kind": "castAsThoughItHadFlash"}),
+        // CR 601.2f: evaluated when the rule is made; X is the sentence's
+        // binding (or fails the card's X validation without a producer).
+        NextSpellModification::ReduceGenericCost(delta) => {
+            let amount = match delta {
+                ReductionDelta::Generic(amount) => json!({"kind": "integer", "value": amount}),
+                ReductionDelta::Variable => {
+                    json!({"kind": "decisionResult", "decisionId": "xValue"})
+                }
+            };
+            json!({"kind": "reduceCastingCost", "amount": amount})
+        }
     };
     json!({
         "kind": "installOneShotModifier",

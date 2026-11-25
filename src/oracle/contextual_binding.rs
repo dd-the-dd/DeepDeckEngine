@@ -252,8 +252,8 @@ pub(crate) fn validate_native_contextual_bindings(
         }
 
         let face_mana_cost = mana_cost_for_source(request, ability.source.face_id.as_deref());
-        if rule["kind"].as_str() == Some("spellAbility")
-            && face_mana_cost.is_some_and(|mana_cost| mana_cost.contains("{X}"))
+        if face_mana_cost.is_some_and(|mana_cost| mana_cost.contains("{X}"))
+            && reads_own_cast_x(rule)
         {
             continue;
         }
@@ -289,6 +289,37 @@ pub(crate) fn validate_native_contextual_bindings(
             trace: Vec::new(),
             owner: None,
         });
+    }
+}
+
+/// The X chosen while casting a face whose mana cost has {X} (CR 107.3,
+/// 601.2b) is read by that spell's own resolution and, once it became a
+/// permanent, by that permanent's own entry replacement and its own
+/// enters-the-battlefield trigger (CR 107.3m; the runtime records the value
+/// on entry and reads 0 for an object that was not cast). Every other rule
+/// of the face (an activated ability, an attack trigger, another object's
+/// entry) has no producer of that X. A keyword expansion carries its
+/// compiled parts; each part reading X must be such a reader.
+fn reads_own_cast_x(rule: &Value) -> bool {
+    match rule["kind"].as_str() {
+        Some("spellAbility") => true,
+        Some("replacementEffect") => {
+            rule["event"]["kind"].as_str() == Some("wouldEnterBattlefield")
+                && rule["event"]["object"]["kind"].as_str() == Some("self")
+        }
+        Some("triggeredAbility") => {
+            rule["event"]["kind"].as_str() == Some("enterBattlefield")
+                && rule["event"]["object"]["kind"].as_str() == Some("self")
+        }
+        Some("keywordExpansion") => rule["rules"].as_array().is_some_and(|parts| {
+            parts
+                .iter()
+                .filter(|part| references_decision(part, X_VALUE))
+                .all(|part| {
+                    part["kind"].as_str() != Some("keywordExpansion") && reads_own_cast_x(part)
+                })
+        }),
+        _ => false,
     }
 }
 
