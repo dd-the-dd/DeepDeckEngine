@@ -3240,6 +3240,10 @@ fn recognize_tap_frame(
         crate::oracle::canonical::automata::verb_entry(VerbLemma::Tap).surface(VerbForm::Base),
     )?;
     cursor.enter("effect.tap.object");
+    if super::resolution_selection_count_starts(&trial) {
+        return super::recognize_tap_selected_permanents_effect(cursor)
+            .map(|fragment| LocalEffectNode::SelectedPermanents(fragment.node));
+    }
     let targets = super::recognize_contextual_permanent_operand(
         &mut trial,
         inputs.name_links,

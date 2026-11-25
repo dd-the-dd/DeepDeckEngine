@@ -342,6 +342,9 @@ pub(in crate::oracle::canonical) enum ObjectQualifier {
     /// `that share a land type` after a plural chosen set (CR 205.3i): the
     /// chosen objects have one value of the characteristic in common.
     SharedValue(super::SharedCharacteristic),
+    /// `controlled by different players` after a plural chosen set: no two
+    /// chosen permanents have the same controller (CR 108.4).
+    DistinctControllers,
     /// `with the greatest power among creatures they control`.
     Extremum {
         property: SelectorNumericProperty,
@@ -360,7 +363,7 @@ impl ObjectQualifier {
             | Self::DistinctValues(_)
             | Self::TotalAtMost { .. }
             | Self::SharedValue(_) => true,
-            Self::DamagedBySourceThisTurn | Self::Extremum { .. } => {
+            Self::DamagedBySourceThisTurn | Self::Extremum { .. } | Self::DistinctControllers => {
                 domain == ObjectKind::Permanent
             }
         }
@@ -370,7 +373,10 @@ impl ObjectQualifier {
     pub(in crate::oracle::canonical) const fn is_set_constraint(&self) -> bool {
         matches!(
             self,
-            Self::DistinctValues(_) | Self::TotalAtMost { .. } | Self::SharedValue(_)
+            Self::DistinctValues(_)
+                | Self::TotalAtMost { .. }
+                | Self::SharedValue(_)
+                | Self::DistinctControllers
         )
     }
 

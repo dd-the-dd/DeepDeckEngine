@@ -36,7 +36,7 @@ fn another_without_target_is_a_resolution_choice_excluding_the_source() {
         panic!("a resolution choice, not a declaration");
     };
     assert_eq!(
-        selection.bounds,
+        selection.bounds.as_ref().and_then(TargetCount::atoms),
         Some(ExpressedTargetCardinality::EXACTLY_ONE)
     );
     assert!(selection.query.exclude_source);

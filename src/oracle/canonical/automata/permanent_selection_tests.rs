@@ -14,7 +14,7 @@ fn selection_has_bounds_and_query_without_implicit_controller_or_target() {
         assert!(node.operand.query.controller.is_none());
         assert_eq!(
             node.operand.bounds.unwrap().minimum,
-            super::super::NumericAtom::Integer(0)
+            NumericExpression::Atom(NumericAtom::Integer(0))
         );
         cursor.consume(".").unwrap();
         cursor.finish().unwrap();

@@ -14,10 +14,7 @@ fn toughness_at_most_x() -> ObjectPredicate {
     ])
 }
 
-fn return_selected(
-    bounds: Option<ExpressedTargetCardinality>,
-    query: ObjectQueryNode,
-) -> LocalEffectNode {
+fn return_selected(bounds: Option<TargetCount>, query: ObjectQueryNode) -> LocalEffectNode {
     LocalEffectNode::SelectedPermanents(SelectedPermanentsEffectNode {
         action: SelectedPermanentAction::ReturnToOwnerHand,
         operand: PermanentSelectionOperandNode { bounds, query },
@@ -60,7 +57,7 @@ fn a_typed_target_count_replaces_the_literal_envelope_of_a_declaration() {
 #[test]
 fn a_chosen_permanent_keeps_its_source_exclusion_and_single_controller() {
     let effect = return_selected(
-        Some(ExpressedTargetCardinality::EXACTLY_ONE),
+        Some(TargetCount::from_literal(TargetCardinality::EXACTLY_ONE)),
         ObjectQueryNode {
             predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
             controller: Some(ObjectControllerScope::AbilityController),
@@ -76,7 +73,7 @@ fn a_chosen_permanent_keeps_its_source_exclusion_and_single_controller() {
 
     // A population of controllers has no single-controller candidate writer.
     let population = return_selected(
-        Some(ExpressedTargetCardinality::EXACTLY_ONE),
+        Some(TargetCount::from_literal(TargetCardinality::EXACTLY_ONE)),
         ObjectQueryNode {
             predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
             controller: Some(ObjectControllerScope::OpponentOfAbilityController),

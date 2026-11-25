@@ -10,7 +10,7 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
     let operand = &effect.operand;
     let (predicate, controller_filter) =
         lower_permanent_query_in_context(&operand.query, declarations)?;
-    let Some(bounds) = operand.bounds else {
+    let Some(bounds) = &operand.bounds else {
         // `all|each QUERY`: every matching permanent on resolution, no
         // decision. The collection reads a controller population
         // (`your opponents control`) and the `other` source exclusion.
@@ -25,6 +25,8 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
         }
         return Ok(vec![match effect.action {
             SelectedPermanentAction::Untap => json!({"kind":"untapPermanents", "objects":objects}),
+            // `tap all QUERY`: the established collection tap (CR 611.2c).
+            SelectedPermanentAction::Tap => json!({"kind":"tapPermanent", "permanent":objects}),
             SelectedPermanentAction::ReturnToOwnerHand => {
                 json!({"kind":"returnToOwnersHand", "object":objects})
             }
@@ -46,14 +48,18 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
     if effect.until.is_some() {
         return Err(TargetlessLoweringError::UnsupportedEffect);
     }
-    let minimum = lower_targetless_numeric_expression(
-        &NumericExpression::Atom(bounds.minimum),
-        declarations,
-    )?;
-    let maximum = lower_targetless_numeric_expression(
-        &NumericExpression::Atom(bounds.maximum),
-        declarations,
-    )?;
+    let minimum = lower_targetless_numeric_expression(&bounds.minimum, declarations)?;
+    let maximum = match &bounds.maximum {
+        TargetCountBound::Amount(amount) => {
+            lower_targetless_numeric_expression(amount, declarations)?
+        }
+        // `any number of` / `one or more` (no upper bound): every permanent
+        // on the battlefield bounds the choice from above, a superset of
+        // the candidates that never limits it below what is allowed; the
+        // runtime clamps it to the candidates (the same population bound as
+        // an unbounded target declaration).
+        TargetCountBound::Unbounded => json!({"kind":"countPermanents", "allPlayers":true}),
+    };
     let id = scope.map_or_else(
         || "selectedPermanents".to_string(),
         |scope| format!("{scope}:selectedPermanents"),
@@ -78,6 +84,11 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
         match effect.action {
             SelectedPermanentAction::Untap => {
                 json!({"kind":"untapPermanents", "objects":decision_result(&id)})
+            }
+            // The chosen set is tapped; the tap action records the permanents
+            // it actually tapped when a later `tapped this way` reads them.
+            SelectedPermanentAction::Tap => {
+                json!({"kind":"tapPermanent", "permanent":decision_result(&id)})
             }
             SelectedPermanentAction::ReturnToOwnerHand => {
                 json!({"kind":"returnToOwnersHand", "object":decision_result(&id)})

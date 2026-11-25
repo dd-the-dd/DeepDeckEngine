@@ -354,7 +354,12 @@ impl GameEngine {
                     Some("self" | "abilitySource")
                 ) {
                     vec![stack_object.card.instance_id.clone()]
-                } else if value_kind(&effect["permanent"]) == Some("chosenTargets") {
+                } else if matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("chosenTargets" | "decisionResult" | "boundObjects")
+                ) {
+                    // Declared targets, or a set chosen on resolution
+                    // (`tap any number of untapped creatures you control`).
                     self.resolve_runtime_object_ids(
                         &effect["permanent"],
                         stack_object,
@@ -386,6 +391,19 @@ impl GameEngine {
                     {
                         tapped_sources.push(source);
                     }
+                }
+                // `for each creature tapped this way` (CR 608.2c): only the
+                // permanents this action actually tapped.
+                if let Some(binding) = effect["bind"].as_str() {
+                    bindings.insert(
+                        binding.to_string(),
+                        RuntimeBinding::Objects(
+                            tapped_sources
+                                .iter()
+                                .map(|source| source.instance_id.clone())
+                                .collect(),
+                        ),
+                    );
                 }
                 self.enqueue_permanents_tapped_triggers(&tapped_sources);
             }

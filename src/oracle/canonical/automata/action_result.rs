@@ -38,16 +38,24 @@ pub(in crate::oracle::canonical) enum ActionResultVerb {
     Exiled,
     /// Permanents put into a graveyard by sacrifice (CR 701.21a).
     Sacrificed,
+    /// Permanents that became tapped (CR 701.26a). They stay on the
+    /// battlefield; only those the action actually tapped are recorded.
+    Tapped,
+    /// Permanents returned from the battlefield to their owners' hands
+    /// (CR 400.7: each card is a new object in the hand).
+    Returned,
 }
 
 impl ActionResultVerb {
-    pub(in crate::oracle::canonical) const ALL: [Self; 6] = [
+    pub(in crate::oracle::canonical) const ALL: [Self; 8] = [
         Self::Destroyed,
         Self::Milled,
         Self::Discarded,
         Self::Revealed,
         Self::Exiled,
         Self::Sacrificed,
+        Self::Tapped,
+        Self::Returned,
     ];
 
     pub(in crate::oracle::canonical) fn from_word(word: &str) -> Option<Self> {
@@ -58,6 +66,8 @@ impl ActionResultVerb {
             "revealed" => Some(Self::Revealed),
             "exiled" => Some(Self::Exiled),
             "sacrificed" => Some(Self::Sacrificed),
+            "tapped" => Some(Self::Tapped),
+            "returned" => Some(Self::Returned),
             _ => None,
         }
     }
@@ -72,6 +82,8 @@ impl ActionResultVerb {
             "reveal" | "reveals" => Some(Self::Revealed),
             "exile" | "exiles" => Some(Self::Exiled),
             "sacrifice" | "sacrifices" => Some(Self::Sacrificed),
+            "tap" | "taps" => Some(Self::Tapped),
+            "return" | "returns" => Some(Self::Returned),
             past => Self::from_word(past),
         }
     }
@@ -84,6 +96,8 @@ impl ActionResultVerb {
             Self::Revealed => "revealed",
             Self::Exiled => "exiled",
             Self::Sacrificed => "sacrificed",
+            Self::Tapped => "tapped",
+            Self::Returned => "returned",
         }
     }
 
@@ -101,6 +115,10 @@ impl ActionResultVerb {
             Self::Revealed => &["revealCards", "revealFromTopUntilCount"],
             Self::Exiled => &["exileTargetCards"],
             Self::Sacrificed => &["sacrificePermanents", "sacrificePermanent"],
+            // `bind` records the permanents this tap actually tapped.
+            Self::Tapped => &["tapPermanent"],
+            // `bind` records the objects this return put into a hand.
+            Self::Returned => &["returnToOwnersHand"],
         }
     }
 
@@ -111,8 +129,15 @@ impl ActionResultVerb {
     pub(in crate::oracle::canonical) const fn preserves_card_characteristics(self) -> bool {
         matches!(
             self,
-            Self::Milled | Self::Discarded | Self::Revealed | Self::Exiled
+            Self::Milled | Self::Discarded | Self::Revealed | Self::Exiled | Self::Returned
         )
+    }
+
+    /// Whether the affected objects are still the same permanents on the
+    /// battlefield (a tap changes no zone, CR 701.26a), so a restated
+    /// permanent noun can be re-read on the bound permanents.
+    pub(in crate::oracle::canonical) const fn preserves_permanents(self) -> bool {
+        matches!(self, Self::Tapped)
     }
 }
 
@@ -480,6 +505,20 @@ pub(in crate::oracle::canonical) fn action_result_verb_produced_by(
                     ..
                 })
         ),
+        // A chosen set the tap action taps (`tap any number of untapped
+        // creatures you control`).
+        ActionResultVerb::Tapped => matches!(
+            effect,
+            LocalEffectNode::SelectedPermanents(node)
+                if node.action == super::SelectedPermanentAction::Tap
+        ),
+        // A chosen set returned to its owners' hands (`return any number of
+        // Mountains you control to their owner's hand`).
+        ActionResultVerb::Returned => matches!(
+            effect,
+            LocalEffectNode::SelectedPermanents(node)
+                if node.action == super::SelectedPermanentAction::ReturnToOwnerHand
+        ),
     }
 }
 
@@ -502,6 +541,13 @@ pub(in crate::oracle::canonical) fn resolve_action_result_antecedent(
         // so their noun is never re-read in the new zone.
         LocalEffectNode::DestroyCollection(node) => {
             guaranteed_by(&reference.predicate, &node.objects.predicate)
+                .then_some(ActionResultFilter::All)?
+        }
+        // Tapped permanents stay on the battlefield and returned ones left
+        // it; either way only the noun the selection's own query guarantees
+        // is counted, never a characteristic re-read afterwards.
+        LocalEffectNode::SelectedPermanents(node) => {
+            guaranteed_by(&reference.predicate, &node.operand.query.predicate)
                 .then_some(ActionResultFilter::All)?
         }
         // Sacrificed permanents left the battlefield; only the noun their
