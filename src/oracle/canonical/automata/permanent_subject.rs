@@ -349,7 +349,8 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             | super::SingularPlayerAction::Skip(_)
             | super::SingularPlayerAction::Prohibition(_)
             | super::SingularPlayerAction::Status(_)
-            | super::SingularPlayerAction::SetLifeTotal(_) => previous,
+            | super::SingularPlayerAction::SetLifeTotal(_)
+            | super::SingularPlayerAction::Pay(_) => previous,
         },
         // A list that only changes life totals leaves the permanent subject
         // alone; any other action replaces the antecedent.

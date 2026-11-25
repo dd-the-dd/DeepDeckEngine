@@ -143,6 +143,10 @@ fn recognize_counted_collection(
     if cost_chosen_amount_reference_starts(cursor) {
         return recognize_cost_chosen_amount_reference(cursor);
     }
+    // `{E} paid this way`: the amount an earlier payment paid.
+    if super::paid_resource_result_starts(cursor) {
+        return super::recognize_paid_resource_result(cursor);
+    }
     // `cards revealed this way`: the objects an earlier action affected.
     if !distinct_measure_among_starts(cursor) && action_result_reference_starts(cursor) {
         return recognize_action_result_count(cursor);
@@ -1118,6 +1122,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::Status(_)
             | SingularPlayerAction::SetLifeTotal(_)
+            | SingularPlayerAction::Pay(_)
             | SingularPlayerAction::ReferencedCards { .. } => return false,
         },
         _ => return false,

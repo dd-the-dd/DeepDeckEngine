@@ -147,6 +147,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             | SingularPlayerAction::Skip(_)
             | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::Status(_)
+            | SingularPlayerAction::Pay(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::TargetPlayerLife(node) => independent_number(&node.amount),

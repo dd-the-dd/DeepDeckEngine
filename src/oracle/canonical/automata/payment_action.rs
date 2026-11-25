@@ -1100,6 +1100,14 @@ pub(in crate::oracle::canonical) fn recognize_cost_sequence(
 }
 
 /// The same list with every verb conjugated for the payer the parent names.
+///
+/// A conjunct without its own verb is a gapped conjunct of the previous
+/// written action (`Sacrifice a Swamp and a Forest`, `pay {1} and 1 life`,
+/// `Exile two cards from your graveyard and this creature`): the elided verb
+/// is the previous action's lemma, read over the same tokens with that verb
+/// written in the connector's slot, so the conjunct is the same ordinary
+/// payment action with its own operand (CR 118.3: every part is paid). A
+/// serial comma before the final `and` (`A, B, and C`) is one connector.
 pub(in crate::oracle::canonical::automata) fn recognize_conjugated_cost_sequence(
     cursor: &mut OracleTokenCursor<'_>,
     grammar: CostListGrammar,
@@ -1109,26 +1117,107 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_cost_sequence
     let mut connectors = Vec::new();
     // The list owns pronoun scope: `it` resumes the latest named source.
     let mut antecedent = SourceAntecedent::Absent;
+    // The lemma the latest written verb of the list named; a gapped
+    // conjunct elides it. Mana and `{T}` heads write no verb.
+    let mut written_lemma: Option<VerbLemma> = None;
+    // The checkpoint at the connector token that writes the elided verb.
+    let mut gap: Option<super::super::machine::MachineCheckpoint> = None;
     cursor.enter("cost.sequence.first");
     loop {
-        let action = recognize_listed_payment_action(cursor, form, antecedent)?;
+        let action_start = cursor.position();
+        let action = match (gap.take(), written_lemma) {
+            (Some(slot), Some(lemma)) => {
+                recognize_gapped_payment_action(cursor, form, antecedent, slot, lemma)?
+            }
+            _ => {
+                let action = recognize_listed_payment_action(cursor, form, antecedent)?;
+                written_lemma = written_payment_lemma(cursor, action_start);
+                action
+            }
+        };
         if let Some(noun) = action.named_source() {
             antecedent = SourceAntecedent::Named(noun);
         }
         costs.push(action);
         cursor.enter("cost.sequence.connector");
-        let connector = match cursor.peek() {
-            Some(",") if grammar.comma => CostConnector::Comma,
-            Some(raw) if grammar.and && raw.eq_ignore_ascii_case("and") => CostConnector::And,
+        let serial_and = cursor.peek() == Some(",")
+            && cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("and"));
+        let (connector, width) = match cursor.peek() {
+            Some(",") if grammar.comma && grammar.and && serial_and => (CostConnector::And, 2),
+            Some(",") if grammar.comma => (CostConnector::Comma, 1),
+            Some(raw) if grammar.and && raw.eq_ignore_ascii_case("and") => (CostConnector::And, 1),
             _ => {
                 cursor.enter("cost.sequence.complete");
                 return Ok(CostSequenceNode { costs, connectors });
             }
         };
+        // The connector's last token is the slot a gapped verb is written in.
+        cursor.advance_to(cursor.position() + width - 1)?;
+        let slot = cursor.checkpoint();
         cursor.advance_to(cursor.position() + 1)?;
         connectors.push(connector);
         cursor.enter("cost.sequence.next");
+        if written_lemma.is_some() && gapped_conjunct_starts(cursor, form) {
+            gap = Some(slot);
+        }
     }
+}
+
+/// The lexicon lemma written at `start` when the action read from there
+/// opened with a cost verb (`sacrifice`, `pay`, ...). Mana and `{T}` heads
+/// have none.
+fn written_payment_lemma(cursor: &OracleTokenCursor<'_>, start: usize) -> Option<VerbLemma> {
+    let token = cursor.token_slice(start, start + 1).first()?;
+    if token.token_type == "manaSymbol" || token.token_type == "tapSymbol" {
+        return None;
+    }
+    super::lookup_verb(&token.raw, COST_LEMMAS).map(|(entry, _)| entry.lemma)
+}
+
+/// Lookahead only: after a connector, an operand without its own verb. A
+/// payment head or any other lexicon verb (`and draw a card`) is never a
+/// gapped conjunct: its own reader keeps it.
+fn gapped_conjunct_starts(cursor: &OracleTokenCursor<'_>, form: ActingSubject) -> bool {
+    !conjugated_payment_action_starts(cursor, form)
+        && !cursor
+            .peek()
+            .is_some_and(|raw| super::lookup_effect_verb(raw).is_some())
+        && cursor.peek().is_some_and(|raw| {
+            raw != "." && raw != "," && raw != ":" && !raw.eq_ignore_ascii_case("then")
+        })
+}
+
+/// Reads the gapped conjunct after a connector: the shared payment action
+/// over a view of the same tokens whose connector slot writes the elided
+/// verb in the payer's agreement. Every token keeps its index and span, so
+/// the conjunct's diagnostics locate the written text.
+fn recognize_gapped_payment_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: ActingSubject,
+    antecedent: SourceAntecedent,
+    slot: super::super::machine::MachineCheckpoint,
+    lemma: VerbLemma,
+) -> MachineResult<PaymentActionNode> {
+    cursor.enter("cost.sequence.gapped-verb");
+    let end = cursor.position();
+    let mut view_slot = cursor.clone();
+    view_slot.rollback(slot);
+    let tokens = super::elided_verb_tokens_in_form(
+        &view_slot,
+        view_slot.position(),
+        lemma,
+        form.agreement.form(),
+    );
+    let mut view = view_slot.with_tokens(&tokens);
+    let action = recognize_listed_payment_action(&mut view, form, antecedent)?;
+    cursor.require(
+        view.position() > end,
+        "an operand of the gapped payment verb",
+    )?;
+    cursor.advance_to(view.position())?;
+    Ok(action)
 }
 
 #[cfg(test)]

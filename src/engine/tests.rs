@@ -332,6 +332,10 @@ mod sages_row_denizen_runtime;
 mod optional_cost_outcome_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/payment_instruction_runtime.rs"]
+mod payment_instruction_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/optional_action_outcome_runtime.rs"]
 mod optional_action_outcome_runtime;
 

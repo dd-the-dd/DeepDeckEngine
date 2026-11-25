@@ -796,6 +796,36 @@ fn lower_local_effect_sequence_with_collections(
                         }
                         continue;
                     }
+                    // `[PLAYER] pay(s) RESOURCE` (CR 608.2c): `cost.rs`.
+                    SingularPlayerAction::Pay(payment) => {
+                        cursor.enter("lower.player-action.pay");
+                        let amount = match payment.amount_expression() {
+                            Some(expression) => Some(lower_sequence_bound_amount(
+                                cursor,
+                                expression,
+                                sequence,
+                                &target_bindings,
+                                context,
+                            )?),
+                            None => None,
+                        };
+                        let payment = lower_payment_instruction(
+                            payment,
+                            lowered.player,
+                            amount,
+                            &super::resolution_object_choice::chosen_number_decision(effect_index),
+                        )
+                        .map_err(|expected| cursor.fail(expected))?;
+                        if !collections.claim_instruction_ids(&payment) {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(
+                                    "a program-unique decision for the chosen payment amount",
+                                ),
+                            ));
+                        }
+                        effects.extend(payment);
+                        continue;
+                    }
                     // CR 500.7: the acting player takes the next turn.
                     SingularPlayerAction::ExtraTurn => {
                         cursor.enter("lower.player-action.extra-turn");
@@ -1126,7 +1156,12 @@ fn lower_local_effect_sequence_with_collections(
                     &before,
                     &mut lowered.effects,
                 )?);
-                effects.push(json!({"kind":"optionalEffects", "player":controller(), "effects":lowered.effects}));
+                // `you may pay any amount of R`: no separate decision (`cost.rs`).
+                if optional_payment_admits_zero(body) {
+                    effects.extend(lowered.effects);
+                } else {
+                    effects.push(json!({"kind":"optionalEffects", "player":controller(), "effects":lowered.effects}));
+                }
             }
             LocalEffectNode::CounterSpell(counter) if counter.event_spell => {
                 // The spell the triggering cast record binds (CR 701.6a).

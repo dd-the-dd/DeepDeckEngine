@@ -176,12 +176,16 @@ fn lower_unlimited_program_step<E>(
                     &mut CardCollectionMemory::default(),
                 )?;
                 // A declined branch written as its own permission keeps its
-                // optional wrapper (`Otherwise, you may ...`).
+                // optional wrapper (`Otherwise, you may ...`), and one written
+                // as an optional cost keeps its cost block (`Otherwise, you
+                // may pay {1}. If you do, ...`).
                 Some(match otherwise.as_ref() {
-                    EffectProgramNode::Optional { .. } => {
-                        wrap_lowered_effect_program(cursor, otherwise, lowered)
-                            .map_err(&program_failure)?
-                    }
+                    EffectProgramNode::Optional { .. }
+                    | EffectProgramNode::Outcome {
+                        producer: OutcomeProducer::Cost(_),
+                        ..
+                    } => wrap_lowered_effect_program(cursor, otherwise, lowered)
+                        .map_err(&program_failure)?,
                     _ => lowered,
                 })
             }
@@ -213,7 +217,17 @@ fn lower_unlimited_program_step<E>(
     } = step
     {
         let body = lower(cursor, body.inner_sequence())?;
-        let otherwise = lower(cursor, otherwise.inner_sequence())?;
+        let lowered_otherwise = lower(cursor, otherwise.inner_sequence())?;
+        // The declined branch keeps its own permission or cost block.
+        let otherwise = match otherwise.as_ref() {
+            EffectProgramNode::Optional { .. }
+            | EffectProgramNode::Outcome {
+                producer: OutcomeProducer::Cost(_),
+                ..
+            } => wrap_lowered_effect_program(cursor, otherwise, lowered_otherwise)
+                .map_err(&program_failure)?,
+            _ => lowered_otherwise,
+        };
         return lower_optional_cost_outcome(
             cursor,
             permission.as_ref(),
@@ -859,6 +873,8 @@ fn optional_action_measured(instruction: &Value) -> bool {
         Some("gainControlPermanent") => {
             instruction["permanent"].is_object() && instruction["controller"].is_object()
         }
+        // The payer actually paid the resolution cost (`cost.rs`).
+        Some("payCost") => single_player(&instruction["player"]) && instruction["cost"].is_object(),
         // The attachment became attached to the recipient (CR 701.3b).
         Some("attachPermanent") => {
             instruction["attachment"].is_object() && instruction["to"].is_object()
