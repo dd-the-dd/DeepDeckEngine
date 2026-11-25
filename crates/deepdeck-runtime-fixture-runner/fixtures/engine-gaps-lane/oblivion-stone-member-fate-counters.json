@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "engine-gaps-lane/oblivion-stone-removes-each-members-fate-counters",
+  "seed": 212,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "removeCounters",
+        "counter": "fate",
+        "count": {
+          "counter": "fate",
+          "kind": "counterCountOf",
+          "object": {
+            "kind": "eachPermanent",
+            "where": null
+          }
+        },
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": null
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Stone controller",
+        "hand": [
+          {
+            "id": "fate-wipe",
+            "name": "Fate Wipe",
+            "typeLine": "Sorcery",
+            "manaCost": ""
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "two-fates",
+            "name": "Two Fates",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2",
+            "counters": {
+              "fate": 2,
+              "+1/+1": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "marked-land",
+            "name": "Marked Land",
+            "typeLine": "Land",
+            "counters": {
+              "fate": 1
+            }
+          },
+          {
+            "id": "unmarked",
+            "name": "Unmarked",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "fate-wipe"
+  },
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "two-fates",
+      "counter": "fate",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "two-fates",
+      "counter": "+1/+1",
+      "equals": 1
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-1",
+      "definitionId": "marked-land",
+      "counter": "fate",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "counterRemoved",
+      "equals": 2
+    }
+  ]
+}

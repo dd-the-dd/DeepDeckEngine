@@ -1,0 +1,217 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "engine-gaps-lane/champion-of-lambholt-source-power-block-restriction",
+  "seed": 211,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "blockRestriction",
+        "attackers": {
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        },
+        "blockers": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "powerOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "<",
+                "right": {
+                  "kind": "powerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Champion controller",
+        "battlefield": [
+          {
+            "id": "champion",
+            "name": "Champion of Lambholt",
+            "typeLine": "Creature — Human Warrior",
+            "power": "1",
+            "toughness": "1",
+            "counters": {
+              "+1/+1": 2
+            },
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "blockRestriction",
+                    "attackers": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "blockers": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "powerOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "<",
+                            "right": {
+                              "kind": "powerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "attacker",
+            "name": "Attacker",
+            "typeLine": "Creature — Bear",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "own-blocker",
+            "name": "Own Blocker",
+            "typeLine": "Creature — Bear",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Defender",
+        "battlefield": [
+          {
+            "id": "small",
+            "name": "Small Blocker",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "equal",
+            "name": "Equal Blocker",
+            "typeLine": "Creature — Bear",
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "their-attacker",
+            "name": "Their Attacker",
+            "typeLine": "Creature — Bear",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-1",
+      "blockerDefinitionId": "small",
+      "attackerPlayerId": "player-0",
+      "attackerDefinitionId": "attacker",
+      "equals": false
+    },
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-1",
+      "blockerDefinitionId": "equal",
+      "attackerPlayerId": "player-0",
+      "attackerDefinitionId": "attacker",
+      "equals": true
+    },
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "own-blocker",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "their-attacker",
+      "equals": true
+    }
+  ]
+}
