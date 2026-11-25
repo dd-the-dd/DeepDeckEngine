@@ -336,9 +336,10 @@ fn a_token_copy_of_a_departed_event_object_reads_its_last_known_copiable_values(
         );
         // A death record: the object is no longer on the battlefield when
         // the ability is put on the stack (`capture_event_object`).
-        stack
-            .decisions
-            .insert("triggeringPermanentIdentity".to_string(), Value::Null);
+        stack.decisions.insert(
+            "triggeringPermanentIdentity".to_string(),
+            serde_json::Value::Null,
+        );
         stack.decisions.insert(
             "triggeringPermanentDepartedIdentity".to_string(),
             json!(departed_identity),
