@@ -2419,6 +2419,9 @@ pub(super) struct ControllerKeywordActionNode {
 pub(super) enum EffectConnector {
     And,
     Then,
+    /// `ACTION or ACTION` (CR 608.2d): the actions joined by `or` are the
+    /// alternatives of one resolution choice, never a sequence.
+    Or,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

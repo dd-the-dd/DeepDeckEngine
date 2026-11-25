@@ -276,6 +276,25 @@ pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
     source: super::PermanentOperandNode,
 ) -> MachineResult<DamageEffectNode> {
     cursor.enter("effect.damage.gapped");
+    // `and an additional N damage to R` (Kaervek's Hex): `additional` only
+    // marks the conjunct as further damage of the same source; the amount is
+    // N, dealt by its own action after the first one.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("an"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("additional"))
+    {
+        cursor.consume_phrase(&["an", "additional"])?;
+        cursor.enter("effect.damage.gapped.additional-amount");
+        cursor.require(
+            cursor
+                .peek()
+                .is_some_and(|raw| !raw.eq_ignore_ascii_case("damage")),
+            "an explicit amount after `an additional`",
+        )?;
+    }
     cursor.require(
         cursor
             .peek()

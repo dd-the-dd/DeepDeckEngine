@@ -1992,7 +1992,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
             position: None,
             order: None,
             tapped: false,
-            entering_counters: None,
+            entering_counters: modifiers.entering_counters,
             face_down: modifiers.face_down,
             transformed: false,
             shuffle: false,

@@ -40,9 +40,14 @@ pub(in crate::oracle::canonical) fn recognize_effect_connector(
                             cursor.consume("then")?;
                             EffectConnector::Then
                         }
-                        // Alternatives require program control; never lower `or`
-                        // to sequential conjunction, even after punctuation.
-                        Some("or") => return Err(cursor.fail("`and` or `then`")),
+                        // `ACTION or ACTION` (CR 608.2d): the alternatives the
+                        // performer chooses between while the effect resolves.
+                        // Never sequential conjunction: the sequence frames the
+                        // run of `or`-joined actions as one resolution choice.
+                        Some("or") => {
+                            cursor.consume("or")?;
+                            EffectConnector::Or
+                        }
                         // Do not consume or guess the next action here. The
                         // sequence parent delegates it transactionally to a child.
                         _ if coordinating_comma => EffectConnector::And,
@@ -73,9 +78,22 @@ pub(in crate::oracle::canonical) fn elided_verb_tokens(
     slot: usize,
     lemma: super::VerbLemma,
 ) -> Vec<crate::oracle::model::RecognizedEntity> {
+    elided_verb_tokens_in_form(cursor, slot, lemma, super::VerbForm::Base)
+}
+
+/// The same view for a finite antecedent clause (`target player sacrifices
+/// an artifact and a land`): the elided verb is written in the form its
+/// subject gave the written verb, so the conjunct reads as a subjectless
+/// verb of the same performer.
+pub(in crate::oracle::canonical) fn elided_verb_tokens_in_form(
+    cursor: &OracleTokenCursor<'_>,
+    slot: usize,
+    lemma: super::VerbLemma,
+    form: super::VerbForm,
+) -> Vec<crate::oracle::model::RecognizedEntity> {
     let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
     if let Some(token) = tokens.get_mut(slot) {
-        let surface = super::verb_entry(lemma).surface(super::VerbForm::Base);
+        let surface = super::verb_entry(lemma).surface(form);
         if let Some(class) = crate::oracle::syntax::recognize_entities(surface)
             .into_iter()
             .next()
@@ -98,6 +116,30 @@ pub(in crate::oracle::canonical) fn imperative_lemma_at(
     super::lookup_effect_verb(&token.raw)
         .filter(|(_, forms)| forms.contains(&super::VerbForm::Base))
         .map(|(entry, _)| entry.lemma)
+}
+
+/// The finite verb of a clause whose explicit subject starts at `start`
+/// and whose predicate ends before `end`: the first token in the subject's
+/// agreement form that the verb lexicon knows. A gapped conjunct of that
+/// clause elides this verb (`deals 1 damage to A and an additional 1 damage
+/// to B`, `sacrifices an artifact and a land`). `None` when the clause has
+/// no such verb (an imperative clause, or a verb the lexicon lacks).
+pub(in crate::oracle::canonical) fn finite_clause_verb(
+    cursor: &OracleTokenCursor<'_>,
+    start: usize,
+    end: usize,
+    agreement: super::VerbAgreement,
+) -> Option<(super::VerbLemma, super::VerbForm)> {
+    let form = agreement.form();
+    cursor
+        .token_slice(start, end)
+        .iter()
+        .skip(1)
+        .find_map(|token| {
+            super::lookup_verb(&token.raw, &super::ALL_LEMMAS)
+                .filter(|(_, forms)| forms.contains(&form))
+                .map(|(entry, _)| (entry.lemma, form))
+        })
 }
 
 #[cfg(test)]

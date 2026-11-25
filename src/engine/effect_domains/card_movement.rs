@@ -1051,7 +1051,12 @@ impl GameEngine {
         {
             for counter in counters {
                 let count = self
-                    .runtime_numeric_expression(&counter["count"], stack_object, bindings, decisions)
+                    .runtime_numeric_expression(
+                        &counter["count"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )
                     .unwrap_or(0)
                     .max(0);
                 counter["count"] = json!(count);

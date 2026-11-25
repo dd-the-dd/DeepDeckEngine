@@ -1966,12 +1966,21 @@ impl CardCollectionMemory {
                 cursor.require(
                     !destination.tapped
                         && destination.attacking.is_none()
-                        && destination.entering_counters.is_none()
+                        && (destination.entering_counters.is_none()
+                            || (destination.zone == CardZoneName::Exile
+                                && !destination.face_down))
                         && !destination.transformed
                         && destination.attached_to.is_none()
                         && (!destination.face_down || destination.zone == CardZoneName::Exile),
-                    "an untapped, counterless, untransformed nonbattlefield destination, face down only in exile",
+                    "an untapped, untransformed nonbattlefield destination, face down or with counters only in exile",
                 )?;
+                // `exile it with N KIND counters on it` (CR 702.62a).
+                if let Some(counters) = &destination.entering_counters {
+                    let count = lower_targetless_numeric_expression(&counters.count, declarations)
+                        .map_err(|error| cursor.fail(error.expectation()))?;
+                    to["enterWithCounters"] =
+                        json!([{"counter": counters.counter.as_str(), "count": count}]);
+                }
                 if matches!(operand, CardOperandNode::LibraryTop(_))
                     && destination.zone == CardZoneName::Exile
                 {

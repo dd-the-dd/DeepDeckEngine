@@ -1,0 +1,478 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "effect-coordination-batch7/gapping-alternatives-zone-tails",
+  "cases": [
+    {
+      "id": "exact-kaerveks-hex-finite-gapped-additional-damage",
+      "request": {
+        "cardName": "Kaervek's Hex",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Kaervek's Hex deals 1 damage to each nonblack creature and an additional 1 damage to each green creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-structural-collapse-finite-gapped-sacrifice",
+      "request": {
+        "cardName": "Structural Collapse",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{R}",
+        "oracleText": "Target player sacrifices an artifact and a land of their choice. Structural Collapse deals 2 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-perilous-predicament-population-gapped-sacrifice",
+      "request": {
+        "cardName": "Perilous Predicament",
+        "typeLine": "Instant",
+        "manaCost": "{4}{B}",
+        "oracleText": "Each opponent sacrifices an artifact creature and a nonartifact creature of their choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-target-creature-finite-gapped-damage",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Target creature deals 1 damage to each player and an additional 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wormwood-treefolk-shared-subject-damage",
+      "request": {
+        "cardName": "Wormwood Treefolk",
+        "typeLine": "Creature — Treefolk",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "{G}{G}: This creature gains forestwalk until end of turn and deals 2 damage to you. (It can't be blocked as long as defending player controls a Forest.)\n{B}{B}: This creature gains swampwalk until end of turn and deals 2 damage to you. (It can't be blocked as long as defending player controls a Swamp.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-avacyn-and-griselbrand-then-comma",
+      "request": {
+        "cardName": "Avacyn and Griselbrand",
+        "typeLine": "Legendary Creature — Angel Demon",
+        "manaCost": "{4}{W}{W}{B}{B}",
+        "oracleText": "Flying, vigilance, lifelink\nPay 8 life: Each creature you control gains indestructible until end of turn. Then, draw a card for each creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-then-comma-after-damage",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Coordination Witness deals 2 damage to any target. Then, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-catastrophe-operand-alternatives",
+      "request": {
+        "cardName": "Catastrophe",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Destroy all lands or all creatures. Creatures destroyed this way can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOneEffect"
+              },
+              {
+                "pointer": "/effects/0/options/0/effects/0/kind",
+                "equals": "destroyPermanent"
+              },
+              {
+                "pointer": "/effects/0/options/1/effects/0/cannotRegenerate",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-essence-filter-operand-alternatives",
+      "request": {
+        "cardName": "Essence Filter",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "Destroy all enchantments or all nonwhite enchantments.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOneEffect"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lava-storm-clause-alternatives",
+      "request": {
+        "cardName": "Lava Storm",
+        "typeLine": "Instant",
+        "manaCost": "{R}{R}",
+        "oracleText": "Lava Storm deals 2 damage to each attacking creature or Lava Storm deals 2 damage to each blocking creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOneEffect"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-action-alternatives-counter-or-remove",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{1}: Put a +1/+1 counter on this artifact or remove a +1/+1 counter from it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOneEffect"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-selector-union-stays-a-selector",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Destroy target artifact or creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "destroyPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-independent-imperatives-do-not-gap",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Destroy target creature and draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-suspended-sentence-exile-source-with-counters",
+      "request": {
+        "cardName": "Suspended Sentence",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy target creature an opponent controls. That player loses 3 life. Exile Suspended Sentence with three time counters on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-reality-strobe-exile-source-with-counters",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Return target permanent to its owner's hand. Exile Coordination Witness with three time counters on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/to/enterWithCounters/0/counter",
+                "equals": "time"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-nemesis-phoenix-shape-tapped-and-attacking",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Creature — Phoenix",
+        "manaCost": "{0}",
+        "oracleText": "{2}{R}: Return this card from your graveyard to the battlefield tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/to/attacking/kind",
+                "equals": "anyDefender"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-face-down-into-a-hand",
+      "request": {
+        "cardName": "Coordination Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Return target creature card from your graveyard to your hand face down.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "collection.destination.entry.face-down"
+          }
+        ]
+      }
+    }
+  ]
+}
