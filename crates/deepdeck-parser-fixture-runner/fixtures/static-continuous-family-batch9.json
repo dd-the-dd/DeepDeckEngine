@@ -1001,6 +1001,100 @@
       }
     },
     {
+      "id": "real-red-ward-protection-spares-this-aura",
+      "request": {
+        "cardName": "Red Ward",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature has protection from red. This effect doesn't remove this Aura.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "grantProtection",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": [
+                    "red"
+                  ],
+                  "sparesAuras": "source"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-spectra-ward-protection-spares-auras",
+      "request": {
+        "cardName": "Spectra Ward",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +2/+2 and has protection from each color. This effect doesn't remove Auras. (It can't be blocked, targeted, or dealt damage by anything that's white, blue, black, red, or green.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "grantProtection"
+              },
+              {
+                "pointer": "/modifiers/1/sparesAuras",
+                "equals": "all"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-aura-exception-without-protection",
+      "request": {
+        "cardName": "Exception Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature has flying. This effect doesn't remove this Aura.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.aura-exception.protection"
+          }
+        ]
+      }
+    },
+    {
       "id": "known-gap-kira-inner-counter-of-the-targeting-spell",
       "request": {
         "cardName": "Kira, Great Glass-Spinner",

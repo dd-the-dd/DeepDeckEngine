@@ -310,3 +310,36 @@ fn first_spell_grant_closes_after_a_matching_cast() {
     );
     assert!(!engine.card_has_convoke(&creature, "player-0"));
 }
+
+/// Red Ward: the protection from red it grants doesn't remove Red Ward
+/// itself, but it still removes another red Aura (CR 303.4d).
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn red_ward_protection_spares_only_itself() {
+    let mut engine = test_engine(2);
+    place(&mut engine, "bear", "Creature - Bear", "player-0");
+    let mut ward = test_definition("Red Ward", "Enchantment - Aura");
+    ward.mana_cost = "{R}".to_string();
+    ward.rules = parsed_rules(
+        "Red Ward",
+        "Enchantment - Aura",
+        "Enchant creature\nEnchanted creature has protection from red. This effect doesn't remove this Aura.",
+    );
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("Red Ward", ward, "player-0"));
+    attach(&mut engine, "Red Ward", "bear");
+    let mut other = test_definition("other", "Enchantment - Aura");
+    other.mana_cost = "{R}".to_string();
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("other", other, "player-0"));
+    attach(&mut engine, "other", "bear");
+
+    let bear = live(&engine, "bear");
+    let ward = live(&engine, "Red Ward");
+    let other = live(&engine, "other");
+    assert!(engine.permanent_is_protected_from_card(&bear, &ward.definition));
+    assert!(engine.protection_spares_aura(&bear, &ward));
+    assert!(!engine.protection_spares_aura(&bear, &other));
+}

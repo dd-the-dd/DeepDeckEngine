@@ -646,6 +646,8 @@ fn read_object_predicates(
     let mut granted = Vec::new();
     let mut changes_types = false;
     let mut goaded = false;
+    // `This effect doesn't remove this Aura|Auras.` after a protection grant.
+    let mut spared_auras: Option<&'static str> = None;
     let mut sentences = vec![StaticSentence {
         first_modifier: 0,
         condition,
@@ -1043,6 +1045,10 @@ fn read_object_predicates(
             }
             Some(".") => {
                 cursor.consume(".")?;
+                if protection_aura_exception_starts(cursor) {
+                    cursor.require(spared_auras.is_none(), "one Aura exception")?;
+                    spared_auras = Some(read_protection_aura_exception(cursor)?);
+                }
                 match read_continuation_start(cursor, &mut sentences, &modifiers, subject_number)? {
                     Some(contracted) => contracted_copula = contracted,
                     None => break,
@@ -1050,6 +1056,23 @@ fn read_object_predicates(
             }
             _ => return Err(cursor.fail("`and` or the end of the static ability")),
         }
+    }
+    if let Some(spared) = spared_auras {
+        // CR 702.16c/d, 303.4d: the protection still applies to every
+        // other quality and event; only the state-based removal of the
+        // spared Auras is waived.
+        cursor.enter("static.continuous.aura-exception.protection");
+        let mut protections = 0;
+        for modifier in &mut modifiers {
+            if modifier["kind"] == "grantProtection" {
+                modifier["sparesAuras"] = json!(spared);
+                protections += 1;
+            }
+        }
+        cursor.require(
+            protections > 0 && attached_subject,
+            "a protection granted to the enchanted permanent before the Aura exception",
+        )?;
     }
     if (!granted.is_empty() || changes_types || goaded) && cursor.peek() == Some("(") {
         // CR 207.2: reminder text of a granted keyword or of a type change
@@ -1440,6 +1463,36 @@ fn read_optional_color_predicate(
         "objects": objects.clone(),
         "colors": colors.iter().map(|color| color.ir_symbol()).collect::<Vec<_>>(),
     })))
+}
+
+fn protection_aura_exception_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_in(cursor.peek(), &["this"])
+        && word_in(cursor.peek_ahead(1), &["effect"])
+        && word_in(cursor.peek_ahead(2), &["doesn't"])
+        && word_in(cursor.peek_ahead(3), &["remove"])
+}
+
+/// `This effect doesn't remove this Aura.` / `... doesn't remove Auras.`:
+/// the protection granted by this ability doesn't make this Aura (`source`)
+/// or any Aura (`all`) fall off the protected permanent (CR 303.4d).
+fn read_protection_aura_exception(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<&'static str> {
+    cursor.enter("static.continuous.aura-exception");
+    cursor.consume_phrase(&["this", "effect"])?;
+    let raw = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&raw)?;
+    cursor.consume("remove")?;
+    let spared = if word_in(cursor.peek(), &["this"]) {
+        cursor.consume_phrase(&["this", "aura"])?;
+        "source"
+    } else {
+        cursor.consume("auras")?;
+        "all"
+    };
+    cursor.enter("static.continuous.aura-exception.terminator");
+    cursor.consume(".")?;
+    Ok(spared)
 }
 
 /// `can't be the target(s) of …`, `can't be sacrificed`, `can't become

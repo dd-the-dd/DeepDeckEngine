@@ -108,6 +108,70 @@ impl GameEngine {
             })
     }
 
+    /// CR 303.4d, 702.16: an Aura with a quality the enchanted permanent has
+    /// protection from is put into its owner's graveyard, unless every
+    /// protection from that quality is a static `grantProtection` whose
+    /// `sparesAuras` names this Aura (`source`, `This effect doesn't remove
+    /// this Aura`) or every Aura (`all`). Called only for a host already
+    /// protected from the Aura; any other protecting effect still removes it.
+    pub(super) fn protection_spares_aura(&self, host: &CardInstance, aura: &CardInstance) -> bool {
+        let source = &aura.definition;
+        let protects = |qualities: &Value| {
+            qualities.as_array().is_some_and(|qualities| {
+                qualities
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .any(|quality| card_matches_protection_quality(source, quality))
+            })
+        };
+        let mut spared = false;
+        for (grantor, modifier) in self.battlefield_static_modifiers() {
+            if !Self::static_selector_matches(&grantor, &modifier["objects"], host) {
+                continue;
+            }
+            match value_kind(&modifier) {
+                Some("grantProtection") if protects(&modifier["from"]) => {
+                    let spares = match modifier["sparesAuras"].as_str() {
+                        Some("source") => grantor.instance_id == aura.instance_id,
+                        Some("all") => true,
+                        _ => false,
+                    };
+                    if !spares {
+                        return false;
+                    }
+                    spared = true;
+                }
+                Some("grantProtectionChosenCardType")
+                    if modifier["decisionId"]
+                        .as_str()
+                        .and_then(|id| stored_decision_value(&grantor.definition, id))
+                        .is_some_and(|card_type| has_card_type(source, card_type)) =>
+                {
+                    return false;
+                }
+                _ => {}
+            }
+        }
+        let temporary = self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some("temporaryProtection")
+                && modifier["cardInstanceId"].as_str() == Some(host.instance_id.as_str())
+                && protects(&modifier["from"])
+        });
+        let keyword = self.effective_rules(host).iter().any(|rule| {
+            let abilities = match value_kind(rule) {
+                Some("keywordAbility") => vec![&rule["ability"]],
+                Some("keywordAbilityGroup") => {
+                    rule["abilities"].as_array().into_iter().flatten().collect()
+                }
+                _ => Vec::new(),
+            };
+            abilities.into_iter().any(|ability| {
+                value_kind(ability) == Some("protection") && protects(&ability["from"])
+            })
+        });
+        spared && !temporary && !keyword
+    }
+
     /// CR 701.26b: a static `cantBecomeUntapped` keeps the permanent tapped.
     pub(super) fn static_untap_prohibited(&self, permanent: &CardInstance) -> bool {
         self.static_modifier_applies_to("cantBecomeUntapped", permanent)

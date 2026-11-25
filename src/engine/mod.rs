@@ -33960,7 +33960,8 @@ impl GameEngine {
                     };
                     let host = &self.state.players[player_index].battlefield[card_index];
                     host.flags.get("phasedOut").copied().unwrap_or(false)
-                        || (!self.permanent_is_protected_from_card(host, &aura.definition)
+                        || ((!self.permanent_is_protected_from_card(host, &aura.definition)
+                            || self.protection_spares_aura(host, aura))
                             && self
                                 .selection_candidates_with_decisions(
                                     &aura.controller,
