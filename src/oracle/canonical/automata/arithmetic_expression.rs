@@ -280,6 +280,12 @@ fn recognize_primary(
         let environment = super::installed_binding_environment(cursor);
         return super::recognize_bound_object_property(cursor, &environment);
     }
+    // `the power of that creature`, `the mana value of the exiled card`:
+    // the postposed genitive of the same bound object.
+    if super::of_genitive_property_starts(cursor) {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_of_genitive_property(cursor, &environment);
+    }
     // `that number`: a number the enclosing frame already read, resolved
     // by the binding environment like every other anaphor.
     if super::prior_number_reference_starts(cursor) {

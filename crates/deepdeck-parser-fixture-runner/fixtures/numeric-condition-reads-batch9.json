@@ -631,6 +631,161 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-smashing-success-artifact-destroyed-this-way",
+      "request": {
+        "cardName": "Smashing Success",
+        "typeLine": "Instant",
+        "manaCost": "{3}{R}",
+        "oracleText": "Destroy target artifact or land. If an artifact is destroyed this way, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "countBoundObjectsLastKnown"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-restated-sacrifice-of-a-subtype",
+      "request": {
+        "cardName": "Restated Sacrifice Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Sacrifice a creature. If a Zombie was sacrificed this way, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-restated-destroy-without-a-destroy-action",
+      "request": {
+        "cardName": "Missing Destroy Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Draw a card. If a land was destroyed this way, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pure-reflection-mana-value-of-that-spell",
+      "request": {
+        "cardName": "Pure Reflection",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever a player casts a creature spell, destroy all Reflections. Then that player creates an X/X white Reflection creature token, where X is the mana value of that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-power-of-that-creature-after-a-target",
+      "request": {
+        "cardName": "Postposed Genitive Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}",
+        "oracleText": "Destroy target creature. You gain life equal to the power of that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-postposed-genitive-without-an-antecedent",
+      "request": {
+        "cardName": "Unbound Genitive Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw cards equal to the mana value of that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.of-genitive.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-postposed-genitive-of-a-new-target",
+      "request": {
+        "cardName": "Declared Genitive Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Draw cards equal to the power of target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

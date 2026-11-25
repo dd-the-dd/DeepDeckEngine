@@ -65,6 +65,23 @@ pub(in crate::oracle::canonical) fn lower_action_result_objects(
         && reference.predicate.is_in_domain(ObjectKind::Permanent)
     {
         lower_permanent_object_predicate(&reference.predicate)
+    } else if removes_permanents(reference.verb)
+        && reference.predicate.is_in_domain(ObjectKind::Permanent)
+    {
+        // `if an artifact was destroyed this way` (CR 608.2c, 608.2h): the
+        // permanents are tested as they last existed on the battlefield,
+        // by the type line and state their departure recorded.
+        let filter = lower_permanent_object_predicate(&reference.predicate);
+        if filter.is_null() {
+            return Err("a restated noun the producing action guarantees or keeps readable");
+        }
+        let mut pending = json!({
+            "kind": ACTION_RESULT_OBJECTS,
+            "verb": reference.verb.ir_name(),
+            "where": filter,
+        });
+        pending[LAST_KNOWN_FIELD] = json!(true);
+        return Ok(pending);
     } else {
         return Err("a restated noun the producing action guarantees or keeps readable");
     };
@@ -73,6 +90,19 @@ pub(in crate::oracle::canonical) fn lower_action_result_objects(
         "verb": reference.verb.ir_name(),
         "where": filter,
     }))
+}
+
+/// The field of a pending restated result whose noun is tested on the
+/// permanents' last known information (they left the battlefield).
+const LAST_KNOWN_FIELD: &str = "lastKnown";
+
+/// The restated verbs whose action removes the permanents it affects from
+/// the battlefield and records their departure (CR 701.8, 701.21a).
+fn removes_permanents(verb: ActionResultVerb) -> bool {
+    matches!(
+        verb,
+        ActionResultVerb::Destroyed | ActionResultVerb::Sacrificed
+    )
 }
 
 /// The objects one producing runtime action affected, as a stable object
@@ -213,6 +243,20 @@ fn bind_pending_action_result_objects(
                     total["where"] = filter;
                 }
                 *value = total;
+                return Ok(());
+            }
+            // A restated noun of departed permanents: counted on their last
+            // known information.
+            if map.get(LAST_KNOWN_FIELD).and_then(Value::as_bool) == Some(true) {
+                let binding = match (bound["kind"].as_str(), bound["binding"].as_str()) {
+                    (Some("boundObjects"), Some(binding)) => binding.to_owned(),
+                    _ => return Err("a producing action that binds the objects it affected"),
+                };
+                *value = json!({
+                    "kind": "countBoundObjectsLastKnown",
+                    "binding": binding,
+                    "where": filter,
+                });
                 return Ok(());
             }
             *value = json!({

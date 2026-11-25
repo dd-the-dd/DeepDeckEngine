@@ -242,7 +242,8 @@ fn a_bound_total_reads_departed_objects_as_last_known_information() {
         engine.resolution_record_numeric(&total("power"), &stack, &BTreeMap::new(), &decisions),
         Some(None)
     );
-    // A filter over a departed object has no recorded answer.
+    // A filter over a departed object without a departure record has no
+    // recorded answer.
     let mut filtered = total("power");
     filtered["where"] = json!({ "kind": "cardTypeContains", "value": "Creature" });
     assert_eq!(
@@ -302,4 +303,51 @@ fn players_compare_their_measure_with_the_controller_and_the_extremum() {
     let mut foreign = extremum.clone();
     foreign["value"]["player"] = json!({ "kind": "triggeringPlayer" });
     assert_eq!(resolution_record_supported(&foreign), Some(false));
+}
+
+#[test]
+fn a_restated_removal_is_tested_on_its_departure_record() {
+    let mut engine = engine();
+    let source = card_instance("player-0", &definition("smash", "Sorcery", None), 1);
+    let stack = ability(
+        &source,
+        "activatedAbility",
+        &json!({ "kind": "activatedAbility" }),
+    );
+    for (id, type_line) in [
+        ("golem", "Artifact Creature - Golem"),
+        ("plains", "Basic Land - Plains"),
+    ] {
+        engine.record_event(
+            "permanentLeftBattlefield",
+            None,
+            Some(id.to_string()),
+            json!({ "typeLine": type_line, "lastKnownState": { "token": false } }),
+        );
+    }
+    let destroyed = |ids: &[&str]| {
+        BTreeMap::from([(
+            "actionResult:0".to_string(),
+            RuntimeBinding::Objects(ids.iter().map(|id| id.to_string()).collect()),
+        )])
+    };
+    let artifacts = json!({
+        "kind": "countBoundObjectsLastKnown",
+        "binding": "actionResult:0",
+        "where": { "kind": "cardTypeContains", "value": "Artifact" },
+    });
+    assert_eq!(resolution_record_supported(&artifacts), Some(true));
+    let read = |bindings: &BTreeMap<String, RuntimeBinding>| {
+        engine.resolution_record_numeric(&artifacts, &stack, bindings, &BTreeMap::new())
+    };
+    assert_eq!(read(&destroyed(&["golem", "plains"])), Some(Some(1)));
+    // Nothing was destroyed: the restated condition counts zero.
+    assert_eq!(read(&destroyed(&[])), Some(Some(0)));
+    assert_eq!(read(&destroyed(&["plains"])), Some(Some(0)));
+    // An object without a departure record has no last known type line.
+    assert_eq!(read(&destroyed(&["unrecorded"])), Some(None));
+    // A characteristic the departure record does not keep is refused.
+    let mut colored = artifacts.clone();
+    colored["where"] = json!({ "kind": "colorContains", "value": "R" });
+    assert_eq!(resolution_record_supported(&colored), Some(false));
 }

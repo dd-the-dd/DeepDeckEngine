@@ -29,6 +29,10 @@ use super::*;
 pub(super) const ABILITY_RESOLUTIONS: &str = "abilityResolutionsThisTurn";
 pub(super) const ABILITY_ACTIVATIONS: &str = "abilityActivationsThisTurn";
 const SUM_BOUND_OBJECTS: &str = "sumBoundObjectProperty";
+const COUNT_LAST_KNOWN: &str = "countBoundObjectsLastKnown";
+/// The event that records a permanent's departure and its last known type
+/// line and state (CR 608.2h).
+const DEPARTURE_EVENT: &str = "permanentLeftBattlefield";
 const SUM_PERMANENTS: &str = "sumPermanentProperty";
 const COUNT_COMPARED: &str = "countPlayersComparedWithController";
 const COUNT_AT_EXTREMUM: &str = "countPlayersAtExtremum";
@@ -127,6 +131,29 @@ fn printed_stat(value: &Option<String>) -> i32 {
         .unwrap_or(0)
 }
 
+/// A filter a departure record answers: type-line atoms and the recorded
+/// state atoms (counters, tapped, combat, token), under Boolean operators.
+fn departure_filter_supported(filter: &Value, depth: usize) -> bool {
+    depth < 32
+        && match value_kind(filter) {
+            Some(
+                "cardTypeContains" | "subtypeContains" | "typeLineContains" | "isLegendary"
+                | "isBasic",
+            ) => filter["value"].is_string() || filter.get("value").is_none(),
+            Some(kind) if state_condition_atoms::departure_record_atom(kind) => {
+                state_condition_atoms::departure_record_atom_supported(filter)
+            }
+            Some("not") => departure_filter_supported(&filter["operand"], depth + 1),
+            Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
+                !operands.is_empty()
+                    && operands
+                        .iter()
+                        .all(|operand| departure_filter_supported(operand, depth + 1))
+            }),
+            _ => false,
+        }
+}
+
 /// `Some(valid)` for a kind this module owns, `None` otherwise.
 pub(super) fn resolution_record_supported(expression: &Value) -> Option<bool> {
     Some(match value_kind(expression)? {
@@ -139,6 +166,12 @@ pub(super) fn resolution_record_supported(expression: &Value) -> Option<bool> {
                     .as_str()
                     .is_some_and(|binding| !binding.is_empty())
                 && expression.get("where").is_none_or(card_filter_supported)
+        }
+        COUNT_LAST_KNOWN => {
+            expression["binding"]
+                .as_str()
+                .is_some_and(|binding| !binding.is_empty())
+                && departure_filter_supported(&expression["where"], 0)
         }
         SUM_PERMANENTS => {
             property(expression).is_some()
@@ -201,6 +234,12 @@ impl GameEngine {
                 }
                 Some(self.bound_object_property_total(expression, bindings, decisions))
             }
+            COUNT_LAST_KNOWN => {
+                if resolution_record_supported(expression) != Some(true) {
+                    return Some(None);
+                }
+                Some(self.bound_objects_last_known_count(expression, bindings))
+            }
             _ => None,
         }
     }
@@ -241,6 +280,42 @@ impl GameEngine {
         i32::try_from(count).ok()
     }
 
+    /// Whether one bound object satisfied `filter` as it last existed on the
+    /// battlefield: the permanent it still is, else its latest departure
+    /// record (CR 608.2h). `None` without either, or for a filter the record
+    /// does not answer.
+    fn bound_object_last_known_matches(&self, instance_id: &str, filter: &Value) -> Option<bool> {
+        if let Some((player, index)) = self.permanent_position(instance_id) {
+            let permanent = &self.state.players[player].battlefield[index];
+            return Some(self.permanent_matches_effective_filter(permanent, filter));
+        }
+        let departure = self.state.events.iter().rev().find(|event| {
+            event.kind == DEPARTURE_EVENT && event.card_instance_id.as_deref() == Some(instance_id)
+        })?;
+        state_condition_atoms::departure_record_matches(&departure.detail, filter, 0)
+    }
+
+    /// The bound objects of a removal (destroy, sacrifice) that satisfied
+    /// `where` as they last existed on the battlefield (`if an artifact was
+    /// destroyed this way`, CR 608.2c, 608.2h).
+    fn bound_objects_last_known_count(
+        &self,
+        expression: &Value,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> Option<i32> {
+        let binding = expression["binding"].as_str()?;
+        let Some(RuntimeBinding::Objects(objects)) = bindings.get(binding) else {
+            return None;
+        };
+        let mut count = 0_i32;
+        for instance_id in objects {
+            if self.bound_object_last_known_matches(instance_id, &expression["where"])? {
+                count = count.checked_add(1)?;
+            }
+        }
+        Some(count)
+    }
+
     /// The sum of one property over the objects a producing action bound.
     fn bound_object_property_total(
         &self,
@@ -265,10 +340,13 @@ impl GameEngine {
             let value = if let Some(record) =
                 recorded.and_then(|records| records.get(instance_id.as_str()))
             {
-                // Its last known information (CR 608.2h) records numbers
-                // only: a filter over it has no recorded answer.
-                if filter.is_some() {
-                    return None;
+                // Its last known information (CR 608.2h): the numbers the
+                // producing action recorded, the type line and state its
+                // departure recorded.
+                if let Some(filter) = filter
+                    && !self.bound_object_last_known_matches(instance_id, filter)?
+                {
+                    continue;
                 }
                 i32::try_from(record.get(field)?.as_i64()?).ok()?
             } else if let Some((player, index)) = self.permanent_position(instance_id) {
