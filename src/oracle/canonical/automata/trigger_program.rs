@@ -414,7 +414,9 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 })
             };
             match verb {
-                ObjectEventVerb::Die => subject_slot(true),
+                ObjectEventVerb::Die | ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
+                    subject_slot(true)
+                }
                 ObjectEventVerb::Attack
                 | ObjectEventVerb::BecomeBlocked
                 | ObjectEventVerb::BeDealtDamage(_)
@@ -650,6 +652,7 @@ pub(in crate::oracle::canonical) fn event_frame(
         event_object: event_object_slot(event),
         event_card: event_card_zone(event),
         combat_defending_player: false,
+        inherited_moved_selector: None,
         // A cast record binds its spell; a copy has no cast record.
         event_spell: matches!(
             event,
