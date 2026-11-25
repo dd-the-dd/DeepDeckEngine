@@ -223,7 +223,7 @@
       }
     },
     {
-      "id": "near-miss-tragic-slip-postposed-instead-stays-separate",
+      "id": "tragic-slip-exact-morbid-postposed-instead-continues-target",
       "request": {
         "cardName": "Tragic Slip",
         "typeLine": "Instant",
@@ -233,14 +233,58 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mirran-mettle-exact-metalcraft-postposed-instead",
+      "request": {
+        "cardName": "Mirran Mettle",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target creature gets +2/+2 until end of turn.\nMetalcraft — That creature gets +4/+4 until end of turn instead if you control three or more artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-postposed-instead-without-an-antecedent",
+      "request": {
+        "cardName": "Orphan Paragraph Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card.\nMorbid — Destroy that creature instead if a creature died this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "abilityCount": 2,
         "diagnostics": [
           {
+            "abilityIndex": 1,
             "code": "oracle_machine_failure",
-            "state": "permanent.subject.nominal-anaphor.antecedent",
-            "abilityIndex": 1
+            "state": "permanent.subject.nominal-anaphor.antecedent"
           }
         ]
       }
