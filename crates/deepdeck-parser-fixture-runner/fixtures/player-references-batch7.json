@@ -237,7 +237,7 @@
         "cardName": "Population Probe",
         "typeLine": "Sorcery",
         "manaCost": "{3}{B}",
-        "oracleText": "Each opponent who has seven or more cards in their hand discards a card, then draws a card. Each player with 10 or less life gains 3 life.",
+        "oracleText": "Each opponent who has seven or more cards in their hand loses 2 life. Each player with 10 or less life gains 3 life.",
         "layout": "normal",
         "faces": []
       },
@@ -249,6 +249,27 @@
           {
             "index": 0,
             "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-continued-verb-of-a-restricted-population",
+      "request": {
+        "cardName": "Continued Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Each opponent who has seven or more cards in their hand discards a card, then draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.performer.restricted-population.continued"
           }
         ]
       }

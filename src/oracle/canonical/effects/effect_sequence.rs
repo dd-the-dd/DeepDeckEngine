@@ -4035,6 +4035,21 @@ fn apply_performer(
                     ));
                 }
             };
+            // A restriction is read once, when its instruction begins: a
+            // later verb the same restricted subject continues (`each
+            // opponent who has seven or more cards in hand discards a card,
+            // then draws a card`) would read it again after the first
+            // action changed the game, so it is refused explicitly.
+            if players["kind"] == "filterPlayers"
+                && effects[..start]
+                    .iter()
+                    .any(|effect| effect["kind"] == "forEachPlayer" && effect["players"] == players)
+            {
+                cursor.enter("lower.performer.restricted-population.continued");
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("one action per restricted player population"),
+                ));
+            }
             let body = effects
                 .drain(start..)
                 .map(|mut effect| {
