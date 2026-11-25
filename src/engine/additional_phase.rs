@@ -99,9 +99,11 @@ impl GameEngine {
 
     /// Removes and returns the next phases added after the `anchor` phase
     /// now ending: whether an added main phase follows the added combat.
+    /// CR 500.8: of several phases added after the same phase, the most
+    /// recently created comes first.
     fn take_added_phases(&mut self, anchor: AnchorPhase) -> Option<bool> {
         let active_player_id = self.state.players[self.state.active_player].id.clone();
-        let index = self.state.rule_modifiers.iter().position(|modifier| {
+        let index = self.state.rule_modifiers.iter().rposition(|modifier| {
             value_kind(modifier) == Some("additionalPhases")
                 && modifier["playerId"].as_str() == Some(active_player_id.as_str())
                 && modifier["turn"].as_u64() == Some(u64::from(self.state.turn_number))

@@ -344,78 +344,154 @@ impl GameEngine {
         })
     }
 
-    /// CR 506.5: a creature that can't attack alone is offered only while
-    /// another attacker is declared or another creature could still attack.
-    pub(super) fn lone_attack_restriction_allows(
+    /// CR 506.5: a creature that can't attack alone is offered, while no
+    /// attacker is declared yet, only if the declaration offered after it
+    /// still contains another attacker. The partner test asks the same
+    /// attacker-offer computation the declaration uses (defender, land-only
+    /// additional combats, prohibitions, attack-alone rules, participant
+    /// limits and taxes), never a separate eligibility heuristic.
+    pub(super) fn retain_lone_attack_partners(
         &self,
-        card: &CardInstance,
         selected: &BTreeSet<String>,
         battlefield: &[CardInstance],
-    ) -> bool {
-        if !self.permanent_has_keyword(card, "cantAttackAlone") {
-            return true;
+        actions: &mut Vec<LegalAction>,
+    ) -> Result<(), EngineError> {
+        if !selected.is_empty() {
+            return Ok(());
         }
-        selected.iter().any(|id| *id != card.instance_id)
-            || battlefield.iter().any(|other| {
-                other.instance_id != card.instance_id
-                    && self.permanent_is_creature(other)
-                    && !other.tapped
-                    && (!other.summoning_sick || self.permanent_has_keyword(other, "haste"))
-                    && !self.permanent_has_keyword(other, "cantAttack")
+        let restricted = actions
+            .iter()
+            .filter(|action| action.kind == ActionKind::DeclareAttacker)
+            .filter_map(|action| action.attacker_id.clone())
+            .filter(|id| {
+                battlefield.iter().any(|card| {
+                    card.instance_id == *id && self.permanent_has_keyword(card, "cantAttackAlone")
+                })
             })
+            .collect::<BTreeSet<_>>();
+        for id in restricted {
+            let with = BTreeSet::from([id.clone()]);
+            // The nested declaration has a declared attacker, so it never
+            // recurses into this test again; it is asked as a revisable
+            // declaration so a missing partner is an answer, not a refusal.
+            let partner = self
+                .legal_attacker_actions_with_revisions(&with, true)?
+                .iter()
+                .any(|action| {
+                    action.kind == ActionKind::DeclareAttacker
+                        && action.attacker_id.as_deref() != Some(id.as_str())
+                });
+            if !partner {
+                actions.retain(|action| {
+                    !(action.kind == ActionKind::DeclareAttacker
+                        && action.attacker_id.as_deref() == Some(id.as_str()))
+                });
+            }
+        }
+        Ok(())
     }
 
     /// CR 506.5: the attack declaration can't end with one attacker that
-    /// can't attack alone while another attacker can still be declared.
+    /// can't attack alone. While another attacker is offered the declaration
+    /// stays open; when none remains (a partner's offer was lost to a payment
+    /// made for the first attacker), only a revision can make it legal, and
+    /// without revisions the declaration is refused explicitly.
     pub(super) fn lone_attacker_pending(
         &self,
         selected: &BTreeSet<String>,
         battlefield: &[CardInstance],
         offered: &[LegalAction],
-    ) -> bool {
+        allow_revisions: bool,
+    ) -> Result<bool, EngineError> {
         if selected.len() != 1 {
-            return false;
+            return Ok(false);
         }
         let Some(only) = selected.iter().next() else {
-            return false;
+            return Ok(false);
         };
-        battlefield
+        let Some(card) = battlefield
             .iter()
             .find(|card| card.instance_id == *only)
-            .is_some_and(|card| self.permanent_has_keyword(card, "cantAttackAlone"))
-            && offered.iter().any(|action| {
-                action.kind == ActionKind::DeclareAttacker
-                    && action.attacker_id.as_deref() != Some(only.as_str())
-            })
+            .filter(|card| self.permanent_has_keyword(card, "cantAttackAlone"))
+        else {
+            return Ok(false);
+        };
+        let partner_offered = offered.iter().any(|action| {
+            action.kind == ActionKind::DeclareAttacker
+                && action.attacker_id.as_deref() != Some(only.as_str())
+        });
+        if partner_offered || allow_revisions {
+            return Ok(true);
+        }
+        Err(EngineError::new(format!(
+            "attack declaration can't end: {} can't attack alone and no other creature can still \
+             attack (CR 506.5)",
+            card.definition.name
+        )))
     }
 
-    /// CR 506.5: a creature that can't block alone is offered only while
-    /// another blocker is declared or another creature could still block.
-    pub(super) fn lone_block_restriction_allows(
+    /// CR 506.5: a creature that can't block alone is offered for one
+    /// attacker, while no blocker is declared yet, only if the declaration
+    /// offered after that block still contains another blocker. The partner
+    /// test reuses the full blocker-offer computation (evasion, menace,
+    /// capacity, prohibitions and requirements) for that exact block.
+    pub(super) fn retain_lone_block_partners(
         &self,
-        blocker: &CardInstance,
+        defending_index: usize,
+        attackers: &[String],
         used_blockers: &BTreeSet<String>,
-        battlefield: &[CardInstance],
-    ) -> bool {
-        if !self.permanent_has_keyword(blocker, "cantBlockAlone") {
-            return true;
+        blocks: &BTreeMap<String, Vec<String>>,
+        actions: &mut Vec<LegalAction>,
+    ) {
+        if !used_blockers.is_empty() {
+            return;
         }
-        used_blockers.iter().any(|id| *id != blocker.instance_id)
-            || battlefield.iter().any(|other| {
-                other.instance_id != blocker.instance_id
-                    && self.permanent_is_creature(other)
-                    && !other.tapped
-                    && !self.permanent_has_keyword(other, "cantBlock")
+        let battlefield = &self.state.players[defending_index].battlefield;
+        let restricted = |blocker_id: &str| {
+            battlefield.iter().any(|card| {
+                card.instance_id == blocker_id && self.permanent_has_keyword(card, "cantBlockAlone")
             })
+        };
+        let unpartnered = actions
+            .iter()
+            .filter(|action| action.kind == ActionKind::DeclareBlocker)
+            .filter_map(|action| Some((action.blocker_id.clone()?, action.attacker_id.clone()?)))
+            .filter(|(blocker, _)| restricted(blocker))
+            .filter(|(blocker, attacker)| {
+                let used = BTreeSet::from([blocker.clone()]);
+                let mut after = blocks.clone();
+                after
+                    .entry(attacker.clone())
+                    .or_default()
+                    .push(blocker.clone());
+                // The nested declaration has a declared blocker, so it never
+                // recurses into this test again.
+                !self
+                    .legal_blocker_actions(defending_index, attackers, &used, &after)
+                    .iter()
+                    .any(|action| {
+                        action.kind == ActionKind::DeclareBlocker
+                            && action.blocker_id.as_deref() != Some(blocker.as_str())
+                    })
+            })
+            .collect::<BTreeSet<_>>();
+        actions.retain(|action| {
+            !(action.kind == ActionKind::DeclareBlocker
+                && action
+                    .blocker_id
+                    .clone()
+                    .zip(action.attacker_id.clone())
+                    .is_some_and(|pair| unpartnered.contains(&pair)))
+        });
     }
 
     /// CR 506.5: the block declaration can't end with one blocker that can't
-    /// block alone while another block can still be declared.
+    /// block alone. It stays open while another block is offered; when none
+    /// remains, the declaration loop refuses it explicitly.
     pub(super) fn lone_blocker_pending(
         &self,
         used_blockers: &BTreeSet<String>,
         battlefield: &[CardInstance],
-        offered: &[LegalAction],
     ) -> bool {
         if used_blockers.len() != 1 {
             return false;
@@ -427,10 +503,6 @@ impl GameEngine {
             .iter()
             .find(|card| card.instance_id == *only)
             .is_some_and(|card| self.permanent_has_keyword(card, "cantBlockAlone"))
-            && offered.iter().any(|action| {
-                action.kind == ActionKind::DeclareBlocker
-                    && action.blocker_id.as_deref() != Some(only.as_str())
-            })
     }
 
     /// CR 510.1d: a creature blocking several attackers divides its combat

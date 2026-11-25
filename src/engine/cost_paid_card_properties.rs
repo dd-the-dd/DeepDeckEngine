@@ -9,9 +9,45 @@
 //! reads. A card is read by its printed characteristics: it is not on the
 //! battlefield, so no continuous effect of a permanent applies to it. A
 //! power or toughness that is not a printed number (a characteristic-
-//! defining `*`) records nothing, and the read stays unbound rather than
-//! zero.
+//! defining `*`) records a deferred read of that card instead: its
+//! characteristic-defining ability functions in every zone (CR 604.3), so
+//! the value is the card's current one where it now is when the effect
+//! reads it (CR 608.2h). A deferred read whose card left that zone, or whose
+//! ability the engine can't evaluate, stays unresolved; its consumers refuse
+//! it instead of substituting zero ([`unresolved_decision_read`]).
 use super::*;
+
+/// The deferred characteristic read recorded for a `*` power or toughness.
+const DEFERRED_CARD_CHARACTERISTIC: &str = "costPaidCardCharacteristic";
+
+/// The first `decisionResult` read of `expression` that `decisions` does not
+/// resolve to a number, if any: a consumer that would otherwise default a
+/// missing amount refuses the effect explicitly instead (AGENTS.md: never
+/// substitute zero for a missing producer).
+pub(super) fn unresolved_decision_read<'a>(
+    engine: &GameEngine,
+    expression: &'a Value,
+    decisions: &BTreeMap<String, Value>,
+) -> Option<&'a str> {
+    match expression {
+        Value::Object(fields) => {
+            if value_kind(expression) == Some("decisionResult") {
+                let id = expression["decisionId"].as_str()?;
+                let resolved = decisions.get(id).is_some_and(|value| {
+                    value.as_i64().is_some() || engine.deferred_card_characteristic(value).is_some()
+                });
+                return (!resolved).then_some(id);
+            }
+            fields
+                .values()
+                .find_map(|child| unresolved_decision_read(engine, child, decisions))
+        }
+        Value::Array(items) => items
+            .iter()
+            .find_map(|child| unresolved_decision_read(engine, child, decisions)),
+        _ => None,
+    }
+}
 
 /// The chosen card a card cost names: `discardCard` and `revealCard` name it
 /// as `card`, `exileObject` as `object`. A cost paid with the ability's own
@@ -55,19 +91,51 @@ impl GameEngine {
                 continue;
             };
             let definition = &card.definition;
+            let deferred = |characteristic: &str| {
+                json!({
+                    "kind": DEFERRED_CARD_CHARACTERISTIC,
+                    "cardInstanceId": card.instance_id,
+                    "characteristic": characteristic,
+                })
+            };
             let values = [
-                ("bindPowerAs", printed_number(definition.power.as_deref())),
+                (
+                    "bindPowerAs",
+                    printed_number(definition.power.as_deref())
+                        .map(Value::from)
+                        .unwrap_or_else(|| deferred("power")),
+                ),
                 (
                     "bindToughnessAs",
-                    printed_number(definition.toughness.as_deref()),
+                    printed_number(definition.toughness.as_deref())
+                        .map(Value::from)
+                        .unwrap_or_else(|| deferred("toughness")),
                 ),
-                ("bindManaValueAs", Some(mana_value(definition))),
+                ("bindManaValueAs", Value::from(mana_value(definition))),
             ];
             for (field, value) in values {
-                if let (Some(binding), Some(value)) = (cost[field].as_str(), value) {
-                    decisions.insert(binding.to_string(), Value::from(value));
+                if let Some(binding) = cost[field].as_str() {
+                    decisions.insert(binding.to_string(), value);
                 }
             }
+        }
+    }
+
+    /// The current value of a deferred `*` characteristic read: the card's
+    /// characteristic-defining power or toughness where it now is, outside
+    /// the battlefield (CR 604.3). `None` when the value is not a deferred
+    /// read, the card is gone, or no supported ability defines the value.
+    pub(super) fn deferred_card_characteristic(&self, value: &Value) -> Option<i32> {
+        if value_kind(value) != Some(DEFERRED_CARD_CHARACTERISTIC) {
+            return None;
+        }
+        let card = self.card_outside_battlefield(value["cardInstanceId"].as_str()?)?;
+        let (power, toughness) = self.characteristic_defining_power_toughness(card)?;
+        let defined = |printed: Option<&str>| printed_number(printed).is_none();
+        match value["characteristic"].as_str()? {
+            "power" if defined(card.definition.power.as_deref()) => Some(power),
+            "toughness" if defined(card.definition.toughness.as_deref()) => Some(toughness),
+            _ => None,
         }
     }
 }

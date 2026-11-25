@@ -360,3 +360,99 @@ fn requirement_effects_validate_their_direction_and_window() {
         })
     )));
 }
+
+#[test]
+fn a_lone_restricted_creature_needs_a_partner_the_declaration_would_offer() {
+    // Mogg Flunkies beside a defender (Wall of Roots): the wall is never
+    // offered as an attacker, so the flunky would attack alone.
+    let mut engine = engine();
+    engine.state.players[0].battlefield = vec![
+        instance(
+            "flunky",
+            "player-0",
+            "Creature",
+            vec![marker("cantAttackAlone")],
+        ),
+        instance("wall", "player-0", "Creature", vec![marker("defender")]),
+    ];
+    let attacker_ids = |actions: &[LegalAction]| {
+        actions
+            .iter()
+            .filter(|action| action.kind == ActionKind::DeclareAttacker)
+            .filter_map(|action| action.attacker_id.clone())
+            .collect::<BTreeSet<_>>()
+    };
+    let actions = engine.legal_attacker_actions(&BTreeSet::new());
+    assert!(attacker_ids(&actions).is_empty(), "no legal partner");
+    assert!(can_finish(&actions, ActionKind::FinishAttackers));
+    // Two creatures that can't attack alone partner each other.
+    engine.state.players[0].battlefield[1] = instance(
+        "goblin",
+        "player-0",
+        "Creature",
+        vec![marker("cantAttackAlone")],
+    );
+    let actions = engine.legal_attacker_actions(&BTreeSet::new());
+    assert_eq!(
+        attacker_ids(&actions),
+        BTreeSet::from(["flunky".to_string(), "goblin".to_string()])
+    );
+    // Declared alone with no partner left, a non-revisable declaration is
+    // refused instead of ending with a lone attacker.
+    engine.state.players[0].battlefield[1] =
+        instance("wall", "player-0", "Creature", vec![marker("defender")]);
+    let alone = BTreeSet::from(["flunky".to_string()]);
+    let error = engine
+        .legal_attacker_actions_with_revisions(&alone, false)
+        .expect_err("a lone restricted attacker can't end the declaration");
+    assert!(error.to_string().contains("can't attack alone"), "{error}");
+    let revisable = engine
+        .legal_attacker_actions_with_revisions(&alone, true)
+        .unwrap();
+    assert!(!can_finish(&revisable, ActionKind::FinishAttackers));
+    assert!(can_finish(&revisable, ActionKind::CancelAttacker));
+}
+
+#[test]
+fn a_lone_restricted_blocker_needs_a_partner_able_to_block() {
+    // `This creature can't block alone.` with reach, beside a creature that
+    // can't block the flying attacker: the restricted creature would block
+    // alone.
+    let mut engine = engine();
+    engine.state.players[0].battlefield = vec![instance(
+        "flyer",
+        "player-0",
+        "Creature",
+        vec![marker("flying")],
+    )];
+    engine.state.players[1].battlefield = vec![
+        instance(
+            "toby",
+            "player-1",
+            "Creature",
+            vec![marker("cantBlockAlone"), marker("reach")],
+        ),
+        instance("ground", "player-1", "Creature", vec![]),
+    ];
+    attacking(&mut engine, &["flyer"]);
+    let attackers = vec!["flyer".to_string()];
+    let actions = engine.legal_blocker_actions(1, &attackers, &BTreeSet::new(), &BTreeMap::new());
+    assert!(
+        block_pairs(&actions).is_empty(),
+        "the ground creature can't block a flyer"
+    );
+    assert!(can_finish(&actions, ActionKind::FinishBlockers));
+    // With a reach partner both blocks are offered, and one alone can't end.
+    engine.state.players[1].battlefield[1] =
+        instance("spider", "player-1", "Creature", vec![marker("reach")]);
+    let actions = engine.legal_blocker_actions(1, &attackers, &BTreeSet::new(), &BTreeMap::new());
+    assert_eq!(block_pairs(&actions).len(), 2);
+    let used = BTreeSet::from(["toby".to_string()]);
+    let blocks = BTreeMap::from([("flyer".to_string(), vec!["toby".to_string()])]);
+    let actions = engine.legal_blocker_actions(1, &attackers, &used, &blocks);
+    assert!(!can_finish(&actions, ActionKind::FinishBlockers));
+    assert_eq!(
+        block_pairs(&actions),
+        vec![("spider".to_string(), "flyer".to_string())]
+    );
+}
