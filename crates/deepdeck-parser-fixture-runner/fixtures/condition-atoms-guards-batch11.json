@@ -218,6 +218,72 @@
       }
     },
     {
+      "id": "exact-redcap-melee-dealt-damage-this-way",
+      "request": {
+        "cardName": "Redcap Melee",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Redcap Melee deals 4 damage to target creature or planeswalker. If a nonred permanent is dealt damage this way, you sacrifice a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-marauding-raptor-dealt-damage-this-way",
+      "request": {
+        "cardName": "Marauding Raptor",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{1}{R}",
+        "oracleText": "Creature spells you cast cost {1} less to cast.\nWhenever another creature you control enters, this creature deals 2 damage to it. If a Dinosaur is dealt damage this way, this creature gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-dragon-dealt-damage-draw",
+      "request": {
+        "cardName": "Probe Bolt",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Probe Bolt deals 2 damage to any target. If a Dragon is dealt damage this way, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-dealt-damage-this-way-without-a-damage-action",
+      "request": {
+        "cardName": "Probe Bolt",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Tap target creature. If a creature is dealt damage this way, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-orbital-plunge-excess-damage-condition",
       "request": {
         "cardName": "Orbital Plunge",

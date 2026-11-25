@@ -285,7 +285,9 @@ impl CostAmountVerb {
             ActionResultVerb::Tapped => Self::Tapped,
             ActionResultVerb::Returned => Self::Returned,
             ActionResultVerb::Revealed => Self::Revealed,
-            ActionResultVerb::Destroyed | ActionResultVerb::Milled => return None,
+            ActionResultVerb::Destroyed
+            | ActionResultVerb::Milled
+            | ActionResultVerb::DealtDamage => return None,
         })
     }
 }
