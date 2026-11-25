@@ -717,6 +717,160 @@ impl GameEngine {
 }
 
 // ---------------------------------------------------------------------------
+// Disturb (CR 702.146a) and transformed casting (CR 712.8)
+
+/// The flag of a casting source whose characteristics are its back face.
+const CASTING_TRANSFORMED_FLAG: &str = "castingTransformed";
+/// The declaration of a spell cast with its back face up (CR 712.8c).
+const CAST_TRANSFORMED: &str = "castTransformed";
+
+/// `Disturb [mana cost]` (CR 702.146a).
+pub(super) fn disturb_ability_supported(value: &Value) -> bool {
+    value_kind(value) == Some("disturb")
+        && value_kind(&value["cost"]) == Some("payMana")
+        && cost_supported(&value["cost"])
+}
+
+/// The disturb cost printed on a card's front face.
+fn disturb_cost(printed: &CardDefinition) -> Option<&Value> {
+    printed.printed_rules().iter().find_map(|rule| {
+        (value_kind(rule) == Some("keywordAbility")
+            && rule["activeFaceIndex"]
+                .as_u64()
+                .is_none_or(|face| face == 0)
+            && disturb_ability_supported(&rule["ability"]))
+        .then_some(&rule["ability"]["cost"])
+    })
+}
+
+fn cast_transformed(decisions: &BTreeMap<String, Value>) -> bool {
+    decisions.get(CAST_TRANSFORMED).and_then(Value::as_bool) == Some(true)
+}
+
+/// CR 712.8e: a transforming double-faced object with its back face up has
+/// the mana value of its front face's mana cost; `None` for any other face.
+pub(super) fn front_face_mana_cost(card: &CardDefinition) -> Option<&str> {
+    let faces = card.printed_rules().iter().find_map(|rule| {
+        (value_kind(rule) == Some("rulesMarker"))
+            .then(|| rule["transformFaces"].as_array())
+            .flatten()
+    })?;
+    let up = faces
+        .iter()
+        .position(|face| face["name"].as_str() == Some(card.name.as_str()))?;
+    if up == 0 {
+        return None;
+    }
+    faces.first()?["manaCost"].as_str()
+}
+
+/// Puts a spell cast transformed on the stack with its back face up (CR
+/// 712.8c); it resolves with that face up (CR 702.146b).
+pub(super) fn apply_transformed_cast(
+    decisions: &BTreeMap<String, Value>,
+    card: &mut CardInstance,
+) -> Result<(), EngineError> {
+    if cast_transformed(decisions) && !super::apply_card_face(card, 1) {
+        return Err(EngineError::new("the card has no back face to cast"));
+    }
+    Ok(())
+}
+
+impl GameEngine {
+    /// The disturb casting sources of `player`: each card they own in their
+    /// graveyard whose front face has disturb, with its back face's
+    /// characteristics (CR 702.146a, 712.8c).
+    pub(super) fn disturb_casting_sources(
+        &self,
+        player: &super::EnginePlayer,
+    ) -> Vec<(CardInstance, &'static str)> {
+        player
+            .graveyard
+            .iter()
+            .filter(|card| card.owner == player.id)
+            .filter(|card| {
+                disturb_cost(card.printed_definition.as_ref().unwrap_or(&card.definition)).is_some()
+            })
+            .filter_map(|card| {
+                let mut casting = card.clone();
+                if !super::apply_card_face(&mut casting, 1) {
+                    return None;
+                }
+                casting
+                    .flags
+                    .insert(CASTING_TRANSFORMED_FLAG.to_string(), true);
+                Some((casting, "graveyard"))
+            })
+            .collect()
+    }
+
+    /// The keyword rules of one priority cast declaration of `card` from
+    /// `source_zone`: an aftermath half cast from a graveyard is exiled as it
+    /// leaves the stack (CR 702.127a); a disturb source is cast transformed
+    /// for its disturb cost instead of its mana cost (CR 702.146a). Returns
+    /// `false` for a declaration that can't be cast this way.
+    pub(super) fn prepare_priority_cast_declaration(
+        &self,
+        card: &CardInstance,
+        source_zone: &str,
+        decisions: &mut BTreeMap<String, Value>,
+    ) -> bool {
+        mark_aftermath_exile(&card.definition, source_zone, decisions);
+        if card.flags.get(CASTING_TRANSFORMED_FLAG).copied() != Some(true) {
+            return true;
+        }
+        let Some(cost) = card
+            .printed_definition
+            .as_ref()
+            .and_then(disturb_cost)
+            .cloned()
+        else {
+            return false;
+        };
+        if source_zone != "graveyard"
+            || !super::casting_cost::CastingMode::of(decisions).uses_ordinary_base()
+        {
+            return false;
+        }
+        decisions.insert(CAST_TRANSFORMED.to_string(), Value::Bool(true));
+        decisions.insert(
+            "alternativeCostMode".to_string(),
+            Value::String("disturb".to_string()),
+        );
+        decisions.insert("useAlternativeCost".to_string(), Value::Bool(true));
+        decisions.insert(
+            "effectiveAlternativeCost".to_string(),
+            json!({ "kind": "alternativeCost", "mode": "disturb", "costs": [cost] }),
+        );
+        true
+    }
+
+    /// The characteristics a cast declaring `castTransformed` uses: the
+    /// card's back face (CR 712.8c).
+    pub(super) fn transformed_casting_definition(
+        &self,
+        decisions: &BTreeMap<String, Value>,
+        instance_id: Option<&str>,
+        definition: CardDefinition,
+    ) -> CardDefinition {
+        if !cast_transformed(decisions) {
+            return definition;
+        }
+        let Some(mut casting) = instance_id
+            .and_then(|instance_id| self.card_outside_battlefield(instance_id))
+            .cloned()
+        else {
+            return definition;
+        };
+        if super::apply_card_face(&mut casting, 1) {
+            casting.definition
+        } else {
+            definition
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Madness (CR 702.35a)
 
 /// The decision detail a madness exile records on the replaced graveyard

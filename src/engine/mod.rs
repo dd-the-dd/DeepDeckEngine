@@ -2465,14 +2465,16 @@ fn permanent_filter_supported(filter: &Value) -> bool {
 }
 
 fn mana_value(card: &CardDefinition) -> i32 {
-    parse_mana_symbols(&card.mana_cost)
-        .into_iter()
-        .map(|symbol| {
-            symbol
-                .parse::<i32>()
-                .unwrap_or_else(|_| i32::from(symbol != "X"))
-        })
-        .sum()
+    parse_mana_symbols(
+        keyword_programs::front_face_mana_cost(card).unwrap_or(card.mana_cost.as_str()),
+    )
+    .into_iter()
+    .map(|symbol| {
+        symbol
+            .parse::<i32>()
+            .unwrap_or_else(|_| i32::from(symbol != "X"))
+    })
+    .sum()
 }
 
 fn distinct_card_types<'a>(
@@ -4072,6 +4074,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || mayhem_ability_supported(&rule["ability"])
                 || keyword_programs::madness_ability_supported(&rule["ability"])
                 || keyword_programs::aftermath_ability_supported(&rule["ability"])
+                || keyword_programs::disturb_ability_supported(&rule["ability"])
                 || value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
                 || escape_ability_supported(&rule["ability"])
                 || blitz_ability_supported(&rule["ability"])
@@ -17732,6 +17735,12 @@ impl GameEngine {
                     .into_iter()
                     .map(|(card, source_zone)| (card, source_zone, None, false)),
             )
+            // CR 702.146a, 712.8c: a disturb card on its back face.
+            .chain(
+                self.disturb_casting_sources(player)
+                    .into_iter()
+                    .map(|(card, source_zone)| (card, source_zone, None, false)),
+            )
             .collect::<Vec<_>>();
 
         for (card, source_zone, split_face_index, fused) in casting_sources
@@ -17947,11 +17956,13 @@ impl GameEngine {
                         .decisions
                         .insert("exileOnLeaveStack".to_string(), Value::Bool(true));
                 }
-                keyword_programs::mark_aftermath_exile(
-                    &card.definition,
+                if !self.prepare_priority_cast_declaration(
+                    card,
                     source_zone,
                     &mut declaration.decisions,
-                );
+                ) {
+                    continue;
+                }
                 if *source_zone == "graveyard"
                     && let Some(source_id) = self.arcade_gannon_source_for_card(&player.id, card)
                 {
@@ -25690,6 +25701,11 @@ impl GameEngine {
                     .ok_or_else(|| EngineError::new("spell source is no longer available"))?;
                 let source_definition =
                     adventure::casting_definition(&action.decisions, source_definition)?;
+                let source_definition = self.transformed_casting_definition(
+                    &action.decisions,
+                    action.card_instance_id.as_deref(),
+                    source_definition,
+                );
                 let cast_source_zone = action
                     .decisions
                     .get("castSourceZone")
@@ -25929,6 +25945,7 @@ impl GameEngine {
                 // CR 716.3b: on the stack, only the Adventure's characteristics.
                 card.definition =
                     adventure::casting_definition(&action.decisions, card.definition.clone())?;
+                keyword_programs::apply_transformed_cast(&action.decisions, &mut card)?;
                 if action
                     .decisions
                     .get("fused")

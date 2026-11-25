@@ -577,6 +577,13 @@ fn lower_casting_keyword(
                 "a mana madness cost (a nonmana madness payment has no runtime)",
             )?,
         }),
+        // CR 702.146a-b: the graveyard route casts the card with its back
+        // face up for this mana cost; it resolves with that face up. The
+        // runtime finds the back face on the card's transforming faces.
+        CastingKeyword::Disturb => json!({
+            "kind": "disturb",
+            "cost": keyword_mana(cursor, node, "a disturb mana cost")?,
+        }),
         // CR 702.187b: the graveyard route admits a card discarded this turn.
         CastingKeyword::Mayhem => json!({
             "kind": "mayhem",

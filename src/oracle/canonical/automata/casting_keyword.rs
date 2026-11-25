@@ -9,7 +9,7 @@
 //!                                          retrace, jump-start, aftermath)
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem,
-//!                                          emerge, sneak, bestow)
+//!                                          emerge, sneak, bestow, disturb)
 //!            | MANA | "—" COSTS          (blitz, escalate, entwine, madness)
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
@@ -50,6 +50,9 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Bestow,
     Blitz,
     Conspire,
+    /// CR 702.146a: cast the card transformed from its owner's graveyard
+    /// for this cost rather than its mana cost.
+    Disturb,
     /// CR 702.119a.
     Emerge,
     /// CR 702.42a.
@@ -156,6 +159,15 @@ const DEFINITIONS: &[Definition] = &[
         reminders: &[
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.",
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Disturb,
+        lexeme: "disturb",
+        rules_section: "702.146a",
+        parameter: Parameter::Mana,
+        reminders: &[
+            "You may cast this card from your graveyard transformed for its disturb cost.",
         ],
     },
     Definition {

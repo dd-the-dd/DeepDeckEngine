@@ -419,6 +419,9 @@ mod madness_runtime;
 #[path = "tests/aftermath_runtime.rs"]
 mod aftermath_runtime;
 
+#[path = "tests/disturb_runtime.rs"]
+mod disturb_runtime;
+
 #[path = "tests/graveyard_destination_replacement_runtime.rs"]
 mod graveyard_destination_replacement_runtime;
 
