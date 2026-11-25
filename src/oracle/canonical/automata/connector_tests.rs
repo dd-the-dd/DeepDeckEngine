@@ -23,9 +23,16 @@ fn punctuation_coordinates_without_consuming_the_following_action() {
         );
         assert_eq!(cursor.peek(), Some("draw"));
     }
-    let tokens = recognize_entities(", or draw a card.");
-    let mut cursor = OracleTokenCursor::new("comma-alternative-unit", &tokens);
-    assert!(super::recognize_effect_connector(&mut cursor).is_err());
+    // `or` is the alternative connector (CR 608.2d), never a conjunction.
+    for text in [", or draw a card.", "or draw a card."] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("comma-alternative-unit", &tokens);
+        assert_eq!(
+            super::recognize_effect_connector(&mut cursor).unwrap(),
+            EffectConnector::Or
+        );
+        assert_eq!(cursor.peek(), Some("draw"));
+    }
 }
 
 #[test]

@@ -195,3 +195,7 @@ pub(in crate::oracle::canonical) fn finite_clause_verb(
 #[cfg(test)]
 #[path = "connector_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "coordination_tests.rs"]
+mod coordination_tests;

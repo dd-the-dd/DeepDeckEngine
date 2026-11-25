@@ -2248,6 +2248,24 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                     }
                 }
+                // CR 608.2d: the player who performs the alternatives chooses
+                // among them. Each alternative names that player explicitly:
+                // the controller's imperative, or a written performer.
+                if memory.connectors.last() == Some(&EffectConnector::Or) {
+                    let run_start = memory
+                        .connectors
+                        .iter()
+                        .rposition(|connector| *connector != EffectConnector::Or)
+                        .map_or(0, |index| index + 1);
+                    cursor.enter("sequence.alternative.chooser");
+                    cursor.require(
+                        alternative_chooser_is_explicit(&effect)
+                            && memory.effects[run_start..]
+                                .iter()
+                                .all(alternative_chooser_is_explicit),
+                        "alternatives the controller or one written performer chooses between",
+                    )?;
+                }
                 memory.last_effect_span = Some((effect_start, cursor.position()));
                 memory.effects.push(effect);
                 if !matches!(memory.open_branch, Some(ConditionalBranch::Else(_))) {
@@ -2785,6 +2803,33 @@ fn recognize_effect_sequence_attempt_scoped(
                 return Ok(memory.into_sequence());
             }
         };
+    }
+}
+
+/// Whether an `or` alternative names the player who chooses it (CR 608.2d):
+/// an action of the controller, or one a written performer performs. An
+/// ordinary reader's other player subject (`target player gains 3 life or
+/// draws a card`) has no performer this frame can make the chooser.
+fn alternative_chooser_is_explicit(effect: &LocalEffectNode) -> bool {
+    match effect {
+        LocalEffectNode::Performed(_) => true,
+        LocalEffectNode::PlayerAction(action) => {
+            action.player == super::PlayerEffectSubject::Controller
+        }
+        LocalEffectNode::DiscardCards(discard) => {
+            discard.player == super::PlayerEffectSubject::Controller
+        }
+        LocalEffectNode::GainLife(life) => life.player == super::LocalPlayerReference::Controller,
+        LocalEffectNode::LoseLife(life) => life.player == super::LocalPlayerReference::Controller,
+        LocalEffectNode::DrawCards(draw) => draw.player == super::LocalPlayerReference::Controller,
+        LocalEffectNode::QuantifiedPlayerAction(_)
+        | LocalEffectNode::TargetPlayerLife(_)
+        | LocalEffectNode::MillCards(_)
+        | LocalEffectNode::OptionalSequence(_)
+        | LocalEffectNode::OptionalDrawCards(_)
+        | LocalEffectNode::OptionalLibrarySearch(_)
+        | LocalEffectNode::OptionalCardDeployment(_) => false,
+        _ => true,
     }
 }
 
