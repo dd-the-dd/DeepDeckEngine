@@ -420,7 +420,9 @@ fn lower_local_effect_sequence_with_collections(
             cursor,
             &mut effects,
             pending_performer.take(),
-            &target_bindings,
+            // `Exile target card ... . Its owner creates ...`: a declared
+            // card target is an object a performer's relation names too.
+            &[target_bindings.as_slice(), card_target_bindings.as_slice()].concat(),
             &declared_player_targets,
         )?;
         effects.append(&mut pending_choice_remainder);
@@ -551,8 +553,11 @@ fn lower_local_effect_sequence_with_collections(
                     // CR 108.3, 109.4: the related player of an object bound
                     // earlier in this program; never a new declaration.
                     cursor.enter("lower.player-action.object-relation");
-                    let object =
-                        lower_bound_permanent_reference(cursor, *object, &target_bindings)?;
+                    let object = lower_bound_permanent_reference(
+                        cursor,
+                        *object,
+                        &[target_bindings.as_slice(), card_target_bindings.as_slice()].concat(),
+                    )?;
                     LoweredPlayerSubject {
                         player: json!({
                             "kind": match relation {
@@ -672,6 +677,14 @@ fn lower_local_effect_sequence_with_collections(
                     SingularPlayerAction::Prohibition(prohibition) => {
                         cursor.enter("lower.player-action.prohibition");
                         effects.push(lower_player_prohibition(*prohibition, lowered.player));
+                        continue;
+                    }
+                    SingularPlayerAction::Status(status) => {
+                        cursor.enter("lower.player-action.status");
+                        effects.extend(
+                            lower_player_status_action(status, lowered.player)
+                                .map_err(|expected| cursor.fail(expected))?,
+                        );
                         continue;
                     }
                     SingularPlayerAction::Scry(count) => {
@@ -2741,7 +2754,7 @@ fn lower_local_effect_sequence_with_collections(
         cursor,
         &mut effects,
         pending_performer.take(),
-        &target_bindings,
+        &[target_bindings.as_slice(), card_target_bindings.as_slice()].concat(),
         &declared_player_targets,
     )?;
     effects.append(&mut pending_choice_remainder);

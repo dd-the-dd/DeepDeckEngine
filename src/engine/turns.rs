@@ -94,5 +94,39 @@ impl super::GameEngine {
     pub(super) fn skip_combat_phase_if_scheduled(&mut self) -> bool {
         let player_id = self.state.players[self.state.active_player].id.clone();
         self.consume_skipped_turn_part(&player_id, "combatPhase")
+            || self.skip_combat_phase_of_skipped_turn(&player_id)
+    }
+
+    /// `skips all combat phases of their next turn` (CR 500.11, 506.1): the
+    /// first turn of the player that begins after the skip was scheduled
+    /// loses every combat phase; the skip then expires with that turn.
+    fn skip_combat_phase_of_skipped_turn(&mut self, player_id: &str) -> bool {
+        const ALL_COMBAT_PHASES: &str = "allCombatPhasesOfNextTurn";
+        let turn = u64::from(self.state.turn_number);
+        self.state.rule_modifiers.retain(|modifier| {
+            !(super::value_kind(modifier) == Some(SKIPPED_TURN_PART)
+                && modifier["part"].as_str() == Some(ALL_COMBAT_PHASES)
+                && modifier["skippedTurn"]
+                    .as_u64()
+                    .is_some_and(|skipped| skipped != turn))
+        });
+        let Some(index) = self.state.rule_modifiers.iter().position(|modifier| {
+            super::value_kind(modifier) == Some(SKIPPED_TURN_PART)
+                && modifier["playerId"].as_str() == Some(player_id)
+                && modifier["part"].as_str() == Some(ALL_COMBAT_PHASES)
+                && modifier["installedTurn"]
+                    .as_u64()
+                    .is_some_and(|installed| installed < turn)
+        }) else {
+            return false;
+        };
+        self.state.rule_modifiers[index]["skippedTurn"] = serde_json::json!(turn);
+        self.record_event(
+            "turnPartSkipped",
+            Some(player_id.to_string()),
+            None,
+            serde_json::json!({ "part": "combatPhase" }),
+        );
+        true
     }
 }

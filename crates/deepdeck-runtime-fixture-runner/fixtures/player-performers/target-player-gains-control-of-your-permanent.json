@@ -1,0 +1,191 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-performers/target-player-gains-control-of-a-permanent-you-control",
+  "seed": 8106,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        },
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": null
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "gainControlPermanent",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "performer": {
+          "kind": "chosenTarget",
+          "id": "targetPlayer"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Donor",
+        "battlefield": [
+          {
+            "id": "donate-source",
+            "name": "Donate Source",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    },
+                    {
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "where": null
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "gainControlPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "performer": {
+                      "kind": "chosenTarget",
+                      "id": "targetPlayer"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "gift",
+            "name": "Gift",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Recipient"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "donate-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPlayer": {
+          "kind": "player",
+          "playerId": "p1"
+        },
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "gift"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentController",
+      "playerId": "p1",
+      "definitionId": "gift",
+      "equals": "p1"
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

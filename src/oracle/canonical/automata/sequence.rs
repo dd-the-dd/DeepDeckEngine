@@ -300,6 +300,11 @@ struct SequenceMemory {
     /// The tokens of the previous action, the antecedent whose library a
     /// gapped conjunct's elided library position restates.
     last_effect_span: Option<(usize, usize)>,
+    /// An earlier action was performed by the player the triggering event
+    /// records (`defending player reveals ...`, `that player draws ...`):
+    /// a later `that player` / `they` names the same event player (CR
+    /// 603.2, 506.2), even in a frame whose event names no other player.
+    event_player_named: bool,
 }
 
 /// The elided verb of a finite clause: its lemma, the written form its
@@ -699,6 +704,7 @@ fn recognize_effect_sequence_attempt_scoped(
                 );
                 action_context.permanent_subject_scope = memory.permanent_subject_scope;
                 action_context.current_effect_index = Some(effect_index);
+                action_context.frame.event_player |= memory.event_player_named;
                 action_context.verb_chain_subject = match (
                     memory.connectors.last(),
                     memory.effects.last(),
@@ -793,6 +799,30 @@ fn recognize_effect_sequence_attempt_scoped(
                             },
                         }),
                 };
+                // `Exile target card from a graveyard. Its owner creates ...`:
+                // a declared card target is no permanent antecedent, but the
+                // player relations of that one card are (CR 108.3); only the
+                // player-subject readers receive it.
+                let relation_antecedent =
+                    object_antecedent
+                        .clone()
+                        .or_else(|| match memory.effects.last() {
+                            Some(LocalEffectNode::TargetCardZoneChange(change))
+                                if change.cardinality
+                                    == super::ExpressedTargetCardinality::EXACTLY_ONE =>
+                            {
+                                Some(super::ObjectSubjectAntecedent {
+                                    reference: super::PermanentEffectReference::Target(
+                                        TargetBinding {
+                                            effect_index: effect_index - 1,
+                                            slot_index: 0,
+                                        },
+                                    ),
+                                    selector: None,
+                                })
+                            }
+                            _ => None,
+                        });
                 // One environment for every reference child of this action:
                 // the frame's event bindings and the lexical antecedents.
                 cursor.replace_binding_environment(Some(std::sync::Arc::new(
@@ -931,7 +961,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                     .last_player_target
                                     .map(|binding| super::PlayerBinding(binding.effect_index)),
                                 inherited: inherited,
-                                object_subject: object_antecedent.clone(),
+                                object_subject: relation_antecedent.clone(),
                                 object_antecedent: memory.last_target,
                             },
                             &action_context,
@@ -979,6 +1009,93 @@ fn recognize_effect_sequence_attempt_scoped(
                                     return Err(failure);
                                 }
                             }
+                            // `you and OBJECTS gain KEYWORDS DURATION` (CR
+                            // 109.5, 611.2a): one coordinated subject whose
+                            // members each get the same keywords for the same
+                            // duration. The objects' clause is the ordinary
+                            // keyword grant (its plural verb agrees with the
+                            // coordinated subject); the controller's half is
+                            // the player keyword grant of the same keywords.
+                            if !causative
+                                && attempt
+                                    .peek()
+                                    .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+                                && attempt
+                                    .peek_ahead(1)
+                                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                            {
+                                let mut objects = attempt.clone();
+                                objects.advance_to(objects.position() + 2)?;
+                                let mut object_frame = SequenceAttemptFrame::default();
+                                let grant = objects.attempt(|child| {
+                                    recognize_effect(
+                                        child,
+                                        name_links,
+                                        name_failure,
+                                        memory.last_target,
+                                        object_set_binding,
+                                        memory.last_object_set.as_ref(),
+                                        &action_context,
+                                        &mut object_frame,
+                                    )
+                                });
+                                if let Ok(LocalEffectNode::TemporaryKeywordGrant(grant)) = grant {
+                                    attempt_frame.commit();
+                                    objects.enter("effect.subject.controller-and-objects.keywords");
+                                    let keywords = grant
+                                        .keywords
+                                        .iter()
+                                        .map(|keyword| {
+                                            super::PlayerGrantedKeyword::of_granted_keyword(
+                                                *keyword,
+                                            )
+                                        })
+                                        .collect::<Option<Vec<_>>>()
+                                        .filter(|keywords| {
+                                            !keywords.is_empty() && grant.abilities.is_empty()
+                                        });
+                                    let keywords = objects.require_value(
+                                        keywords,
+                                        "keywords both a player and a permanent can have (hexproof, shroud) for the controller and the objects",
+                                    )?;
+                                    objects.enter("effect.subject.controller-and-objects.objects");
+                                    objects.require(
+                                        !matches!(
+                                            grant.objects,
+                                            super::PermanentOperandNode::Targets(_)
+                                        ),
+                                        "objects named without a target declaration beside the controller",
+                                    )?;
+                                    objects.enter("effect.subject.controller-and-objects.duration");
+                                    objects.require(
+                                        matches!(
+                                            grant.duration,
+                                            super::EffectDurationNode::UntilEndOfCurrentTurn
+                                                | super::EffectDurationNode::UntilNextTurn {
+                                                    player: super::LocalPlayerReference::Controller,
+                                                }
+                                        ),
+                                        "a player keyword duration: `until end of turn` or `until your next turn`",
+                                    )?;
+                                    let player_grant = super::PlayerKeywordGrantNode {
+                                        keywords,
+                                        duration: grant.duration.clone(),
+                                    };
+                                    *attempt = objects;
+                                    distributed_rest =
+                                        vec![LocalEffectNode::TemporaryKeywordGrant(grant)];
+                                    return Ok(LocalEffectNode::PlayerAction(
+                                        super::PlayerActionNode {
+                                            player: super::PlayerEffectSubject::Controller,
+                                            action: super::SingularPlayerAction::Status(
+                                                super::PlayerStatusAction::GainKeywords(
+                                                    player_grant,
+                                                ),
+                                            ),
+                                        },
+                                    ));
+                                }
+                            }
                             match super::try_recognize_player_action_with_object_antecedent(
                                 attempt,
                                 super::PlayerBinding(effect_index),
@@ -986,7 +1103,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                     .last_player_target
                                     .map(|binding| super::PlayerBinding(binding.effect_index)),
                                 inherited,
-                                object_antecedent.clone(),
+                                relation_antecedent.clone(),
                                 &action_context,
                             ) {
                                 Ok(Some(action)) => {
@@ -1274,7 +1391,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                     .map(|binding| super::PlayerBinding(binding.effect_index)),
                                 event_player: base_action_context.frame.event_player,
                                 defending_player: base_action_context.frame.defending_player,
-                                object_antecedent: object_antecedent.clone(),
+                                object_antecedent: relation_antecedent.clone(),
                                 // The object-related player who performed
                                 // the previous action, else the player the
                                 // previous action named through its object.
@@ -1900,7 +2017,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         "one action ending the sentence of a preposed `for each`",
                     )?;
                     cursor.require(
-                        apply_for_each_multiplier(&mut effect, count),
+                        apply_player_action_multiplier(&mut effect, count),
                         "an action with a literal quantity that a preposed `for each` can multiply",
                     )?;
                 }
@@ -2103,6 +2220,21 @@ fn recognize_effect_sequence_attempt_scoped(
                     memory.last_player_target = Some(PlayerTargetBinding {
                         effect_index: binding.0,
                     });
+                }
+                // `defending player reveals ... . If ..., that player ...`:
+                // the event's player performed this action; it stays the
+                // antecedent of a later `that player` (CR 603.2, 506.2).
+                if match &effect {
+                    LocalEffectNode::Performed(node) => {
+                        node.performer
+                            == super::PerformerNode::Player(super::PlayerEffectSubject::EventPlayer)
+                    }
+                    LocalEffectNode::PlayerAction(action) => {
+                        action.player == super::PlayerEffectSubject::EventPlayer
+                    }
+                    _ => false,
+                } {
+                    memory.event_player_named = true;
                 }
                 memory.current_performer = match &effect {
                     // A distributed action continues the agreement its
@@ -2711,7 +2843,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         let scaled = memory
                             .effects
                             .last_mut()
-                            .is_some_and(|effect| apply_for_each_multiplier(effect, count));
+                            .is_some_and(|effect| apply_player_action_multiplier(effect, count));
                         cursor.require(
                             scaled,
                             "an action with a literal quantity that a trailing `for each` can multiply",
@@ -2874,7 +3006,74 @@ fn condition_reads_previous_action(condition: &super::SentenceConditionNode) -> 
     })
 }
 
+/// A `for each` multiplier of the action it scales (CR 608.2c): the
+/// performed action of a performer, and the quantity slots of the player
+/// cells (a counted discard or sacrifice, a declared player's life change,
+/// the one action of a player set), each scaled by the shared
+/// `scale_by_for_each_count`. Every other action is the shared multiplier's.
+fn apply_player_action_multiplier(
+    effect: &mut LocalEffectNode,
+    count: super::NumericExpression,
+) -> bool {
+    let player_cell = matches!(
+        effect,
+        LocalEffectNode::Performed(_)
+            | LocalEffectNode::TargetPlayerLife(_)
+            | LocalEffectNode::QuantifiedPlayerAction(_)
+            | LocalEffectNode::PlayerAction(super::PlayerActionNode {
+                action: super::SingularPlayerAction::Discard(_)
+                    | super::SingularPlayerAction::Sacrifice(_),
+                ..
+            })
+    );
+    if !player_cell {
+        return apply_for_each_multiplier(effect, count);
+    }
+    let quantity = match effect {
+        LocalEffectNode::Performed(node) => {
+            return apply_player_action_multiplier(&mut node.effect, count);
+        }
+        LocalEffectNode::TargetPlayerLife(life) => &mut life.amount,
+        LocalEffectNode::PlayerAction(super::PlayerActionNode {
+            action: super::SingularPlayerAction::Discard(discard),
+            ..
+        }) => match &mut discard.quantity {
+            super::DiscardQuantity::Count(quantity) => quantity,
+            _ => return false,
+        },
+        LocalEffectNode::PlayerAction(super::PlayerActionNode {
+            action: super::SingularPlayerAction::Sacrifice(sacrifice),
+            ..
+        }) => &mut sacrifice.count,
+        LocalEffectNode::QuantifiedPlayerAction(node) => match node.actions.as_mut_slice() {
+            [super::QuantifiedPlayerAction::Life(life)] => &mut life.amount,
+            [super::QuantifiedPlayerAction::Discard(discard)] => match &mut discard.quantity {
+                super::DiscardQuantity::Count(quantity) => quantity,
+                _ => return false,
+            },
+            [super::QuantifiedPlayerAction::Sacrifice(sacrifice)] => &mut sacrifice.count,
+            [
+                super::QuantifiedPlayerAction::Draw(quantity)
+                | super::QuantifiedPlayerAction::Mill(quantity),
+            ] => quantity,
+            [super::QuantifiedPlayerAction::Counters(counters)] => &mut counters.count,
+            // A whole-hand action has no quantity; a list of actions would
+            // scale only its last one.
+            _ => return false,
+        },
+        _ => return false,
+    };
+    match super::scale_by_for_each_count(quantity, count) {
+        Some(scaled) => {
+            *quantity = scaled;
+            true
+        }
+        None => false,
+    }
+}
+
 /// Consumes one parenthetical, including nested parentheses and quoted text.
+
 fn skip_balanced_parenthetical(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
     cursor.consume("(")?;
     let mut depth = 1usize;

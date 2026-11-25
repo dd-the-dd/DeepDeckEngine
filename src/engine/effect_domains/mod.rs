@@ -302,6 +302,7 @@ fn domain(effect: &Value) -> Option<Domain> {
         ) => Some(Domain::ContinuousRules),
         Some(
             "grantNoMaximumHandSize"
+            | "grantPlayerKeyword"
             | "loseGame"
             | "grantExtraTurn"
             | "ventureDungeon"
