@@ -644,7 +644,6 @@ fn declared_target_controller_relation(tokens: &[RecognizedEntity], offset: usiz
 }
 
 /// The written token reclassified as `word` by the shared tokenizer.
-
 fn replace_word(token: &mut RecognizedEntity, word: &str) {
     if let Some(class) = recognize_entities(word).into_iter().next() {
         token.category = class.category;
@@ -699,7 +698,6 @@ pub(in crate::oracle::canonical) fn controller_reference_failure(
             "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
             _ if quoted => {}
             _ if declared_target_controller_relation(tokens, offset) => {}
-
             raw if ["you", "your", "yours", "you've"]
                 .iter()
                 .any(|word| raw.eq_ignore_ascii_case(word)) =>
