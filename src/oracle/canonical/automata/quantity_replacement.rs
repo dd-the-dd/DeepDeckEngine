@@ -2,7 +2,7 @@ use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     EventNumericBinding, NumericAtom, NumericExpression, QuantityEventDomain, QuantityEventNode,
     QuantityEventRecognition, QuantityEventVoice, ReplacementObjectBinding,
-    recognize_event_bound_numeric_expression, recognize_event_counter_kind,
+    recognize_event_bound_numeric_expression, recognize_event_counter_kind, recognize_numeric_atom,
     try_recognize_quantity_event,
 };
 
@@ -38,7 +38,27 @@ fn recognize_event_object_reference(
     {
         cursor.consume("it")?;
     } else {
-        cursor.consume_phrase(&["that", "permanent"])?;
+        // `that permanent` / `that creature`: a nominal anaphor of the one
+        // permanent the event puts counters on (CR 122.6).
+        cursor.consume("that")?;
+        let noun = cursor
+            .peek()
+            .filter(|raw| {
+                [
+                    "permanent",
+                    "creature",
+                    "artifact",
+                    "enchantment",
+                    "land",
+                    "planeswalker",
+                    "battle",
+                ]
+                .iter()
+                .any(|noun| raw.eq_ignore_ascii_case(noun))
+            })
+            .map(str::to_owned)
+            .ok_or_else(|| cursor.fail("a permanent noun naming the event's object"))?;
+        cursor.consume(&noun)?;
     }
     Ok(binding)
 }
@@ -52,7 +72,18 @@ fn recognize_preserved_subject(
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
     {
-        cursor.consume_phrase(&["of", "those"])?;
+        cursor.consume("of")?;
+        // `of each of those kinds of counters` (CR 122.6): every kind the
+        // event puts, each with its own quantity.
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+        {
+            cursor.enter("quantity-replacement.subject-identity.each-kind");
+            cursor.consume_phrase(&["each", "of", "those", "kinds", "of"])?;
+        } else {
+            cursor.consume("those")?;
+        }
         cursor.consume(match event.domain {
             QuantityEventDomain::TokenCreation => "tokens",
             QuantityEventDomain::CounterPlacement => "counters",
@@ -71,6 +102,38 @@ fn recognize_preserved_subject(
         }
     }
     Ok(())
+}
+
+/// `that many -1/-1 counters minus one`: an offset written after the
+/// counted noun applies to the event's quantity it follows (CR 614.1a).
+fn recognize_postposed_quantity_offset(
+    cursor: &mut OracleTokenCursor<'_>,
+    quantity: NumericExpression,
+) -> MachineResult<NumericExpression> {
+    let Some(operator) = cursor
+        .peek()
+        .filter(|raw| raw.eq_ignore_ascii_case("plus") || raw.eq_ignore_ascii_case("minus"))
+        .map(str::to_ascii_lowercase)
+    else {
+        return Ok(quantity);
+    };
+    cursor.enter("quantity-replacement.postposed-offset");
+    cursor.require(
+        quantity == NumericExpression::EventValue(EventNumericBinding::ReplacementQuantity),
+        "an offset after the event's own quantity (`that many`)",
+    )?;
+    cursor.consume(&operator)?;
+    let offset = match recognize_numeric_atom(cursor)? {
+        NumericAtom::Integer(value) if value > 0 && i32::try_from(value).is_ok() => value,
+        _ => return Err(cursor.fail("a positive literal offset")),
+    };
+    let left = Box::new(quantity);
+    let right = Box::new(NumericExpression::Atom(NumericAtom::Integer(offset)));
+    Ok(if operator == "plus" {
+        NumericExpression::Add { left, right }
+    } else {
+        NumericExpression::Subtract { left, right }
+    })
 }
 
 /// Transactional parent for one complete quantity replacement. Arithmetic,
@@ -136,6 +199,7 @@ fn recognize_quantity_replacement_body(
     cursor.enter("quantity-replacement.numeric-binding");
     cursor.require(quantity_expression_has_runtime_binding(&quantity), "an i32 arithmetic expression over this replacement event's quantity, without external variables")?;
     recognize_preserved_subject(cursor, &event)?;
+    let quantity = recognize_postposed_quantity_offset(cursor, quantity)?;
     if event.domain == QuantityEventDomain::TokenCreation
         && event.voice == QuantityEventVoice::Passive
     {

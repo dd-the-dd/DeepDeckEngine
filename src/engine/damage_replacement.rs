@@ -137,6 +137,15 @@ fn parse_program(modifier: &Value) -> Option<DamageProgram> {
 }
 
 /// Engine coverage of one `replaceDamage` modifier.
+/// `If a source you control would deal damage to an opponent this turn,
+/// it deals double that damage instead.`: an effect-created damage
+/// replacement (CR 611.2a) whose program is the static one's, through this
+/// turn.
+pub(super) fn created_damage_replacement_supported(effect: &Value) -> bool {
+    damage_replacement_modifier_supported(&effect["program"])
+        && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+}
+
 pub(super) fn damage_replacement_modifier_supported(modifier: &Value) -> bool {
     parse_program(modifier).is_some()
 }
@@ -331,6 +340,55 @@ impl GameEngine {
                 let program = parse_program(&modifier)?;
                 Some(ActiveProgram {
                     id: format!("{}:damage:{ordinal}", source.instance_id),
+                    source,
+                    program,
+                })
+            })
+            .chain(self.created_damage_programs())
+            .collect()
+    }
+
+    /// Installs an effect-created damage replacement for the controller of
+    /// the resolving object, through this turn (CR 611.2a).
+    pub(super) fn install_created_damage_replacement(
+        &mut self,
+        effect: &Value,
+        stack_object: &super::StackObject,
+    ) {
+        self.state.rule_modifiers.push(serde_json::json!({
+            "kind": "createdDamageReplacement",
+            "program": effect["program"].clone(),
+            "sourceCardInstanceId": stack_object.card.instance_id.clone(),
+            "controllerId": stack_object.controller.clone(),
+            "expiresAfterTurn": self.state.turn_number,
+        }));
+    }
+
+    /// The effect-created damage replacements in force. Their relations
+    /// (`a source you control`, `an opponent`) read the creating effect's
+    /// controller, whatever became of its source since (CR 611.2c): the
+    /// source's current or last card carries that perspective.
+    fn created_damage_programs(&self) -> Vec<ActiveProgram> {
+        self.state
+            .rule_modifiers
+            .iter()
+            .enumerate()
+            .filter(|(_, modifier)| {
+                value_kind(modifier) == Some("createdDamageReplacement")
+                    && modifier["expiresAfterTurn"].as_u64()
+                        == Some(u64::from(self.state.turn_number))
+            })
+            .filter_map(|(ordinal, modifier)| {
+                let program = parse_program(&modifier["program"])?;
+                let source_id = modifier["sourceCardInstanceId"].as_str()?;
+                let mut source = self
+                    .permanent_position(source_id)
+                    .map(|(player, index)| &self.state.players[player].battlefield[index])
+                    .or_else(|| self.card_outside_battlefield(source_id))?
+                    .clone();
+                source.controller = modifier["controllerId"].as_str()?.to_string();
+                Some(ActiveProgram {
+                    id: format!("{source_id}:createdDamage:{ordinal}"),
                     source,
                     program,
                 })

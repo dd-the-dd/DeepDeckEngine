@@ -1055,7 +1055,8 @@ pub(in crate::oracle::canonical) fn last_program_action_mut(
         super::EffectProgramNode::Steps(steps) => last_program_action_mut(steps.last_mut()?),
         super::EffectProgramNode::Outcome { .. }
         | super::EffectProgramNode::Alternatives { .. }
-        | super::EffectProgramNode::Offer { .. } => None,
+        | super::EffectProgramNode::Offer { .. }
+        | super::EffectProgramNode::CreatedReplacement { .. } => None,
     }
 }
 

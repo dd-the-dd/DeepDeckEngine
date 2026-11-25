@@ -69,6 +69,15 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         /// `If no one does, ...` / `If no player does, ...`.
         declined: Option<EffectSequenceNode>,
     },
+    /// `If OBJECTS would die this turn, MOVE instead.` / `Until end of turn,
+    /// if one or more tokens would be created ...`: a sentence that creates
+    /// a replacement lasting this turn (CR 611.2a, 614.1a), read by the
+    /// shared replacement frames (`replacement_event.rs`). The sentence has
+    /// no instruction of its own: `sentence` is its empty sequence.
+    CreatedReplacement {
+        replacement: Box<CreatedReplacementRuleNode>,
+        sentence: EffectSequenceNode,
+    },
 }
 
 /// The part of an instruction producer an outcome connector observes.
@@ -121,6 +130,7 @@ impl EffectProgramNode {
                 declined,
                 ..
             } => declined.as_ref().or(performed.as_ref()).unwrap_or(producer),
+            Self::CreatedReplacement { sentence, .. } => sentence,
         }
     }
     /// Program steps in written order; a single program is its own one step.
@@ -166,6 +176,8 @@ impl EffectProgramNode {
                     + performed.as_ref().map_or(0, |body| body.effects.len())
                     + declined.as_ref().map_or(0, |body| body.effects.len())
             }
+            // The one rule-creating instruction of the sentence.
+            Self::CreatedReplacement { .. } => 1,
         }
     }
 }
@@ -191,6 +203,14 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     {
         cursor.enter("program.steps.leading-then");
         cursor.consume("then")?;
+    }
+    // `If OBJECTS would die this turn, MOVE instead.` (CR 614.1a): a
+    // sentence of this program that creates a replacement. It is its own
+    // step; the sentences around it are ordinary program steps.
+    if let Some(program) =
+        try_created_replacement_program(cursor, name_links, name_failure, context)
+    {
+        return program;
     }
     // `Unless PLAYER pays COST, PROGRAM.` (CR 118.12): the preposed form of
     // the `unless` frame, guarding its own sentence.
@@ -1406,6 +1426,7 @@ pub(in crate::oracle::canonical) fn effect_program_operator_follows(
         || reflexive_action_block_follows(cursor)
         || replacing_sentence(cursor).is_some()
         || super::postposed_replacing_sentence(cursor).is_some()
+        || created_replacement_sentence_start(cursor).is_some()
 }
 
 fn optional_program_starts(cursor: &OracleTokenCursor<'_>) -> bool {
@@ -1426,6 +1447,114 @@ fn sentence_then_width(cursor: &OracleTokenCursor<'_>) -> usize {
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("then")),
     )
+}
+
+/// Absolute index of the first top-level sentence, from the cursor on, that
+/// a created replacement may open (`If a creature would die this turn,
+/// ...`). Lexical lookahead only; the frame proves it afterwards.
+/// Reminders and quoted abilities are other frames' text.
+fn created_replacement_sentence_start(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut quoted = false;
+    let mut offset = 0;
+    let mut sentence_start = true;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        if sentence_start && depth == 0 && !quoted {
+            let mut probe = cursor.clone();
+            if probe.advance_to(cursor.position() + offset).is_ok()
+                && created_replacement_sentence_starts(&probe)
+            {
+                return Some(cursor.position() + offset);
+            }
+        }
+        sentence_start = false;
+        match raw {
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            "." if depth == 0 && !quoted => sentence_start = true,
+            _ => {}
+        }
+        offset += 1;
+    }
+    None
+}
+
+/// Whether a program performs a damage action: `dealt damage this way`
+/// names the objects one dealt damage to (CR 608.2c).
+fn program_deals_damage(program: &EffectProgramNode) -> bool {
+    program.steps().iter().any(|step| match step {
+        EffectProgramNode::Sequence(sequence) => sequence
+            .effects
+            .iter()
+            .any(|effect| matches!(effect, LocalEffectNode::DealDamage(_))),
+        EffectProgramNode::CreatedReplacement { .. } => false,
+        other => other
+            .inner_sequence()
+            .effects
+            .iter()
+            .any(|effect| matches!(effect, LocalEffectNode::DealDamage(_))),
+    })
+}
+
+/// The program around a sentence that creates a replacement: the leading
+/// sentences, the replacement, then the remaining sentences, each an
+/// independent step (CR 608.2c). `None` when no sentence opens a created
+/// replacement, so the ordinary readers keep the program.
+fn try_created_replacement_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> Option<MachineResult<EffectProgramNode>> {
+    let start = created_replacement_sentence_start(cursor)?;
+    let mut probe = cursor.clone();
+    probe.advance_to(start).ok()?;
+    let replacement =
+        match try_recognize_created_replacement_sentence(&mut probe, name_links, name_failure) {
+            ChildOutcome::Matched(replacement) => replacement,
+            ChildOutcome::Committed(failure) => return Some(Err(failure)),
+            ChildOutcome::NoMatch(_) => return None,
+        };
+    let after = probe.position();
+    Some(cursor.attempt(|cursor| {
+        let mut steps = Vec::new();
+        if start > cursor.position() {
+            cursor.enter("program.steps.created-replacement.leading");
+            let leading = cursor.bounded(start, |cursor| {
+                recognize_effect_program_with_context(cursor, name_links, name_failure, context)
+            })?;
+            push_program_steps(&mut steps, leading);
+        }
+        cursor.enter("program.steps.created-replacement.damage-result");
+        cursor.require(
+            !replacement.follows_damaged_objects() || steps.iter().any(program_deals_damage),
+            "an earlier damage action whose damaged objects `dealt damage this way` names",
+        )?;
+        cursor.advance_to(after)?;
+        steps.push(EffectProgramNode::CreatedReplacement {
+            replacement: Box::new(replacement),
+            sentence: EffectSequenceNode {
+                effects: Vec::new(),
+                connectors: Vec::new(),
+                where_x: Vec::new(),
+                conditionals: Vec::new(),
+                unless: Vec::new(),
+                delayed: Vec::new(),
+            },
+        });
+        if cursor.peek().is_some() {
+            cursor.enter("program.steps.created-replacement.trailing");
+            let trailing =
+                recognize_effect_program_with_context(cursor, name_links, name_failure, context)?;
+            push_program_steps(&mut steps, trailing);
+        }
+        Ok(if steps.len() == 1 {
+            steps.pop().expect("one step")
+        } else {
+            EffectProgramNode::Steps(steps)
+        })
+    }))
 }
 
 fn push_program_steps(steps: &mut Vec<EffectProgramNode>, program: EffectProgramNode) {

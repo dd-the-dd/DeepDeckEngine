@@ -262,7 +262,8 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
         EffectProgramNode::Steps(_)
         | EffectProgramNode::Outcome { .. }
         | EffectProgramNode::Alternatives { .. }
-        | EffectProgramNode::Offer { .. } => false,
+        | EffectProgramNode::Offer { .. }
+        | EffectProgramNode::CreatedReplacement { .. } => false,
     }
 }
 

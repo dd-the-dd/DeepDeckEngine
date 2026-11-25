@@ -131,6 +131,9 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         )
         .map_err(program_failure);
     }
+    if let EffectProgramNode::CreatedReplacement { replacement, .. } = step {
+        return lower_created_replacement_step(cursor, replacement).map_err(program_failure);
+    }
     if let EffectProgramNode::Alternatives { player, options } = step {
         let mut lowered = Vec::with_capacity(options.len());
         for (label, sequence) in options {
@@ -966,6 +969,10 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
         EffectProgramNode::Offer { .. } => {
             cursor.enter("lower.program.offer");
             Err(cursor.fail("an offer lowered with its outcome sentences"))
+        }
+        EffectProgramNode::CreatedReplacement { .. } => {
+            cursor.enter("lower.program.created-replacement");
+            Err(cursor.fail("a created replacement lowered as its own program step"))
         }
         EffectProgramNode::Outcome {
             producer: OutcomeProducer::Action(_),

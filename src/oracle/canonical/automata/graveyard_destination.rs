@@ -1,8 +1,7 @@
-use super::super::{MachineResult, OracleTokenCursor};
-use super::{
-    LocalObjectReference, ObjectCardType, SelectorPredicate, positive_object_selector_atom,
-};
+use super::super::{ChildOutcome, CommitPoint, MachineResult, OracleTokenCursor};
+use super::*;
 use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
+use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ZoneBatchActionNode {
@@ -475,4 +474,474 @@ pub(in crate::oracle::canonical) fn recognize_graveyard_destination_replacement(
             }
         };
     }
+}
+
+// ---------------------------------------------------------------------------
+// The shared departure replacement frame (CR 614.1a, 700.4, 603.12).
+//
+// ```text
+// Frame       := ["until" "end" "of" "turn" ","] "if" Subject Event [Lifetime]
+//                "," Program "." [Reflexive]
+// Subject     := SourceReference                      -- `this creature`, its name
+//              | ("a" | "an" | "another") ObjectQuery ["dealt" "damage" "this" "way"]
+// Event       := "would" "die"
+//              | "would" "be" "put" "into" Graveyard [Origin]
+// Graveyard   := "a" "graveyard" | "your" "graveyard" | "an" "opponent's" "graveyard"
+//              | ("its" | "their") "owner's" "graveyard"
+// Origin      := "from" "anywhere" | "from" "the" "battlefield"
+// Lifetime    := "this" "turn"
+// Program     := ["instead"] Destination ["instead"]  -- exactly one `instead`
+// Destination := "exile" Object
+//              | "return" Object "to" Owner "hand"
+//              | "put" Object ("on" "top" "of" | "on" "the" "bottom" "of") Owner "library"
+//              | "put" Object "into" Owner "hand"
+//              | ["reveal" Object "and"] "shuffle" Object "into" Owner "library"
+// Object      := "it" | "that" Noun | SourceReference
+// Owner       := ("its" | "their") "owner's" | "your"
+// Reflexive   := "when" "you" "do" "," EffectProgram    -- CR 603.12
+// ```
+//
+// The subject is the shared object query with its player relations; the
+// event commits the frame once `would` and the departure verb are read, so an
+// `if` clause naming any other event stays with its own reader. The replaced
+// object is the event's object: the program names it with an anaphor only.
+// ---------------------------------------------------------------------------
+
+/// The objects whose move a departure replacement replaces.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DepartureSubjectNode {
+    /// `this creature`, the card's name: the source itself.
+    Source,
+    /// `a|an|another QUERY`: each object the shared query admits.
+    Objects(DepartureObjectsNode),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DepartureObjectsNode {
+    pub predicate: SelectorPredicate,
+    /// The domain the query names (CR 109.2a): permanents are matched by
+    /// their effective characteristics, cards by their printed ones.
+    pub domain: ObjectKind,
+    pub controller: Option<ObjectControllerScope>,
+    pub ownership: Option<ObjectOwnershipScope>,
+    /// `another`: other than the source.
+    pub exclude_source: bool,
+    /// `dealt damage this way` (CR 608.2c): only the objects the creating
+    /// effect dealt damage to.
+    pub damaged_this_way: bool,
+}
+
+/// Where the departing object comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DepartureOriginNode {
+    /// No origin written: the subject's domain decides (a permanent leaves
+    /// the battlefield; a card can move from any zone).
+    Unstated,
+    /// `from anywhere`.
+    Anywhere,
+    /// `from the battlefield`.
+    Battlefield,
+}
+
+/// The replaced departure event.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DepartureEventNode {
+    /// `would die` (CR 700.4): put into a graveyard from the battlefield.
+    Dies,
+    /// `would be put into GRAVEYARD [from ORIGIN]`.
+    PutIntoGraveyard {
+        graveyard: GraveyardOwnerScopeNode,
+        origin: DepartureOriginNode,
+    },
+}
+
+/// Where the object goes instead (CR 614.1a), always its owner's zone
+/// (CR 400.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ReplacementDestinationNode {
+    Exile,
+    OwnerHand,
+    OwnerLibraryTop,
+    OwnerLibraryBottom,
+    /// `[reveal it and] shuffle it into its owner's library` (CR 701.24a).
+    OwnerLibraryShuffle {
+        revealed: bool,
+    },
+}
+
+/// One complete departure replacement.
+#[derive(Clone, Debug)]
+pub(in crate::oracle::canonical) struct DepartureReplacementNode {
+    pub subject: DepartureSubjectNode,
+    pub event: DepartureEventNode,
+    /// `this turn` or a preposed `Until end of turn,`: an effect-created
+    /// replacement (CR 611.2a); `None` for a static ability.
+    pub lifetime: Option<CreatedRuleLifetime>,
+    pub destination: ReplacementDestinationNode,
+    /// `When you do, ...`: the reflexive ability the applied replacement
+    /// creates (CR 603.12).
+    pub reflexive: Option<EffectProgramNode>,
+}
+
+/// Which enclosing frame reads the replacement.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DepartureFrame {
+    /// A whole static ability, through its last token, with an optional
+    /// reflexive sentence.
+    Ability,
+    /// One sentence of a resolving effect's program, through its period.
+    Sentence,
+}
+
+fn departure_word_at(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+fn possessive_at(cursor: &OracleTokenCursor<'_>, offset: usize, noun: &str) -> bool {
+    cursor.peek_ahead(offset).is_some_and(|raw| {
+        let lower = raw.to_ascii_lowercase();
+        lower == format!("{noun}'s") || lower == format!("{noun}\u{2019}s")
+    })
+}
+
+fn consume_possessive(cursor: &mut OracleTokenCursor<'_>, noun: &str) -> MachineResult<()> {
+    let raw = cursor
+        .peek()
+        .filter(|_| possessive_at(cursor, 0, noun))
+        .map(str::to_owned)
+        .ok_or_else(|| cursor.fail("a possessive owner"))?;
+    cursor.consume(&raw)
+}
+
+/// Whether `if ... would die|be put into` starts at the cursor, before the
+/// sentence's first comma. Pure lookahead for program parents.
+pub(in crate::oracle::canonical) fn departure_replacement_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let mut offset = 0;
+    if departure_word_at(cursor, 0, "until") {
+        if !(departure_word_at(cursor, 1, "end")
+            && departure_word_at(cursor, 2, "of")
+            && departure_word_at(cursor, 3, "turn")
+            && departure_word_at(cursor, 4, ","))
+        {
+            return false;
+        }
+        offset = 5;
+    }
+    if !departure_word_at(cursor, offset, "if") {
+        return false;
+    }
+    (offset + 1..)
+        .take_while(|index| {
+            cursor
+                .peek_ahead(*index)
+                .is_some_and(|raw| raw != "," && raw != ".")
+        })
+        .any(|index| {
+            departure_word_at(cursor, index, "would")
+                && (departure_word_at(cursor, index + 1, "die")
+                    || (departure_word_at(cursor, index + 1, "be")
+                        && departure_word_at(cursor, index + 2, "put")
+                        && departure_word_at(cursor, index + 3, "into")))
+        })
+}
+
+/// Reads one departure replacement; `NoMatch` until its subject, `would`
+/// and departure verb are read.
+pub(in crate::oracle::canonical) fn try_recognize_departure_replacement(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: DepartureFrame,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> ChildOutcome<DepartureReplacementNode> {
+    cursor.transaction(|cursor, commit| {
+        recognize_departure_replacement(cursor, commit, frame, name_links, name_failure)
+    })
+}
+
+fn recognize_departure_replacement(
+    cursor: &mut OracleTokenCursor<'_>,
+    commit: &mut CommitPoint,
+    frame: DepartureFrame,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<DepartureReplacementNode> {
+    cursor.enter("replacement.departure.lifetime.preposed");
+    let preposed = if departure_word_at(cursor, 0, "until") {
+        cursor.consume_phrase(&["until", "end", "of", "turn", ","])?;
+        true
+    } else {
+        false
+    };
+    cursor.enter("replacement.departure.introducer");
+    cursor.consume("if")?;
+    let subject = recognize_departure_subject(cursor, name_links, name_failure)?;
+    let event = recognize_departure_event(cursor)?;
+    commit.commit();
+    cursor.enter("replacement.departure.lifetime");
+    let postposed = if departure_word_at(cursor, 0, "this") {
+        cursor.consume_phrase(&["this", "turn"])?;
+        true
+    } else {
+        false
+    };
+    cursor.require(
+        !(preposed && postposed),
+        "one lifetime for the created replacement",
+    )?;
+    let lifetime = (preposed || postposed).then_some(CreatedRuleLifetime::ThisTurn);
+    cursor.enter("replacement.departure.separator");
+    cursor.consume(",")?;
+    let destination = recognize_departure_program(cursor, &subject, name_links, name_failure)?;
+    let reflexive = match frame {
+        DepartureFrame::Sentence => None,
+        DepartureFrame::Ability => {
+            let reflexive = if cursor.peek().is_some() {
+                cursor.enter("replacement.departure.reflexive");
+                cursor.consume_phrase(&["when", "you", "do", ","])?;
+                let context = EffectRecognitionContext::default();
+                Some(recognize_effect_program_with_context(
+                    cursor,
+                    name_links,
+                    name_failure,
+                    &context,
+                )?)
+            } else {
+                None
+            };
+            cursor.enter("replacement.departure.complete");
+            cursor.finish()?;
+            reflexive
+        }
+    };
+    Ok(DepartureReplacementNode {
+        subject,
+        event,
+        lifetime,
+        destination,
+        reflexive,
+    })
+}
+
+fn recognize_departure_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<DepartureSubjectNode> {
+    cursor.enter("replacement.departure.subject");
+    if source_reference_starts_at(cursor.position(), cursor.peek(), name_links, name_failure) {
+        recognize_source_reference(cursor, name_links, name_failure)?;
+        return Ok(DepartureSubjectNode::Source);
+    }
+    let phrase = recognize_object_noun_phrase(
+        cursor,
+        ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Permanent, ObjectKind::Card]),
+    )?;
+    cursor.enter("replacement.departure.subject.determiner");
+    cursor.require(
+        matches!(
+            &phrase.determiner,
+            Some(ObjectDeterminer::Chosen {
+                quantity: ChosenObjectQuantity::Exactly(count),
+                ..
+            }) if *count == NumericExpression::from(1)
+        ),
+        "`a`, `an` or `another` before the object that would move",
+    )?;
+    cursor.enter("replacement.departure.subject.domain");
+    let domain = cursor.require_value(
+        phrase.domain,
+        "a permanent or card noun naming the object that would move",
+    )?;
+    let exclude_source = phrase.exclude_source;
+    let related = phrase.query.into_related_query(cursor)?;
+    cursor.enter("replacement.departure.subject.result");
+    let damaged_this_way = if departure_word_at(cursor, 0, "dealt")
+        && departure_word_at(cursor, 1, "damage")
+        && departure_word_at(cursor, 2, "this")
+        && departure_word_at(cursor, 3, "way")
+    {
+        cursor.consume_phrase(&["dealt", "damage", "this", "way"])?;
+        true
+    } else {
+        false
+    };
+    Ok(DepartureSubjectNode::Objects(DepartureObjectsNode {
+        predicate: related.objects.predicate,
+        domain,
+        controller: related.objects.controller,
+        ownership: related.ownership,
+        exclude_source,
+        damaged_this_way,
+    }))
+}
+
+fn recognize_departure_event(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<DepartureEventNode> {
+    cursor.enter("replacement.departure.event");
+    cursor.consume("would")?;
+    if departure_word_at(cursor, 0, "die") {
+        cursor.consume("die")?;
+        return Ok(DepartureEventNode::Dies);
+    }
+    cursor.consume_phrase(&["be", "put", "into"])?;
+    cursor.enter("replacement.departure.event.graveyard");
+    let graveyard = if departure_word_at(cursor, 0, "a") {
+        cursor.consume("a")?;
+        GraveyardOwnerScopeNode::EachPlayer
+    } else if departure_word_at(cursor, 0, "your") {
+        cursor.consume("your")?;
+        GraveyardOwnerScopeNode::Controller
+    } else if departure_word_at(cursor, 0, "an") && possessive_at(cursor, 1, "opponent") {
+        cursor.consume("an")?;
+        consume_possessive(cursor, "opponent")?;
+        GraveyardOwnerScopeNode::Opponents
+    } else if (departure_word_at(cursor, 0, "its") || departure_word_at(cursor, 0, "their"))
+        && possessive_at(cursor, 1, "owner")
+    {
+        // Every card goes to its owner's graveyard (CR 400.3).
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+        consume_possessive(cursor, "owner")?;
+        GraveyardOwnerScopeNode::EachPlayer
+    } else {
+        return Err(cursor.fail("`a`, `your`, `an opponent's` or `its owner's` graveyard"));
+    };
+    cursor.consume("graveyard")?;
+    cursor.enter("replacement.departure.event.origin");
+    let origin = if departure_word_at(cursor, 0, "from") {
+        cursor.consume("from")?;
+        if departure_word_at(cursor, 0, "anywhere") {
+            cursor.consume("anywhere")?;
+            DepartureOriginNode::Anywhere
+        } else {
+            cursor.consume_phrase(&["the", "battlefield"])?;
+            DepartureOriginNode::Battlefield
+        }
+    } else {
+        DepartureOriginNode::Unstated
+    };
+    Ok(DepartureEventNode::PutIntoGraveyard { graveyard, origin })
+}
+
+/// `it`, `that NOUN`, or (for the source's own move) its name or `this
+/// NOUN`: the event's object, never another one.
+fn recognize_replaced_object(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: &DepartureSubjectNode,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<()> {
+    cursor.enter("replacement.departure.object");
+    if departure_word_at(cursor, 0, "it") {
+        return cursor.consume("it");
+    }
+    if departure_word_at(cursor, 0, "that")
+        && ["card", "creature", "permanent", "token"]
+            .iter()
+            .any(|noun| departure_word_at(cursor, 1, noun))
+    {
+        let noun = cursor.peek_ahead(1).unwrap_or_default().to_owned();
+        return cursor.consume_phrase(&["that", noun.as_str()]);
+    }
+    if matches!(subject, DepartureSubjectNode::Source)
+        && source_reference_starts_at(cursor.position(), cursor.peek(), name_links, name_failure)
+    {
+        recognize_source_reference(cursor, name_links, name_failure)?;
+        return Ok(());
+    }
+    Err(cursor.fail("`it`, `that NOUN` or the source naming the object that would move"))
+}
+
+/// `its owner's` / `their owner's` / `your` before a hand or library: the
+/// object always goes to its owner's zone (CR 400.3).
+fn recognize_owner_zone(cursor: &mut OracleTokenCursor<'_>, zone: &str) -> MachineResult<()> {
+    cursor.enter("replacement.departure.owner-zone");
+    if departure_word_at(cursor, 0, "your") {
+        cursor.consume("your")?;
+    } else if (departure_word_at(cursor, 0, "its") || departure_word_at(cursor, 0, "their"))
+        && possessive_at(cursor, 1, "owner")
+    {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+        consume_possessive(cursor, "owner")?;
+    } else {
+        return Err(cursor.fail("`its owner's` zone of the object"));
+    }
+    cursor.consume(zone)
+}
+
+/// `[instead] DESTINATION [instead] .` with exactly one `instead`.
+fn recognize_departure_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: &DepartureSubjectNode,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<ReplacementDestinationNode> {
+    cursor.enter("replacement.departure.instead.leading");
+    let leading = departure_word_at(cursor, 0, "instead");
+    if leading {
+        cursor.consume("instead")?;
+    }
+    cursor.enter("replacement.departure.action");
+    let destination = if departure_word_at(cursor, 0, "exile") {
+        cursor.consume("exile")?;
+        recognize_replaced_object(cursor, subject, name_links, name_failure)?;
+        ReplacementDestinationNode::Exile
+    } else if departure_word_at(cursor, 0, "return") {
+        cursor.consume("return")?;
+        recognize_replaced_object(cursor, subject, name_links, name_failure)?;
+        cursor.enter("replacement.departure.action.hand");
+        cursor.consume("to")?;
+        recognize_owner_zone(cursor, "hand")?;
+        ReplacementDestinationNode::OwnerHand
+    } else if departure_word_at(cursor, 0, "put") {
+        cursor.consume("put")?;
+        recognize_replaced_object(cursor, subject, name_links, name_failure)?;
+        cursor.enter("replacement.departure.action.position");
+        if departure_word_at(cursor, 0, "into") {
+            cursor.consume("into")?;
+            recognize_owner_zone(cursor, "hand")?;
+            ReplacementDestinationNode::OwnerHand
+        } else if departure_word_at(cursor, 1, "top") {
+            cursor.consume_phrase(&["on", "top", "of"])?;
+            recognize_owner_zone(cursor, "library")?;
+            ReplacementDestinationNode::OwnerLibraryTop
+        } else {
+            cursor.consume_phrase(&["on", "the", "bottom", "of"])?;
+            recognize_owner_zone(cursor, "library")?;
+            ReplacementDestinationNode::OwnerLibraryBottom
+        }
+    } else if departure_word_at(cursor, 0, "reveal") || departure_word_at(cursor, 0, "shuffle") {
+        let revealed = departure_word_at(cursor, 0, "reveal");
+        if revealed {
+            cursor.consume("reveal")?;
+            recognize_replaced_object(cursor, subject, name_links, name_failure)?;
+            cursor.enter("replacement.departure.action.reveal-and");
+            cursor.consume("and")?;
+        }
+        cursor.enter("replacement.departure.action.shuffle");
+        cursor.consume("shuffle")?;
+        recognize_replaced_object(cursor, subject, name_links, name_failure)?;
+        cursor.consume("into")?;
+        recognize_owner_zone(cursor, "library")?;
+        ReplacementDestinationNode::OwnerLibraryShuffle { revealed }
+    } else {
+        return Err(cursor.fail(
+            "a replacing move of the object: exile it, return it to its owner's hand, put it on top or the bottom of its owner's library, or shuffle it into its owner's library",
+        ));
+    };
+    cursor.enter("replacement.departure.instead");
+    if !leading {
+        cursor.consume("instead")?;
+    }
+    cursor.enter("replacement.departure.additional-action");
+    // `instead exile it and create ...`: an instruction performed with the
+    // replacing move is not part of this frame and fails here explicitly.
+    cursor.consume(".")?;
+    Ok(destination)
 }

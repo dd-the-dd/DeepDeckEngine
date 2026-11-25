@@ -14,7 +14,7 @@ pub(in crate::oracle::canonical) fn try_parse_event_replacement(
     let node = match try_recognize_event_replacement(&mut cursor) {
         ChildOutcome::Matched(node) => node,
         ChildOutcome::Committed(failure) => return ReplacementFrameAttempt::Committed(failure),
-        ChildOutcome::NoMatch(_) => return ReplacementFrameAttempt::NotClaimed,
+        ChildOutcome::NoMatch(_) => return try_parse_created_replacement_spell(input),
     };
     match lower_event_replacement(&mut cursor, input, &node) {
         Ok(draft) => ReplacementFrameAttempt::Parsed(draft),
@@ -51,6 +51,25 @@ fn lower_event_replacement(
                 "exceptFirstInDrawStep": except_first_in_draw_step,
             })
         }
+        // CR 500.4: the unspent mana of the controller's pool is kept as
+        // one type instead of emptying.
+        (
+            ReplacedEventNode::LoseUnspentMana { player },
+            ReplacementProgramNode::ManaBecomes { symbol },
+        ) => {
+            cursor.require(
+                *player == LocalPlayerReference::Controller,
+                "the ability controller's unspent mana",
+            )?;
+            json!({
+                "kind": "convertUnspentMana",
+                "player": controller(),
+                "to": symbol,
+            })
+        }
+        _ => {
+            return Err(cursor.fail("a replacement program that applies to the replaced event"));
+        }
     };
     Ok(draft(
         json!({
@@ -67,6 +86,82 @@ fn lower_event_replacement(
     ))
 }
 
+/// A spell ability that is one replacement-creating sentence (`If a card
+/// would be put into your graveyard from anywhere this turn, exile that
+/// card instead.`, CR 611.2a, 614.1a): the spell creates the replacement
+/// when it resolves.
+fn try_parse_created_replacement_spell(input: &AbilityInput<'_>) -> ReplacementFrameAttempt {
+    if !spell_face(input.face_type_line) {
+        return ReplacementFrameAttempt::NotClaimed;
+    }
+    let mut cursor = OracleTokenCursor::new("created-replacement-spell", input.tokens);
+    cursor.replace_source_names(Some(input.name_links.into()));
+    let node = match try_recognize_created_replacement_sentence(
+        &mut cursor,
+        input.name_links,
+        input.name_resolution_failure,
+    ) {
+        ChildOutcome::Matched(node) => node,
+        ChildOutcome::Committed(failure) => return ReplacementFrameAttempt::Committed(failure),
+        ChildOutcome::NoMatch(_) => return ReplacementFrameAttempt::NotClaimed,
+    };
+    let lowered = cursor.finish().and_then(|()| {
+        cursor.enter("created-replacement-spell.lowering");
+        lower_created_replacement_step(&mut cursor, &node)
+    });
+    match lowered {
+        Ok(lowered) => ReplacementFrameAttempt::Parsed(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "effects": lowered.effects,
+            }),
+            &[
+                "Read one sentence creating a replacement with the shared frames",
+                "Install the replacement when the spell resolves, through this turn",
+            ],
+        )),
+        Err(failure) => ReplacementFrameAttempt::Committed(failure),
+    }
+}
+
 #[cfg(test)]
 #[path = "replacement_event_tests.rs"]
 mod tests;
+
+/// One program step creating a replacement (CR 611.2a, 614.1a): its one
+/// install instruction, without declarations.
+pub(in crate::oracle::canonical) fn lower_created_replacement_step(
+    cursor: &mut OracleTokenCursor<'_>,
+    replacement: &CreatedReplacementRuleNode,
+) -> MachineResult<LoweredEffectSequence> {
+    let effect = match replacement {
+        CreatedReplacementRuleNode::Departure(node) => {
+            lower_created_departure_replacement(cursor, node)?
+        }
+        CreatedReplacementRuleNode::Quantity {
+            replacement,
+            lifetime,
+        } => {
+            cursor.enter("lower.created-quantity-replacement.lifetime");
+            cursor.require(
+                *lifetime == Some(CreatedRuleLifetime::ThisTurn),
+                "a created quantity replacement lasting this turn (`Until end of turn,`)",
+            )?;
+            json!({
+                "kind": "installQuantityReplacement",
+                "program": lower_quantity_replacement_program(cursor, replacement.clone())?,
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })
+        }
+        CreatedReplacementRuleNode::Damage(replacement) => json!({
+            "kind": "installDamageReplacement",
+            "program": lower_damage_replacement(cursor, replacement)?,
+            "duration": { "kind": "untilEndOfCurrentTurn" },
+        }),
+    };
+    Ok(LoweredEffectSequence {
+        decisions: Vec::new(),
+        effects: vec![effect],
+    })
+}
