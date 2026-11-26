@@ -5,7 +5,7 @@ use crate::oracle::syntax::recognize_entities;
 
 use super::super::{ExpressedTargetCardinality, NumericAtom, ObjectControllerScope};
 use super::{
-    ChoiceDomainNode, ChoiceRemainderAction, NumberChoiceNode, OracleTokenCursor,
+    ChoiceDomainNode, ChoicePartition, ChoiceRemainderAction, NumberChoiceNode, OracleTokenCursor,
     recognize_choose_instruction,
 };
 
@@ -188,5 +188,50 @@ fn unsupported_object_and_number_forms_fail_at_their_own_states() {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("test.choose-object-domain", &tokens);
         assert!(recognize_choose_instruction(&mut cursor).is_err(), "{text}");
+    }
+}
+
+/// Sundering Titan: one land per basic land type (CR 305.6), a plural set
+/// for `those lands`; sibling (Liliana, Dreadhorde General): one permanent
+/// per permanent type (CR 110.4) with `the rest`; and the restated zone
+/// `on the battlefield` (Cytoshape).
+#[test]
+fn one_object_of_each_characteristic_value_is_a_partitioned_choice() {
+    let ChoiceDomainNode::Objects(lands) = domain("Choose a land of each basic land type.") else {
+        panic!("a partitioned land choice");
+    };
+    assert_eq!(lands.partition, Some(ChoicePartition::EachBasicLandType));
+    assert_eq!(lands.partition.unwrap().parts().len(), 5);
+    assert!(!lands.singular());
+    let ChoiceDomainNode::Objects(permanents) =
+        domain("Choose a permanent you control of each permanent type, then sacrifice the rest.")
+    else {
+        panic!("a partitioned permanent choice");
+    };
+    assert_eq!(
+        permanents.partition,
+        Some(ChoicePartition::EachPermanentType)
+    );
+    assert_eq!(permanents.remainder, Some(ChoiceRemainderAction::Sacrifice));
+    let ChoiceDomainNode::Objects(on_battlefield) =
+        domain("Choose a nonlegendary creature on the battlefield.")
+    else {
+        panic!("a permanent choice restating its zone");
+    };
+    assert!(on_battlefield.singular() && on_battlefield.partition.is_none());
+    // A characteristic choice keeps its own domain.
+    for text in ["Choose a basic land type.", "Choose a land type."] {
+        assert_eq!(failure_state(text), "choose.domain.land-type", "{text}");
+    }
+    // Near-misses: a partition of a counted choice, and an unread value.
+    for text in [
+        "Choose two lands of each basic land type.",
+        "Choose a creature of each color.",
+    ] {
+        let state = failure_state(text);
+        assert!(
+            state.starts_with("choose.domain.object.partition"),
+            "{text}: {state}"
+        );
     }
 }
