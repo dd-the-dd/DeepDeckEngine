@@ -398,7 +398,9 @@ pub(in crate::oracle::canonical) fn recognize_target_relative(
 }
 
 /// Whether `that target` follows.
-pub(in crate::oracle::canonical) fn target_relative_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+pub(in crate::oracle::canonical) fn target_relative_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
     word(cursor, 0, "that") && word(cursor, 1, "target")
 }
 

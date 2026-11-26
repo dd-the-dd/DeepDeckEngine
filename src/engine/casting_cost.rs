@@ -153,7 +153,9 @@ const COLORED_REDUCTION_SYMBOLS: [&str; 6] = ["W", "U", "B", "R", "G", "C"];
 /// `castOrdinal`: a later spell of the caster's turn (the first one is
 /// `firstEachTurn`), CR 601.2i.
 pub(super) fn cast_ordinal_supported(ordinal: &Value) -> bool {
-    ordinal.as_u64().is_some_and(|ordinal| (2..=10).contains(&ordinal))
+    ordinal
+        .as_u64()
+        .is_some_and(|ordinal| (2..=10).contains(&ordinal))
 }
 
 pub(super) fn colored_reduction_supported(reduction: &Value) -> bool {
@@ -809,14 +811,15 @@ impl GameEngine {
                     let TargetRef::Permanent { instance_id } = chosen else {
                         return false;
                     };
-                    self.permanent_position(instance_id)
-                        .is_some_and(|(player_index, card_index)| {
+                    self.permanent_position(instance_id).is_some_and(
+                        |(player_index, card_index)| {
                             Self::static_selector_matches(
                                 source,
                                 target,
                                 &self.state.players[player_index].battlefield[card_index],
                             )
-                        })
+                        },
+                    )
                 })
             })
     }
@@ -988,9 +991,7 @@ pub(super) fn spell_target_modifier_supported(modifier: &Value) -> bool {
                         && modifier.get("sourceZone").is_none()
                         && modifier.get("sourceZoneNot").is_none()
                 }
-                Some("additionalCastingCost") => {
-                    value_kind(&modifier["cost"]) == Some("payMana")
-                }
+                Some("additionalCastingCost") => value_kind(&modifier["cost"]) == Some("payMana"),
                 _ => false,
             }
     })

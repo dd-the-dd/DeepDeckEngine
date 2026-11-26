@@ -5831,7 +5831,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                     .get("coloredMana")
                     .is_none_or(casting_cost::colored_reduction_supported)
                 && modifier.get("firstEachTurn").is_none_or(Value::is_boolean)
-                && modifier.get("castOrdinal").is_none_or(casting_cost::cast_ordinal_supported)
+                && modifier
+                    .get("castOrdinal")
+                    .is_none_or(casting_cost::cast_ordinal_supported)
                 && casting_cost::spell_target_modifier_supported(modifier)
                 && modifier
                     .get("duringOtherPlayersTurns")
@@ -18135,7 +18137,12 @@ impl GameEngine {
                             )
                         })
                         .unwrap_or(0);
-                let (static_targeting_reduction, static_targeting_increases) = self.spell_targeting_cost_adjustment(&player.id, &card.definition, &declaration.targets);
+                let (static_targeting_reduction, static_targeting_increases) = self
+                    .spell_targeting_cost_adjustment(
+                        &player.id,
+                        &card.definition,
+                        &declaration.targets,
+                    );
                 let targeting_reduction = own_targeting_reduction
                     .saturating_add(aura_targeting_reduction)
                     .saturating_add(static_targeting_reduction)
@@ -19302,7 +19309,18 @@ impl GameEngine {
                         {
                             *first_cost = reduce_generic_mana_cost(first_cost, reduction);
                         }
-                        if !is_mana_ability { self.adjust_activation_mana_costs(&mut payable_mana_costs, &casting_cost::ActivationCostSubject { activator: &player.id, source: card, on_battlefield: false, class: casting_cost::activation_rule_class(rule, false), targets: &declaration.targets }); }
+                        if !is_mana_ability {
+                            self.adjust_activation_mana_costs(
+                                &mut payable_mana_costs,
+                                &casting_cost::ActivationCostSubject {
+                                    activator: &player.id,
+                                    source: card,
+                                    on_battlefield: false,
+                                    class: casting_cost::activation_rule_class(rule, false),
+                                    targets: &declaration.targets,
+                                },
+                            );
+                        }
                         let excluded_sources = Self::activated_cost_target_ids(rule)
                             .iter()
                             .filter_map(|id| declaration.targets.get(id))
@@ -19473,7 +19491,16 @@ impl GameEngine {
                                     mana_cost,
                                     reduction.saturating_add(counter_reduction),
                                 )];
-                                self.adjust_activation_mana_costs(&mut costs, &casting_cost::ActivationCostSubject { activator: &player.id, source: permanent, on_battlefield: true, class: Some("equip"), targets: &targets });
+                                self.adjust_activation_mana_costs(
+                                    &mut costs,
+                                    &casting_cost::ActivationCostSubject {
+                                        activator: &player.id,
+                                        source: permanent,
+                                        on_battlefield: true,
+                                        class: Some("equip"),
+                                        targets: &targets,
+                                    },
+                                );
                                 costs
                             })
                             .unwrap_or_default();
@@ -20236,7 +20263,16 @@ impl GameEngine {
                     {
                         *first_cost = reduce_generic_mana_cost(first_cost, activation_reduction);
                     }
-                    self.adjust_activation_mana_costs(&mut mana_costs, &casting_cost::ActivationCostSubject { activator: &player.id, source: permanent, on_battlefield: true, class: casting_cost::activation_rule_class(&rule, loyalty_change != 0), targets: &declaration.targets });
+                    self.adjust_activation_mana_costs(
+                        &mut mana_costs,
+                        &casting_cost::ActivationCostSubject {
+                            activator: &player.id,
+                            source: permanent,
+                            on_battlefield: true,
+                            class: casting_cost::activation_rule_class(&rule, loyalty_change != 0),
+                            targets: &declaration.targets,
+                        },
+                    );
                     if loyalty_change != 0 && has_card_type(&permanent.definition, "Planeswalker") {
                         let loyalty_tax = self
                             .battlefield_static_modifiers()

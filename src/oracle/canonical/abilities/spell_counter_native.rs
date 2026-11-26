@@ -20,7 +20,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_counter_prohibition_family(
     // subject ends at the passive prohibition (CR 701.6).
     let spell_sentence = tokens.len() >= 5
         && tokens[tokens.len() - 1].raw == "."
-        && tokens[tokens.len() - 2].raw.eq_ignore_ascii_case("countered")
+        && tokens[tokens.len() - 2]
+            .raw
+            .eq_ignore_ascii_case("countered")
         && tokens[tokens.len() - 3].raw.eq_ignore_ascii_case("be")
         && (tokens[tokens.len() - 4].raw.eq_ignore_ascii_case("can't")
             || tokens[tokens.len() - 4].raw.eq_ignore_ascii_case("cannot"))
