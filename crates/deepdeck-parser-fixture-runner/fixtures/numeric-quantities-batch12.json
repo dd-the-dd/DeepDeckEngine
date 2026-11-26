@@ -1,0 +1,739 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "numeric-quantities/batch12",
+  "cases": [
+    {
+      "id": "exact-relic-amulet-remove-all-cost",
+      "request": {
+        "cardName": "Relic Amulet",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you cast an instant, sorcery, or Wizard spell, put a charge counter on this artifact.\n{2}, {T}, Remove all charge counters from this artifact: It deals that much damage to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/costs/2/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/costs/2/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "costChosenAmount"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": {
+                  "kind": "countCounters",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "counter": "charge"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": {
+                  "kind": "countCounters",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "counter": "charge"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-essence-bottle-remove-all-cost",
+      "request": {
+        "cardName": "Essence Bottle",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{3}, {T}: Put an elixir counter on this artifact.\n{T}, Remove all elixir counters from this artifact: You gain 2 life for each elixir counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-molten-hydra-remove-all-cost",
+      "request": {
+        "cardName": "Molten Hydra",
+        "typeLine": "Creature — Hydra",
+        "manaCost": "{1}{R}",
+        "oracleText": "{1}{R}{R}: Put a +1/+1 counter on this creature.\n{T}, Remove all +1/+1 counters from this creature: It deals damage to any target equal to the number of +1/+1 counters removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-torture-chamber-remove-all-cost",
+      "request": {
+        "cardName": "Torture Chamber",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "At the beginning of your upkeep, put a pain counter on this artifact.\nAt the beginning of your end step, this artifact deals damage to you equal to the number of pain counters on it.\n{1}, {T}, Remove all pain counters from this artifact: It deals damage to target creature equal to the number of pain counters removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-vish-kal-blood-arbiter-remove-all-cost",
+      "request": {
+        "cardName": "Vish Kal, Blood Arbiter",
+        "typeLine": "Legendary Creature — Vampire",
+        "manaCost": "{4}{W}{B}{B}",
+        "oracleText": "Flying, lifelink\nSacrifice a creature: Put X +1/+1 counters on Vish Kal, where X is the sacrificed creature's power.\nRemove all +1/+1 counters from Vish Kal: Target creature gets -1/-1 until end of turn for each +1/+1 counter removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-jar-of-eyeballs-remove-all-cost",
+      "request": {
+        "cardName": "Jar of Eyeballs",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Whenever a creature you control dies, put two eyeball counters on this artifact.\n{3}, {T}, Remove all eyeball counters from this artifact: Look at the top X cards of your library, where X is the number of eyeball counters removed this way. Put one of them into your hand and the rest on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-geometric-nexus-remove-all-cost",
+      "request": {
+        "cardName": "Geometric Nexus",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a player casts an instant or sorcery spell, put a number of charge counters on this artifact equal to that spell's mana value.\n{6}, {T}, Remove all charge counters from this artifact: Create a 0/0 green and blue Fractal creature token. Put X +1/+1 counters on it, where X is the number of charge counters removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-catti-brie-of-mithral-hall-remove-all-cost",
+      "request": {
+        "cardName": "Catti-brie of Mithral Hall",
+        "typeLine": "Legendary Creature — Human Archer",
+        "manaCost": "{G}{W}",
+        "oracleText": "Reach, first strike\nWhenever Catti-brie attacks, put a +1/+1 counter on it for each Equipment attached to it.\n{1}, Remove all +1/+1 counters from Catti-brie: It deals X damage to target attacking or blocking creature an opponent controls, where X is the number of counters removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-remove-all-counters-cost-draws-that-many",
+      "request": {
+        "cardName": "Remove All Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{1}, {T}, Remove all charge counters from this artifact: Draw cards equal to the number of charge counters removed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-remove-all-counters-of-every-kind-cost",
+      "request": {
+        "cardName": "Remove Every Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}, Remove all counters from this artifact: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "activation.remove-counters.chosen-kind"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-the-battle-of-bywater-for-each-catalog-count",
+      "request": {
+        "cardName": "The Battle of Bywater",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Destroy all creatures with power 3 or greater. Then create a Food token for each creature you control. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-gadrak-the-crown-scourge-for-each-catalog-count",
+      "request": {
+        "cardName": "Gadrak, the Crown-Scourge",
+        "typeLine": "Legendary Creature — Dragon",
+        "manaCost": "{2}{R}",
+        "oracleText": "Flying\nGadrak can't attack unless you control four or more artifacts.\nAt the beginning of your end step, create a Treasure token for each nontoken creature that died this turn. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-mahadi-emporium-master-for-each-catalog-count",
+      "request": {
+        "cardName": "Mahadi, Emporium Master",
+        "typeLine": "Legendary Creature — Devil",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "At the beginning of your end step, create a Treasure token for each creature that died this turn. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-bosco-just-a-bear-for-each-catalog-count",
+      "request": {
+        "cardName": "Bosco, Just a Bear",
+        "typeLine": "Legendary Creature — Bear",
+        "manaCost": "{4}{G}",
+        "oracleText": "When Bosco enters, create a Food token for each legendary creature you control. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n{2}{G}, Sacrifice a Food: Put two +1/+1 counters on Bosco. He gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-great-desert-prospector-for-each-catalog-count",
+      "request": {
+        "cardName": "Great Desert Prospector",
+        "typeLine": "Creature — Human Artificer",
+        "manaCost": "{4}{W}",
+        "oracleText": "When this creature enters, create a tapped Powerstone token for each other creature you control. (They're artifacts with \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-covetous-elegy-for-each-catalog-count",
+      "request": {
+        "cardName": "Covetous Elegy",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}{B}",
+        "oracleText": "Each player chooses up to two creatures they control, then sacrifices the rest. Then you create a tapped Treasure token for each creature your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-teysa-opulent-oligarch-for-each-catalog-count",
+      "request": {
+        "cardName": "Teysa, Opulent Oligarch",
+        "typeLine": "Legendary Creature — Human Advisor",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "Deathtouch\nAt the beginning of your end step, investigate for each opponent who lost life this turn.\nWhenever a Clue you control is put into a graveyard from the battlefield, create a 1/1 white and black Spirit creature token with flying. This ability triggers only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-strefan-maurer-progenitor-for-each-catalog-count",
+      "request": {
+        "cardName": "Strefan, Maurer Progenitor",
+        "typeLine": "Legendary Creature — Vampire Noble",
+        "manaCost": "{2}{B}{R}",
+        "oracleText": "Flying\nAt the beginning of your end step, create a Blood token for each player who lost life this turn.\nWhenever Strefan attacks, you may sacrifice two Blood tokens. If you do, you may put a Vampire card from your hand onto the battlefield tapped and attacking. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-youve-been-caught-stealing-for-each-catalog-count",
+      "request": {
+        "cardName": "You've Been Caught Stealing",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Choose one —\n• Threaten the Merchant — Each creature blocks this turn if able.\n• Bribe the Guards — You create a Treasure token for each opponent who was dealt damage this turn. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-two-clues-for-each-artifact",
+      "request": {
+        "cardName": "Clue Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Create two Clue tokens for each artifact you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/0/quantity/kind",
+                "equals": "multiply"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-food-or-treasure-choice-for-each",
+      "request": {
+        "cardName": "Choice Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Create a Food token or a Treasure token for each creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ferocious-tigorilla-entry-counter-choice",
+      "request": {
+        "cardName": "Ferocious Tigorilla",
+        "typeLine": "Creature — Cat Ape",
+        "manaCost": "{3}{R}",
+        "oracleText": "This creature enters with your choice of a trample counter or a menace counter on it. (A creature with menace can't be blocked except by two or more creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-wingfold-pteron-entry-counter-choice",
+      "request": {
+        "cardName": "Wingfold Pteron",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{5}{U}",
+        "oracleText": "This creature enters with your choice of a flying counter or a hexproof counter on it. (A creature with hexproof can't be the target of spells or abilities your opponents control.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-flycatcher-giraffid-entry-counter-choice",
+      "request": {
+        "cardName": "Flycatcher Giraffid",
+        "typeLine": "Creature — Antelope Lizard",
+        "manaCost": "{4}{G}",
+        "oracleText": "This creature enters with your choice of a reach counter or a vigilance counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-helica-glider-entry-counter-choice",
+      "request": {
+        "cardName": "Helica Glider",
+        "typeLine": "Creature — Nightmare Squirrel",
+        "manaCost": "{2}{W}",
+        "oracleText": "This creature enters with your choice of a flying counter or a first strike counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-boot-nipper-entry-counter-choice",
+      "request": {
+        "cardName": "Boot Nipper",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{1}{B}",
+        "oracleText": "This creature enters with your choice of a deathtouch counter or a lifelink counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-banquet-guests-entry-counter-choice",
+      "request": {
+        "cardName": "Banquet Guests",
+        "typeLine": "Creature — Halfling Citizen",
+        "manaCost": "{X}{G}{W}",
+        "oracleText": "Affinity for Foods (This spell costs {1} less to cast for each Food you control.)\nTrample\nThis creature enters with twice X +1/+1 counters on it.\n{2}, Sacrifice a Food: This creature gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-entry-choice-shared-noun-three-kinds",
+      "request": {
+        "cardName": "Shared Noun Probe",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{2}{G}",
+        "oracleText": "This creature enters with your choice of a +1/+1, first strike, or vigilance counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseOption"
+              },
+              {
+                "pointer": "/decisions/0/options",
+                "equals": [
+                  "+1/+1",
+                  "first strike",
+                  "vigilance"
+                ]
+              },
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/replacement/2/then/0/counter",
+                "equals": "vigilance"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-optional-entry-choice",
+      "request": {
+        "cardName": "Optional Choice Probe",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{2}{G}",
+        "oracleText": "You may have this creature enter with your choice of two +1/+1 counters or a flying counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseWhether"
+              },
+              {
+                "pointer": "/decisions/1/kind",
+                "equals": "chooseOption"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entry-choice-repeated-kind",
+      "request": {
+        "cardName": "Repeat Probe",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{2}{G}",
+        "oracleText": "This creature enters with your choice of a flying counter or a flying counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entry-choice-scaled-by-for-each",
+      "request": {
+        "cardName": "Scaled Choice Probe",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{2}{G}",
+        "oracleText": "This creature enters with your choice of a flying counter or a reach counter on it for each opponent you have.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "replacement.entry-counters.scale"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cradle-of-vitality-life-point",
+      "request": {
+        "cardName": "Cradle of Vitality",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}",
+        "oracleText": "Whenever you gain life, you may pay {1}{W}. If you do, put a +1/+1 counter on target creature for each 1 life you gained.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-gain-two-life-for-each-1-life-lost",
+      "request": {
+        "cardName": "Life Point Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever you lose life, you gain 2 life for each 1 life you lost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "multiply"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-life-point-outside-life-event",
+      "request": {
+        "cardName": "Life Point Miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever a creature you control dies, you gain 2 life for each 1 life you lost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.event-life-point.binding"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-varina-lich-queen-attack-batch-count",
+      "request": {
+        "cardName": "Varina, Lich Queen",
+        "typeLine": "Legendary Creature — Zombie Wizard",
+        "manaCost": "{1}{W}{U}{B}",
+        "oracleText": "Whenever you attack with one or more Zombies, draw that many cards, then discard that many cards. You gain that much life.\n{2}, Exile two cards from your graveyard: Create a tapped 2/2 black Zombie creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-amazing-alliance-attack-batch-count",
+      "request": {
+        "cardName": "Amazing Alliance",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Creatures you control get +1/+1.\nWhenever you attack with one or more legendary creatures, you gain that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-attack-with-artifacts-mill-that-many",
+      "request": {
+        "cardName": "Attack Count Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you attack with one or more artifact creatures, target player mills that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-target-player-discards-cards-equal-to-a-count",
+      "request": {
+        "cardName": "Discard Count Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target player discards cards equal to the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-discard-cards-equal-to-without-amount",
+      "request": {
+        "cardName": "Discard Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target player discards cards equal to.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -64,6 +64,13 @@ fn lower_cost_chosen_amount_decision(
         _ => None,
     });
     match (bounds.maximum, payable) {
+        // `all KIND counters` (CR 122.8): the number is fixed, not chosen:
+        // both bounds are the payable count, bound to the source when the
+        // activation is declared.
+        (None, Some(payable)) if bounds.exhaustive => {
+            decision["minimum"] = payable.clone();
+            decision["maximum"] = payable;
+        }
         (Some(maximum), _) => decision["maximum"] = integer(maximum),
         (None, Some(payable)) => decision["maximum"] = payable,
         (None, None) => {}

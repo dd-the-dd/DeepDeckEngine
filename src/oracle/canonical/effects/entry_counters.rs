@@ -43,6 +43,8 @@ pub(in crate::oracle::canonical) fn claims_promoted_source_entry_counters_family
 }
 
 const OPTIONAL_ENTRY_DECISION: &str = "optionalEntryCounters";
+/// The counter kind the controller chose as the source enters.
+const ENTRY_COUNTER_KIND_DECISION: &str = "entryCounterKind";
 
 pub(in crate::oracle::canonical) fn parse_promoted_source_entry_counters(
     input: &AbilityInput<'_>,
@@ -62,26 +64,81 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_counters(
         lower_numeric_expression(&node.count),
         "a counter quantity the entry replacement can evaluate",
     )?;
+    let placement = json!({
+        "kind": "putEnteringCounters",
+        "counter": node.counter.as_str(),
+        "count": count,
+    });
+    let mut decisions = Vec::new();
+    let replacement = if node.alternatives.is_empty() {
+        vec![placement]
+    } else {
+        // `your choice of A or B` (CR 614.1c): the controller chooses one
+        // kind as the source enters; only that placement is applied.
+        let mut placements = vec![(node.counter.as_str(), placement)];
+        for option in &node.alternatives {
+            let count = cursor.require_value(
+                lower_numeric_expression(&option.count),
+                "a counter quantity the entry replacement can evaluate",
+            )?;
+            placements.push((
+                option.counter.as_str(),
+                json!({
+                    "kind": "putEnteringCounters",
+                    "counter": option.counter.as_str(),
+                    "count": count,
+                }),
+            ));
+        }
+        let options = placements
+            .iter()
+            .map(|(counter, _)| *counter)
+            .collect::<Vec<_>>();
+        decisions.push(json!({
+            "id": ENTRY_COUNTER_KIND_DECISION,
+            "kind": "chooseOption",
+            "options": options,
+        }));
+        placements
+            .into_iter()
+            .map(|(counter, placement)| {
+                json!({
+                    "kind": "conditional",
+                    "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                            "kind": "decisionResult",
+                            "decisionId": ENTRY_COUNTER_KIND_DECISION,
+                        },
+                        "value": counter,
+                    },
+                    "then": [placement],
+                })
+            })
+            .collect()
+    };
     let mut rule = json!({
         "kind": "replacementEffect",
         "source": self_ref(),
         "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
-        "replacement": [{
-            "kind": "putEnteringCounters",
-            "counter": node.counter.as_str(),
-            "count": count,
-        }],
+        "replacement": replacement,
     });
     let mut conditions = Vec::new();
     if node.optional {
         // CR 614.1c: the controller chooses, as it enters, whether the
         // optional replacement applies.
-        rule["decisions"] = json!([{ "id": OPTIONAL_ENTRY_DECISION, "kind": "chooseWhether" }]);
+        decisions.insert(
+            0,
+            json!({ "id": OPTIONAL_ENTRY_DECISION, "kind": "chooseWhether" }),
+        );
         conditions.push(json!({
             "kind": "decisionWas",
             "decisionId": OPTIONAL_ENTRY_DECISION,
             "value": true,
         }));
+    }
+    if !decisions.is_empty() {
+        rule["decisions"] = Value::Array(decisions);
     }
     if let Some(condition) = &node.condition {
         conditions.push(lower_condition(condition));

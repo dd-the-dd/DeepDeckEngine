@@ -191,6 +191,11 @@ fn recognize_counted_collection(
     if life_point_history_starts(cursor) {
         return recognize_life_point_history(cursor);
     }
+    // `1 life you lost` in a life-loss trigger: one per point of the
+    // triggering event's amount.
+    if event_life_point_starts(cursor) {
+        return recognize_event_life_point(cursor);
+    }
     // `different mana value among CARDS`, `black mana symbols in the mana
     // costs of CARDS`: aggregates over a card collection.
     if distinct_card_value_starts(cursor) {
@@ -1522,7 +1527,19 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         node.delta.toughness = toughness;
         return true;
     }
+    // `create a Treasure token for each ...`: a catalog creation with a
+    // literal count reads its count as the shared creation body of the same
+    // predefined identity (CR 111.10), whose quantity is an expression.
+    if let LocalEffectNode::CreateNamedTokens(node) = &*effect {
+        let Some(scaled) = scaled_catalog_creation(node, count) else {
+            return false;
+        };
+        *effect = LocalEffectNode::CreateExplicitTokens(scaled);
+        return true;
+    }
     let quantity = match effect {
+        // `investigate for each ...`: that many separate investigations.
+        LocalEffectNode::Investigate(node) => &mut node.times,
         LocalEffectNode::DrawCards(node) => &mut node.count,
         LocalEffectNode::GainLife(node) => &mut node.amount,
         LocalEffectNode::LoseLife(node) => &mut node.amount,
@@ -1558,6 +1575,39 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         }
         None => false,
     }
+}
+
+/// The catalog creation `create N IDENTITY token(s)` scaled by a `for each`
+/// count: the same predefined identity, tapped state and creating player,
+/// with the scaled quantity. A choice among identities (`a Food or a
+/// Treasure token`) or a non-literal count is not one scalable quantity.
+fn scaled_catalog_creation(
+    node: &CreateNamedTokensEffectNode,
+    count: NumericExpression,
+) -> Option<ExplicitTokenCreationNode> {
+    let NamedTokenCreationPattern::Single(spec) = &node.creation else {
+        return None;
+    };
+    let NumericAtom::Integer(base) = spec.quantity else {
+        return None;
+    };
+    let quantity = scale_by_for_each_count(&NumericExpression::from(base), count)?;
+    Some(ExplicitTokenCreationNode {
+        player: node.player,
+        body: TokenCreationBodyNode {
+            quantity,
+            spec: TokenSpecNode::Predefined(spec.token_name.clone()),
+            keywords: Vec::new(),
+            abilities: Vec::new(),
+            tapped: spec.tapped,
+            attacking: false,
+            attack_defender: None,
+            name: None,
+            legendary: false,
+            attached_to: None,
+        },
+        additional: Vec::new(),
+    })
 }
 
 /// Offset of `with the EXTREMUM` after `you control the NOUN`, before the

@@ -243,6 +243,20 @@ impl GenericTriggerEventNode {
             {
                 Some(EventNumericBinding::EventObjectCount)
             }
+            // `Whenever you attack with one or more ZOMBIES, ... that many`:
+            // the same attackers of one declaration the batch matched,
+            // lowered to the same controlled-attackers matcher (CR 508.1,
+            // 603.2c). The source among the attackers is another count.
+            Self::Local(LocalTriggerEventNode::AttackDeclaration(node))
+                if node.attacker == super::EventActorScope::Controller
+                    && node.source.is_none()
+                    && matches!(
+                        node.attackers.multiplicity,
+                        super::EventMultiplicity::PerEvent { .. }
+                    ) =>
+            {
+                Some(EventNumericBinding::EventObjectCount)
+            }
             _ => None,
         }
     }

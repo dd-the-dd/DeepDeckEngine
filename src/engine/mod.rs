@@ -4798,10 +4798,11 @@ fn declaration_shape_supported(rule: &Value) -> bool {
             }
             Some("chooseNumber") => {
                 decision["id"].is_string()
-                    && matches!(
+                    && (matches!(
                         integer_value(&decision["minimum"]),
                         Some(minimum) if minimum >= 0
-                    )
+                    ) || integer_value(&decision["minimum"]).is_none()
+                        && numeric_expression_supported(&decision["minimum"]))
                     && decision
                         .get("maximum")
                         .is_none_or(numeric_expression_supported)
@@ -16531,8 +16532,11 @@ impl GameEngine {
                     .to_string();
                 match value_kind(decision) {
                     Some("chooseNumber") => {
-                        let minimum =
-                            integer_value(&decision["minimum"]).ok_or(Failure::GrammarRejected)?;
+                        let minimum = integer_value(&decision["minimum"])
+                            .or_else(|| {
+                                self.numeric_expression(&decision["minimum"], controller_id)
+                            })
+                            .ok_or(Failure::GrammarRejected)?;
                         let explicit_maximum = decision.get("maximum").and_then(|maximum| {
                             integer_value(maximum)
                                 .or_else(|| self.numeric_expression(maximum, controller_id))
