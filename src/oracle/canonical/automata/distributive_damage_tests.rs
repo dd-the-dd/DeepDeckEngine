@@ -84,3 +84,22 @@ fn a_distributive_predicate_needs_a_plural_member_set() {
         assert_ne!(status, "canonical", "{text}: {rule}");
     }
 }
+
+#[test]
+fn several_singular_slots_each_deal_damage_to_one_shared_recipient() {
+    // Real card: Friendly Rivalry. One damage action per declared slot; the
+    // recipient is declared once and named again by the later actions.
+    let (status, rule) = status_and_rule(
+        "Friendly Rivalry",
+        "Target creature you control and up to one other target legendary creature you control each deal damage equal to their power to target creature you don't control.",
+    );
+    assert_eq!(status, "canonical", "{rule}");
+    assert_eq!(rule.matches("\"dealDamage\"").count(), 2, "{rule}");
+    // Near miss: a plural slot coordinated with another slot has no single
+    // member iteration and is not claimed.
+    let (status, rule) = status_and_rule(
+        "Near Miss",
+        "Up to two target creatures you control and target creature an opponent controls each deal damage equal to their power to any target.",
+    );
+    assert_ne!(status, "canonical", "{rule}");
+}

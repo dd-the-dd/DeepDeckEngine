@@ -285,10 +285,11 @@ struct SequenceMemory {
     /// the creature type of your choice`) began: its `choose` instruction is
     /// already emitted, so the clause itself is read next.
     inline_choice_at: Option<usize>,
-    /// The plural target slot a distributive subject (`Up to two target
-    /// creatures you control each deal ...`) just declared: its predicate
-    /// is read next, once per member of the slot.
-    distributive_member: Option<TargetBinding>,
+    /// The target slots a distributive subject (`Up to two target
+    /// creatures you control each deal ...`, `Target creature you control
+    /// and up to one other target creature you control each deal ...`)
+    /// just declared: its predicate is read next, once per member.
+    distributive_members: Vec<TargetBinding>,
     /// Delayed action ranges (CR 603.7a) closed so far.
     delayed: Vec<super::DelayedFrameNode>,
     /// A preposed created rule (`At the beginning of ... ,`, `When EVENT
@@ -956,25 +957,71 @@ fn recognize_effect_sequence_attempt_scoped(
                     // damage equal to their power to ...` (CR 608.2c): the
                     // subject declares its slot first; the predicate is
                     // then performed once per member of that slot.
-                    if let Some(member) = memory.distributive_member.take() {
-                        open_iteration(
-                            &mut memory,
-                            super::IterationDomain::DeclaredObjects(member),
-                        );
+                    if !memory.distributive_members.is_empty() {
+                        let members = std::mem::take(&mut memory.distributive_members);
                         causative = false;
-                        break LocalEffectNode::DealDamage(
-                            super::recognize_distributive_member_damage(cursor, member)?,
-                        );
+                        // One plural slot: the predicate is performed once
+                        // per member of the slot.
+                        if let [member] = members.as_slice() {
+                            open_iteration(
+                                &mut memory,
+                                super::IterationDomain::DeclaredObjects(*member),
+                            );
+                            break LocalEffectNode::DealDamage(
+                                super::recognize_distributive_member_damage(cursor, *member)?,
+                            );
+                        }
+                        // Several singular slots: one damage action per slot,
+                        // each to the recipient the first one declared.
+                        let first =
+                            super::recognize_distributive_member_damage(cursor, members[0])?;
+                        cursor.enter("sequence.distributive-damage.shared-recipient");
+                        let recipient = match &first.recipient {
+                            super::DamageRecipientNode::Targets(targets)
+                                if targets.slots.len() == 1
+                                    && targets.slots[0].cardinality.maximum == 1
+                                    && targets.slots[0].count.is_none() =>
+                            {
+                                super::DamageRecipientNode::BoundObject(
+                                    super::PermanentEffectReference::Target(TargetBinding {
+                                        effect_index,
+                                        slot_index: 0,
+                                    }),
+                                )
+                            }
+                            super::DamageRecipientNode::Targets(_) => {
+                                return Err(cursor.fail(
+                                    "one declared recipient shared by every distributed source",
+                                ));
+                            }
+                            other => other.clone(),
+                        };
+                        memory.distributed_performer = None;
+                        for member in members[1..].iter().rev() {
+                            memory.distributed.push(LocalEffectNode::DealDamage(
+                                super::DamageEffectNode {
+                                    source: super::PermanentOperandNode::BoundReference(
+                                        super::PermanentEffectReference::Target(*member),
+                                    ),
+                                    amount: super::NumericExpression::PowerOf(*member),
+                                    recipient: recipient.clone(),
+                                },
+                            ));
+                        }
+                        break LocalEffectNode::DealDamage(first);
                     }
                     if memory.open_iteration.is_none()
+                        && memory.distributed.is_empty()
                         && let Some((targets, subject_end)) = distributive_target_subject(cursor)
                     {
                         attempt_frame.commit();
                         *cursor = subject_end;
-                        memory.distributive_member = Some(TargetBinding {
-                            effect_index,
-                            slot_index: 0,
-                        });
+                        memory.distributive_members = (0..targets.slots.len())
+                            .map(|slot_index| TargetBinding {
+                                effect_index,
+                                slot_index,
+                            })
+                            .collect();
                         causative = false;
                         inline_choice = true;
                         break LocalEffectNode::Choose(super::ChooseInstructionNode {
@@ -4680,9 +4727,10 @@ fn resolve_iterated_set(
 const DISTRIBUTIVE_SUBJECT_LIMIT: usize = 14;
 
 /// `TARGETS each deal damage ...` at the cursor: a declared subject of one
-/// plural permanent target slot followed by the distributive predicate.
-/// Pure lookahead before the target list is read; `None` leaves the clause
-/// to the other readers (a singular or multi-slot subject is not claimed).
+/// plural permanent target slot, or of several singular slots, followed by
+/// the distributive predicate. `None` leaves the clause to the other
+/// readers (a lone singular slot, or a plural slot coordinated with
+/// another, is not claimed).
 fn distributive_target_subject<'tokens>(
     cursor: &OracleTokenCursor<'tokens>,
 ) -> Option<(super::TargetListNode, OracleTokenCursor<'tokens>)> {
@@ -4706,15 +4754,22 @@ fn distributive_target_subject<'tokens>(
         super::TargetCountSupport::Expressed,
     )
     .ok()?;
-    let [slot] = targets.slots.as_slice() else {
-        return None;
+    let plural = |slot: &super::TargetSlot| {
+        slot.count
+            .as_ref()
+            .map_or(slot.cardinality.maximum > 1, super::TargetCount::is_plural)
     };
-    let plural = slot
-        .count
-        .as_ref()
-        .map_or(slot.cardinality.maximum > 1, super::TargetCount::is_plural);
-    (plural
-        && super::permanent_subject::selector_guarantees_permanent(&slot.selector)
+    // One plural slot is iterated member by member; several slots must each
+    // name at most one object, one damage action per slot.
+    let distributable = match targets.slots.as_slice() {
+        [slot] => plural(slot),
+        slots => slots.len() > 1 && slots.iter().all(|slot| !plural(slot)),
+    };
+    (distributable
+        && targets
+            .slots
+            .iter()
+            .all(|slot| super::permanent_subject::selector_guarantees_permanent(&slot.selector))
         && super::distributive_member_damage_starts(&subject))
     .then_some((targets, subject))
 }
