@@ -141,6 +141,7 @@ mod landwalk;
 mod library_shuffle;
 mod life;
 mod life_gain_replacement;
+mod linked_card_exile;
 mod linked_exile_return;
 mod linked_spell_part;
 mod mana;

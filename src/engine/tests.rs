@@ -39,6 +39,9 @@ mod antecedent_producers_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/antecedent_producers_batch11_runtime.rs"]
 mod antecedent_producers_batch11_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/card_zone_operands_runtime.rs"]
+mod card_zone_operands_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/rebound_runtime.rs"]

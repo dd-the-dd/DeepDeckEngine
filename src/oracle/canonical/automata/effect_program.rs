@@ -346,6 +346,7 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
             return Err(failure);
         };
         cursor.enter("program.steps.leading");
+        let before_split = cursor.clone();
         // The leading sentences are a program of their own: a replacing
         // sentence among them is read with the sentence it replaces.
         let split = cursor.attempt(|cursor| {
@@ -361,6 +362,31 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
             Ok(EffectProgramNode::Steps(steps))
         });
         let split_failure = match split {
+            // `Mill three cards. You may put a land card from among them into
+            // your hand. If you don't, ...`: a producer reading only the
+            // cards a leading sentence observed reads them in one sequence.
+            Ok(program) if super::program_steps_detach_observed_cards(&program) => {
+                let mut trial = before_split;
+                trial.enter("program.steps.observed-producer");
+                let extended = trial.attempt(|attempt| {
+                    let block = recognize_instruction_outcome_block(
+                        attempt,
+                        block_start,
+                        ProducerScope::FinalInstruction,
+                        name_links,
+                        name_failure,
+                        context,
+                    )?;
+                    complete_outcome_block(attempt, block, name_links, name_failure, context)
+                });
+                return match extended {
+                    Ok(extended) if trial.position() == cursor.position() => {
+                        *cursor = trial;
+                        Ok(extended)
+                    }
+                    _ => Ok(program),
+                };
+            }
             Ok(program) => return Ok(program),
             Err(failure) => failure,
         };

@@ -96,6 +96,8 @@ pub(super) fn optional_action_witness_supported(action: &Value) -> bool {
         }
         Some("attachPermanent") => action["attachment"].is_object() && action["to"].is_object(),
         Some("modifyPowerToughness" | "grantKeyword") => action["object"].is_object(),
+        // The card copy was created in exile (CR 707.12).
+        Some("createCardCopy") => single_player(&action["player"]),
         // The payer actually paid the resolution cost (`payments.rs`).
         Some("payCost") => single_player(&action["player"]),
         _ => false,
@@ -700,6 +702,13 @@ impl GameEngine {
                     required,
                 }
             }
+            // CR 707.12: the copy of the card was created.
+            Some("createCardCopy") => events(
+                &["cardCopyCreated"],
+                player(&action["player"]),
+                EventMeasure::Count,
+                1,
+            ),
             // CR 608.2c: the payment instruction's cost was paid.
             Some("payCost") => events(
                 &["resolutionCostPaid"],
