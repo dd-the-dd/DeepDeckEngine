@@ -88,7 +88,9 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_discard_action_fr
         {
             cursor.consume_phrase(&["cards", "equal", "to"])?;
             cursor.enter("effect.player-discard.equal-amount");
-            let count = super::recognize_equal_to_amount_expression(cursor, None)?;
+            let count = crate::oracle::canonical::automata::recognize_equal_to_amount_expression(
+                cursor, None,
+            )?;
             return Ok(DiscardQuantity::Count(count));
         }
         let count = recognize_numeric_expression(cursor, None)?;

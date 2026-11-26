@@ -2003,6 +2003,14 @@ impl CardCollectionMemory {
                 self.complement_exclusions.push(bound(&hit));
                 self.mention((bound(&hit), Some(1)));
             }
+            // A mill has a fixed count (CR 701.13a); the reveal-until reader
+            // never produces one, and a stop condition on it has no writer.
+            CardActionNode::RevealUntil {
+                verb: CardCollectionVerb::Milled,
+                ..
+            } => {
+                return Err(cursor.fail("a reveal or exile performed until a match"));
+            }
             CardActionNode::RevealUntil {
                 quantity,
                 predicate,

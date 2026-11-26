@@ -600,7 +600,7 @@ impl GameEngine {
             }
         }
 
-        let mut pending = Vec::new();
+        let mut pending: Vec<(CardInstance, Value, BTreeMap<String, Value>)> = Vec::new();
         for target in distinct_targets {
             let Some((target_kind, target_id, target_controller_id)) =
                 self.target_event_identity(&target)
