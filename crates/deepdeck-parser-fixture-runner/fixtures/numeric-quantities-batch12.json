@@ -699,6 +699,41 @@
         "outcome": "success",
         "cardStatus": "canonical"
       }
+    },
+    {
+      "id": "sibling-target-player-discards-cards-equal-to-a-count",
+      "request": {
+        "cardName": "Discard Count Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target player discards cards equal to the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-discard-cards-equal-to-without-amount",
+      "request": {
+        "cardName": "Discard Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target player discards cards equal to.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }
