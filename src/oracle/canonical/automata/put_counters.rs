@@ -81,7 +81,9 @@ impl CounterKindsNode {
 }
 
 /// True at `your choice of`: the head of a choice among counter kinds.
-fn counter_kind_choice_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+pub(in crate::oracle::canonical) fn counter_kind_choice_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
     ["your", "choice", "of"]
         .iter()
         .enumerate()
@@ -255,6 +257,16 @@ fn recognize_counter_kind_choice(
         }
         cursor.require(comma, "`,` or `or` between counter kinds")?;
     }
+}
+
+/// `your choice of OPTION ... or OPTION` outside an effect program (an entry
+/// replacement, CR 614.1c): the same typed choice among counter placements,
+/// read with no program context, so every option count is a literal, an
+/// article, X or the shared arithmetic of those.
+pub(in crate::oracle::canonical) fn recognize_counter_placement_choice(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Vec<CounterPlacementNode>> {
+    recognize_counter_kind_choice(cursor, &EffectRecognitionContext::default())
 }
 
 /// A structural pre-claim that commits only after `put`, a plausible numeric

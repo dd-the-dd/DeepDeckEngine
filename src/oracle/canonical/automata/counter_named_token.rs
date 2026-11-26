@@ -150,7 +150,15 @@ pub(in crate::oracle::canonical) fn recognize_named_token_reminder(
     cursor.enter("reminder.named-token.open");
     cursor.consume("(")?;
     cursor.enter("reminder.named-token.subject");
-    if matches!(quantity, NumericAtom::Integer(1)) {
+    // A computed count (`a Food token for each creature you control`, `X
+    // Treasure tokens`) is restated in either number: Oracle writes both
+    // `It's an artifact ...` and `They're artifacts ...` after it.
+    let singular = matches!(quantity, NumericAtom::Integer(1))
+        || (matches!(quantity, NumericAtom::VariableX)
+            && cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("it's")));
+    if singular {
         cursor.consume("it's")?;
         if cursor
             .peek()

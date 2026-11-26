@@ -12,6 +12,9 @@
 //! enter with ...` (CR 614.1c, 702.98a) is the same replacement, applied by
 //! its controller's choice; `an additional` counter is the same placement
 //! (the counters are added to those it would otherwise enter with).
+//! `your choice of a flying counter or a hexproof counter` is the shared
+//! choice among counter placements (`put_counters.rs`): its controller
+//! chooses one placement as the permanent enters (CR 614.1c, 614.12).
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -31,6 +34,10 @@ pub(in crate::oracle::canonical) struct SourceEntryCountersNode {
     pub condition: Option<StaticConditionNode>,
     /// `You may have ...`: the controller chooses whether it applies.
     pub optional: bool,
+    /// `your choice of A or B`: the placements besides `counter`/`count`
+    /// among which the controller chooses one as the source enters; empty
+    /// for a single placement.
+    pub alternatives: Vec<super::CounterPlacementNode>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +71,7 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
     let mut count = None;
     let mut condition = None;
     let mut optional = false;
+    let mut alternatives = Vec::new();
     loop {
         state = match state {
             State::LeadingCondition => {
@@ -129,19 +137,53 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
             }
             State::Quantity => {
                 cursor.enter("replacement.entry-counters.quantity");
-                let atom = recognize_numeric_atom(cursor)?;
-                cursor.require(
-                    !matches!(atom, NumericAtom::Integer(value) if value <= 0),
-                    "a positive counter quantity",
-                )?;
-                count = Some(NumericExpression::Atom(atom));
-                if cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("additional"))
-                {
-                    cursor.consume("additional")?;
+                if super::counter_kind_choice_starts(cursor) {
+                    // `your choice of A or B`: complete placements, each with
+                    // its own kind and noun; the first is the node's pair.
+                    let mut options =
+                        super::recognize_counter_placement_choice(cursor)?.into_iter();
+                    let first = options
+                        .next()
+                        .ok_or_else(|| cursor.fail("a first counter option"))?;
+                    alternatives = options.collect();
+                    cursor.enter("replacement.entry-counters.choice.quantity");
+                    cursor.require(
+                        std::iter::once(&first.count)
+                            .chain(alternatives.iter().map(|option| &option.count))
+                            .all(|count| {
+                                !matches!(
+                                    count,
+                                    NumericExpression::Atom(NumericAtom::Integer(value))
+                                        if *value <= 0
+                                )
+                            }),
+                        "a positive counter quantity for every option",
+                    )?;
+                    counter = Some(first.counter);
+                    count = Some(first.count);
+                    State::Recipient
+                } else if cursor.peek().is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("twice") || raw.eq_ignore_ascii_case("thrice")
+                }) {
+                    // `twice X +1/+1 counters`: the shared arithmetic
+                    // multiplier owns the count (CR 107.3).
+                    count = Some(super::recognize_numeric_expression(cursor, None)?);
+                    State::CounterKind
+                } else {
+                    let atom = recognize_numeric_atom(cursor)?;
+                    cursor.require(
+                        !matches!(atom, NumericAtom::Integer(value) if value <= 0),
+                        "a positive counter quantity",
+                    )?;
+                    count = Some(NumericExpression::Atom(atom));
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("additional"))
+                    {
+                        cursor.consume("additional")?;
+                    }
+                    State::CounterKind
                 }
-                State::CounterKind
             }
             State::CounterKind => {
                 cursor.enter("replacement.entry-counters.kind");
@@ -175,6 +217,12 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
             }
             State::Scale => {
                 cursor.enter("replacement.entry-counters.scale");
+                if !alternatives.is_empty() && for_each_count_starts(cursor) {
+                    // One count would scale only the first option.
+                    return Err(cursor.fail(
+                        "one counter placement scaled by `for each` (not a choice among kinds)",
+                    ));
+                }
                 if for_each_count_starts(cursor) {
                     let base = cursor.require_value(count.take(), "a counter quantity")?;
                     // The entering source is the clause subject a pronoun
@@ -196,6 +244,10 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                 if count.as_ref().is_some_and(NumericExpression::uses_x)
                     && super::where_x_definition_starts(cursor)
                 {
+                    cursor.require(
+                        alternatives.is_empty(),
+                        "one counter placement whose X the definition replaces",
+                    )?;
                     let definition = super::recognize_where_x_definition(cursor)?;
                     let base = cursor.require_value(count.take(), "a counter quantity")?;
                     count = Some(cursor.require_value(
@@ -241,6 +293,7 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                     count: cursor.require_value(count, "a counter quantity")?,
                     condition,
                     optional,
+                    alternatives,
                 });
             }
         };

@@ -47,6 +47,13 @@ fn sacrifice(text: &str) -> MachineResult<SacrificeEffectNode> {
 const ANY: ChosenAmountBounds = ChosenAmountBounds {
     minimum: 0,
     maximum: None,
+    exhaustive: false,
+};
+
+const ALL: ChosenAmountBounds = ChosenAmountBounds {
+    minimum: 0,
+    maximum: None,
+    exhaustive: true,
 };
 
 #[test]
@@ -115,7 +122,8 @@ fn a_cost_reads_a_number_the_payer_chooses_with_literal_bounds() {
         chosen.count,
         CostQuantity::Chosen(ChosenAmountBounds {
             minimum: 1,
-            maximum: None
+            maximum: None,
+            exhaustive: false,
         })
     );
     let PaymentActionNode::Sacrifice(PaymentObjectsNode::Chosen(chosen)) =
@@ -127,7 +135,8 @@ fn a_cost_reads_a_number_the_payer_chooses_with_literal_bounds() {
         chosen.count,
         CostQuantity::Chosen(ChosenAmountBounds {
             minimum: 0,
-            maximum: Some(3)
+            maximum: Some(3),
+            exhaustive: false,
         })
     );
     // An exact count keeps the shared atom.
@@ -228,4 +237,48 @@ fn a_resolution_sacrifice_picks_a_member_of_a_range() {
     };
     assert_eq!(count, NumericExpression::from(2));
     assert!(sacrifice("sacrifice another creature.").is_err());
+}
+
+#[test]
+fn a_counter_cost_reads_the_universal_determiner_as_the_number_the_holder_fixes() {
+    // `all KIND counters`: every counter of that kind, fixed when paid.
+    let PaymentActionNode::RemoveCounters(removal) =
+        payment("Remove all charge counters from this artifact").unwrap()
+    else {
+        panic!("a counter removal");
+    };
+    assert_eq!(removal.count, CostQuantity::Chosen(ALL));
+    assert!(removal.count.is_plural());
+    // It is the activation's one recorded number: `that much` and
+    // `counters removed this way` restate it.
+    let relic =
+        activation_costs("{2}, {T}, Remove all charge counters from this artifact").unwrap();
+    assert_eq!(relic.cost_chosen_amount(), Some(ALL));
+    assert!(!relic.declares_x());
+    assert_eq!(
+        relic.cost_chosen_amount_slot(),
+        Some(CostChosenAmountSlot {
+            verb: CostAmountVerb::Removed,
+            counter: CounterName::from_parts(["charge"]),
+            predicate: None,
+        })
+    );
+    // Sibling: a named source and the +1/+1 kind compose unchanged.
+    let hydra = activation_costs("{T}, Remove all +1/+1 counters from this creature").unwrap();
+    assert_eq!(hydra.cost_chosen_amount(), Some(ALL));
+    // Near-misses: counters of every kind are not one removal; `all` of an
+    // object query is not a counter quantity; a singular noun disagrees.
+    assert_eq!(
+        activation_costs("{T}, Remove all counters from this artifact")
+            .unwrap_err()
+            .state,
+        "activation.remove-counters.chosen-kind"
+    );
+    assert!(payment("Sacrifice all creatures you control").is_err());
+    assert_eq!(
+        payment("Remove all charge counter from this artifact")
+            .unwrap_err()
+            .state,
+        "cost.payment.remove.noun"
+    );
 }
