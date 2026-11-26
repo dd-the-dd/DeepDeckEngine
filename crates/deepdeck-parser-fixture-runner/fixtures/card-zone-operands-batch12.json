@@ -48,6 +48,21 @@
       }
     },
     {
+      "id": "exact-leyline-dowser-a-card-milled-this-way",
+      "request": {
+        "cardName": "Leyline Dowser",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}: Mill a card. You may put an instant or sorcery card milled this way into your hand.\nTap an untapped legendary creature you control: Untap this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
       "id": "sibling-artifact-or-creature-from-the-milled-cards-onto-battlefield",
       "request": {
         "cardName": "Probe Milled Return",
@@ -69,6 +84,21 @@
         "typeLine": "Sorcery",
         "manaCost": "{2}{G}",
         "oracleText": "Mill four cards, then put any number of land cards milled this way into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-each-creature-card-milled-this-way-onto-battlefield",
+      "request": {
+        "cardName": "Probe Each Milled",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}",
+        "oracleText": "Mill four cards. Put each creature card milled this way onto the battlefield.",
         "layout": "normal",
         "faces": []
       },

@@ -252,13 +252,16 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 ChosenObjectQuantity::UpTo(count) => CardSelectionQuantityNode::UpTo(count),
                 ChosenObjectQuantity::AnyNumber => CardSelectionQuantityNode::AnyNumber,
             },
-            Some(ObjectDeterminer::Universal { each: false }) => {
+            // `each creature card milled this way`: the distributive
+            // universal names every member, as `all` does; the collection's
+            // cards are acted on together by the one action.
+            Some(ObjectDeterminer::Universal { .. }) => {
                 CardSelectionQuantityNode::All { except_cast: false }
             }
             _ => {
                 trial.enter("collection.selection.quantity.determiner");
                 return Err(trial.fail(
-                    "a selection quantity: `a`, a count, `up to` a count, `any number`, or `all`",
+                    "a selection quantity: `a`, a count, `up to` a count, `any number`, `all` or `each`",
                 ));
             }
         };
