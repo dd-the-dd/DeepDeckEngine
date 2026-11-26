@@ -281,6 +281,10 @@ struct SequenceMemory {
     /// The previous action declared the object of a `the owner|controller
     /// of TARGET` subject: its performed verb follows without a connector.
     subject_continuation: bool,
+    /// Where the clause whose head writes an inline resolution choice (`of
+    /// the creature type of your choice`) began: its `choose` instruction is
+    /// already emitted, so the clause itself is read next.
+    inline_choice_at: Option<usize>,
     /// Delayed action ranges (CR 603.7a) closed so far.
     delayed: Vec<super::DelayedFrameNode>,
     /// A preposed created rule (`At the beginning of ... ,`, `When EVENT
@@ -910,6 +914,9 @@ fn recognize_effect_sequence_attempt_scoped(
                 // `the owner|controller of TARGET`: the relation whose player
                 // performs the rest of the clause after this declaration.
                 let mut declared_subject: Option<super::ObjectPlayerRelation> = None;
+                // The clause writes an inline resolution choice: the
+                // `choose` instruction is this action; the clause follows it.
+                let mut inline_choice = false;
                 let mut causative: bool;
                 let mut from_ellipsis = false;
                 let mut effect = loop {
@@ -929,6 +936,17 @@ fn recognize_effect_sequence_attempt_scoped(
                             }
                             None => pending,
                         };
+                    }
+                    // `creatures of the creature type of your choice get
+                    // +2/+2`: the controller chooses first (CR 608.2d); the
+                    // clause then reads the choice as `of the chosen type`.
+                    if memory.inline_choice_at != Some(cursor.position())
+                        && let Some(choice) = super::inline_choice::clause_inline_choice(cursor)
+                    {
+                        memory.inline_choice_at = Some(cursor.position());
+                        causative = false;
+                        inline_choice = true;
+                        break LocalEffectNode::Choose(choice);
                     }
                     let mut action_context = base_action_context.clone();
                     action_context.preposed_duration = preposed_duration.clone();
@@ -2448,6 +2466,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         super::VerbAgreement::ThirdPersonSingular,
                         memory.sentence_start,
                     ));
+                    memory.subject_continuation = true;
+                }
+                if inline_choice {
                     memory.subject_continuation = true;
                 }
                 memory.current_player_subject = match &effect {

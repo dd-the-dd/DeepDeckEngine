@@ -495,11 +495,14 @@ fn is_resolution_creature_type(value: &Value) -> bool {
 /// by a battlefield query the engine evaluates against resolution choices: a
 /// permanent count, or the collection a one-shot battlefield action reads
 /// once as it resolves (`destroy all creatures that aren't of the chosen
-/// type`). The collection of an action with a duration is not such a reader.
+/// type`), or the collection of an action with a duration, whose query the
+/// engine materializes with the chosen type as the action resolves.
 fn resolution_creature_type_references(value: &Value, inside_count: bool) -> (usize, usize) {
     fn visit(value: &Value, inside_count: bool, durable: bool) -> (usize, usize) {
+        // A continuous effect's collection keeps the type chosen as it
+        // resolves (the engine materializes it), so it reads the choice too.
         if is_resolution_creature_type(value) {
-            return (1, usize::from(inside_count));
+            return (1, usize::from(inside_count || durable));
         }
         let durable = durable || value.get("duration").is_some();
         let counted = match value["kind"].as_str() {

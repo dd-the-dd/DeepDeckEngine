@@ -126,6 +126,7 @@ mod graveyard_card_return;
 mod graveyard_characteristic;
 mod graveyard_destination;
 mod hand_disruption;
+mod inline_choice;
 mod investigate;
 mod keyword;
 mod keyword_action;
