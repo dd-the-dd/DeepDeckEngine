@@ -1189,10 +1189,10 @@ fn recognize_effect_sequence_attempt_scoped(
                                     .selector
                                     .as_ref()
                                     .is_some_and(selector_names_permanents))
-                                    || super::permanent_subject::singular_created_token_antecedent(
+                                    || (super::permanent_subject::singular_created_token_antecedent(
                                         antecedent.reference,
                                         &memory.effects,
-                                    )
+                                    ) && !tokens_created_per_member(&memory))
                             });
                         if permanent_antecedent
                             || super::attached_object_operand_follows_verb(attempt)
@@ -4463,13 +4463,43 @@ fn install_iteration_environment(
 /// whose body ends with it, the action was performed once per member: the
 /// set is plural whatever number one pass stated (`For each of them, create
 /// a token ... . Exile those tokens ...`).
+/// Whether the latest token creation is the body of an iteration frame: one
+/// token per member is several tokens, never one bound permanent.
+fn tokens_created_per_member(memory: &SequenceMemory) -> bool {
+    memory
+        .effects
+        .iter()
+        .rposition(|effect| matches!(effect, LocalEffectNode::CreateExplicitTokens(_)))
+        .is_some_and(|producer| {
+            memory
+                .iterations
+                .iter()
+                .any(|frame| frame.first_effect <= producer && producer < frame.end_effect)
+        })
+}
+
 fn iterated_object_set(memory: &SequenceMemory) -> Option<super::ObjectSetAntecedent> {
     let mut set = super::permanent_subject::prior_object_set(&memory.effects)?;
-    if memory
-        .iterations
-        .last()
-        .is_some_and(|frame| frame.end_effect == memory.effects.len())
-    {
+    // The tokens a frame's body created were created once per member: the
+    // set stays plural after a later action on it (`Those tokens gain
+    // haste. Exile them ...`).
+    let created_tokens_producer = (set.denotes
+        == super::ObjectSetDenotation::Bound(super::PermanentEffectReference::Observed(
+            super::TypedObservedEventObject::CreatedTokens,
+        )))
+    .then(|| {
+        memory
+            .effects
+            .iter()
+            .rposition(|effect| matches!(effect, LocalEffectNode::CreateExplicitTokens(_)))
+    })
+    .flatten();
+    if memory.iterations.last().is_some_and(|frame| {
+        frame.end_effect == memory.effects.len()
+            || created_tokens_producer.is_some_and(|producer| {
+                frame.first_effect <= producer && producer < frame.end_effect
+            })
+    }) {
         set.number = super::GrammaticalNumber::Plural;
     }
     Some(set)

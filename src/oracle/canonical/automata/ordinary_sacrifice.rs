@@ -185,8 +185,16 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
         },
     };
     cursor.enter("effect.sacrifice.object-query");
-    let mut query =
-        recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count.quota()))?;
+    let context = ObjectQueryContext::shared_quota(&count.quota());
+    // `that player sacrifices half the creatures they control`: the
+    // restated `they` is the acting player whose permanents are halved.
+    let mut query = if partitive && owner == SacrificeOperandOwner::ActingPlayer {
+        super::read_with_acting_player(cursor, |cursor| {
+            recognize_object_noun_query(cursor, context)
+        })?
+    } else {
+        recognize_object_noun_query(cursor, context)?
+    };
     // `a creature other than this creature`: the source is not a candidate.
     let exclude_source = query.take_source_exclusion();
     cursor.require(

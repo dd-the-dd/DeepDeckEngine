@@ -928,6 +928,45 @@ fn lower_optional_action(
     otherwise: Option<LoweredEffectSequence>,
 ) -> MachineResult<LoweredEffectSequence> {
     cursor.enter("lower.program.optional-action.action");
+    // A permission whose one instruction is the player's own fixed payment
+    // (`that player may pay {2}. If the player doesn't, ...`) is the shared
+    // optional resolution cost program: one concept, one primitive, whether
+    // the payment was read as a cost block or as a payment instruction.
+    if let [payment] = action.as_slice()
+        && payment["kind"] == "payCost"
+        && payment["player"] == player
+        && payment["cost"].is_object()
+    {
+        let mut decisions = Vec::new();
+        let (effects, decline) = match outcome {
+            PerformanceOutcome::Performed | PerformanceOutcome::Declined => {
+                decisions.extend(body.decisions);
+                let otherwise = otherwise.map(|otherwise| {
+                    decisions.extend(otherwise.decisions);
+                    otherwise.effects
+                });
+                let (effects, decline) = complementary_effects(outcome, body.effects, otherwise);
+                (effects, decline.unwrap_or_default())
+            }
+            PerformanceOutcome::Reflexive => (vec![reflexive_trigger(&player, body)], vec![]),
+        };
+        cursor.enter("lower.program.optional-cost.declarations");
+        require_distinct_declarations(
+            cursor,
+            &decisions,
+            "distinct declaration ids across the outcome and its complement",
+        )?;
+        return Ok(LoweredEffectSequence {
+            decisions,
+            effects: vec![json!({
+                "kind": "optionalPayCostPerformEffects",
+                "player": player,
+                "cost": payment["cost"].clone(),
+                "effects": effects,
+                "declineEffects": decline,
+            })],
+        });
+    }
     // Both sentences were lowered independently; a runtime binding or
     // decision produced by the instruction must not be shadowed by its outcome.
     let instruction =
@@ -1214,6 +1253,9 @@ pub(in crate::oracle::canonical) fn concatenate_program_steps(
         program.decisions.extend(step.decisions);
         program.effects.extend(step.effects);
     }
+    // `You may VERB. If you do or ...`: an outcome whose producer is the
+    // previous step's instruction (`optional_outcome.rs`).
+    resolve_program_optional_outcomes(cursor, &mut program.effects)?;
     Ok(program)
 }
 

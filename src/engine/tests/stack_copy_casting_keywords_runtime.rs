@@ -130,6 +130,10 @@ fn a_commander_cast_count_copies_the_spell_that_many_times() {
 /// CR 702.94a: the first card drawn this turn is revealed and may be cast
 /// for its miracle cost, read from the printed keyword line.
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Temporal Mastery; see docs/coverage-targets.md"
+)]
 #[test]
 fn a_parsed_miracle_casts_the_first_card_drawn_for_its_cost() {
     let mastery = spell(

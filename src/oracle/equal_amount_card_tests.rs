@@ -151,18 +151,17 @@ fn greatest_power_among_your_creatures_is_an_aggregate_quantity() {
     );
     let draw = find(&rules[0], "drawCards").expect("draw");
     assert_eq!(draw["count"]["kind"], "greatestPower");
-    // Near miss: the engine aggregates only the controller's permanents.
-    let abilities = card(
+    // Another controller's permanents: the shared set aggregate.
+    let rules = canonical_rules(
         "Aggregate Probe",
         "Sorcery",
         "{3}{G}",
         "Draw cards equal to the greatest power among creatures your opponents control.",
     );
-    assert!(
-        abilities[0].0.starts_with("unsupported"),
-        "{}",
-        abilities[0].0
-    );
+    let draw = find(&rules[0], "drawCards").expect("draw");
+    assert_eq!(draw["count"]["kind"], "aggregateObjects");
+    assert_eq!(draw["count"]["function"], "greatest");
+    assert_eq!(draw["count"]["objects"]["player"]["kind"], "opponentsOf");
 }
 
 #[test]

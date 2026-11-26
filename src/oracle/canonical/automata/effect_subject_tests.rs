@@ -301,8 +301,9 @@ fn a_preposed_for_each_scales_its_action() {
     }
 }
 
-/// Near misses: the introducer scopes one action ending its sentence, and a
-/// player population is not a countable (a distributive frame, not a count).
+/// Near miss: the introducer scopes one action ending its sentence. A
+/// player population is not a countable: it opens the distributive player
+/// frame (a loop over the players, not a count).
 #[test]
 fn a_preposed_for_each_scopes_one_counted_action() {
     let (status, _, states) = parse(
@@ -316,11 +317,15 @@ fn a_preposed_for_each_scopes_one_counted_action() {
             .any(|state| state == "sequence.for-each.preposed-action"),
         "{states:?}"
     );
-    let (status, _, _) = parse(
+    let distributive = effects(
         SORCERY,
         "For each opponent, create a 1/1 white Soldier creature token.",
     );
-    assert_ne!(status, "canonical");
+    assert_eq!(distributive.len(), 1, "{distributive:#?}");
+    assert_eq!(
+        distributive[0]["kind"], "forEachPlayer",
+        "{distributive:#?}"
+    );
 }
 
 fn untap_restrictions(type_line: &str, oracle: &str) -> Vec<Value> {
@@ -481,9 +486,9 @@ fn a_reflexive_frame_needs_one_measured_instruction() {
 }
 
 /// `For each opponent, BODY` is the distributive player frame (CR 608.2c),
-/// never a count: a body with targets would declare them per player (CR
-/// 601.2c) and fails as an engine gap; any other body has no player-loop
-/// lowering yet. Both failures are explicit and distinct.
+/// never a count. A body without targets loops over the players; an exact
+/// target declared per player (CR 601.2c, Blatant Thievery) has no
+/// per-player declaration yet and fails explicitly in the frame lowering.
 #[test]
 fn a_player_population_is_a_distributive_frame() {
     // Real cards: Blatant Thievery (per-player targets), Soul of Eternity's
@@ -496,20 +501,15 @@ fn a_player_population_is_a_distributive_frame() {
     assert!(
         states
             .iter()
-            .any(|state| state == "sequence.for-each-player.per-player-targets"),
+            .any(|state| state == "lower.for-each-player.per-player-targets"),
         "{states:?}"
     );
-    let (status, _, states) = parse(
+    let looped = effects(
         SORCERY,
         "For each player, create a 1/1 white Soldier creature token.",
     );
-    assert_ne!(status, "canonical");
-    assert!(
-        states
-            .iter()
-            .any(|state| state == "sequence.for-each-player.body"),
-        "{states:?}"
-    );
+    assert_eq!(looped.len(), 1, "{looped:#?}");
+    assert_eq!(looped[0]["kind"], "forEachPlayer", "{looped:#?}");
 }
 
 /// The performer slot (CR 608.2c): another player's clause is the ordinary

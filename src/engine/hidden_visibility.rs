@@ -17,7 +17,10 @@ pub(super) fn look_at_face_down_supported(effect: &Value) -> bool {
 /// `lookAtFaceDownAnyTime` (static, CR 708.5): the source's controller may
 /// look at the face-down permanents of a static battlefield selector.
 pub(super) fn face_down_look_modifier_supported(modifier: &Value) -> bool {
-    value_kind(&modifier["player"]) == Some("abilityController")
+    // The holder is the source's controller, written either way.
+    (value_kind(&modifier["player"]) == Some("abilityController")
+        || (value_kind(&modifier["player"]) == Some("controllerOf")
+            && value_kind(&modifier["player"]["object"]) == Some("self")))
         && static_object_selector_supported(&modifier["objects"])
 }
 

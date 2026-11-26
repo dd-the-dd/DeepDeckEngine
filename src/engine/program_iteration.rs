@@ -221,9 +221,27 @@ impl GameEngine {
         decisions: &mut BTreeMap<String, Value>,
         provider: &mut P,
     ) -> Result<(), EngineError> {
-        let objects = self
-            .resolve_runtime_object_ids(&effect["objects"], stack_object, bindings, decisions)
-            .unwrap_or_default();
+        // A declared set is iterated over its members that are still legal
+        // targets (CR 608.2b): a departed member gets no pass.
+        let objects = if value_kind(&effect["objects"]) == Some("chosenTargets") {
+            let decision_id = effect["objects"]["id"].as_str().unwrap_or_default();
+            let ordinal_prefix = format!("{decision_id}:");
+            stack_object
+                .targets
+                .iter()
+                .filter(|(target_id, target)| {
+                    (target_id.as_str() == decision_id || target_id.starts_with(&ordinal_prefix))
+                        && self.target_is_legal_for_stack_object(target_id, target, stack_object)
+                })
+                .filter_map(|(_, target)| match target {
+                    TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
+                    _ => None,
+                })
+                .collect()
+        } else {
+            self.resolve_runtime_object_ids(&effect["objects"], stack_object, bindings, decisions)
+                .unwrap_or_default()
+        };
         let Some(binding_id) = effect["bind"].as_str() else {
             return Ok(());
         };

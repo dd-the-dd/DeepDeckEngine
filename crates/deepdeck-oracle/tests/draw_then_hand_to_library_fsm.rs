@@ -4,10 +4,17 @@ use deepdeck_oracle::oracle::{
 use serde_json::{Value, json};
 
 fn parse_instant(oracle_text: &str) -> OracleCardParseResult {
+    // X is the spell's own mana X (CR 107.3); a face without {X} has no
+    // producer of it.
+    let mana_cost = if oracle_text.contains(" X ") {
+        "{X}{U}"
+    } else {
+        "{U}"
+    };
     parse_oracle_card(OracleCardParseRequest {
         card_name: "Brainstorm".to_string(),
         type_line: "Instant".to_string(),
-        mana_cost: Some("{U}".to_string()),
+        mana_cost: Some(mana_cost.to_string()),
         oracle_text: Some(oracle_text.to_string()),
         layout: Some("normal".to_string()),
         faces: Vec::new(),
@@ -102,7 +109,13 @@ fn fixed_and_variable_counts_reuse_numeric_and_collection_automata() {
         (
             "Draw X cards, then put X cards from your hand on top of your library in any order.",
             json!({ "kind": "decisionResult", "decisionId": "xValue" }),
-            json!({ "kind": "decisionResult", "decisionId": "xValue" }),
+            json!({
+                "kind": "minimum",
+                "operands": [
+                    { "kind": "decisionResult", "decisionId": "xValue" },
+                    { "kind": "countObjects", "objects": own_zone("hand") },
+                ],
+            }),
         ),
     ] {
         let parsed = parse_instant(oracle_text);
@@ -116,18 +129,10 @@ fn fixed_and_variable_counts_reuse_numeric_and_collection_automata() {
         assert_eq!(rule["effects"][0]["count"], draw_count, "{oracle_text}");
         let selection = &rule["effects"][1];
         assert_eq!(selection["kind"], "chooseCards", "{oracle_text}");
-        if oracle_text.contains(" X ") {
-            assert_eq!(rule["declaration"]["decisions"][0]["kind"], "chooseNumber");
-            assert_eq!(selection["minimum"], move_count, "{oracle_text}");
-            assert_eq!(selection["maximum"], move_count, "{oracle_text}");
-            assert_eq!(
-                selection["candidates"]["zone"]["kind"], "hand",
-                "{oracle_text}"
-            );
-        } else {
-            assert_eq!(selection["count"], move_count, "{oracle_text}");
-            assert_eq!(selection["from"], own_zone("hand"), "{oracle_text}");
-        }
+        // A fixed or variable count is the same clamped zone-collection
+        // count (CR 609.3).
+        assert_eq!(selection["count"], move_count, "{oracle_text}");
+        assert_eq!(selection["from"], own_zone("hand"), "{oracle_text}");
         assert_eq!(rule["effects"][3]["kind"], "moveCards", "{oracle_text}");
         assert_eq!(rule["effects"][3]["to"]["position"], "top", "{oracle_text}");
     }

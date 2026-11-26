@@ -250,7 +250,7 @@ impl CardCollectionMemory {
     }
 
     /// Selection bindings share one allocator across nested program scopes.
-    /// Claims the instruction IDs (`id` of each top-level instruction) a
+    /// Claims the instruction IDs (`id` and `bind` of each top-level instruction) a
     /// lowering derived from its program position, so a nested optional
     /// scope may carry them. `false`, claiming nothing, when one is already
     /// allocated in this program: two producers would alias one decision.
@@ -258,9 +258,15 @@ impl CardCollectionMemory {
         &mut self,
         effects: &[Value],
     ) -> bool {
+        // The decision `id` and the `bind` an instruction records its result
+        // in are both program-unique names a later reference reads.
         let ids = effects
             .iter()
-            .filter_map(|effect| effect.get("id").and_then(Value::as_str))
+            .flat_map(|effect| {
+                ["id", "bind"]
+                    .into_iter()
+                    .filter_map(|field| effect.get(field).and_then(Value::as_str))
+            })
             .collect::<Vec<_>>();
         let unique = ids.iter().collect::<std::collections::BTreeSet<_>>().len() == ids.len();
         if !unique || ids.iter().any(|id| self.allocated_ids.contains(*id)) {
@@ -2675,10 +2681,13 @@ impl CardCollectionMemory {
                 // cards are fixed by the declaration or the choice (CR
                 // 608.2c), and the exiled cards they became are the observed
                 // collection of later card references.
-                if matches!(
-                    operand,
-                    CardOperandNode::Targets(_) | CardOperandNode::ZoneCollection(_)
-                ) && destination.zone == CardZoneName::Exile
+                // A zone collection (`exile all creature cards from target
+                // player's graveyard`, `exiles a card from their hand`) is
+                // bound only when a later action reads it
+                // (`effect_sequence.rs`): an unread binding would escape an
+                // optional block for nothing.
+                if matches!(operand, CardOperandNode::Targets(_))
+                    && destination.zone == CardZoneName::Exile
                 {
                     // Bound to the objects they became (CR 400.7).
                     movement["bind"] = json!(match maximum {

@@ -2762,9 +2762,11 @@ pub(in crate::oracle::canonical) fn lower_static_permanent_query(
             ObjectControllerScope::OpponentOfAbilityController => {
                 json!({ "kind": "opponentsOf", "player": controller() })
             }
-            ObjectControllerScope::NotAbilityController
-            | ObjectControllerScope::EventPlayer
-            | ObjectControllerScope::Player(_) => {
+            // `you don't control`: every player but the source's controller.
+            ObjectControllerScope::NotAbilityController => {
+                json!({ "kind": "playersExcept", "player": controller() })
+            }
+            ObjectControllerScope::EventPlayer | ObjectControllerScope::Player(_) => {
                 return Err(
                     cursor.fail("a static controller scope representable as a player relation")
                 );

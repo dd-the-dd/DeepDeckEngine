@@ -56,7 +56,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "state": "selector.predicate.complete"
           }
         ],
         "abilities": [
@@ -154,7 +155,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 1
+            "abilityIndex": 1,
+            "state": "effect.start"
           }
         ]
       }
@@ -252,7 +254,7 @@
               },
               {
                 "pointer": "/ability/effects/0/token/colors/0",
-                "equals": "blue"
+                "equals": "Blue"
               }
             ]
           }
@@ -389,10 +391,18 @@
             "ruleAssertions": [
               {
                 "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/condition/choice",
+                "equals": "gift"
+              },
+              {
+                "pointer": "/effects/0/then/0/kind",
                 "equals": "copyStackItem"
               },
               {
-                "pointer": "/effects/0/object/kind",
+                "pointer": "/effects/0/then/0/object/kind",
                 "equals": "triggeringStackObject"
               }
             ]
@@ -496,7 +506,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 1
+            "abilityIndex": 1,
+            "state": "player-set.relative.who.verb"
           }
         ],
         "abilities": [
@@ -679,7 +690,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "state": "effect.start"
           }
         ]
       }

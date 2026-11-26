@@ -869,7 +869,7 @@
       }
     },
     {
-      "id": "near-miss-spending-on-any-ability-has-no-runtime-restriction",
+      "id": "sibling-spending-on-a-spell-or-any-ability",
       "request": {
         "cardName": "Probe Battery",
         "typeLine": "Artifact",
@@ -879,12 +879,26 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "state": "mana.policy.runtime-union"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpellOrActivateAbilityOf"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction/abilitySources",
+                "equals": "any"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction/spells/value",
+                "equals": "Artifact"
+              }
+            ]
           }
         ]
       }

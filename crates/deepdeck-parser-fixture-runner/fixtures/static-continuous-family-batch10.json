@@ -1012,7 +1012,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "static.prevent.terminator"
+            "state": "selector.relation.anchor.contracted-pronoun"
           }
         ]
       }

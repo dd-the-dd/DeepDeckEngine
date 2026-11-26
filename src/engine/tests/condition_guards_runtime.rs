@@ -98,13 +98,14 @@ fn a_guarded_option_outcome_needs_the_guard_and_the_performed_option() {
         let player = &mut engine.state.players[0];
         player.hand.clear();
         player.battlefield = vec![source.clone()];
+        // The last card of the library is its top card.
         player.library = vec![
-            test_instance("top-card", test_definition("top-card", top), "player-0"),
             test_instance(
                 "second-card",
                 test_definition("second-card", "Instant"),
                 "player-0",
             ),
+            test_instance("top-card", test_definition("top-card", top), "player-0"),
         ];
         let stack = ability_stack(&source, &rule);
         let result = if accept {
@@ -158,6 +159,9 @@ fn a_kicker_branch_target_is_declared_only_for_a_kicked_cast() {
         test_definition("tap-candidate", "Creature - Bear"),
         "player-1",
     ));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let mut definition = test_definition("probe-shock", "Instant");
     definition.mana_cost = "{1}{U}".to_string();
     definition.rules = rules;

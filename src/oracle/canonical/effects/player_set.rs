@@ -129,6 +129,10 @@ fn acting_player_slot(kind: &str) -> Option<&'static str> {
     match kind {
         "gainLife" | "loseLife" | "setLifeTotal" | "drawCards" | "mill" | "discardCards"
         | "addPlayerCounters" => Some("player"),
+        // The player choosing what it sacrifices (`that player sacrifices
+        // half the creatures they control`): the count reads its own
+        // permanents.
+        "chooseCards" => Some("player"),
         "dealDamage" => Some("recipient"),
         _ => None,
     }
@@ -193,6 +197,12 @@ pub(in crate::oracle::canonical) fn bind_pending_acting_players(value: &mut Valu
         return;
     }
     if names_player_population(&player) {
+        // A choice is one half of a paired selection: wrapping it alone in
+        // a per-player loop would separate it from the action that reads
+        // its result, so the pending player stays explicit.
+        if value.get("kind").and_then(Value::as_str) == Some("chooseCards") {
+            return;
+        }
         let member = json!({"kind": "boundValue", "id": ACTING_PLAYER_BINDING});
         let mut body = value.take();
         body[slot] = member.clone();

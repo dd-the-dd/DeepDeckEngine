@@ -163,10 +163,12 @@ fn unsupported_static_prevention_scopes_fail_inside_the_frame() {
             "Prevent all damage that would be dealt to this creature this turn.",
             "static.prevent.terminator",
         ),
-        // A relational source (`creatures it's blocking`) is not a collection.
+        // A relational source (`creatures it's blocking`): the shared query
+        // reads the combat relation, whose anchor the static prevention
+        // frame does not bind.
         (
             "Prevent all damage that would be dealt to this creature by creatures it's blocking.",
-            "static.prevent.terminator",
+            "selector.relation.anchor.contracted-pronoun",
         ),
     ];
     for (text, state) in cases {

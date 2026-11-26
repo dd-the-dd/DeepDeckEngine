@@ -566,8 +566,13 @@ fn demonstrative_permanent_set_antecedent(
     }
     let mut trial = cursor.clone();
     match super::recognize_object_set_reference(&mut trial, &environment) {
+        // `those creatures` (a declared set) or `those tokens` (the tokens
+        // the preceding action created, CR 111.1).
         Ok(super::PermanentOperandNode::BoundReference(
-            reference @ PermanentEffectReference::TargetSet(_),
+            reference @ (PermanentEffectReference::TargetSet(_)
+            | PermanentEffectReference::Observed(
+                TypedObservedEventObject::CreatedTokens,
+            )),
         )) => {
             *cursor = trial;
             Some(reference)
@@ -2599,8 +2604,11 @@ fn recognize_card_permission_frame(
     // `play lands and cast spells from ORIGIN` (CR 305.1, 601.2): a land is
     // played and any other card cast, which is the play verb over every
     // card of the origin; the coordinated nouns name no narrower query.
+    // Only a bound collection (`from among them`) is claimed: a whole zone
+    // (`from your graveyard`) is the continuous play permission the
+    // temporary-rules frame reads (CR 601.3, 611.2).
     let lands_and_spells = verb == CardPermissionVerb::Play
-        && ["lands", "and", "cast", "spells", "from"]
+        && ["lands", "and", "cast", "spells", "from", "among"]
             .iter()
             .enumerate()
             .all(|(offset, word)| peek_word(cursor, offset, word));

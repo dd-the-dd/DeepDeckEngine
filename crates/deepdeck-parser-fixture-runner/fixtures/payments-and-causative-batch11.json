@@ -564,11 +564,15 @@
             "ruleAssertions": [
               {
                 "pointer": "/effects/0/kind",
-                "equals": "optionalAction"
+                "equals": "optionalPayCostPerformEffects"
               },
               {
-                "pointer": "/effects/0/action/kind",
-                "equals": "payCost"
+                "pointer": "/effects/0/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/effects/0/cost/kind",
+                "equals": "payMana"
               }
             ]
           }
@@ -595,11 +599,15 @@
             "ruleAssertions": [
               {
                 "pointer": "/effects/0/kind",
-                "equals": "optionalAction"
+                "equals": "optionalPayCostPerformEffects"
               },
               {
-                "pointer": "/effects/0/action/kind",
-                "equals": "payCost"
+                "pointer": "/effects/0/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/effects/0/cost/manaCost",
+                "equals": "{4}"
               }
             ]
           }
@@ -729,10 +737,14 @@
             "ruleAssertions": [
               {
                 "pointer": "/effects/0/kind",
-                "equals": "optionalAction"
+                "equals": "optionalPayCostPerformEffects"
               },
               {
-                "pointer": "/effects/0/action/cost/kind",
+                "pointer": "/effects/0/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/effects/0/cost/kind",
                 "equals": "payLife"
               }
             ]
@@ -872,7 +884,9 @@
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
-          {}
+          {
+            "state": "effect.damage.recipient.event-player"
+          }
         ]
       }
     },

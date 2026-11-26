@@ -338,6 +338,18 @@ pub(crate) fn validate_native_contextual_bindings(
             });
             continue;
         }
+        // `repeat this process` names the program read before it in the
+        // same rule (CR 608.2c); a rule without one (a quoted ability whose
+        // only instruction is the repetition) has no process to repeat.
+        if references_kind(rule, "unresolvedRepeatedProcess") {
+            reject_binding(
+                ability,
+                "binding.repeated-process.source",
+                "an earlier step of the same rule as the repeated process",
+                "The canonical rule repeats a process, but no earlier step of this rule states one.",
+            );
+            continue;
+        }
         // The number a cost's payer chose (`remove any number of storage
         // counters`, CR 601.2h) is declared by that cost's own activation;
         // no other rule borrows it.

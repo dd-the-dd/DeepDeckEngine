@@ -246,10 +246,13 @@ pub(super) fn resolve_optional_outcomes(
             }
         };
         cursor.enter("lower.sentence-condition.optional-outcome.producer");
+        // The first instruction of this sequence: its producer is the last
+        // instruction of the program step before it (`You may reveal a
+        // Dinosaur card from your hand. If you do or ...`), which the
+        // program lowering resolves (`resolve_program_optional_outcomes`).
         let Some(producer_index) = index.checked_sub(1) else {
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                cursor.fail("an optional instruction just before the outcome"),
-            ));
+            index += 1;
+            continue;
         };
         let producer = effects[producer_index].clone();
         let rewritten = match producer["kind"].as_str() {
@@ -303,4 +306,81 @@ pub(super) fn resolve_optional_outcomes(
         effects.remove(index);
     }
     Ok(())
+}
+
+/// Resolves the outcomes a program step left for the step before it, then
+/// refuses any outcome still without its producer: an explicit failure,
+/// never an always-true outcome.
+pub(in crate::oracle::canonical) fn resolve_program_optional_outcomes(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut Vec<Value>,
+) -> MachineResult<()> {
+    let unwrap = |failure| match failure {
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure)
+        | EffectSequenceLoweringFailure::FailedSupport(failure)
+        | EffectSequenceLoweringFailure::FailedInvariant(failure) => failure,
+    };
+    nest_outcomes_of_guarded_options(effects);
+    for effect in effects.iter_mut() {
+        if effect["kind"].as_str() == Some("optionalEffects")
+            && let Some(inner) = effect["effects"].as_array_mut()
+            && inner.iter().any(|inner| {
+                inner["kind"].as_str() == Some("conditional")
+                    && mentions_pending_outcome(&inner["condition"])
+            })
+        {
+            resolve_optional_outcomes(cursor, inner).map_err(unwrap)?;
+        }
+    }
+    resolve_optional_outcomes(cursor, effects).map_err(unwrap)?;
+    cursor.enter("lower.sentence-condition.optional-outcome.producer");
+    cursor.require(
+        !effects.iter().any(|effect| {
+            effect["kind"].as_str() == Some("conditional")
+                && mentions_pending_outcome(&effect["condition"])
+        }),
+        "an optional instruction just before the outcome",
+    )
+}
+
+/// `You may look at the top card of your library. If it shares a creature
+/// type with this creature, you may reveal it. If you do, ...` (Kinship):
+/// the outcome's producer is the guarded option at the end of the previous
+/// step's permission, which offers it only when that permission was used.
+/// A `you do` outcome without a declined branch is false wherever the inner
+/// option was not offered, so it is read inside the outer permission, after
+/// the guarded option it measures (CR 608.2c).
+fn nest_outcomes_of_guarded_options(effects: &mut Vec<Value>) {
+    fn ends_with_guarded_option(effects: &[Value]) -> bool {
+        effects.last().is_some_and(|last| {
+            last["kind"].as_str() == Some("conditional")
+                && last["else"].as_array().is_none_or(Vec::is_empty)
+                && last["then"]
+                    .as_array()
+                    .and_then(|then| then.last())
+                    .is_some_and(|option| option["kind"].as_str() == Some("optionalEffects"))
+        })
+    }
+    let mut index = 1;
+    while index < effects.len() {
+        let outcome = &effects[index];
+        let nestable = outcome["kind"].as_str() == Some("conditional")
+            && outcome["else"].as_array().is_none_or(Vec::is_empty)
+            && matches!(
+                outcome_form(&outcome["condition"]),
+                Some(OutcomeForm::Outcome { performed: true })
+            )
+            && effects[index - 1]["kind"].as_str() == Some("optionalEffects")
+            && effects[index - 1]["effects"]
+                .as_array()
+                .is_some_and(|inner| ends_with_guarded_option(inner));
+        if nestable {
+            let outcome = effects.remove(index);
+            if let Some(inner) = effects[index - 1]["effects"].as_array_mut() {
+                inner.push(outcome);
+            }
+        } else {
+            index += 1;
+        }
+    }
 }

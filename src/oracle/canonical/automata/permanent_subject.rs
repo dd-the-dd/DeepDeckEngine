@@ -56,6 +56,17 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
         {
             Some(Some(TargetSelector::Object(targets.predicate.clone())))
         }
+        // `return the top creature card of your graveyard to the
+        // battlefield`: the one positioned card, if any, enters with the
+        // card predicate the position read (CR 400.7).
+        LocalEffectNode::CardAction(CardActionNode::Move {
+            cards: CardOperandNode::GraveyardPosition(position),
+            destination,
+        }) if destination.zone == CardZoneName::Battlefield
+            && position.count == NumericExpression::from(1) =>
+        {
+            Some(position.predicate.clone().map(TargetSelector::Object))
+        }
         // `search your library for a basic land card, put it onto the
         // battlefield`: the one card the search may find enters (CR
         // 701.23a); the found card satisfies the search's card phrase.
@@ -639,6 +650,12 @@ pub(in crate::oracle::canonical) fn prior_object_set(
             number: GrammaticalNumber::Plural,
             tokens: false,
         }),
+        // `Those tokens gain haste. Exile them ...`: an action on the set
+        // the action before it produced keeps that set as the antecedent.
+        PermanentOperandNode::BoundReference(
+            reference @ PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
+        ) => prior_object_set(&effects[..effect_index])
+            .filter(|set| set.denotes == ObjectSetDenotation::Bound(*reference)),
         // `Untap all creatures you control. They gain flying`: the same
         // collection, when the action changes nothing its query tests.
         PermanentOperandNode::Collection {

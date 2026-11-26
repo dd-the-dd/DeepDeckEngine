@@ -301,7 +301,11 @@
               },
               {
                 "pointer": "/effects/0/viewer/kind",
-                "equals": "abilityController"
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/effects/0/viewer/object/kind",
+                "equals": "self"
               }
             ]
           }
@@ -600,7 +604,7 @@
       }
     },
     {
-      "id": "sibling-discarded-card-cast-from-graveyard",
+      "id": "known-gap-discarded-card-cast-from-graveyard",
       "request": {
         "cardName": "Discard Probe",
         "typeLine": "Creature \u2014 Elemental",
@@ -610,27 +614,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "castAnyNumber"
-              },
-              {
-                "pointer": "/effects/0/sourceZone",
-                "equals": "graveyard"
-              },
-              {
-                "pointer": "/effects/0/cards/kind",
-                "equals": "triggeringCard"
-              }
-            ]
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.resolution-cast"
           }
         ]
       }

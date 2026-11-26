@@ -817,6 +817,21 @@ pub(in crate::oracle::canonical) fn preposed_condition_subject(
     }
 }
 
+/// Whether a preposed condition names its object only through cast facts or
+/// cast choices of the source spell (`If this spell was kicked`).
+fn preposed_condition_is_cast_fact(condition: &super::ConditionNode) -> bool {
+    match condition {
+        super::BooleanConditionNode::Atom(atom) => matches!(
+            atom,
+            super::ConditionAtom::CastFact(_) | super::ConditionAtom::CastChoice(_)
+        ),
+        super::BooleanConditionNode::Not(inner) => preposed_condition_is_cast_fact(inner),
+        super::BooleanConditionNode::And(operands) | super::BooleanConditionNode::Or(operands) => {
+            operands.iter().all(preposed_condition_is_cast_fact)
+        }
+    }
+}
+
 /// Whether the atoms of a preposed condition name two different objects
 /// (`If this Equipment is a creature and equipped creature is a Warrior`):
 /// a following pronoun has competing antecedents and names neither.
@@ -871,6 +886,13 @@ pub(in crate::oracle::canonical) fn publish_preposed_condition_antecedent(
         return;
     };
     let installed = installed_binding_environment(cursor);
+    // A cast fact or cast choice is about the resolving spell, which no
+    // object action of its own program acts on: a pronoun or nominal anaphor
+    // after it (`If this spell was kicked, that creature gets -2/-0
+    // instead`) keeps the program's own earlier object antecedent.
+    if installed.object.is_some() && preposed_condition_is_cast_fact(condition) {
+        return;
+    }
     let selector = match reference {
         PermanentEffectReference::Target(binding) => {
             let declared = installed

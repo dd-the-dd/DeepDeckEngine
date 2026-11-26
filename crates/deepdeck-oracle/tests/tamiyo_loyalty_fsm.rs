@@ -60,8 +60,10 @@ fn another_planeswalker_reuses_the_protected_attack_event_and_stat_modifier() {
     assert_eq!(rule["effects"][0]["effects"][0]["toughness"]["value"], 0);
 }
 
+/// An attacked opponent is the shared attack event's recipient, and `it` in
+/// the created trigger names that trigger's own attacker (CR 603.7c).
 #[test]
-fn unsupported_attack_recipient_is_a_committed_native_diagnostic() {
+fn an_attacked_opponent_is_the_created_trigger_recipient() {
     let parsed = parse_loyalty_abilities(
         "+2: Until your next turn, whenever a creature attacks an opponent, it gets -1/-0 until end of turn.",
     );
@@ -69,7 +71,16 @@ fn unsupported_attack_recipient_is_a_committed_native_diagnostic() {
     assert_eq!(parsed.abilities.len(), 1);
     let ability = &parsed.abilities[0];
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
-    assert_eq!(ability.status, "unsupported");
-    assert!(ability.rule.is_none());
-    assert!(!ability.diagnostics.is_empty());
+    assert_eq!(ability.status, "canonical", "{:#?}", ability.diagnostics);
+    let rule = ability.rule.as_ref().expect("a created trigger");
+    let created = &rule["effects"][0];
+    assert_eq!(created["kind"], "installCreatedTrigger");
+    assert_eq!(
+        created["event"]["attacked"]["anyOf"][0]["player"]["kind"],
+        "opponentsOf"
+    );
+    assert_eq!(
+        created["effects"][0]["object"]["kind"],
+        "triggeringPermanent"
+    );
 }

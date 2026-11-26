@@ -2186,10 +2186,24 @@ enum PlayerRelationState {
 /// opponent controls`). Dispatch hint only; the relation reader validates
 /// the clause.
 fn player_relation_subject_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    // `your` before a card zone noun (`your hand`, `your graveyard`) is a
+    // zone possessive the parent reads, never a relation subject.
+    let zone_possessive = cursor.peek_ahead(1).is_some_and(|raw| {
+        [
+            "hand",
+            "graveyard",
+            "library",
+            "hands",
+            "graveyards",
+            "libraries",
+        ]
+        .iter()
+        .any(|zone| raw.eq_ignore_ascii_case(zone))
+    });
     cursor.peek().is_some_and(|token| {
         token.eq_ignore_ascii_case("you")
             || token.eq_ignore_ascii_case("an")
-            || token.eq_ignore_ascii_case("your")
+            || (token.eq_ignore_ascii_case("your") && !zone_possessive)
     }) || bound_player_relation_starts(cursor)
         || declared_player_relation_starts(cursor)
         || they_relation_scope(cursor).is_some()

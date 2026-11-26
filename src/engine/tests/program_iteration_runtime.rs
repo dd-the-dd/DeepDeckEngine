@@ -301,7 +301,7 @@ fn a_body_without_a_member_reference_is_performed_once_per_opponent() {
     engine.state.step = GameStep::PrecombatMain;
     cast(&mut engine, &card, &[]);
     resolve(&mut engine);
-    assert_eq!(tokens_named(&engine, 0, "Villain"), 2);
+    assert_eq!(tokens_named(&engine, 0, "Villain Token"), 2);
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

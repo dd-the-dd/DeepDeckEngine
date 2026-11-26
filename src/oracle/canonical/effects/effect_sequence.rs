@@ -282,7 +282,11 @@ pub(super) fn reads_card_collection_reference(following: &[LocalEffectNode]) -> 
             | CardActionNode::Permit(CardPermissionNode { cards, .. }),
         ) => Some(matches!(
             cards,
-            CardOperandNode::Reference(_) | CardOperandNode::ObjectAntecedent { .. }
+            CardOperandNode::Reference(_)
+                | CardOperandNode::ObjectAntecedent { .. }
+                // `from among those cards`: a selection reads the observed
+                // collection it chooses from.
+                | CardOperandNode::Selection(_)
         )),
         LocalEffectNode::CardAction(_) => Some(false),
         _ => None,
@@ -1035,7 +1039,6 @@ fn lower_local_effect_sequence_with_collections(
                     destination,
                 } = action
                     && destination.zone == CardZoneName::Exile
-                    && query.quantity.is_none()
                     && (reads_card_collection_reference(&sequence.effects[effect_index + 1..])
                         || collections
                             .continuation_reads_cards_after(effect_index, sequence.effects.len()))
@@ -1045,7 +1048,17 @@ fn lower_local_effect_sequence_with_collections(
                         .find(|value| value["kind"] == "moveCards")
                     && movement.get("bind").is_none()
                 {
-                    movement["bind"] = json!(collections.observe_exiled_objects(None));
+                    // `exiles a card from their hand. You may play that
+                    // card`: a chosen literal count keeps its number.
+                    movement["bind"] = json!(match &query.quantity {
+                        Some(CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                            NumericAtom::Integer(1),
+                        ))) => collections.observe_exiled_object(),
+                        Some(CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                            NumericAtom::Integer(count),
+                        ))) => collections.observe_exiled_objects(Some(*count)),
+                        _ => collections.observe_exiled_objects(None),
+                    });
                 }
                 effects.extend(lowered);
                 // `look at target player's hand`: the declared zone owner is
@@ -4277,6 +4290,7 @@ use delayed_frame_lowering::apply_delayed_frames;
 mod optional_outcome;
 pub(in crate::oracle::canonical) use optional_outcome::OPTIONAL_OUTCOME_CONDITION;
 use optional_outcome::resolve_optional_outcomes;
+pub(in crate::oracle::canonical) use optional_outcome::resolve_program_optional_outcomes;
 
 #[cfg(test)]
 #[path = "where_x_tests.rs"]

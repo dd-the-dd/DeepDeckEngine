@@ -64,6 +64,16 @@ impl NamedCardIndex for CatalogNamedCardIndex {
     }
 }
 
+/// The entities of a registered rules text (a keyword's payload definition)
+/// with its catalog token names resolved as an ability's own text is.
+pub(crate) fn recognize_entities_with_named_tokens(
+    text: &str,
+) -> Vec<super::model::RecognizedEntity> {
+    let mut entities = crate::oracle::syntax::recognize_entities(text);
+    resolve_named_token_spans(&mut entities, &CatalogNamedTokenIndex);
+    entities
+}
+
 pub fn parse_oracle_card(request: OracleCardParseRequest) -> OracleCardParseResult {
     parse_oracle_card_native(request)
 }

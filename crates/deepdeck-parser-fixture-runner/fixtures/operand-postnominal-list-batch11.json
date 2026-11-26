@@ -352,7 +352,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "traceContainsState": "selector.postnominal-continuation.relation"
+            "code": "oracle_machine_failure",
+            "state": "choose.domain.object.zone.card-location"
           }
         ]
       }
@@ -392,7 +393,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "traceContainsState": "collection.selection.postnominal"
+            "code": "oracle_machine_failure",
+            "state": "choose.domain.card-name.noun"
           }
         ]
       }

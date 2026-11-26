@@ -1882,10 +1882,6 @@ fn parsed_object_history_filters_target_runtime_candidates() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Avengers Tower; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_singular_cast_or_activation_mana_restriction_executes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {

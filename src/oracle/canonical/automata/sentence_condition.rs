@@ -311,7 +311,10 @@ fn optional_outcome_atom(cursor: &OracleTokenCursor<'_>) -> Option<bool> {
     // outcome of an optional instruction a sentence conditional guards.
     match cursor.peek_ahead(2) {
         Some("or") => performed.then_some(true),
-        Some(",") => previous_sentence_guards_an_option(cursor).then_some(performed),
+        // A guarded `If you don't` stays with the effect-program parent,
+        // whose gated producer runs the declined branch where the guard
+        // fails too (CR 608.2c); only `If you do` is claimed here.
+        Some(",") => (performed && previous_sentence_guards_an_option(cursor)).then_some(true),
         _ => None,
     }
 }

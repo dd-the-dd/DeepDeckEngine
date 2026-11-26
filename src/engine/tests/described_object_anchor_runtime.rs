@@ -153,7 +153,12 @@ fn sacrifice_and_resolve(
     )]);
     let reader = rules
         .iter()
-        .find(|rule| rule["effects"].is_array())
+        // The cost declaration's own rule has an empty program.
+        .find(|rule| {
+            rule["effects"]
+                .as_array()
+                .is_some_and(|effects| !effects.is_empty())
+        })
         .expect("the reading program");
     let mut stack = stack_object(source, reader);
     engine.record_cost_paid_objects(&costs, &targets, &mut stack.decisions);

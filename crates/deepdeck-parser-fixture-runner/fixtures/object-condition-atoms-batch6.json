@@ -471,7 +471,7 @@
           {
             "abilityIndex": 2,
             "code": "oracle_machine_failure",
-            "state": "engine.gap.event-matcher"
+            "state": "effect.move-source.return.destination"
           }
         ]
       }

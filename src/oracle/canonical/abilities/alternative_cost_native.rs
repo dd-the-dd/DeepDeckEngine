@@ -723,7 +723,7 @@ fn lower_gift(
             "effects": [{ "kind": "grantExtraTurn", "player": gift_recipient() }],
         }),
         GiftInstruction::CreateToken(words) => {
-            let tokens = crate::oracle::syntax::recognize_entities(words);
+            let tokens = crate::oracle::pipeline::recognize_entities_with_named_tokens(words);
             let mut definition = OracleTokenCursor::new("gift-payload-definition", &tokens);
             let body = recognize_performed_token_creation_body(&mut definition, None)?;
             definition.finish()?;

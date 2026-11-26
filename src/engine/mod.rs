@@ -4093,7 +4093,6 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || convoke_ability_supported(&rule["ability"])
                 || improvise_ability_supported(&rule["ability"])
                 || teamwork_ability_supported(&rule["ability"])
-                || miracle_ability_supported(&rule["ability"])
                 || fuse_ability_supported(&rule["ability"])
                 || morph_ability_supported(&rule["ability"])
                 || prototype_ability_supported(&rule["ability"])

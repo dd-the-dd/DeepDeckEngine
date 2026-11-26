@@ -79,7 +79,7 @@
       }
     },
     {
-      "id": "near-miss-declined-outcome-after-guarded-option",
+      "id": "sibling-declined-outcome-after-guarded-option",
       "request": {
         "cardName": "Probe Seer",
         "typeLine": "Creature — Human Wizard",
@@ -89,18 +89,40 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/then/0/kind",
+                "equals": "optionalAction"
+              },
+              {
+                "pointer": "/effects/1/then/0/actions/0/kind",
+                "equals": "revealCards"
+              },
+              {
+                "pointer": "/effects/1/then/0/onDeclined/0/kind",
+                "equals": "loseLife"
+              },
+              {
+                "pointer": "/effects/1/else/0/kind",
+                "equals": "loseLife"
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "near-miss-outcome-after-a-guarded-mandatory-instruction",
+      "id": "sibling-outcome-after-a-guarded-mandatory-instruction",
       "request": {
         "cardName": "Probe Seer",
         "typeLine": "Creature — Human Wizard",
@@ -110,12 +132,34 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/then/0/kind",
+                "equals": "performAction"
+              },
+              {
+                "pointer": "/effects/1/then/0/actions/0/kind",
+                "equals": "revealCards"
+              },
+              {
+                "pointer": "/effects/1/then/0/onPerformed/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/else",
+                "equals": []
+              }
+            ]
           }
         ]
       }

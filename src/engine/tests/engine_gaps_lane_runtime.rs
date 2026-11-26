@@ -289,13 +289,14 @@ fn a_created_blocker_trigger_names_the_blockers_controller() {
         "Sorcery",
         "Destroy target creature or planeswalker.\nWhenever a creature blocks this turn, its controller loses 1 life.",
     );
-    let installer = rule_with_effects(&rules, "spellAbility")["effects"]
-        .as_array()
-        .expect("effects")
+    // Each paragraph is its own spell ability; the second installs the
+    // created trigger.
+    let installer = rules
         .iter()
+        .filter(|rule| value_kind(rule) == Some("spellAbility"))
+        .flat_map(|rule| rule["effects"].as_array().cloned().unwrap_or_default())
         .find(|effect| value_kind(effect) == Some("installCreatedTrigger"))
-        .expect("the created trigger")
-        .clone();
+        .expect("the created trigger");
     let mut engine = test_engine(2);
     let onslaught = test_instance(
         "onslaught",
