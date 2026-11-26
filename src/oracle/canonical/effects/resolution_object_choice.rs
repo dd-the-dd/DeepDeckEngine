@@ -119,14 +119,17 @@ pub(in crate::oracle::canonical) fn lower_object_choice(
     if choice.random {
         choose["selection"] = json!({"kind": "random"});
     }
-    let chosen = decision_result(&decision);
+    let (choices, chosen) = match choice.partition {
+        None => (vec![choose], decision_result(&decision)),
+        Some(partition) => partitioned_choice(choice, partition, &choose, declarations)?,
+    };
     let Some(action) = &choice.remainder else {
         let binding = chosen_objects_binding(effect_index);
         return Ok(LoweredObjectChoice {
-            choice: vec![
-                choose,
-                json!({"kind": "bind", "id": binding, "value": chosen}),
-            ],
+            choice: choices
+                .into_iter()
+                .chain([json!({"kind": "bind", "id": binding, "value": chosen})])
+                .collect(),
             remainder: Vec::new(),
             chosen: Some(binding),
         });
@@ -138,10 +141,10 @@ pub(in crate::oracle::canonical) fn lower_object_choice(
             .map_err(TargetlessLoweringError::expectation)?;
         let binding = chosen_objects_binding(effect_index);
         return Ok(LoweredObjectChoice {
-            choice: vec![
-                choose,
-                json!({"kind": "bind", "id": binding, "value": chosen}),
-            ],
+            choice: choices
+                .into_iter()
+                .chain([json!({"kind": "bind", "id": binding, "value": chosen})])
+                .collect(),
             remainder: vec![json!({
                 "kind": "destroyPermanent",
                 "permanent": {
@@ -175,17 +178,48 @@ pub(in crate::oracle::canonical) fn lower_object_choice(
         }
     };
     Ok(LoweredObjectChoice {
-        choice: vec![
-            choose,
-            json!({
+        choice: choices
+            .into_iter()
+            .chain([json!({
                 "kind": "bind",
                 "id": unchosen,
                 "value": {"kind": "setDifference", "left": domain, "right": chosen},
-            }),
-        ],
+            })])
+            .collect(),
         remainder: vec![remainder],
         chosen: None,
     })
+}
+
+/// `a land of each basic land type` (CR 305.6, 110.4): one decision per part,
+/// each among the query's objects with that part's value, every one made by
+/// the same chooser; the chosen set is their union, holding an object chosen
+/// for several parts once. Returns the decisions and the chosen-set value.
+fn partitioned_choice(
+    choice: &ObjectChoiceNode,
+    partition: ChoicePartition,
+    template: &Value,
+    declarations: TargetlessDeclarationSupport,
+) -> Result<(Vec<Value>, Value), &'static str> {
+    let base = template["id"]
+        .as_str()
+        .ok_or("a permanent choice decision id")?
+        .to_owned();
+    let mut decisions = Vec::new();
+    let mut sets = Vec::new();
+    for (ordinal, part) in partition.parts().into_iter().enumerate() {
+        let mut query = choice.query.clone();
+        query.predicate = ObjectPredicate::Intersection(vec![query.predicate.clone(), part]);
+        let (predicate, _) = lower_permanent_query_in_context(&query, declarations)
+            .map_err(TargetlessLoweringError::expectation)?;
+        let id = format!("{base}:part{ordinal}");
+        let mut decision = template.clone();
+        decision["id"] = json!(id);
+        decision["candidates"]["where"] = predicate;
+        sets.push(decision_result(&id));
+        decisions.push(decision);
+    }
+    Ok((decisions, json!({"kind": "union", "sets": sets})))
 }
 
 /// `choose a number between N and M` (CR 608.2d, 107.1): the chooser picks

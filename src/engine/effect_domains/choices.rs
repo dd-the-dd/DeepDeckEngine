@@ -1063,7 +1063,10 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> std::borrow::Cow<'a, Value> {
         fn reads_choice(value: &Value) -> bool {
-            if matches!(value_kind(value), Some("chosenColor" | "chosenCardName")) {
+            if matches!(
+                value_kind(value),
+                Some("chosenColor" | "chosenCardName" | "chosenCreatureType")
+            ) {
                 return true;
             }
             match value {
@@ -1072,7 +1075,23 @@ impl GameEngine {
                 _ => false,
             }
         }
-        fn materialize(value: &mut Value, decisions: &BTreeMap<String, Value>) {
+        fn materialize(value: &mut Value, decisions: &BTreeMap<String, Value>, durable: bool) {
+            // A continuous effect of the resolving rule (`creatures of the
+            // creature type of your choice get +2/+2 until end of turn`)
+            // outlives the resolution's decisions: its query keeps the
+            // chosen type itself. A one-shot reader keeps the symbolic atom,
+            // which its own evaluation reads from the decisions.
+            if durable && value_kind(value) == Some("chosenCreatureType") {
+                let subtype = value["decisionId"]
+                    .as_str()
+                    .and_then(|id| resolution_choice_text(decisions.get(id)))
+                    .map(str::to_owned);
+                if let Some(subtype) = subtype {
+                    *value = json!({ "kind": "subtypeContains", "value": subtype });
+                }
+                return;
+            }
+            let durable = durable || value.get("duration").is_some();
             if value_kind(value) == Some("chosenColor") {
                 let color = value["decisionId"]
                     .as_str()
@@ -1097,10 +1116,10 @@ impl GameEngine {
             match value {
                 Value::Object(values) => values
                     .values_mut()
-                    .for_each(|value| materialize(value, decisions)),
+                    .for_each(|value| materialize(value, decisions, durable)),
                 Value::Array(values) => values
                     .iter_mut()
-                    .for_each(|value| materialize(value, decisions)),
+                    .for_each(|value| materialize(value, decisions, durable)),
                 _ => {}
             }
         }
@@ -1108,7 +1127,7 @@ impl GameEngine {
             return std::borrow::Cow::Borrowed(effect);
         }
         let mut materialized = effect.clone();
-        materialize(&mut materialized, decisions);
+        materialize(&mut materialized, decisions, false);
         std::borrow::Cow::Owned(materialized)
     }
 }

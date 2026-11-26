@@ -202,6 +202,7 @@ impl GameEngine {
                     json!({ "cardIds": card_ids }),
                 );
                 self.enqueue_library_searched_triggers(&player_id);
+                self.publish_library_searched(&player_id);
             }
             Some("revealCards") => {
                 let Some(objects) = self.resolve_runtime_object_ids_for_effect(

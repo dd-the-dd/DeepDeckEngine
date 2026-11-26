@@ -52,6 +52,12 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
     /// A targeted-object union `becomes the target of` a spell or ability
     /// (CR 115.1). The source subject is a `SourceEvent` verb.
     BecameTarget(super::BecameTargetEventNode),
+    /// A quantified permanent performing a keyword action on another
+    /// permanent (`a creature you control exploits a creature`, CR 702.110b).
+    ObjectAction(super::ObjectActionEventNode),
+    /// A quantified permanent moved from the battlefield to a written zone
+    /// (`a creature is exiled from the battlefield`, CR 603.10a).
+    ObjectMove(super::ObjectMoveEventNode),
     /// A trigger condition list (CR 603.2): `EVENT and when|whenever|at the
     /// beginning of EVENT ...`. Each member is a complete typed clause with
     /// its own introducer; the ability triggers once per occurrence of any
@@ -234,6 +240,20 @@ impl GenericTriggerEventNode {
                 super::EventMultiplicity::PerEvent { .. }
             ) && subject.query.controller
                 == Some(super::ObjectControllerScope::AbilityController) =>
+            {
+                Some(EventNumericBinding::EventObjectCount)
+            }
+            // `Whenever you attack with one or more ZOMBIES, ... that many`:
+            // the same attackers of one declaration the batch matched,
+            // lowered to the same controlled-attackers matcher (CR 508.1,
+            // 603.2c). The source among the attackers is another count.
+            Self::Local(LocalTriggerEventNode::AttackDeclaration(node))
+                if node.attacker == super::EventActorScope::Controller
+                    && node.source.is_none()
+                    && matches!(
+                        node.attackers.multiplicity,
+                        super::EventMultiplicity::PerEvent { .. }
+                    ) =>
             {
                 Some(EventNumericBinding::EventObjectCount)
             }

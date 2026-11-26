@@ -57,12 +57,9 @@ fn tap_to_exile_a_target_card_from_any_graveyard_is_native_and_primitive() {
 fn complete_ghost_vacuum_routes_both_abilities_through_native_automata() {
     let parsed = parse(FULL_ORACLE);
 
-    // CR 607.2a: the second ability reads cards exiled with this artifact.
-    // The retired `exileTargetCardWithSource` composite has no primitive
-    // replacement that records the source relation yet, so card composition
-    // rejects the unlinked exile instead of emitting a reader that can never
-    // find its cards. Both abilities are still routed natively.
-    assert_eq!(parsed.status, "unsupported");
+    // CR 607.2a: the second ability reads cards exiled with this artifact,
+    // so the face's card exile records its link to the source.
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
     assert_eq!(parsed.abilities.len(), 2);
     assert!(
         parsed
@@ -71,17 +68,14 @@ fn complete_ghost_vacuum_routes_both_abilities_through_native_automata() {
             .all(|ability| ability.recognizer == RecognizerProvenance::Native)
     );
     let exile = &parsed.abilities[0];
-    assert_eq!(exile.status, "unsupported");
-    assert_eq!(exile.rule, None);
-    assert_eq!(exile.diagnostics.len(), 1);
-    assert_eq!(exile.diagnostics[0].code, "oracle_card_composition_failure");
+    assert_eq!(exile.status, "canonical");
     assert_eq!(
-        exile.diagnostics[0].automaton.as_deref(),
-        Some("linked-exile-composition")
-    );
-    assert_eq!(
-        exile.diagnostics[0].state.as_deref(),
-        Some("composition.linked-exile.relation")
+        exile.rule.as_ref().unwrap()["effects"],
+        json!([{
+            "kind": "exileTargetCards",
+            "cards": { "kind": "chosenTargets", "id": "targetCard" },
+            "linkToSource": true,
+        }])
     );
 
     let reader = &parsed.abilities[1];

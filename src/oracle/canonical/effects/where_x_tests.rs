@@ -144,12 +144,27 @@ fn the_binding_is_scoped_to_its_own_sentence() {
 }
 
 #[test]
-fn x_of_another_sentence_is_never_borrowed() {
-    // The second sentence's X has no producer: it must not take the where-X.
+fn a_definition_holds_for_the_later_sentences_of_its_program() {
+    // CR 107.3: X keeps its defined value for the rest of the ability
+    // (Tezzeret, Master of the Bridge): one bind, read by both sentences.
     let parsed = parse(
         "Sorcery",
         "{2}{U}",
         "Draw X cards, where X is the number of lands you control. You gain X life.",
+    );
+    let rule = canonical_rule(&parsed);
+    assert_eq!(kinds(rule), ["bind", "drawCards", "gainLife"]);
+    assert_eq!(rule["effects"][1]["count"], bound());
+    assert_eq!(rule["effects"][2]["amount"], bound());
+}
+
+#[test]
+fn x_of_an_earlier_sentence_is_never_borrowed() {
+    // The first sentence's X precedes the definition: it has no producer.
+    let parsed = parse(
+        "Sorcery",
+        "{2}{U}",
+        "You gain X life. Draw X cards, where X is the number of lands you control.",
     );
     assert_eq!(failure_state(&parsed), Some("binding.x-value.source"));
 }
@@ -209,11 +224,22 @@ fn near_misses_fail_at_precise_states() {
         "Draw X cards, where X is the number of mysteries.",
     );
     assert_ne!(unsupported.status, "canonical");
-    // X cannot be bound inside a target declaration.
+    // A target count carries its own definition only when the amount is
+    // readable as targets are chosen (CR 601.2c): the controller's land
+    // count is, the mana spent to cast the spell is not yet known.
     let declared = parse(
         "Sorcery",
         "{2}{U}",
         "Up to X target creatures get +1/+1 until end of turn, where X is the number of lands you control.",
     );
-    assert_ne!(declared.status, "canonical");
+    assert_eq!(declared.status, "canonical", "{:#?}", declared.diagnostics);
+    let unreadable = parse(
+        "Sorcery",
+        "{2}{U}",
+        "Up to X target creatures get +1/+1 until end of turn, where X is the amount of mana spent to cast this spell.",
+    );
+    assert_eq!(
+        failure_state(&unreadable),
+        Some("lower.where-x.declarations")
+    );
 }

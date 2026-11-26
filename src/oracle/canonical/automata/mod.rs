@@ -126,6 +126,7 @@ mod graveyard_card_return;
 mod graveyard_characteristic;
 mod graveyard_destination;
 mod hand_disruption;
+mod inline_choice;
 mod investigate;
 mod keyword;
 mod keyword_action;
@@ -153,10 +154,12 @@ mod modal_spell;
 mod named_token_coordination;
 mod numeric;
 mod numeric_object_property;
+mod object_action_event;
 mod object_argument;
 mod object_predicate;
 mod object_rule_clause;
 mod object_set;
+mod object_subject;
 mod opening_hand_battlefield;
 mod opponent_library_search;
 mod optional_bound_mill;
@@ -180,6 +183,7 @@ mod permanent_selection;
 mod phase_trigger_sequence;
 mod phyrexian_mana;
 mod player_action;
+mod player_antecedent;
 mod player_condition;
 mod player_counter_sweep;
 mod player_designation;
@@ -429,6 +433,7 @@ pub(super) use modal_spell::*;
 pub(super) use named_token_coordination::*;
 pub(super) use numeric::*;
 pub(super) use numeric_object_property::*;
+pub(super) use object_action_event::*;
 pub(super) use object_argument::*;
 pub(super) use object_predicate::*;
 pub(super) use object_rule_clause::*;
@@ -456,6 +461,7 @@ pub(super) use permanent_selection::*;
 pub(super) use phase_trigger_sequence::*;
 pub(super) use phyrexian_mana::*;
 pub(super) use player_action::*;
+pub(super) use player_antecedent::*;
 pub(super) use player_counter_sweep::*;
 pub(super) use player_designation::*;
 pub(super) use player_event::*;
@@ -1732,6 +1738,13 @@ pub(super) struct ColoredReductionNode {
 pub(super) enum CastingReductionSubject {
     CurrentSpell,
     SpellSet(SpellCastQueryNode),
+    /// `the first|second SPELL you cast each turn` (CR 601.2f, 601.2i).
+    OrdinalSpell(OrdinalSpellSubjectNode),
+    /// `SPELLS that target OBJECT` (CR 115.1, 601.2c).
+    TargetingSpells {
+        spells: SpellCastQueryNode,
+        target: AbilityTargetCondition,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

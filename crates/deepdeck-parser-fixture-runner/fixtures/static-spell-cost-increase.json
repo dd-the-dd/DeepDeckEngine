@@ -150,17 +150,21 @@
         "outcome": "failure",
         "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "unsupported",
-          "recognizer": "native",
-          "abilityType": "staticAbility"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "state": "ability-frame.static.subject"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "activation-cost.lower.mana-abilities"
+          }
+        ]
       }
     },
     {

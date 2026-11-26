@@ -198,3 +198,56 @@ fn passive_token_creation_needs_the_controller_and_the_same_tokens() {
         assert!(parse(text).is_err(), "{text}");
     }
 }
+
+/// A player-performed mill event (CR 701.17a): the affected player is the
+/// event's subject and restates itself as the replacing action's subject.
+#[test]
+fn player_mill_events_bind_the_affected_player_and_the_quantity() {
+    for (text, affected, quantity) in [
+        (
+            "If an opponent would mill one or more cards, they mill twice that many cards instead.",
+            Some(ObjectControllerScope::OpponentOfAbilityController),
+            NumericExpression::multiply(
+                NumericExpression::from(2),
+                NumericExpression::EventValue(EventNumericBinding::ReplacementQuantity),
+            ),
+        ),
+        (
+            "If an opponent would mill one or more cards, they mill that many cards plus four instead.",
+            Some(ObjectControllerScope::OpponentOfAbilityController),
+            NumericExpression::add(
+                NumericExpression::EventValue(EventNumericBinding::ReplacementQuantity),
+                NumericExpression::from(4),
+            ),
+        ),
+        // Unused combination: the controller's own mill, plus one.
+        (
+            "If you would mill one or more cards, you mill that many cards plus one instead.",
+            Some(ObjectControllerScope::AbilityController),
+            NumericExpression::add(
+                NumericExpression::EventValue(EventNumericBinding::ReplacementQuantity),
+                NumericExpression::from(1),
+            ),
+        ),
+    ] {
+        let node = parse(text).unwrap_or_else(|failure| panic!("{text}: {failure:?}"));
+        assert_eq!(node.event.domain, QuantityEventDomain::Mill, "{text}");
+        assert_eq!(node.event.affected_controller, affected, "{text}");
+        assert_eq!(node.quantity, quantity, "{text}");
+    }
+}
+
+/// Near misses: the replacing action must be performed by the same player
+/// and be the same action.
+#[test]
+fn a_mill_replacement_keeps_its_player_and_its_action() {
+    let failure = parse(
+        "If an opponent would mill one or more cards, you mill twice that many cards instead.",
+    )
+    .expect_err("another player mills");
+    assert_eq!(failure.state, "quantity-replacement.player-subject");
+    let failure =
+        parse("If an opponent would mill one or more cards, they draw that many cards instead.")
+            .expect_err("another action");
+    assert_eq!(failure.state, "quantity-replacement.player-action");
+}

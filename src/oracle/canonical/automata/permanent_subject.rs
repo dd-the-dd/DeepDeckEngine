@@ -586,6 +586,23 @@ fn created_token_selector(template: &ExplicitTokenTemplateNode) -> Option<Target
     }
 }
 
+/// The token set one creation produced, with the types written for it and
+/// the number its quantity states (`a token` is singular).
+fn created_token_set(body: &TokenCreationBodyNode) -> ObjectSetAntecedent {
+    ObjectSetAntecedent {
+        denotes: ObjectSetDenotation::Bound(PermanentEffectReference::Observed(
+            TypedObservedEventObject::CreatedTokens,
+        )),
+        selector: body.described().and_then(created_token_selector),
+        number: if body.quantity == NumericExpression::from(1) {
+            GrammaticalNumber::Singular
+        } else {
+            GrammaticalNumber::Plural
+        },
+        tokens: true,
+    }
+}
+
 /// The object set the immediately preceding action of a program declared or
 /// produced (CR 608.2c): the one plural target slot of an ordinary permanent
 /// action, a set an earlier `those NOUNs` already named, or the tokens a
@@ -602,18 +619,18 @@ pub(in crate::oracle::canonical) fn prior_object_set(
         return Some(set);
     }
     if let LocalEffectNode::CreateExplicitTokens(node) = effect {
-        return Some(ObjectSetAntecedent {
-            denotes: ObjectSetDenotation::Bound(PermanentEffectReference::Observed(
-                TypedObservedEventObject::CreatedTokens,
-            )),
-            selector: node.body.described().and_then(created_token_selector),
-            number: if node.body.quantity == NumericExpression::from(1) {
-                GrammaticalNumber::Singular
-            } else {
-                GrammaticalNumber::Plural
-            },
-            tokens: true,
-        });
+        return Some(created_token_set(&node.body));
+    }
+    // `that player creates a 4/2 red Pirate creature token ... The token is
+    // goaded`: one player's creation produces the same token set as the
+    // controller's (CR 111.2); the lowering binds it when the next action
+    // names it (`created_tokens_are_next_antecedent`).
+    if let LocalEffectNode::PlayerAction(PlayerActionNode {
+        action: SingularPlayerAction::CreateTokens(body),
+        ..
+    }) = effect
+    {
+        return Some(created_token_set(body));
     }
     // `Choose any number of target creatures. Put a +1/+1 counter on each
     // of them.` / `deals 1 damage to each of up to two target creatures.
@@ -985,7 +1002,19 @@ fn keeps_action_result(effect: &LocalEffectNode) -> bool {
         | LocalEffectNode::Scry(_)
         | LocalEffectNode::DealDamage(_)
         | LocalEffectNode::ModifyStats(_)
-        | LocalEffectNode::TemporaryKeywordGrant(_) => true,
+        | LocalEffectNode::TemporaryKeywordGrant(_)
+        // Counters, tapping and untapping change a permanent in place: they
+        // select and move no new object (their own declarations are
+        // compared by effect index, as for a stat change).
+        | LocalEffectNode::PutCounters(_)
+        | LocalEffectNode::TapPermanents(_)
+        | LocalEffectNode::UntapTarget(_) => true,
+        // `Each opponent loses X life and you gain X life, where X is that
+        // card's mana value`: life changes of a population move no object.
+        LocalEffectNode::QuantifiedPlayerAction(node) => node
+            .actions
+            .iter()
+            .all(|action| matches!(action, QuantifiedPlayerAction::Life(_))),
         LocalEffectNode::PlayerAction(node) => matches!(
             node.action,
             SingularPlayerAction::Draw(_)
@@ -1292,6 +1321,11 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
     context: &EffectRecognitionContext,
 ) -> MachineResult<PermanentOperandNode> {
     cursor.enter("permanent.subject.head");
+    // `equipped creatures you control`: the attachment status of a plural
+    // collection (`object_subject.rs`), never the attached-object reference.
+    if super::object_subject::attached_status_collection_starts(cursor) {
+        return super::object_subject::recognize_attached_status_collection(cursor);
+    }
     if super::reference::attached_object_reference_starts(cursor) {
         // `enchanted creature` / `equipped creature` is a reference, never
         // a target declaration or a query (CR 301.5a, 303.4a).

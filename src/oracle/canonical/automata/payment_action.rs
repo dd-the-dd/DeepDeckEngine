@@ -1075,9 +1075,9 @@ fn recognize_counter_removal(
     antecedent: SourceAntecedent,
 ) -> MachineResult<RemoveCountersPaymentNode> {
     cursor.enter("cost.payment.remove.quantity");
-    let count = recognize_cost_quantity(
+    let count = super::recognize_counter_cost_quantity(
         cursor,
-        "`a`, `an`, X, a positive counter quantity or `any number of`",
+        "`a`, `an`, X, a positive counter quantity, `any number of` or `all`",
     )?;
     cursor.enter("cost.payment.remove.kind");
     let is_counter_noun =

@@ -74,6 +74,12 @@ impl CardCollectionMemory {
         self.allocated_ids.clone()
     }
 
+    /// Whether a copy action of this scope created card copies that no cast
+    /// frame consumed yet (CR 707.12: a card copy exists only to be cast).
+    pub(in crate::oracle::canonical) fn holds_uncast_card_copies(&self) -> bool {
+        self.last_copies.is_some()
+    }
+
     /// Marks that the outcome body sharing this scope reads a card
     /// collection reference after the sequence lowered next.
     pub(in crate::oracle::canonical) fn set_continuation_reads_cards(&mut self, reads: bool) {
@@ -424,6 +430,8 @@ impl CardCollectionMemory {
         let id = fresh("milledCards", &mut self.next_view);
         self.allocated_ids.insert(id.clone());
         self.observe(&id, maximum);
+        // `the milled cards`, `cards milled this way` restate this producer.
+        self.view_verb = Some(CardCollectionVerb::Milled);
         self.view_zone = Some(CardZoneName::Graveyard);
         id
     }
@@ -1347,15 +1355,25 @@ impl CardCollectionMemory {
             return Err(cursor.fail("a bound card to copy"));
         };
         let (copied, maximum) = self.reference(cursor, *reference)?;
-        cursor.require(
-            maximum == Some(1) && self.view_zone == Some(CardZoneName::Exile),
-            "one card this program exiled as the copied card",
-        )?;
-        cursor.require(
-            value_kind_name(&copied) == Some("boundObjects"),
-            "an exiled card bound by its exile action",
-        )?;
-        let copied = json!({"kind":"boundObject", "binding":copied["binding"]});
+        let linked = *reference == CardCollectionReferenceNode::Exiled
+            && copied == json!({"kind":"cardsExiledWithSource", "link": "pair"});
+        let copied = if linked {
+            // `copy the exiled card` without an exile of this program: the
+            // one card the paired linked ability exiled (CR 607.2a, Imprint
+            // CR 702.68a), read where it is in exile. The parser admitted
+            // only the singular noun.
+            json!({"kind":"cardExiledWithSource", "link": "pair"})
+        } else {
+            cursor.require(
+                maximum == Some(1) && self.view_zone == Some(CardZoneName::Exile),
+                "one card this program exiled as the copied card",
+            )?;
+            cursor.require(
+                value_kind_name(&copied) == Some("boundObjects"),
+                "an exiled card bound by its exile action",
+            )?;
+            json!({"kind":"boundObject", "binding":copied["binding"]})
+        };
         let NumericExpression::Atom(NumericAtom::Integer(count)) = count else {
             return Err(cursor.fail("a literal number of card copies"));
         };
@@ -1984,6 +2002,14 @@ impl CardCollectionMemory {
                 self.selected.push(bound(&hit));
                 self.complement_exclusions.push(bound(&hit));
                 self.mention((bound(&hit), Some(1)));
+            }
+            // A mill has a fixed count (CR 701.13a); the reveal-until reader
+            // never produces one, and a stop condition on it has no writer.
+            CardActionNode::RevealUntil {
+                verb: CardCollectionVerb::Milled,
+                ..
+            } => {
+                return Err(cursor.fail("a reveal or exile performed until a match"));
             }
             CardActionNode::RevealUntil {
                 quantity,

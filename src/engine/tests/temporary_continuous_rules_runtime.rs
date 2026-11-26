@@ -502,3 +502,414 @@ fn control_lasts_while_the_source_remains_on_the_battlefield() {
         "control ended with the source"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Spell and ability rules: temporary static bodies (CR 611.2a, 611.2c),
+// activated-ability and targeting populations of the cost-adjustment frame
+// (CR 601.2c, 601.2f, 602.2b) and spell-history ordinals (CR 601.2i).
+// ---------------------------------------------------------------------------
+
+/// The total mana value of cost components (each non-generic symbol is 1).
+fn total_mana(costs: &[String]) -> i32 {
+    costs
+        .iter()
+        .flat_map(|cost| super::super::mana::parse_mana_symbols(cost))
+        .map(|symbol| symbol.parse::<i32>().unwrap_or(1))
+        .sum()
+}
+
+fn spell_definition(id: &str, type_line: &str, mana_cost: &str) -> CardDefinition {
+    let mut definition = test_definition(id, type_line);
+    definition.mana_cost = mana_cost.to_string();
+    definition
+}
+
+/// The created-effect primitive applying a static body's modifiers while it
+/// lasts (CR 611.2a, 611.2c). The temporary-rule parser frame is refused
+/// until the static families read the body with a typed lifetime, so the
+/// runtime proof composes the primitive from the parsed static body.
+fn temporary_static_rule(name: &str, static_body: &str) -> (Vec<Value>, Value) {
+    let rules = parsed_rules(name, "Enchantment", static_body);
+    let modifiers = rules
+        .iter()
+        .find(|rule| rule["kind"] == "staticAbility")
+        .map(|rule| rule["modifiers"].clone())
+        .expect("the static body is a static ability");
+    let rule = json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [{
+            "kind": "installTemporaryStaticModifiers",
+            "modifiers": modifiers,
+            "duration": { "kind": "untilEndOfCurrentTurn" },
+        }],
+    });
+    assert!(rule_is_executable(&rule), "{rule:#}");
+    (vec![rule.clone()], rule)
+}
+
+fn spell_ability(rules: &[Value]) -> Value {
+    rules
+        .iter()
+        .find(|rule| rule["kind"] == "spellAbility")
+        .cloned()
+        .expect("the instant has a spell ability")
+}
+
+/// A spell on the stack, controlled by `controller`.
+fn stack_spell(id: &str, definition: CardDefinition, controller: &str) -> StackObject {
+    let card = test_instance(id, definition, controller);
+    StackObject {
+        id: format!("stack:{id}"),
+        controller: controller.to_string(),
+        card,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn a_temporary_spell_cost_reduction_expires_with_the_turn() {
+    // Armor Wars II's body (`Artifact spells you cast this turn cost {1}
+    // less to cast`): the static reduction of the controller's artifact
+    // spells, applied until the end of the turn.
+    let (rules, rule) = temporary_static_rule(
+        "Test Armory",
+        "Artifact spells you cast cost {1} less to cast.",
+    );
+    assert_eq!(
+        rule["effects"][0]["kind"],
+        "installTemporaryStaticModifiers"
+    );
+    assert_eq!(
+        rule["effects"][0]["modifiers"][0]["kind"],
+        "reduceCastingCost"
+    );
+    let mut engine = test_engine(2);
+    let source = permanent("armory", "Instant", "player-0", rules.clone());
+    let stack = stack_object(&source, &rule);
+    let artifact = spell_definition("relic", "Artifact", "{3}");
+    let creature = spell_definition("bear", "Creature - Bear", "{3}");
+    let costs = |engine: &GameEngine, card: &CardDefinition, player: &str| {
+        total_mana(&engine.casting_mana_costs(card, player, &BTreeMap::new()))
+    };
+    assert_eq!(costs(&engine, &artifact, "player-0"), 3);
+    resolve(&mut engine, &rule, &stack);
+    assert_eq!(costs(&engine, &artifact, "player-0"), 2);
+    assert_eq!(
+        costs(&engine, &creature, "player-0"),
+        3,
+        "only artifact spells"
+    );
+    assert_eq!(
+        costs(&engine, &artifact, "player-1"),
+        3,
+        "only its controller's"
+    );
+    engine.state.turn_number += 1;
+    assert_eq!(
+        costs(&engine, &artifact, "player-0"),
+        3,
+        "the effect ends with the turn (CR 514.2)"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn a_temporary_uncounterable_marker_protects_only_its_spells() {
+    // Domri, Anarch of Bolas's +1 body: `Creature spells you cast this turn
+    // can't be countered.` A counterspell checks the prohibition as it
+    // would counter (CR 701.6).
+    let (rules, rule) = temporary_static_rule(
+        "Test Shield",
+        "Creature spells you cast can't be countered.",
+    );
+    let mut engine = test_engine(2);
+    let source = permanent("shield", "Instant", "player-0", rules.clone());
+    let stack = stack_object(&source, &rule);
+    let creature = stack_spell(
+        "bear-spell",
+        spell_definition("bear", "Creature - Bear", "{2}"),
+        "player-0",
+    );
+    let instant = stack_spell(
+        "bolt-spell",
+        spell_definition("bolt", "Instant", "{R}"),
+        "player-0",
+    );
+    let opposing = stack_spell(
+        "wolf-spell",
+        spell_definition("wolf", "Creature - Wolf", "{2}"),
+        "player-1",
+    );
+    assert!(!engine.stack_object_cant_be_countered(&creature));
+    resolve(&mut engine, &rule, &stack);
+    assert!(engine.stack_object_cant_be_countered(&creature));
+    assert!(!engine.stack_object_cant_be_countered(&instant));
+    assert!(!engine.stack_object_cant_be_countered(&opposing));
+    engine.state.turn_number += 1;
+    assert!(!engine.stack_object_cant_be_countered(&creature));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn a_static_counter_prohibition_reads_the_cast_relation() {
+    // Unused combination: an instant spell query with the `you cast`
+    // relation under the static counter prohibition.
+    let rules = parsed_rules(
+        "Test Warden",
+        "Enchantment",
+        "Instant spells you cast can't be countered.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield =
+        vec![permanent("warden", "Enchantment", "player-0", rules)];
+    let instant = stack_spell(
+        "bolt-spell",
+        spell_definition("bolt", "Instant", "{R}"),
+        "player-0",
+    );
+    let opposing = stack_spell(
+        "shock-spell",
+        spell_definition("shock", "Instant", "{R}"),
+        "player-1",
+    );
+    assert!(engine.stack_object_cant_be_countered(&instant));
+    assert!(!engine.stack_object_cant_be_countered(&opposing));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn an_untimed_next_spell_reduction_waits_for_its_spell() {
+    // Xho Cai's body: `the next noncreature spell you cast costs {1} less
+    // to cast.` Without `this turn` it lasts until that spell is cast; the
+    // spell that created it was cast before the rule existed.
+    let rules = parsed_rules(
+        "Test Focus",
+        "Instant",
+        "The next noncreature spell you cast costs {1} less to cast.",
+    );
+    let rule = spell_ability(&rules);
+    assert_eq!(rule["effects"][0]["expires"]["kind"], "whenConsumed");
+    let mut engine = test_engine(2);
+    let source = permanent("focus", "Instant", "player-0", rules.clone());
+    let stack = stack_object(&source, &rule);
+    let artifact = spell_definition("relic", "Artifact", "{3}");
+    let creature = spell_definition("bear", "Creature - Bear", "{3}");
+    assert_eq!(
+        engine.one_shot_casting_cost_reduction("player-0", &artifact),
+        0
+    );
+    resolve(&mut engine, &rule, &stack);
+    assert_eq!(
+        engine.one_shot_casting_cost_reduction("player-0", &creature),
+        0
+    );
+    engine.state.turn_number += 2;
+    assert_eq!(
+        engine.one_shot_casting_cost_reduction("player-0", &artifact),
+        1
+    );
+    engine.consume_one_shot_spell_cast_modifier("player-0", &artifact);
+    assert_eq!(
+        engine.one_shot_casting_cost_reduction("player-0", &artifact),
+        0
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn an_ordinal_spell_reduction_counts_the_casters_earlier_spells() {
+    // Raging Battle Mouse: `The second spell you cast each turn costs {1}
+    // less to cast.` The cost is determined before the spell becomes cast
+    // (CR 601.2f, 601.2i), so one earlier cast makes it the second.
+    let rules = parsed_rules(
+        "Test Mouse",
+        "Creature \u{2014} Mouse",
+        "The second spell you cast each turn costs {1} less to cast.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield =
+        vec![permanent("mouse", "Creature - Mouse", "player-0", rules)];
+    let spell = spell_definition("relic", "Artifact", "{3}");
+    let cost = |engine: &GameEngine| {
+        total_mana(&engine.casting_mana_costs(&spell, "player-0", &BTreeMap::new()))
+    };
+    assert_eq!(cost(&engine), 3, "the first spell");
+    engine.record_event(
+        "spellCast",
+        Some("player-0".to_string()),
+        Some("first".to_string()),
+        json!({}),
+    );
+    assert_eq!(cost(&engine), 2, "the second spell");
+    engine.record_event(
+        "spellCast",
+        Some("player-0".to_string()),
+        Some("second".to_string()),
+        json!({}),
+    );
+    assert_eq!(cost(&engine), 3, "the third spell");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn an_equip_reduction_applies_only_when_targeting_its_source() {
+    // Fervent Champion: `Equip abilities you activate that target this
+    // creature cost {3} less to activate.` The target is chosen before the
+    // total cost (CR 601.2c via 602.2b).
+    let rules = parsed_rules(
+        "Test Champion",
+        "Creature \u{2014} Human Knight",
+        "Equip abilities you activate that target this creature cost {3} less to activate.",
+    );
+    let mut engine = test_engine(2);
+    let champion = permanent("champion", "Creature - Human Knight", "player-0", rules);
+    let bear = permanent("bear", "Creature - Bear", "player-0", Vec::new());
+    let sword = permanent("sword", "Artifact - Equipment", "player-0", Vec::new());
+    engine.state.players[0].battlefield = vec![champion, bear, sword.clone()];
+    let equip_cost = |engine: &GameEngine, target: &str, activator: &str| {
+        let targets = BTreeMap::from([(
+            "equipTarget".to_string(),
+            TargetRef::Permanent {
+                instance_id: target.to_string(),
+            },
+        )]);
+        let mut costs = vec!["{4}".to_string()];
+        engine.adjust_activation_mana_costs(
+            &mut costs,
+            &super::super::casting_cost::ActivationCostSubject {
+                activator,
+                source: &sword,
+                on_battlefield: true,
+                class: Some("equip"),
+                targets: &targets,
+            },
+        );
+        total_mana(&costs)
+    };
+    assert_eq!(equip_cost(&engine, "champion", "player-0"), 1);
+    assert_eq!(equip_cost(&engine, "bear", "player-0"), 4, "another target");
+    assert_eq!(
+        equip_cost(&engine, "champion", "player-1"),
+        4,
+        "another activator"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn a_loyalty_tax_and_a_floored_cycling_reduction_keep_their_populations() {
+    // Eidolon of Obstruction: `Loyalty abilities of planeswalkers your
+    // opponents control cost {1} more to activate.` Unused combination: a
+    // cycling population with the one-mana floor.
+    let eidolon = parsed_rules(
+        "Test Eidolon",
+        "Enchantment Creature \u{2014} Nymph",
+        "Loyalty abilities of planeswalkers your opponents control cost {1} more to activate.",
+    );
+    let fluctuator = parsed_rules(
+        "Test Fluctuator",
+        "Artifact",
+        "Cycling abilities you activate cost {2} less to activate. This effect can't reduce the mana in that cost to less than one mana.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        permanent(
+            "eidolon",
+            "Enchantment Creature - Nymph",
+            "player-0",
+            eidolon,
+        ),
+        permanent("fluctuator", "Artifact", "player-0", fluctuator),
+        permanent("own-walker", "Planeswalker - Test", "player-0", Vec::new()),
+    ];
+    engine.state.players[1].battlefield = vec![permanent(
+        "their-walker",
+        "Planeswalker - Test",
+        "player-1",
+        Vec::new(),
+    )];
+    let loyalty_cost = |engine: &GameEngine, walker: &str, activator: &str| {
+        let (player, index) = engine.permanent_position(walker).expect("walker");
+        let source = engine.state.players[player].battlefield[index].clone();
+        let mut costs = Vec::new();
+        engine.adjust_activation_mana_costs(
+            &mut costs,
+            &super::super::casting_cost::ActivationCostSubject {
+                activator,
+                source: &source,
+                on_battlefield: true,
+                class: Some("loyalty"),
+                targets: &BTreeMap::new(),
+            },
+        );
+        total_mana(&costs)
+    };
+    assert_eq!(loyalty_cost(&engine, "their-walker", "player-1"), 1);
+    assert_eq!(loyalty_cost(&engine, "own-walker", "player-0"), 0);
+    let cycler = test_instance(
+        "cycler",
+        spell_definition("cycler", "Creature - Beast", "{4}"),
+        "player-0",
+    );
+    let generic = engine.cycling_activation_mana_costs("player-0", &cycler, "{2}");
+    assert_eq!(total_mana(&generic), 1, "never below one mana");
+    let colored = engine.cycling_activation_mana_costs("player-0", &cycler, "{2}{U}");
+    assert_eq!(total_mana(&colored), 1, "the colored symbol keeps one mana");
+    let opposing = engine.cycling_activation_mana_costs("player-1", &cycler, "{2}");
+    assert_eq!(
+        total_mana(&opposing),
+        2,
+        "only its controller's activations"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn a_targeting_spell_tax_reads_the_chosen_targets() {
+    // Syr Elenora's sibling: `Spells your opponents cast that target this
+    // creature cost {2} more to cast.` (CR 601.2c, 601.2f).
+    let rules = parsed_rules(
+        "Test Guardian",
+        "Creature \u{2014} Elf Knight",
+        "Spells your opponents cast that target this creature cost {2} more to cast.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        permanent("guardian", "Creature - Elf Knight", "player-0", rules),
+        permanent("bear", "Creature - Bear", "player-0", Vec::new()),
+    ];
+    let spell = spell_definition("bolt", "Instant", "{R}");
+    let targeting = |target: &str| {
+        BTreeMap::from([(
+            "target".to_string(),
+            TargetRef::Permanent {
+                instance_id: target.to_string(),
+            },
+        )])
+    };
+    assert_eq!(
+        engine.spell_targeting_cost_adjustment("player-1", &spell, &targeting("guardian")),
+        (0, vec!["{2}".to_string()])
+    );
+    assert_eq!(
+        engine.spell_targeting_cost_adjustment("player-1", &spell, &targeting("bear")),
+        (0, Vec::new())
+    );
+    assert_eq!(
+        engine.spell_targeting_cost_adjustment("player-0", &spell, &targeting("guardian")),
+        (0, Vec::new()),
+        "its controller's spells are not taxed"
+    );
+    // Without targets the global increase never applies the tax.
+    assert_eq!(
+        total_mana(&engine.casting_mana_costs(&spell, "player-1", &BTreeMap::new())),
+        1
+    );
+}

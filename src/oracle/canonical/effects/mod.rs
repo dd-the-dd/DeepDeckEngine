@@ -72,6 +72,7 @@ mod trigger_program;
 mod zone_prohibition;
 
 mod hand_disruption;
+mod performer_lowering;
 mod player_discard;
 mod player_event_lowering;
 mod player_sacrifice;
@@ -225,6 +226,7 @@ pub(super) use stack_copy_lowering::*;
 pub(super) use zone_prohibition::*;
 
 pub(super) use hand_disruption::*;
+pub(super) use performer_lowering::*;
 pub(super) use player_discard::*;
 pub(super) use player_event_lowering::*;
 pub(super) use player_sacrifice::*;

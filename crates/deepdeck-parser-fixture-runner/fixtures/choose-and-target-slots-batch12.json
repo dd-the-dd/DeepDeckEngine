@@ -1,0 +1,345 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "choose-and-target-slots-batch12",
+  "cases": [
+    {
+      "id": "spellstutter-sprite-exact-where-x-candidate-threshold",
+      "request": {
+        "cardName": "Spellstutter Sprite",
+        "typeLine": "Creature — Faerie Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Flash\nFlying\nWhen this creature enters, counter target spell with mana value X or less, where X is the number of Faeries you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "martok-exact-where-x-declared-count",
+      "request": {
+        "cardName": "Martok, Hero of the Empire",
+        "typeLine": "Legendary Creature — Klingon Warrior",
+        "manaCost": "{2}{W}",
+        "oracleText": "Battlefront — Whenever you attack, put a +1/+1 counter on each of up to X target creatures you control, where X is the number of opponents you attacked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "serras-liturgy-exact-where-x-source-counters-count",
+      "request": {
+        "cardName": "Serra's Liturgy",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "At the beginning of your upkeep, you may put a verse counter on this enchantment.\n{W}, Sacrifice this enchantment: Destroy up to X target artifacts and/or enchantments, where X is the number of verse counters on this enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "rot-hulk-sibling-where-x-opponent-count",
+      "request": {
+        "cardName": "Rot Hulk",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{5}{B}{B}",
+        "oracleText": "Menace\nWhen this creature enters, return up to X target Zombie cards from your graveyard to the battlefield, where X is the number of opponents you have.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "go-shintai-sibling-reflexive-where-x-threshold",
+      "request": {
+        "cardName": "Go-Shintai of Hidden Cruelty",
+        "typeLine": "Legendary Enchantment Creature — Shrine",
+        "manaCost": "{3}{B}",
+        "oracleText": "Deathtouch\nAt the beginning of your end step, you may pay {1}. When you do, destroy target creature with toughness X or less, where X is the number of Shrines you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-up-to-x-target-lands-where-x",
+      "request": {
+        "cardName": "Test Landslide",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Destroy up to X target lands, where X is the number of opponents you have.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-choose-artifact-spell-threshold-where-x",
+      "request": {
+        "cardName": "Test Artifact Counter",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target artifact spell with mana value X or less, where X is the number of artifacts you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "venerable-warsinger-near-miss-event-amount-in-declaration",
+      "request": {
+        "cardName": "Venerable Warsinger",
+        "typeLine": "Creature — Spirit Cleric",
+        "manaCost": "{1}{R}{W}",
+        "oracleText": "Vigilance, trample\nWhenever this creature deals combat damage to a player, you may return target creature card with mana value X or less from your graveyard to the battlefield, where X is the amount of damage this creature dealt to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.where-x.declarations"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-each-of-up-to-x-targets-without-producer",
+      "request": {
+        "cardName": "Test Battlefront",
+        "typeLine": "Creature — Klingon Warrior",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever you attack, put a +1/+1 counter on each of up to X target creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "spell-swindle-exact-countered-spell-mana-value",
+      "request": {
+        "cardName": "Spell Swindle",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Counter target spell. Create X Treasure tokens, where X is that spell's mana value. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "access-denied-sibling-countered-spell-mana-value",
+      "request": {
+        "cardName": "Access Denied",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Counter target spell. Create X 1/1 colorless Thopter artifact creature tokens with flying, where X is that spell's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "mystic-genesis-sibling-countered-spell-token-size",
+      "request": {
+        "cardName": "Mystic Genesis",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}{U}{U}",
+        "oracleText": "Counter target spell. Create an X/X green Ooze creature token, where X is that spell's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "tezzeret-master-of-the-bridge-exact-later-sentence-x",
+      "request": {
+        "cardName": "Tezzeret, Master of the Bridge",
+        "typeLine": "Legendary Planeswalker — Tezzeret",
+        "manaCost": "{4}{U}{B}",
+        "oracleText": "Creature and planeswalker spells you cast have affinity for artifacts. (They cost {1} less to cast for each artifact you control.)\n+2: Tezzeret deals X damage to each opponent, where X is the number of artifacts you control. You gain X life.\n−3: Return target artifact card from your graveyard to your hand.\n−8: Exile the top ten cards of your library. Put all artifact cards from among them onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "obsessive-pursuit-exact-condition-on-x",
+      "request": {
+        "cardName": "Obsessive Pursuit",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "When this enchantment enters and at the beginning of your upkeep, you lose 1 life and create a Clue token. (It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhenever you attack, put X +1/+1 counters on target attacking creature, where X is the number of permanents you've sacrificed this turn. If X is three or more, that creature gains lifelink until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "the-destruction-of-praxis-sibling-condition-on-x",
+      "request": {
+        "cardName": "The Destruction of Praxis",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Strange new worlds — All creatures get -X/-X until end of turn, where X is the number of differently named lands you control. If X is 6 or more, create two 2/1 red Klingon Warrior creature tokens with haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "court-of-embereth-sibling-where-x-inside-conditional",
+      "request": {
+        "cardName": "Court of Embereth",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "When this enchantment enters, you become the monarch.\nAt the beginning of your upkeep, create a 3/1 red Knight creature token. Then if you're the monarch, this enchantment deals X damage to each opponent, where X is the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-x-before-its-definition",
+      "request": {
+        "cardName": "Test Early X",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "You gain X life. Draw X cards, where X is the number of lands you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sundering-titan-exact-land-of-each-basic-land-type",
+      "request": {
+        "cardName": "Sundering Titan",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{8}",
+        "oracleText": "When this creature enters or leaves the battlefield, choose a land of each basic land type, then destroy those lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "planar-overlay-sibling-each-player-partition",
+      "request": {
+        "cardName": "Planar Overlay",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Each player chooses a land they control of each basic land type. Return those lands to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-permanent-of-each-permanent-type-the-rest",
+      "request": {
+        "cardName": "Test Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Each opponent chooses a permanent they control of each permanent type and sacrifices the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-creature-of-each-color",
+      "request": {
+        "cardName": "Test Spectrum",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}",
+        "oracleText": "Choose a creature of each color, then destroy those creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "choose.domain.object.partition"
+          }
+        ]
+      }
+    }
+  ]
+}

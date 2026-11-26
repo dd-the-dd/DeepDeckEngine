@@ -42,6 +42,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("exileTargetCards") => {
             object_expression_supported(&effect["cards"])
                 && effect.get("bind").is_none_or(Value::is_string)
+                && effect.get("linkToSource").is_none_or(Value::is_boolean)
         }
         Some("exileCards") => {
             matches!(integer_value(&effect["count"]), Some(count) if count >= 0)
@@ -193,22 +194,41 @@ impl GameEngine {
                             decisions,
                         )?
                     }
-                    Some("eachPermanent") => self
-                        .state
-                        .players
-                        .iter()
-                        .flat_map(|player| player.battlefield.iter())
-                        .filter(|permanent| {
-                            selected_players
-                                .as_ref()
-                                .is_none_or(|players| players.contains(&permanent.controller))
-                                && self.permanent_matches_effective_filter(
-                                    permanent,
-                                    &effect["permanent"]["where"],
-                                )
-                        })
-                        .map(|permanent| permanent.instance_id.clone())
-                        .collect(),
+                    // `exile all other QUERY` (the source, or the objects an
+                    // earlier action of the program named) leaves the
+                    // excluded objects in place, like every other collection
+                    // action; a phased-out permanent is treated as though it
+                    // does not exist (CR 702.26b).
+                    Some("eachPermanent") => {
+                        let mut excluded = effect["permanent"]
+                            .get("exclude")
+                            .and_then(|expression| {
+                                self.resolve_object_ids(expression, bindings, decisions)
+                            })
+                            .unwrap_or_default()
+                            .into_iter()
+                            .collect::<BTreeSet<_>>();
+                        if effect["permanent"]["excludeSource"].as_bool() == Some(true) {
+                            excluded.insert(stack_object.card.instance_id.clone());
+                        }
+                        self.state
+                            .players
+                            .iter()
+                            .flat_map(|player| player.battlefield.iter())
+                            .filter(|permanent| {
+                                !permanent.flags.get("phasedOut").copied().unwrap_or(false)
+                                    && !excluded.contains(&permanent.instance_id)
+                                    && selected_players.as_ref().is_none_or(|players| {
+                                        players.contains(&permanent.controller)
+                                    })
+                                    && self.permanent_matches_effective_filter(
+                                        permanent,
+                                        &effect["permanent"]["where"],
+                                    )
+                            })
+                            .map(|permanent| permanent.instance_id.clone())
+                            .collect()
+                    }
                     _ => self
                         .resolve_target(&effect["permanent"], stack_object, bindings)
                         .and_then(|target| match target {
@@ -427,6 +447,9 @@ impl GameEngine {
                         )?;
                         let exiled_id = card.card.instance_id.clone();
                         self.state.players[owner_index].exile.push(card.card);
+                        if Self::exile_links_to_source(effect) {
+                            self.register_linked_exiled_card(&stack_object.card, &exiled_id)?;
+                        }
                         exiled_ids.push(exiled_id);
                         self.record_event(
                             "cardExiled",

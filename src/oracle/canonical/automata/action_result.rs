@@ -572,6 +572,55 @@ pub(in crate::oracle::canonical) fn action_result_verb_produced_by(
     }
 }
 
+/// The typed amount one action of a program produces (CR 608.2c), which a
+/// later quantity reader (`that many`, `that much`, `the number of cards
+/// discarded this way`, `the damage dealt this way`) may restate. It is a
+/// classification of the parsed action only: the program lowering still
+/// proves that the lowered runtime action records it (`produced_by`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ActionResultAmount {
+    /// The objects the action affected with this verb (cards discarded,
+    /// creatures sacrificed, cards revealed), counted.
+    AffectedObjects(ActionResultVerb),
+    /// The damage the action dealt (CR 120.3, 120.4).
+    DamageDealt,
+    /// The life the action's players lost (CR 119.3).
+    LifeLost,
+    /// The life the action's players gained (CR 119.10).
+    LifeGained,
+    /// The cards the action's player drew (CR 121.1).
+    CardsDrawn,
+}
+
+/// The typed amount `effect` produces, or `None` when it produces no amount
+/// a quantity reader restates. An object-producing action reports the verb
+/// its affected objects are restated with (`action_result_verb_produced_by`);
+/// damage, life changes and draws report their own amount. The
+/// `numeric-quantities` readers call this accessor instead of matching the
+/// action kinds themselves.
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn action_result_amount(
+    effect: &LocalEffectNode,
+) -> Option<ActionResultAmount> {
+    match effect {
+        LocalEffectNode::DealDamage(_) => return Some(ActionResultAmount::DamageDealt),
+        LocalEffectNode::LoseLife(_) => return Some(ActionResultAmount::LifeLost),
+        LocalEffectNode::GainLife(_) => return Some(ActionResultAmount::LifeGained),
+        LocalEffectNode::DrawCards(_)
+        | LocalEffectNode::OptionalDrawCards(_)
+        | LocalEffectNode::PlayerAction(PlayerActionNode {
+            action: SingularPlayerAction::Draw(_),
+            ..
+        }) => return Some(ActionResultAmount::CardsDrawn),
+        LocalEffectNode::Performed(node) => return action_result_amount(&node.effect),
+        _ => {}
+    }
+    ActionResultVerb::ALL
+        .into_iter()
+        .find(|verb| action_result_verb_produced_by(*verb, effect))
+        .map(ActionResultAmount::AffectedObjects)
+}
+
 /// Resolves the latest earlier action (the last action is the one being
 /// scaled) of the restated verb, and the filter its noun needs. A nearer
 /// producer of an unsupported form is still the antecedent: it is never

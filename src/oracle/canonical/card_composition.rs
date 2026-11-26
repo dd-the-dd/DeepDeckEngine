@@ -15,22 +15,68 @@ const FACE_LINK: &str = "face";
 /// The `link` value of `the exiled card(s)`: the one exile it is paired with.
 const PAIR_LINK: &str = "pair";
 
-/// Marks every exile of permanents that does not already return them when
-/// the source leaves (that duration records the link itself).
-fn link_permanent_exiles(value: &mut Value) -> usize {
+/// How one lowered primitive exiles objects, for the linked-ability pass
+/// (CR 607.2a). A permanent exile records the link unless its duration
+/// already does (`until` the source leaves). A card exile from another zone
+/// (`moveCards`/`moveCard` into exile, `exileTargetCards`) records it the
+/// same way. Any other primitive naming the exile zone records no link.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ExileLink {
+    None,
+    Linkable,
+    /// A permanent exile lasting until the source leaves: its duration
+    /// records the link itself, so it is a producer left unmarked.
+    LinkedByDuration,
+    Unlinkable,
+}
+
+fn exile_link(map: &serde_json::Map<String, Value>) -> ExileLink {
+    let kind = map.get("kind").and_then(Value::as_str);
+    let to_exile = map
+        .get("to")
+        .and_then(|to| to.get("kind"))
+        .and_then(Value::as_str)
+        == Some("exile");
+    match kind {
+        Some("exilePermanent") if map.contains_key("until") => ExileLink::LinkedByDuration,
+        Some("exilePermanent") => ExileLink::Linkable,
+        Some("exileTargetCards") => ExileLink::Linkable,
+        Some("moveCards" | "moveCard") if to_exile => ExileLink::Linkable,
+        // The exile zone named by any other primitive.
+        Some("exile") => ExileLink::Unlinkable,
+        _ => ExileLink::None,
+    }
+}
+
+/// Marks every linkable exile (`linkToSource`) and returns how many.
+fn link_source_exiles(value: &mut Value) -> usize {
     match value {
         Value::Object(map) => {
-            let own = usize::from(
-                map.get("kind").and_then(Value::as_str) == Some("exilePermanent")
-                    && !map.contains_key("until"),
-            );
+            let own = usize::from(exile_link(map) == ExileLink::Linkable);
             if own == 1 {
                 map.insert("linkToSource".to_string(), Value::Bool(true));
             }
-            own + map.values_mut().map(link_permanent_exiles).sum::<usize>()
+            own + map.values_mut().map(link_source_exiles).sum::<usize>()
         }
-        Value::Array(items) => items.iter_mut().map(link_permanent_exiles).sum(),
+        Value::Array(items) => items.iter_mut().map(link_source_exiles).sum(),
         _ => 0,
+    }
+}
+
+/// Whether some primitive of `value` exiles with the given link kind. The
+/// exile destination of a linkable card move is that move's own, not
+/// another exile.
+fn has_exile(value: &Value, link: ExileLink) -> bool {
+    match value {
+        Value::Object(map) => {
+            let own = exile_link(map);
+            own == link
+                || map.iter().any(|(key, child)| {
+                    !(own == ExileLink::Linkable && key == "to") && has_exile(child, link)
+                })
+        }
+        Value::Array(items) => items.iter().any(|item| has_exile(item, link)),
+        _ => false,
     }
 }
 
@@ -63,15 +109,21 @@ fn reject(ability: &mut ParsedOracleAbility, state: &str, message: &str, expecte
 /// on a reader's face records no source relation and is rejected.
 fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
     let mentions = |rule: &Value, needle: &str| rule.to_string().contains(needle);
-    let reads_linked = |rule: &Value| mentions(rule, "\"cardsExiledWithSource\"");
+    // The linked set, or the one linked card a singular reader names
+    // (`copy the exiled card`).
+    let reads_linked = |rule: &Value| {
+        mentions(rule, "\"cardsExiledWithSource\"") || mentions(rule, "\"cardExiledWithSource\"")
+    };
     let reads_face_link =
         |rule: &Value| reads_linked(rule) && mentions(rule, &format!("\"link\":\"{FACE_LINK}\""));
     let reads_pair_link =
         |rule: &Value| reads_linked(rule) && mentions(rule, &format!("\"link\":\"{PAIR_LINK}\""));
-    let exiles_permanents = |rule: &Value| mentions(rule, "\"kind\":\"exilePermanent\"");
-    let other_exiles = |rule: &Value| {
-        mentions(rule, "\"exileTargetCards\"") || mentions(rule, "\"kind\":\"exile\"")
+    // A permanent exile without a returning duration, or a card exile from
+    // another zone: both record the link (CR 607.2a).
+    let exiles_permanents = |rule: &Value| {
+        has_exile(rule, ExileLink::Linkable) || has_exile(rule, ExileLink::LinkedByDuration)
     };
+    let other_exiles = |rule: &Value| has_exile(rule, ExileLink::Unlinkable);
     let faces_with_readers = abilities
         .iter()
         .filter(|ability| ability.rule.as_ref().is_some_and(reads_linked))
@@ -104,7 +156,7 @@ fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
             .is_some_and(exiles_permanents)
         {
             if let Some(rule) = abilities[reader].rule.as_mut() {
-                link_permanent_exiles(rule);
+                link_source_exiles(rule);
             }
             continue;
         }
@@ -125,13 +177,13 @@ fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
             producers if !producers.is_empty() && !pair => {
                 for producer in producers {
                     if let Some(rule) = abilities[*producer].rule.as_mut() {
-                        link_permanent_exiles(rule);
+                        link_source_exiles(rule);
                     }
                 }
             }
             [producer] => {
                 if let Some(rule) = abilities[*producer].rule.as_mut() {
-                    link_permanent_exiles(rule);
+                    link_source_exiles(rule);
                 }
             }
             [] if abilities[reader]

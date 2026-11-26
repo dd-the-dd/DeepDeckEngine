@@ -455,7 +455,7 @@
       }
     },
     {
-      "id": "exact-punishing-fire-graveyard-life-gain-observer-gap",
+      "id": "exact-punishing-fire-graveyard-life-gain-observer",
       "request": {
         "cardName": "Punishing Fire",
         "typeLine": "Instant",
@@ -465,19 +465,28 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "engine.gap.event-matcher"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "lifeGained"
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "exact-bridge-from-below-graveyard-death-observer-gap",
+      "id": "exact-bridge-from-below-graveyard-arrival-observer",
       "request": {
         "cardName": "Bridge from Below",
         "typeLine": "Enchantment",
@@ -487,13 +496,36 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "engine.gap.event-matcher"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/to",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/subject/object/kind",
+                "equals": "cards"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              }
+            ]
           }
         ]
       }

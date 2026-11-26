@@ -130,10 +130,6 @@ fn a_commander_cast_count_copies_the_spell_that_many_times() {
 /// CR 702.94a: the first card drawn this turn is revealed and may be cast
 /// for its miracle cost, read from the printed keyword line.
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Temporal Mastery; see docs/coverage-targets.md"
-)]
 #[test]
 fn a_parsed_miracle_casts_the_first_card_drawn_for_its_cost() {
     let mastery = spell(
@@ -155,10 +151,10 @@ fn a_parsed_miracle_casts_the_first_card_drawn_for_its_cost() {
     engine.draw_cards("player-0", 1).expect("card is drawn");
     assert!(
         engine.state.stack.iter().any(|object| {
-            object
-                .ability_rule
-                .as_ref()
-                .is_some_and(|rule| rule["effects"][0]["operation"] == "miracleCastDrawnCard")
+            object.ability_rule.as_ref().is_some_and(|rule| {
+                rule["effects"][0]["kind"] == "castOneCard"
+                    && rule["effects"][0]["alternativeCost"]["mode"] == "miracle"
+            })
         }),
         "the miracle trigger is put on the stack"
     );

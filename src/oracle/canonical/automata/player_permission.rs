@@ -60,11 +60,13 @@ pub(in crate::oracle::canonical) enum TemporaryRuleNode {
     /// `damage can't be prevented` (CR 615.12): a game rule over every
     /// damage event while it lasts.
     DamageCantBePrevented,
-    /// `the next SPELLS you cast this turn MODIFICATION`: a one-shot rule
-    /// consumed by the first matching cast of the controller.
+    /// `the next SPELLS you cast [this turn] MODIFICATION`: a one-shot rule
+    /// consumed by the first matching cast of the controller. Without `this
+    /// turn` it lasts until that spell is cast (CR 611.2a).
     NextSpell {
         spells: ObjectPredicate,
         modification: NextSpellModification,
+        this_turn: bool,
     },
     /// `you may cast SPELLS this turn as though they had flash`: the
     /// controller casts every matching spell with instant timing while the
@@ -108,6 +110,9 @@ pub(in crate::oracle::canonical) enum TemporaryRuleDuration {
     Effect(EffectDurationNode),
     /// `for the rest of the game`.
     RestOfGame,
+    /// A next-spell rule without a written period: it lasts until the spell
+    /// it names is cast.
+    UntilUsed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -310,6 +315,12 @@ pub(in crate::oracle::canonical) fn try_recognize_temporary_player_permission(
     if word_at(cursor, 0, "the") && word_at(cursor, 1, "next") && !word_at(cursor, 2, "time") {
         return try_recognize_next_spell_rule(cursor);
     }
+    // A temporary rules-changing static body (`Artifact spells you cast
+    // this turn cost {1} less to cast`, CR 611.2a, 611.2c) is not read
+    // here: it needs the static modifier families to read the body on this
+    // cursor with the lifetime as a typed duration, and the subject's cast
+    // relation to own its `this turn`. Until then the player-rule failure
+    // stays the explicit diagnostic.
     try_recognize_temporary_player_rule(cursor, supplied)
 }
 
@@ -485,7 +496,8 @@ fn try_recognize_temporary_flash_permission(
     }
 }
 
-/// The offset of `you cast this turn` closing a next-spell subject.
+/// The offset of `you cast` closing a next-spell subject, followed by a
+/// modification head (`costs`, `can`, `can't`) or by `this turn`.
 fn next_spell_relation_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
     (2..)
         .take_while(|offset| {
@@ -494,16 +506,19 @@ fn next_spell_relation_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
                 .is_some_and(|raw| raw != "." && raw != "," && raw != "(")
         })
         .find(|offset| {
-            ["you", "cast", "this", "turn"]
-                .iter()
-                .enumerate()
-                .all(|(at, word)| word_at(cursor, offset + at, word))
+            word_at(cursor, *offset, "you")
+                && word_at(cursor, offset + 1, "cast")
+                && ((word_at(cursor, offset + 2, "this") && word_at(cursor, offset + 3, "turn"))
+                    || word_at(cursor, offset + 2, "costs")
+                    || word_at(cursor, offset + 2, "can")
+                    || super::player_prohibition_word_at(cursor, offset + 2))
         })
 }
 
-/// `the next SPELLS you cast this turn RULE`. The spell query is the shared
-/// object query read up to its relation; the relation and its period are
-/// the ordinal's (the controller's casts this turn).
+/// `the next SPELLS you cast [this turn] RULE`. The spell query is the
+/// shared object query read up to its relation; the relation and its
+/// optional period are the ordinal's (the controller's next matching cast,
+/// this turn or whenever it comes).
 fn try_recognize_next_spell_rule(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> TemporaryPlayerPermissionParseAttempt {
@@ -539,7 +554,11 @@ fn try_recognize_next_spell_rule(
         return reject(cursor, failure);
     }
     cursor.enter("temporary-rule.next-spell.relation");
-    if let Err(failure) = cursor.consume_phrase(&["you", "cast", "this", "turn"]) {
+    if let Err(failure) = cursor.consume_phrase(&["you", "cast"]) {
+        return reject(cursor, failure);
+    }
+    let this_turn = word_at(cursor, 0, "this") && word_at(cursor, 1, "turn");
+    if this_turn && let Err(failure) = cursor.consume_phrase(&["this", "turn"]) {
         return reject(cursor, failure);
     }
     // The ordinal subject is read: the rule after it belongs to this frame.
@@ -549,8 +568,13 @@ fn try_recognize_next_spell_rule(
                 rule: TemporaryRuleNode::NextSpell {
                     spells: query.predicate,
                     modification,
+                    this_turn,
                 },
-                duration: TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn),
+                duration: if this_turn {
+                    TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn)
+                } else {
+                    TemporaryRuleDuration::UntilUsed
+                },
             })
         }
         Err(failure) => TemporaryPlayerPermissionParseAttempt::FailedCommitted(failure),

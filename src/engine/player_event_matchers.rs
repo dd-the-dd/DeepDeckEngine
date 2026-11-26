@@ -71,6 +71,21 @@ pub(super) fn player_outcome_event_supported(event: &Value) -> Option<bool> {
                 && player()
                 && event.get("where").is_none_or(card_filter_supported)
         }
+        // CR 724.1: the player became the monarch.
+        "becameMonarch" => has_only_fields(event, &["kind", "player"]) && player(),
+        // CR 701.23: the player searched their library. The historical
+        // `anyPlayer` form has no player relation and keeps its own matcher.
+        "librarySearched" if event.get("player").is_some() => {
+            has_only_fields(event, &["kind", "player"]) && player()
+        }
+        // CR 122.1: one instruction put counters of `counter` on the player.
+        "playerCountersAdded" => {
+            has_only_fields(event, &["kind", "player", "counter"])
+                && player()
+                && event["counter"]
+                    .as_str()
+                    .is_some_and(|counter| !counter.is_empty())
+        }
         _ => return None,
     };
     Some(supported)
@@ -181,7 +196,20 @@ impl GameEngine {
         permanent_id: Option<&str>,
         matches: impl Fn(&Value) -> bool,
     ) {
-        let triggers = self
+        let observes = |source: &CardInstance, rule: &Value| {
+            triggered_event_variants(&rule["event"])
+                .iter()
+                .any(|event| {
+                    value_kind(event) == Some(kind)
+                        && self.event_player_reference_matches(
+                            &event["player"],
+                            source,
+                            acting_player_id,
+                        )
+                        && matches(*event)
+                })
+        };
+        let mut triggers = self
             .state
             .players
             .iter()
@@ -193,23 +221,15 @@ impl GameEngine {
                     .filter(|rule| {
                         triggered_rule_supported(rule)
                             && self.rule_active_for_source(source, rule)
-                            && triggered_event_variants(&rule["event"])
-                                .iter()
-                                .any(|event| {
-                                    value_kind(event) == Some(kind)
-                                        && self.event_player_reference_matches(
-                                            &event["player"],
-                                            source,
-                                            acting_player_id,
-                                        )
-                                        && matches(*event)
-                                })
+                            && observes(source, *rule)
                     })
                     .cloned()
                     .map(|rule| (source.clone(), rule))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        // The same occurrence observed from a graveyard (CR 113.6).
+        triggers.extend(self.card_zone_triggered_rules(&observes));
         let mut decisions = BTreeMap::from([(
             "triggeringPlayerId".to_string(),
             Value::String(acting_player_id.to_string()),
@@ -324,6 +344,26 @@ impl GameEngine {
                 return;
             }
         }
+    }
+
+    /// `player_id` became the monarch (CR 724.1).
+    pub(super) fn publish_became_monarch(&mut self, player_id: &str) {
+        self.publish_player_outcome_event("becameMonarch", player_id, None, |_| true);
+    }
+
+    /// `player_id` searched their library (CR 701.23): observers with a
+    /// player relation. The historical `anyPlayer` observer has no `player`
+    /// and is never matched here.
+    pub(super) fn publish_library_searched(&mut self, player_id: &str) {
+        self.publish_player_outcome_event("librarySearched", player_id, None, |_| true);
+    }
+
+    /// One instruction put at least one `counter` counter on `player_id`
+    /// (CR 122.1, 603.2c): `get one or more {E}` observers of that counter.
+    pub(super) fn publish_player_counters_added(&mut self, player_id: &str, counter: &str) {
+        self.publish_player_outcome_event("playerCountersAdded", player_id, None, |event| {
+            event["counter"].as_str() == Some(counter)
+        });
     }
 
     /// One proliferation of `player_id` (CR 701.34).

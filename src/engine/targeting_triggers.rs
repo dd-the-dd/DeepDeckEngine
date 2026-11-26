@@ -27,7 +27,11 @@ pub(super) fn became_target_event_supported(event: &Value) -> Option<bool> {
                 fields.keys().all(|key| {
                     matches!(
                         key.as_str(),
-                        "kind" | "object" | "targetingStackObject" | "turnOrdinal"
+                        "kind"
+                            | "object"
+                            | "targetingStackObject"
+                            | "turnOrdinal"
+                            | "oncePerTargetingObject"
                     )
                 })
             }) && (value_kind(&event["object"]) == Some("self")
@@ -35,7 +39,10 @@ pub(super) fn became_target_event_supported(event: &Value) -> Option<bool> {
                 && targeting_stack_selector_supported(&event["targetingStackObject"])
                 && event
                     .get("turnOrdinal")
-                    .is_none_or(|ordinal| targeting_ordinal_supported(event, ordinal)),
+                    .is_none_or(|ordinal| targeting_ordinal_supported(event, ordinal))
+                && event
+                    .get("oncePerTargetingObject")
+                    .is_none_or(Value::is_boolean),
         );
     }
     if value_kind(&event["object"]) == Some("self") {
@@ -118,6 +125,11 @@ fn became_target_object_selector_supported(selector: &Value) -> bool {
         Some("union") => selector["sets"].as_array().is_some_and(|sets| {
             !sets.is_empty() && sets.iter().all(became_target_object_selector_supported)
         }),
+        // A targeted player in a relation to the observer (CR 115.1).
+        Some("player") => {
+            value_kind(&selector["player"]) == Some("eachPlayer")
+                || controller_reference_supported(&selector["player"])
+        }
         Some("permanents" | "spells") => {
             selector
                 .get("controller")
@@ -408,6 +420,18 @@ impl GameEngine {
                 sets.iter()
                     .any(|set| self.target_matches_event_object(set, target, source))
             }),
+            // A targeted player in the written relation (CR 115.1).
+            Some("player") => match target {
+                TargetRef::Player { player_id } => {
+                    value_kind(&selector["player"]) == Some("eachPlayer")
+                        || controller_reference_matches(
+                            &selector["player"],
+                            player_id,
+                            &source.controller,
+                        )
+                }
+                _ => false,
+            },
             // The permanent the observing attachment is attached to.
             Some("attachedPermanent") => matches!(
                 target,
@@ -540,7 +564,11 @@ impl GameEngine {
                     object.controller.clone(),
                 ))
             }
-            TargetRef::Player { .. } | TargetRef::Card { .. } => None,
+            // A targeted player is its own controller relation.
+            TargetRef::Player { player_id } => {
+                Some(("player".to_string(), player_id.clone(), player_id.clone()))
+            }
+            TargetRef::Card { .. } => None,
         }
     }
 
@@ -563,14 +591,16 @@ impl GameEngine {
         for target in targets.values() {
             if matches!(
                 target,
-                TargetRef::Permanent { .. } | TargetRef::StackObject { .. }
+                TargetRef::Permanent { .. }
+                    | TargetRef::StackObject { .. }
+                    | TargetRef::Player { .. }
             ) && !distinct_targets.contains(target)
             {
                 distinct_targets.push(target.clone());
             }
         }
 
-        let mut pending = Vec::new();
+        let mut pending: Vec<(CardInstance, Value, BTreeMap<String, Value>)> = Vec::new();
         for target in distinct_targets {
             let Some((target_kind, target_id, target_controller_id)) =
                 self.target_event_identity(&target)
@@ -619,6 +649,18 @@ impl GameEngine {
                                     && self.targeting_turn_ordinal_matches(event, &target, source)
                             })
                 }) {
+                    // `you or a permanent you control`: one occurrence per
+                    // targeting object, however many members it targets.
+                    let once = triggered_event_variants(&rule["event"])
+                        .iter()
+                        .any(|event| event["oncePerTargetingObject"].as_bool() == Some(true));
+                    if once
+                        && pending.iter().any(|(pending_source, pending_rule, _)| {
+                            pending_source.instance_id == source.instance_id && pending_rule == rule
+                        })
+                    {
+                        continue;
+                    }
                     let mut decisions = BTreeMap::from([
                         (
                             "targetingStackId".to_string(),

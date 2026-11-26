@@ -1,0 +1,302 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "graveyard-observer-lookback/destroyed-bridge-does-not-see-its-own-wipe",
+  "seed": 26111,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Enchantment"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Observer owner",
+        "hand": [
+          {
+            "id": "board-wipe",
+            "name": "Board Wipe",
+            "typeLine": "Sorcery",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "eachPermanent",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "bridge-from-below",
+            "name": "Bridge from Below",
+            "typeLine": "Enchantment",
+            "manaCost": "{B}{B}{B}",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "eventPattern",
+                  "lemma": "move",
+                  "from": "battlefield",
+                  "to": "graveyard",
+                  "subject": {
+                    "object": {
+                      "kind": "cards",
+                      "owner": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "isToken"
+                            }
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "condition": {
+                  "kind": "objectInZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zones": [
+                    "graveyard"
+                  ]
+                },
+                "triggerZone": "graveyard",
+                "effects": [
+                  {
+                    "kind": "createTokens",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "token": {
+                      "abilities": [],
+                      "colors": [
+                        "Black"
+                      ],
+                      "power": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "subtypes": [
+                        "Zombie"
+                      ],
+                      "toughness": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "types": [
+                        "Creature"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "eventPattern",
+                  "lemma": "move",
+                  "from": "battlefield",
+                  "to": "graveyard",
+                  "subject": {
+                    "object": {
+                      "kind": "cards",
+                      "owner": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                },
+                "condition": {
+                  "kind": "objectInZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zones": [
+                    "graveyard"
+                  ]
+                },
+                "triggerZone": "graveyard",
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "self"
+                    },
+                    "to": {
+                      "faceDown": false,
+                      "kind": "exile",
+                      "player": {
+                        "kind": "ownerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "own-bears",
+            "name": "Own Bears",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-creature",
+            "name": "Opponent Creature",
+            "typeLine": "Creature — Test",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "board-wipe"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "bridge-from-below",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "own-bears",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-creature",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 0
+    }
+  ]
+}

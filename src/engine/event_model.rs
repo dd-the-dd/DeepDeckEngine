@@ -674,10 +674,13 @@ fn attacked_recipients_supported(attacked: &Value) -> bool {
                     .iter()
                     .all(|alternative| match value_kind(alternative) {
                         Some("player") => {
-                            has_only_fields(alternative, &["kind", "player"])
+                            has_only_fields(alternative, &["kind", "player", "where"])
                                 && player_action_events::event_player_reference_supported(
                                     &alternative["player"],
                                 )
+                                && alternative
+                                    .get("where")
+                                    .is_none_or(attacked_player_condition_supported)
                         }
                         Some("permanents") => {
                             has_only_fields(alternative, &["kind", "controller", "where"])
@@ -689,6 +692,17 @@ fn attacked_recipients_supported(attacked: &Value) -> bool {
                         _ => false,
                     })
         })
+}
+
+/// The member condition of an attacked player (`a player who controls
+/// eight or more lands`): the shared `filterPlayers` member condition,
+/// whose `quantifiedPlayer` is the attacked player.
+fn attacked_player_condition_supported(condition: &Value) -> bool {
+    super::effect_domains::player_designations::filtered_players_supported(&json!({
+        "kind": "filterPlayers",
+        "players": {"kind": "eachPlayer"},
+        "where": condition,
+    }))
 }
 
 /// Event kinds whose matcher evaluates a compound member's own
@@ -1042,6 +1056,12 @@ impl GameEngine {
                             source,
                             &record.defending_player,
                         )
+                        && alternative.get("where").is_none_or(|condition| {
+                            self.attacked_player_condition_holds(
+                                condition,
+                                &record.defending_player,
+                            )
+                        })
                 }
                 Some("permanents") => record
                     .attacked_permanent
@@ -1060,6 +1080,14 @@ impl GameEngine {
                     }),
                 _ => false,
             })
+    }
+
+    /// The member condition of an attacked player, read with that player as
+    /// the condition's reference player (as `filterPlayers` reads each
+    /// member), when the attack is declared (CR 506.2, 603.2).
+    fn attacked_player_condition_holds(&self, condition: &Value, attacked_player_id: &str) -> bool {
+        let condition = crate::engine::player_quantifier::bind_quantified_player(condition);
+        self.condition_value_with_source(&condition, attacked_player_id, &BTreeMap::new(), None)
     }
 
     /// The planeswalker or battle an attacker attacks, if not a player.
@@ -1235,10 +1263,13 @@ impl GameEngine {
             .filter_map(|attacker_id| self.permanent_position(attacker_id))
             .filter(|(player_index, card_index)| {
                 let permanent = &self.state.players[*player_index].battlefield[*card_index];
-                permanent.controller == source.controller
-                    && event.get("where").is_none_or(|filter| {
-                        self.permanent_matches_effective_filter(permanent, filter)
-                    })
+                event_batch::batch_member_controller_matches(
+                    event,
+                    &source.controller,
+                    &permanent.controller,
+                ) && event
+                    .get("where")
+                    .is_none_or(|filter| self.permanent_matches_effective_filter(permanent, filter))
             })
             .count();
         decisions.insert("eventObjectCount".to_string(), Value::from(count as u64));

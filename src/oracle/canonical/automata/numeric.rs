@@ -224,8 +224,9 @@ pub(in crate::oracle::canonical) fn recognize_numeric_primary_expression(
                         &environment,
                     )?);
                     NumericExpressionState::Complete
-                } else if antecedent.is_none()
-                    && super::environment_possessive_property_starts(cursor)
+                } else if (antecedent.is_none()
+                    && super::environment_possessive_property_starts(cursor))
+                    || super::distributive_member_possessive_starts(cursor)
                 {
                     // `its power` without a parent target: the binding
                     // environment's possessive antecedent.
@@ -1409,6 +1410,62 @@ pub(in crate::oracle::canonical) fn recognize_life_point_history(
     let verb = cursor.position() + verb;
     cursor.advance_to(verb)?;
     recognize_life_history_tail(cursor, player)
+}
+
+/// The life verb of `1 life PLAYER lost|gained` without a turn scope at
+/// `offset`: the player is the event's (`you`, `they`), and the event
+/// binding the verb restates.
+fn event_life_point_binding(cursor: &OracleTokenCursor<'_>) -> Option<EventNumericBinding> {
+    if !(word_is(cursor, 0, "1")
+        && word_is(cursor, 1, "life")
+        && (word_is(cursor, 2, "you") || word_is(cursor, 2, "they")))
+    {
+        return None;
+    }
+    // `1 life you lost this turn` is the turn's history, not the event's.
+    if word_is(cursor, 4, "this") {
+        return None;
+    }
+    if word_is(cursor, 3, "lost") {
+        Some(EventNumericBinding::LifeLost)
+    } else if word_is(cursor, 3, "gained") {
+        Some(EventNumericBinding::LifeGained)
+    } else {
+        None
+    }
+}
+
+/// Lexical lookahead for `1 life you lost|gained` after `for each`.
+pub(in crate::oracle::canonical) fn event_life_point_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    event_life_point_binding(cursor).is_some()
+}
+
+/// `1 life you lost|gained` after `for each` inside a life-loss or life-gain
+/// trigger (`Whenever you lose life, for each 1 life you lost, ...`, CR
+/// 119.3, 119.10): one per point of the amount the triggering event records.
+/// Outside an event that records that amount it fails; it never reads the
+/// turn's history in its place.
+pub(in crate::oracle::canonical) fn recognize_event_life_point(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.event-life-point.amount");
+    let binding = cursor.require_value(
+        event_life_point_binding(cursor),
+        "`1 life you lost` or `1 life you gained`",
+    )?;
+    cursor.consume_phrase(&["1", "life"])?;
+    let player = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&player)?;
+    let verb = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&verb)?;
+    cursor.enter("numeric.event-life-point.binding");
+    cursor.require(
+        cursor.event_numeric_binding() == Some(binding),
+        "a life event that records the amount this phrase restates",
+    )?;
+    Ok(NumericExpression::EventValue(binding))
 }
 
 /// Lexical lookahead for `the amount of damage SUBJECT dealt to RECIPIENT`.

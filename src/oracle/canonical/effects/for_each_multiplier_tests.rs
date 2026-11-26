@@ -84,8 +84,8 @@ fn unsupported_multipliers_fail_at_a_precise_state() {
     for text in [
         // Non-literal base quantity has no proved reading.
         "Draw X cards for each creature you control.",
-        // Distinct colors aggregate battlefield collections only.
-        "Draw a card for each color among cards in target player's hand.",
+        // A zone holder with no antecedent names no collection.
+        "Draw a card for each color among cards in that player's hand.",
         // Mana productions only take counts the mana runtime evaluates.
         "Add {G} for each color among permanents you control.",
         // An action without a shared numeric quantity refuses the multiplier.

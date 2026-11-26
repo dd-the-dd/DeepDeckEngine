@@ -20,7 +20,7 @@ fn lower_temporary_rule_duration(
             player: LocalPlayerReference::Controller,
         }) => Ok(json!({"kind": "untilEndOfNextTurn", "player": controller()})),
         TemporaryRuleDuration::RestOfGame => Ok(json!({"kind": "restOfGame"})),
-        TemporaryRuleDuration::Effect(_) => {
+        TemporaryRuleDuration::UntilUsed | TemporaryRuleDuration::Effect(_) => {
             Err(TargetlessLoweringError::UnsupportedPermissionLifetime)
         }
     }
@@ -99,10 +99,15 @@ fn lower_temporary_rule_modifiers(
     }
 }
 
-/// `the next SPELLS you cast this turn RULE` (CR 601.2i): a one-shot
+/// `the next SPELLS you cast [this turn] RULE` (CR 601.2i): a one-shot
 /// modifier matched by the controller's next cast of a matching spell,
-/// consumed by it, expiring with the turn.
-fn lower_next_spell_rule(spells: &ObjectPredicate, modification: NextSpellModification) -> Value {
+/// consumed by it, expiring with the turn when `this turn` is written and
+/// otherwise when that spell is cast.
+fn lower_next_spell_rule(
+    spells: &ObjectPredicate,
+    modification: NextSpellModification,
+    this_turn: bool,
+) -> Value {
     let mut matcher = json!({"kind": "spellCast", "player": controller()});
     if let Some(filter) = lower_spell_object_predicate(spells) {
         matcher["where"] = filter;
@@ -131,7 +136,7 @@ fn lower_next_spell_rule(spells: &ObjectPredicate, modification: NextSpellModifi
         "match": matcher,
         "apply": apply,
         "consume": {"kind": "firstMatchingEvent"},
-        "expires": {"kind": "endOfCurrentTurn"},
+        "expires": {"kind": if this_turn { "endOfCurrentTurn" } else { "whenConsumed" }},
     })
 }
 
@@ -141,9 +146,10 @@ pub(in crate::oracle::canonical) fn lower_temporary_player_permission(
     if let TemporaryRuleNode::NextSpell {
         spells,
         modification,
+        this_turn,
     } = &node.rule
     {
-        return Ok(lower_next_spell_rule(spells, *modification));
+        return Ok(lower_next_spell_rule(spells, *modification, *this_turn));
     }
     let TemporaryRuleNode::Allowance(modifier) = &node.rule else {
         return Ok(json!({

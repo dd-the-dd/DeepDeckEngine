@@ -131,6 +131,10 @@ pub(super) struct EffectiveRules<'a> {
     /// recorded on the object (characteristic markers, until-end-of-turn
     /// grants) is not rules text and stays.
     rules_text_lost: bool,
+    /// A permanent's printed triggered rules that function only from
+    /// another zone (CR 113.6: `triggerZone` graveyard, hand, exile) do not
+    /// function while it is on the battlefield.
+    on_battlefield: bool,
     granted: Vec<Value>,
 }
 
@@ -138,6 +142,14 @@ pub(super) struct EffectiveRules<'a> {
 /// what a resolved effect recorded on the object.
 fn survives_rules_text_loss(rules_text_lost: bool, rule: &Value) -> bool {
     !rules_text_lost || GameEngine::is_resolved_characteristic_marker(rule)
+}
+
+/// Whether a printed rule functions where its object is, as far as this
+/// layer knows it: on the battlefield, a triggered rule whose zone of
+/// function is another zone does not (CR 113.6). Off the battlefield the
+/// observer that reads the rules checks the object's zone.
+fn functions_in_known_zone(on_battlefield: bool, rule: &Value) -> bool {
+    !on_battlefield || !zone_of_function::functions_only_off_battlefield(rule)
 }
 
 impl<'a> EffectiveRules<'a> {
@@ -148,6 +160,7 @@ impl<'a> EffectiveRules<'a> {
         let object = self.object;
         let functioning = self.functioning;
         let rules_text_lost = self.rules_text_lost;
+        let on_battlefield = self.on_battlefield;
         object
             .definition
             .rules
@@ -156,6 +169,7 @@ impl<'a> EffectiveRules<'a> {
             .filter(move |(_, rule)| {
                 functioning
                     && survives_rules_text_loss(rules_text_lost, rule)
+                    && functions_in_known_zone(on_battlefield, rule)
                     && GameEngine::rule_metadata_active_for_source(object, rule)
             })
     }
@@ -167,11 +181,13 @@ impl<'a> EffectiveRules<'a> {
         let printed: &[Value] = &object.definition.rules;
         let functioning = self.functioning;
         let rules_text_lost = self.rules_text_lost;
+        let on_battlefield = self.on_battlefield;
         printed
             .iter()
             .filter(move |rule| {
                 functioning
                     && survives_rules_text_loss(rules_text_lost, rule)
+                    && functions_in_known_zone(on_battlefield, rule)
                     && GameEngine::rule_metadata_active_for_source(object, rule)
             })
             .chain(self.granted.iter())
@@ -205,6 +221,7 @@ impl GameEngine {
                 object,
                 functioning: true,
                 rules_text_lost: false,
+                on_battlefield: false,
                 granted: Vec::new(),
             };
         }
@@ -228,6 +245,7 @@ impl GameEngine {
             object,
             functioning,
             rules_text_lost,
+            on_battlefield,
             granted,
         }
     }
@@ -253,6 +271,7 @@ impl GameEngine {
             object,
             functioning,
             rules_text_lost,
+            on_battlefield,
             granted,
         }
     }

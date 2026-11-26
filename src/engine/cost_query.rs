@@ -302,7 +302,10 @@ impl GameEngine {
         modifiers.extend(self.eminence_static_modifiers());
         let mut total = 0_i32;
         for (source, modifier) in modifiers {
-            if value_kind(&modifier) != Some("reduceCastingCost") {
+            // A targeting reduction is read once the targets are chosen.
+            if value_kind(&modifier) != Some("reduceCastingCost")
+                || modifier.get("spellTarget").is_some()
+            {
                 continue;
             }
             let context = base.modifier(&source);
@@ -373,6 +376,29 @@ impl GameEngine {
                 })
             {
                 continue;
+            }
+            // `the second spell you cast each turn` (CR 601.2i): the caster's
+            // earlier matching casts this turn precede this one.
+            if let Some(ordinal) = modifier.get("castOrdinal").and_then(Value::as_u64) {
+                if context.actor != player_id {
+                    return Err(EngineError::new(
+                        "unsupported cross-player spell-ordinal reduction scope",
+                    ));
+                }
+                let earlier = self
+                    .state
+                    .events
+                    .iter()
+                    .filter(|event| {
+                        event.turn_number == self.state.turn_number
+                            && event.kind == "spellCast"
+                            && event.player_id.as_deref() == Some(player_id)
+                            && spell_cast_event_matches_filter(event, &modifier["where"])
+                    })
+                    .count() as u64;
+                if earlier + 1 != ordinal {
+                    continue;
+                }
             }
             let filter =
                 self.prepare_cost_query_filter(&modifier["where"], &context, None, false)?;

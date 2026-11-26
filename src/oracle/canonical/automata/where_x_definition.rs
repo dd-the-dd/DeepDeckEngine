@@ -23,8 +23,10 @@ pub(in crate::oracle::canonical) struct WhereXBindingNode {
 }
 
 impl WhereXBindingNode {
-    pub(in crate::oracle::canonical) fn covers(&self, effect_index: usize) -> bool {
-        (self.first_effect..self.end_effect).contains(&effect_index)
+    /// The defining sentence or a later one: X keeps the defined value for
+    /// the rest of the program (CR 107.3), up to another definition.
+    pub(in crate::oracle::canonical) fn reaches(&self, effect_index: usize) -> bool {
+        self.first_effect <= effect_index
     }
 }
 

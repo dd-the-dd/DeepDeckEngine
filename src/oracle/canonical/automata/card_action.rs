@@ -1165,6 +1165,19 @@ fn recognize_card_copy(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Card
         CollectionOperandAttempt::RejectedCandidate(failure)
         | CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
     };
+    // `copy the exiled card` names one card (CR 707.12); the plural `the
+    // exiled cards` is no single copied object, whichever exile it names.
+    if cards == CardOperandNode::Reference(CardCollectionReferenceNode::Exiled) {
+        cursor.enter("card-action.copy.exiled-number");
+        let last = cursor.position().saturating_sub(1);
+        cursor.require(
+            cursor
+                .token_slice(last, last + 1)
+                .first()
+                .is_some_and(|token| token.raw.eq_ignore_ascii_case("card")),
+            "the singular `the exiled card` as the copied card",
+        )?;
+    }
     cursor.enter("card-action.copy.count");
     let count = recognize_repetition_count(cursor)?;
     cursor.enter("card-action.copy.cast-follows");
@@ -1199,7 +1212,9 @@ fn recognize_repetition_count(
 
 /// Whether the next instruction casts `the copy` / `the copies`: after the
 /// sentence end or a coordinator, an optional `you may`, then `cast the
-/// copy|copies` or `cast any number of the copies`. Pure lookahead.
+/// copy|copies` or `cast any number of the copies`. After an optional copy
+/// (`You may copy the exiled card.`) the cast is the body of its `If you
+/// do,` outcome, which runs only when the copy was made. Pure lookahead.
 fn copy_cast_follows(cursor: &OracleTokenCursor<'_>) -> bool {
     let mut offset = 0;
     if peek_word(cursor, offset, ",") {
@@ -1212,6 +1227,19 @@ fn copy_cast_follows(cursor: &OracleTokenCursor<'_>) -> bool {
         offset += 1;
     } else if offset == 0 {
         return false;
+    }
+    if peek_word(cursor, offset, "if")
+        && peek_word(cursor, offset + 1, "you")
+        && peek_word(cursor, offset + 2, "do")
+        && peek_word(cursor, offset + 3, ",")
+    {
+        offset += 4;
+    }
+    // The producing sentence of an outcome block is read on its own bounded
+    // range (`You may copy the exiled card.`): its `If you do,` body owns
+    // the cast, and the outcome lowering proves that body casts the copy.
+    if offset > 0 && peek_word(cursor, offset - 1, ".") && cursor.peek_ahead(offset).is_none() {
+        return true;
     }
     if peek_word(cursor, offset, "then") {
         offset += 1;
@@ -2275,6 +2303,10 @@ fn recognize_reveal_until(
         cursor.consume(match verb {
             CardCollectionVerb::Revealed => "reveal",
             CardCollectionVerb::Exiled => "exile",
+            // A mill has a fixed count (CR 701.13a); it never stops on a match.
+            CardCollectionVerb::Milled => {
+                return Err(cursor.fail("a reveal or exile performed until a match"));
+            }
         })?;
     }
     cursor.enter("card-action.reveal-until.quantity");
@@ -2296,10 +2328,7 @@ fn recognize_reveal_until(
             }) if *count == NumericExpression::from(1)
         );
         cursor.consume(if singular { "is" } else { "are" })?;
-        cursor.consume(match verb {
-            CardCollectionVerb::Revealed => "revealed",
-            CardCollectionVerb::Exiled => "exiled",
-        })?;
+        cursor.consume(verb.participle())?;
     }
     let quantity = match phrase.determiner {
         Some(ObjectDeterminer::Chosen {
@@ -3005,6 +3034,37 @@ pub(in crate::oracle::canonical) fn effects_read_only_observed_cards(
             }
             _ => false,
         })
+}
+
+/// Whether a split program separates an observation from the outcome
+/// producer that reads it: a step whose sequence observes cards (a mill, a
+/// look, a reveal) followed by an instruction outcome whose producing
+/// sentence acts only on those cards and names them explicitly (`Mill three
+/// cards. You may put a land card from among them into your hand. If you
+/// don't, ...`). Each program step lowers its own card-collection scope, so
+/// the producer would read no observation; the caller reads the leading
+/// sentences and the producer as one sequence instead (CR 608.2c).
+pub(in crate::oracle::canonical) fn program_steps_detach_observed_cards(
+    program: &EffectProgramNode,
+) -> bool {
+    program.steps().windows(2).any(|pair| {
+        let EffectProgramNode::Sequence(leading) = &pair[0] else {
+            return false;
+        };
+        let EffectProgramNode::Outcome {
+            producer: OutcomeProducer::Action(producer),
+            ..
+        } = &pair[1]
+        else {
+            return false;
+        };
+        let EffectProgramNode::Sequence(action) = producer.as_ref() else {
+            return false;
+        };
+        effects_observe_cards(&leading.effects)
+            && effects_read_only_observed_cards(&action.effects)
+            && effects_name_observation_explicitly(&action.effects)
+    })
 }
 
 /// The ends (exclusive, absolute) of the top-level sentences after `from`,

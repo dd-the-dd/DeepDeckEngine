@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch12/distributive-member-predicate",
+  "cases": [
+    {
+      "id": "exact-band-together-their-power",
+      "request": {
+        "cardName": "Band Together",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Up to two target creatures you control each deal damage equal to their power to another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/kind",
+                "equals": "powerOf"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/object/id",
+                "equals": "iteratedObject1"
+              },
+              {
+                "pointer": "/effects/0/effects/0/source/id",
+                "equals": "iteratedObject1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-member-deals-a-literal-amount",
+      "request": {
+        "cardName": "Distributive Literal Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Up to two target creatures you control each deal 2 damage to target creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/kind",
+                "equals": "integer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/0/effects/0/source/id",
+                "equals": "iteratedObject1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-member-deals-its-toughness",
+      "request": {
+        "cardName": "Distributive Toughness Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Up to two target creatures you control each deal damage equal to their toughness to target creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/kind",
+                "equals": "toughnessOf"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/object/id",
+                "equals": "iteratedObject1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-several-slots-each-deal-their-toughness",
+      "request": {
+        "cardName": "Distributive Slots Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Target creature you control and up to one other target legendary creature you control each deal damage equal to their toughness to target creature you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "toughnessOf"
+              },
+              {
+                "pointer": "/effects/0/amount/object/id",
+                "equals": "targetPermanent1"
+              },
+              {
+                "pointer": "/effects/0/recipient/id",
+                "equals": "targetPermanent3"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/objects/id",
+                "equals": "targetPermanent2"
+              },
+              {
+                "pointer": "/effects/1/effects/0/amount/kind",
+                "equals": "toughnessOf"
+              },
+              {
+                "pointer": "/effects/1/effects/0/amount/object/id",
+                "equals": "iteratedObject2"
+              },
+              {
+                "pointer": "/effects/1/effects/0/recipient/id",
+                "equals": "targetPermanent3"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-their-power-without-a-distributive-subject",
+      "request": {
+        "cardName": "Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Target creature you control deals damage equal to their power to target creature you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "numeric.expression.object-reference",
+            "found": "their"
+          }
+        ]
+      }
+    }
+  ]
+}

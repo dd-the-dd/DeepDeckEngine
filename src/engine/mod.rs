@@ -110,6 +110,7 @@ mod characteristic_observation;
 mod chosen_object_costs;
 mod city_blessing;
 mod combat_requirements;
+mod condition_durations;
 mod copy_program;
 mod cost_paid_card_properties;
 mod cost_payment;
@@ -134,6 +135,7 @@ mod end_of_combat;
 mod event_batch;
 mod event_card_batch;
 mod event_model;
+mod graveyard_departure_history;
 mod invariants;
 mod keyword_actions;
 mod keyword_programs;
@@ -141,6 +143,7 @@ mod landwalk;
 mod library_shuffle;
 mod life;
 mod life_gain_replacement;
+mod linked_card_exile;
 mod linked_exile_return;
 mod linked_spell_part;
 mod mana;
@@ -148,6 +151,7 @@ mod mana_ability_execution;
 mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
+mod miracle;
 mod myriad;
 mod observed_state_events;
 mod regeneration;
@@ -1387,6 +1391,10 @@ pub struct GameEngine {
     event_batches: event_batch::EventBatchState,
     /// Effective characteristics of departed objects, per incarnation (LKI).
     departure_characteristics: BTreeMap<String, object_snapshot::EffectiveCharacteristics>,
+    /// While a simultaneous battlefield-departure event publishes, the cards
+    /// that were in graveyards before it began (CR 603.10a look-back). A card
+    /// put there by the same event is not yet an observer of that event.
+    graveyard_observer_frame: Option<BTreeSet<String>>,
 }
 
 fn default_opening_hand_size() -> usize {
@@ -3229,7 +3237,9 @@ fn enchant_ability_of(definition: &CardDefinition) -> Option<&Value> {
 }
 
 fn target_candidates_supported(candidates: &Value) -> bool {
-    let candidates = &source_bound_operands::with_placeholder_bindings(candidates);
+    let candidates = &candidate_numeric_operands::with_amount_placeholders(
+        &source_bound_operands::with_placeholder_bindings(candidates),
+    );
     match value_kind(candidates) {
         Some("players" | "anyTarget") => true,
         Some("permanents") => {
@@ -4102,6 +4112,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || suspend_ability_supported(&rule["ability"])
                 || mayhem_ability_supported(&rule["ability"])
                 || keyword_programs::madness_ability_supported(&rule["ability"])
+                || miracle_ability_supported(&rule["ability"])
                 || keyword_programs::aftermath_ability_supported(&rule["ability"])
                 || keyword_programs::disturb_ability_supported(&rule["ability"])
                 || keyword_programs::casualty_ability_supported(&rule["ability"])
@@ -4793,10 +4804,11 @@ fn declaration_shape_supported(rule: &Value) -> bool {
             }
             Some("chooseNumber") => {
                 decision["id"].is_string()
-                    && matches!(
+                    && (matches!(
                         integer_value(&decision["minimum"]),
                         Some(minimum) if minimum >= 0
-                    )
+                    ) || integer_value(&decision["minimum"]).is_none()
+                        && numeric_expression_supported(&decision["minimum"]))
                     && decision
                         .get("maximum")
                         .is_none_or(numeric_expression_supported)
@@ -5327,6 +5339,7 @@ fn triggered_rule_supported(rule: &Value) -> bool {
                 Some("battlefield" | "graveyard" | "hand" | "exile" | "commandZoneOrBattlefield")
             )
         })
+        && zone_of_function::trigger_zone_observed(rule)
         && rule
             .get("minimumClassLevel")
             .is_none_or(|level| integer_value(level).is_some_and(|level| (2..=3).contains(&level)))
@@ -5832,6 +5845,10 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                     .is_none_or(casting_cost::colored_reduction_supported)
                 && modifier.get("firstEachTurn").is_none_or(Value::is_boolean)
                 && modifier
+                    .get("castOrdinal")
+                    .is_none_or(casting_cost::cast_ordinal_supported)
+                && casting_cost::spell_target_modifier_supported(modifier)
+                && modifier
                     .get("duringOtherPlayersTurns")
                     .is_none_or(Value::is_boolean)
                 && modifier.get("sourceZone").is_none_or(|zone| {
@@ -5850,7 +5867,8 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && modifier.get("condition").is_none_or(condition_supported)
         }
         Some("additionalCastingCost") => {
-            player_reference_supported(&modifier["players"])
+            casting_cost::spell_target_modifier_supported(modifier)
+                && player_reference_supported(&modifier["players"])
                 && static_card_filter_supported(&modifier["where"])
                 && cost_supported(&modifier["cost"])
                 && modifier.get("condition").is_none_or(condition_supported)
@@ -5863,6 +5881,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && value_kind(&modifier["abilities"]["where"]["operand"]) == Some("isManaAbility")
                 && cost_supported(&modifier["cost"])
         }
+        Some("modifyActivationCost") => casting_cost::modify_activation_cost_supported(modifier),
         Some("additionalActivation" | "reduceActivationCost") => {
             static_object_selector_supported(&modifier["objects"])
                 && modifier["abilityClass"].is_string()
@@ -6406,6 +6425,7 @@ impl GameEngine {
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
             departure_characteristics: BTreeMap::new(),
+            graveyard_observer_frame: None,
         };
         engine.admit_initial_object_identities()?;
         Ok(engine)
@@ -6435,6 +6455,7 @@ impl GameEngine {
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
             departure_characteristics: BTreeMap::new(),
+            graveyard_observer_frame: None,
         };
 
         evaluator
@@ -7797,6 +7818,7 @@ impl GameEngine {
             json!({}),
         );
         self.enqueue_card_drawn_triggers(player_id);
+        self.enqueue_miracle_trigger(player_id);
         self.check_quantity_failure()
     }
 
@@ -7937,62 +7959,19 @@ impl GameEngine {
     }
 
     fn enqueue_card_drawn_triggers(&mut self, drawing_player_id: &str) {
-        let active_player_id = self.state.players[self.state.active_player].id.clone();
         let mut triggers = Vec::new();
         for player in self.state.players.iter().filter(|player| !player.has_lost) {
             for source in &player.battlefield {
                 for rule in self.effective_rules(&source).iter() {
-                    let Some(event) = triggered_event_variants(&rule["event"])
-                        .into_iter()
-                        .find(|event| value_kind(event) == Some("cardDrawn"))
-                    else {
-                        continue;
-                    };
-                    let during_opponent_turn = event["duringOpponentTurn"].as_bool() == Some(true);
-                    let expected_ordinal = integer_value(&event["drawOrdinal"]);
-                    let draw_ordinal = self
-                        .state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            event.turn_number == self.state.turn_number
-                                && event.kind == "cardDrawn"
-                                && event.player_id.as_deref() == Some(drawing_player_id)
-                        })
-                        .count() as i32;
-                    let matches_player = if event["anyPlayer"].as_bool() == Some(true) {
-                        true
-                    } else if event["opponentOfSourceController"].as_bool() == Some(true) {
-                        source.controller != drawing_player_id
-                    } else {
-                        source.controller == drawing_player_id
-                    };
-                    let except_first_draw_step = event["exceptFirstInDrawStep"].as_bool()
-                        == Some(true)
-                        && self.state.step == GameStep::Draw
-                        && self
-                            .state
-                            .events
-                            .iter()
-                            .filter(|recorded| {
-                                recorded.turn_number == self.state.turn_number
-                                    && recorded.step == GameStep::Draw
-                                    && recorded.kind == "cardDrawn"
-                                    && recorded.player_id.as_deref() == Some(drawing_player_id)
-                            })
-                            .count()
-                            == 1;
                     if triggered_rule_supported(rule)
-                        && matches_player
-                        && expected_ordinal.is_none_or(|ordinal| ordinal == draw_ordinal)
-                        && !except_first_draw_step
-                        && (!during_opponent_turn || active_player_id != source.controller)
+                        && self.card_drawn_rule_observed(rule, source, drawing_player_id)
                     {
                         triggers.push((source.clone(), rule.clone()));
                     }
                 }
             }
         }
+        triggers.extend(self.graveyard_card_drawn_triggers(drawing_player_id));
         for (source, rule) in triggers {
             self.put_triggered_ability_on_stack_with_decisions(
                 &source,
@@ -8051,6 +8030,13 @@ impl GameEngine {
     ) -> Result<Vec<String>, EngineError> {
         let player_index = self.player_index(player_id)?;
         let count = count.saturating_mul(self.mill_factor(player_id).max(1) as usize);
+        let count = self.replaced_mill_count(
+            player_id,
+            count,
+            provider
+                .as_mut()
+                .map(|provider| &mut **provider as &mut dyn DecisionProvider),
+        )?;
         let mut milled = Vec::new();
         let mut milled_cards = Vec::new();
         for _ in 0..count {
@@ -10514,6 +10500,7 @@ impl GameEngine {
                 value_kind(modifier) == Some("temporaryKeywordUntilTurn")
                     && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
                     && modifier["keyword"].as_str() == Some(keyword)
+                    && self.watched_duration_holds(modifier)
                     && modifier["expiresBeforeTurn"]
                         .as_u64()
                         .is_some_and(|turn| turn > u64::from(self.state.turn_number))
@@ -11618,6 +11605,7 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("temporaryPowerToughnessUntilTurn")
                     && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+                    && self.watched_duration_holds(modifier)
                     && modifier["expiresBeforeTurn"]
                         .as_u64()
                         .is_some_and(|turn| turn > u64::from(self.state.turn_number))
@@ -13220,6 +13208,7 @@ impl GameEngine {
         }
         for (source, modifier) in self.battlefield_static_modifiers() {
             if value_kind(&modifier) != Some("additionalCastingCost")
+                || modifier.get("spellTarget").is_some()
                 || !self.event_player_reference_matches(
                     &modifier["players"],
                     &source,
@@ -16560,8 +16549,11 @@ impl GameEngine {
                     .to_string();
                 match value_kind(decision) {
                     Some("chooseNumber") => {
-                        let minimum =
-                            integer_value(&decision["minimum"]).ok_or(Failure::GrammarRejected)?;
+                        let minimum = integer_value(&decision["minimum"])
+                            .or_else(|| {
+                                self.numeric_expression(&decision["minimum"], controller_id)
+                            })
+                            .ok_or(Failure::GrammarRejected)?;
                         let explicit_maximum = decision.get("maximum").and_then(|maximum| {
                             integer_value(maximum)
                                 .or_else(|| self.numeric_expression(maximum, controller_id))
@@ -18130,8 +18122,15 @@ impl GameEngine {
                             )
                         })
                         .unwrap_or(0);
+                let (static_targeting_reduction, static_targeting_increases) = self
+                    .spell_targeting_cost_adjustment(
+                        &player.id,
+                        &card.definition,
+                        &declaration.targets,
+                    );
                 let targeting_reduction = own_targeting_reduction
                     .saturating_add(aura_targeting_reduction)
+                    .saturating_add(static_targeting_reduction)
                     .max(0);
                 let commander_tax = if *source_zone == "commandZone" {
                     self.state
@@ -18147,6 +18146,7 @@ impl GameEngine {
                     .then(|| format!("{{{commander_tax}}}"))
                     .into_iter()
                     .collect::<Vec<_>>();
+                commander_increases.extend(static_targeting_increases);
                 commander_increases.extend(casting_cost::own_target_count_increases(
                     &card.definition,
                     &declaration.targets,
@@ -19110,7 +19110,7 @@ impl GameEngine {
                     .expect("supported cycling has a mana cost");
                 let Some(payment) = session.payment_for_mana_costs(
                     player_index,
-                    &[mana_cost.to_string()],
+                    &self.cycling_activation_mana_costs(&player.id, card, mana_cost),
                     &BTreeSet::new(),
                     None,
                 )?
@@ -19162,7 +19162,7 @@ impl GameEngine {
                     .expect("supported typed cycling has a mana cost");
                 let Some(payment) = session.payment_for_mana_costs(
                     player_index,
-                    &[mana_cost.to_string()],
+                    &self.cycling_activation_mana_costs(&player.id, card, mana_cost),
                     &BTreeSet::new(),
                     None,
                 )?
@@ -19293,6 +19293,18 @@ impl GameEngine {
                             && let Some(first_cost) = payable_mana_costs.first_mut()
                         {
                             *first_cost = reduce_generic_mana_cost(first_cost, reduction);
+                        }
+                        if !is_mana_ability {
+                            self.adjust_activation_mana_costs(
+                                &mut payable_mana_costs,
+                                &casting_cost::ActivationCostSubject {
+                                    activator: &player.id,
+                                    source: card,
+                                    on_battlefield: false,
+                                    class: casting_cost::activation_rule_class(rule, false),
+                                    targets: &declaration.targets,
+                                },
+                            );
                         }
                         let excluded_sources = Self::activated_cost_target_ids(rule)
                             .iter()
@@ -19460,10 +19472,21 @@ impl GameEngine {
                                         )
                                     })
                                     .unwrap_or(0);
-                                vec![reduce_generic_mana_cost(
+                                let mut costs = vec![reduce_generic_mana_cost(
                                     mana_cost,
                                     reduction.saturating_add(counter_reduction),
-                                )]
+                                )];
+                                self.adjust_activation_mana_costs(
+                                    &mut costs,
+                                    &casting_cost::ActivationCostSubject {
+                                        activator: &player.id,
+                                        source: permanent,
+                                        on_battlefield: true,
+                                        class: Some("equip"),
+                                        targets: &targets,
+                                    },
+                                );
+                                costs
                             })
                             .unwrap_or_default();
                         let cost_options = sacrifice_options
@@ -20225,6 +20248,16 @@ impl GameEngine {
                     {
                         *first_cost = reduce_generic_mana_cost(first_cost, activation_reduction);
                     }
+                    self.adjust_activation_mana_costs(
+                        &mut mana_costs,
+                        &casting_cost::ActivationCostSubject {
+                            activator: &player.id,
+                            source: permanent,
+                            on_battlefield: true,
+                            class: casting_cost::activation_rule_class(&rule, loyalty_change != 0),
+                            targets: &declaration.targets,
+                        },
+                    );
                     if loyalty_change != 0 && has_card_type(&permanent.definition, "Planeswalker") {
                         let loyalty_tax = self
                             .battlefield_static_modifiers()
@@ -21399,6 +21432,7 @@ impl GameEngine {
     }
 
     fn refresh_control_effects(&mut self) {
+        self.expire_watched_durations();
         let expired = self
             .state
             .rule_modifiers
@@ -22047,7 +22081,11 @@ impl GameEngine {
                                 .iter()
                                 .any(|event| {
                                     value_kind(event) == Some("spellCopied")
-                                        && source.controller == original.controller
+                                        && self.event_player_reference_matches(
+                                            &event["player"],
+                                            source,
+                                            &original.controller,
+                                        )
                                         && matches_card_filter(&copied_definition, &event["where"])
                                 })
                     })
@@ -22975,6 +23013,7 @@ impl GameEngine {
                 }
             }
         }
+        triggers.extend(self.graveyard_death_triggers(&death_record, trigger_sources));
         let decisions = BTreeMap::from([
             (
                 "triggeringPermanentId".to_string(),
@@ -23128,6 +23167,7 @@ impl GameEngine {
                 }
             }
         }
+        self.enqueue_graveyard_life_gained_triggers(player_id, amount);
     }
 
     fn enqueue_life_lost_triggers(&mut self, player_id: &str, amount: i32) {
@@ -23630,6 +23670,10 @@ impl GameEngine {
             .collect::<Vec<_>>();
         triggers.extend(cards.iter().flat_map(|source| {
             // The card's own `put into a graveyard from anywhere` abilities.
+            // Leaving the battlefield looks back (CR 603.10a): the card's
+            // graveyard abilities did not function there, so only a rule
+            // about the card itself sees that arrival, never a generic
+            // observer pattern the card happens to match.
             let arrival = zone_change_events::ZoneChangeRecord {
                 object: source,
                 from,
@@ -23640,6 +23684,8 @@ impl GameEngine {
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
+                        && (from != Some("battlefield")
+                            || zone_change_events::rule_subject_is_source(rule))
                         && self.rule_matches_zone_change(
                             rule,
                             zone_change_events::ZoneChangeGroup::GraveyardArrival,
@@ -23653,7 +23699,7 @@ impl GameEngine {
         }));
         // Battlefield observers of cards arriving in a graveyard (generic
         // move pattern): per card, or once per simultaneous event.
-        let arrival_observers = self
+        let mut arrival_observers = self
             .state
             .players
             .iter()
@@ -23689,6 +23735,7 @@ impl GameEngine {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        arrival_observers.extend(self.graveyard_arrival_observers(cards, from));
         let card_ids = cards
             .iter()
             .map(|card| card.instance_id.clone())
@@ -23739,6 +23786,7 @@ impl GameEngine {
         if card_ids.is_empty() {
             return;
         }
+        self.record_cards_left_graveyard(player_id, card_ids);
         let sources = self
             .state
             .players
@@ -24491,49 +24539,7 @@ impl GameEngine {
                                     })
                             }
                             Some("controlledCreaturesAttacked") => {
-                                let controlled_attackers = attacker_ids
-                                    .iter()
-                                    .filter(|attacker_id| {
-                                        self.permanent_position(attacker_id).is_some_and(
-                                            |(player_index, card_index)| {
-                                                let permanent = &self.state.players[player_index]
-                                                    .battlefield[card_index];
-                                                permanent.controller == source.controller
-                                                    && event.get("where").is_none_or(
-                                                        |where_filter| {
-                                                            self.permanent_matches_effective_filter(
-                                                                permanent,
-                                                                where_filter,
-                                                            )
-                                                        },
-                                                    )
-                                            },
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let count = controlled_attackers.len();
-                                let total_power = controlled_attackers
-                                    .iter()
-                                    .filter_map(|attacker_id| {
-                                        self.permanent_position(attacker_id).map(
-                                            |(player_index, card_index)| {
-                                                self.current_power(
-                                                    &self.state.players[player_index].battlefield
-                                                        [card_index],
-                                                )
-                                            },
-                                        )
-                                    })
-                                    .sum::<i32>();
-                                count
-                                    >= integer_value(&event["minimum"]).unwrap_or(1).max(1) as usize
-                                    && integer_value(&event["maximum"])
-                                        .is_none_or(|maximum| count <= maximum.max(0) as usize)
-                                    && (event["sourceMustAttack"].as_bool() != Some(true)
-                                        || attacker_ids.contains(&source.instance_id))
-                                    && integer_value(&event["totalPowerAtLeast"])
-                                        .is_none_or(|minimum| total_power >= minimum)
-                                    && self.member_event_condition_holds(event, &source)
+                                self.attack_batch_observed(event, &source, attacker_ids)
                             }
                             _ => false,
                         }))
@@ -24554,6 +24560,7 @@ impl GameEngine {
                 }
             }
         }
+        triggers.extend(self.graveyard_attack_batch_triggers(attacker_ids));
         for (source, rule, origin) in triggers {
             let triggering_attacker = attacker_ids
                 .iter()
@@ -25094,6 +25101,7 @@ impl GameEngine {
                 ));
             }
         }
+        triggers.extend(self.graveyard_spell_cast_triggers(&cast_record));
         triggers.extend(self.take_created_spell_cast_triggers(&cast_record));
         let mut consumed_delayed = Vec::new();
         for (index, modifier) in self.state.rule_modifiers.iter().enumerate() {
@@ -25359,6 +25367,7 @@ impl GameEngine {
                 .cloned()
                 .map(|source| (source, "commandZone")),
         );
+        sources.extend(self.graveyard_trigger_sources());
         // Triggered abilities that function in exile (CR 113.6k), printed or
         // keyword-expanded (for example Suspend, CR 702.62a).
         sources.extend(
@@ -35289,6 +35298,7 @@ impl GameEngine {
             None,
             json!({}),
         );
+        self.publish_became_monarch(player_id);
     }
 
     fn draw_monarch_card<P: DecisionProvider>(
@@ -35952,6 +35962,7 @@ impl GameEngine {
         mut provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<(), EngineError> {
         self.check_quantity_failure()?;
+        self.expire_watched_durations();
         let enduring_story_players = self
             .state
             .players
@@ -36166,13 +36177,16 @@ impl GameEngine {
             .collect::<Vec<_>>();
         if !lethal.is_empty() {
             let lethal_trigger_sources = self.capture_death_trigger_source_snapshot();
-            for instance_id in lethal {
+            let previous_frame = self.enter_graveyard_observer_frame(&lethal_trigger_sources);
+            let moved = lethal.into_iter().try_for_each(|instance_id| {
                 self.move_permanent_to_graveyard_internal_with_death_sources(
                     &instance_id,
                     "lethalDamage",
                     &lethal_trigger_sources,
-                )?;
-            }
+                )
+            });
+            self.leave_graveyard_observer_frame(previous_frame);
+            moved?;
         }
         let zero_loyalty = self
             .state

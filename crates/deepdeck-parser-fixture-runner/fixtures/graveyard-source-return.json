@@ -99,14 +99,22 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 1,
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "engine.gap.event-matcher"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "stepBegan"
+              }
+            ]
           }
         ]
       }

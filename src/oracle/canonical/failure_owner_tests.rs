@@ -168,3 +168,42 @@ fn composed_states_are_interned_once() {
     let second = intern_state("effect.clause/verb-unknown.look".to_string());
     assert!(std::ptr::eq(first, second));
 }
+
+#[test]
+fn a_subject_frame_refusal_past_the_head_replaces_the_sink() {
+    // `Equipped creatures you control gain ...`: a subject frame that read
+    // past the head before refusing owns the clause's diagnostic; a refusal
+    // at the head (or none) keeps the generic `effect.start` sink.
+    let tokens = recognize_entities("Equipped creatures you control gain indestructible.");
+    let head = {
+        let mut cursor = OracleTokenCursor::new("test.failure-owner", &tokens);
+        cursor.enter("effect.start");
+        cursor
+    };
+    let refusal_at = |consumed: &[&str], state: &'static str| {
+        let mut cursor = OracleTokenCursor::new("test.failure-owner", &tokens);
+        for word in consumed {
+            cursor.consume(word).expect("the probe prefix is present");
+        }
+        cursor.enter(state);
+        cursor.fail("the frame's own expectation")
+    };
+
+    let mut none = DeepestRejection::at(&head);
+    none.keep(refusal_at(&[], "permanent.subject.head"));
+    let sink = none.into_failure(&head, "a supported effect subject");
+    assert_eq!(sink.state, "effect.start");
+    assert_eq!(sink.token_index, 0);
+
+    let mut kept = DeepestRejection::at(&head);
+    kept.keep(refusal_at(&["Equipped"], "permanent.subject.first"));
+    kept.keep(refusal_at(
+        &["Equipped", "creatures"],
+        "permanent.subject.deepest",
+    ));
+    // A shallower later refusal never replaces the deepest one.
+    kept.keep(refusal_at(&["Equipped"], "permanent.subject.later"));
+    let deepest = kept.into_failure(&head, "a supported effect subject");
+    assert_eq!(deepest.state, "permanent.subject.deepest");
+    assert_eq!(deepest.token_index, 2);
+}

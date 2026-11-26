@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "exile-other-tokens-keeps-created-token",
+  "seed": 12201,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "declaration": { "kind": "castingDeclaration", "decisions": [] },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": {
+          "abilities": [],
+          "colors": ["White"],
+          "power": { "kind": "integer", "value": 1 },
+          "toughness": { "kind": "integer", "value": 1 },
+          "subtypes": ["Spirit"],
+          "types": ["Creature"]
+        },
+        "bind": "createdTokens"
+      },
+      {
+        "kind": "exilePermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "subtypeContains", "value": "Spirit" },
+              { "kind": "isToken" }
+            ]
+          },
+          "exclude": { "kind": "boundObjects", "binding": "createdTokens" }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Token maker",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "contrast-source",
+            "name": "Contrast Source",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "earlier-spirit-token",
+            "name": "Spirit Token",
+            "typeLine": "Token Creature - Spirit",
+            "power": "1",
+            "toughness": "1",
+            "isToken": true
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-spirit-token",
+            "name": "Spirit Token",
+            "typeLine": "Token Creature - Spirit",
+            "power": "1",
+            "toughness": "1",
+            "isToken": true
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "contrast-source",
+      "abilityRuleIndex": 0
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "earlier-spirit-token", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "contrast-source", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 2 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "battlefield", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

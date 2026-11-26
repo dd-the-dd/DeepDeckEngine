@@ -13,6 +13,9 @@ use super::{
 pub(in crate::oracle::canonical) enum QuantityEventDomain {
     TokenCreation,
     CounterPlacement,
+    /// A player mills cards (CR 701.17a); the quantity is the number of
+    /// cards that player would mill.
+    Mill,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,6 +28,8 @@ pub(in crate::oracle::canonical) enum QuantityEventOrigin {
 pub(in crate::oracle::canonical) enum QuantityEventVoice {
     ActiveEffect,
     Passive,
+    /// `PLAYER would VERB`: the affected player performs the action.
+    Player,
 }
 
 /// How the counter recipient relates to the replacement's source.
@@ -261,10 +266,76 @@ pub(in crate::oracle::canonical) fn try_recognize_quantity_event(
     }
 }
 
+/// The width of a player subject of a player-performed quantity event and
+/// the affected player it names: `you`, `an opponent`, `a player` (every
+/// player). Lexical; the verb decides whether this family owns the clause.
+fn player_event_subject(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<(usize, Option<ObjectControllerScope>)> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let (width, affected) = if word(0, "you") {
+        (1, Some(ObjectControllerScope::AbilityController))
+    } else if word(0, "an") && word(1, "opponent") {
+        (2, Some(ObjectControllerScope::OpponentOfAbilityController))
+    } else if word(0, "a") && word(1, "player") {
+        (2, None)
+    } else {
+        return None;
+    };
+    word(width, "would").then_some((width, affected))
+}
+
+/// `PLAYER would mill one or more cards` (CR 701.17a, 614.1a): a quantity
+/// event the affected player performs. The verb commits the family; any
+/// other verb after `PLAYER would` is not this family's clause.
+fn recognize_player_quantity_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    width: usize,
+    affected_controller: Option<ObjectControllerScope>,
+    domain_committed: &mut bool,
+) -> MachineResult<QuantityEventNode> {
+    cursor.enter("quantity-event.player.subject");
+    for _ in 0..width {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+    }
+    cursor.consume("would")?;
+    cursor.enter("quantity-event.player.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        VerbLemma::Mill,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    *domain_committed = true;
+    let minimum = recognize_positive_event_quantity(cursor)?;
+    cursor.enter("quantity-event.player.cards");
+    cursor.consume("cards")?;
+    cursor.enter("quantity-event.complete");
+    Ok(QuantityEventNode {
+        domain: QuantityEventDomain::Mill,
+        origin: QuantityEventOrigin::Any,
+        voice: QuantityEventVoice::Player,
+        minimum,
+        affected_controller,
+        recipient_source: RecipientSourceRelation::Any,
+        object: None,
+        counter: None,
+        object_binding: ReplacementObjectBinding::EventObject,
+        quantity_binding: EventNumericBinding::ReplacementQuantity,
+    })
+}
+
 fn recognize_quantity_event_inner(
     cursor: &mut OracleTokenCursor<'_>,
     domain_committed: &mut bool,
 ) -> MachineResult<QuantityEventNode> {
+    if let Some((width, affected)) = player_event_subject(cursor) {
+        return recognize_player_quantity_event(cursor, width, affected, domain_committed);
+    }
     cursor.enter("quantity-event.voice");
     let active = cursor
         .peek()
@@ -320,6 +391,9 @@ fn recognize_quantity_event_inner(
             *domain_committed = true;
             let controller = recognize_token_controller(cursor)?;
             (None, None, controller, RecipientSourceRelation::Any)
+        }
+        QuantityEventDomain::Mill => {
+            return Err(cursor.fail("a token or counter event after its voice"));
         }
         QuantityEventDomain::CounterPlacement => {
             let counter = recognize_event_counter_kind(cursor)?;

@@ -39,6 +39,9 @@ mod antecedent_producers_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/antecedent_producers_batch11_runtime.rs"]
 mod antecedent_producers_batch11_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/card_zone_operands_runtime.rs"]
+mod card_zone_operands_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/rebound_runtime.rs"]
@@ -72,6 +75,9 @@ mod condition_guards_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/measured_instruction_runtime.rs"]
 mod measured_instruction_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/zone_of_function_trigger_runtime.rs"]
+mod zone_of_function_trigger_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/effect_subject_runtime.rs"]
@@ -270,6 +276,10 @@ mod player_action_event_runtime;
 mod event_slots_player_events_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/trigger_event_language_runtime.rs"]
+mod trigger_event_language_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_damage_event_runtime.rs"]
 mod source_damage_event_runtime;
 
@@ -400,8 +410,17 @@ mod exalted_runtime;
 #[path = "tests/parameterized_keyword_runtime.rs"]
 mod parameterized_keyword_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/condition_duration_runtime.rs"]
+mod condition_duration_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/created_entry_replacement_runtime.rs"]
+mod created_entry_replacement_runtime;
 #[path = "tests/event_count_runtime.rs"]
 mod event_count_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/graveyard_departure_history_runtime.rs"]
+mod graveyard_departure_history_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/graveyard_source_return_runtime.rs"]
 mod graveyard_source_return_runtime;
@@ -421,6 +440,9 @@ mod keyword_template_runtime;
 mod numeric_expression_runtime;
 #[path = "tests/object_qualifier_runtime.rs"]
 mod object_qualifier_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/player_quantity_replacement_runtime.rs"]
+mod player_quantity_replacement_runtime;
 #[path = "tests/plural_effect_subject_runtime.rs"]
 mod plural_effect_subject_runtime;
 #[path = "tests/runtime_smoke.rs"]
@@ -26480,10 +26502,6 @@ fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Bilbo, Thief in the Night; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31645,10 +31663,6 @@ fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: The One Ring; see docs/coverage-targets.md"
-)]
 #[test]
 fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31886,10 +31900,6 @@ fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Uruk-hai Berserker; see docs/coverage-targets.md"
-)]
 #[test]
 fn ring_temptation_levels_drive_bearer_combat_rules() {
     let bearer = test_instance(
@@ -33270,6 +33280,10 @@ mod subject_verb_actions_runtime;
 mod performer_subjects_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_performers_runtime.rs"]
+mod player_performers_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/extra_turn_runtime.rs"]
 mod extra_turn_runtime;
 
@@ -33319,6 +33333,9 @@ mod intervening_if_condition_runtime;
 #[path = "tests/leveler_band_runtime.rs"]
 mod leveler_band_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/numeric_quantities_runtime.rs"]
+mod numeric_quantities_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/object_condition_cost_paid_runtime.rs"]
 mod object_condition_cost_paid_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
@@ -33327,6 +33344,9 @@ mod object_query_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/object_relation_runtime.rs"]
 mod object_relation_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/object_subject_effect_clauses_runtime.rs"]
+mod object_subject_effect_clauses_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_quantified_condition_runtime.rs"]
 mod player_quantified_condition_runtime;
@@ -33341,3 +33361,5 @@ mod stack_and_damage_cells_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/static_frame_runtime.rs"]
 mod static_frame_runtime;
+#[path = "tests/where_x_declaration_runtime.rs"]
+mod where_x_declaration_runtime;

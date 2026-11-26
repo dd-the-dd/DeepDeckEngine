@@ -375,9 +375,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "state": "effect.start",
-            "expectedContains": "a supported effect subject",
-            "found": "Red"
+            "state": "selector.controller-qualifier.relation-or-negation",
+            "found": "cast"
           }
         ]
       }

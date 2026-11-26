@@ -75,6 +75,24 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_discard_action_fr
             return Ok(quantity);
         }
         cursor.enter("effect.player-discard.count");
+        // `discard cards equal to EXPR`: the shared `equal to` quantity
+        // every action reads after its plural noun.
+        if ["cards", "equal", "to"]
+            .iter()
+            .enumerate()
+            .all(|(offset, word)| {
+                cursor
+                    .peek_ahead(offset)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+            })
+        {
+            cursor.consume_phrase(&["cards", "equal", "to"])?;
+            cursor.enter("effect.player-discard.equal-amount");
+            let count = crate::oracle::canonical::automata::recognize_equal_to_amount_expression(
+                cursor, None,
+            )?;
+            return Ok(DiscardQuantity::Count(count));
+        }
         let count = recognize_numeric_expression(cursor, None)?;
         recognize_card_count_noun(cursor, &count)?;
         Ok(DiscardQuantity::Count(count))

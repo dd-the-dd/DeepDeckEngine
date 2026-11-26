@@ -1,0 +1,1261 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger-event-language-batch12",
+  "cases": [
+    {
+      "id": "exact-custodi-lich-you-become-the-monarch",
+      "request": {
+        "cardName": "Custodi Lich",
+        "typeLine": "Creature — Zombie Cleric",
+        "manaCost": "{3}{B}{B}{B}",
+        "oracleText": "When this creature enters, you become the monarch.\nWhenever you become the monarch, target player sacrifices a creature of their choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "becameMonarch"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-becomes-the-monarch",
+      "request": {
+        "cardName": "Usurped Crown Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever an opponent becomes the monarch, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "becameMonarch"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-become-another-designation-is-not-the-monarch-event",
+      "request": {
+        "cardName": "President Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever you become the president, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ob-nixilis-an-opponent-searches-their-library",
+      "request": {
+        "cardName": "Ob Nixilis, Unshackled",
+        "typeLine": "Legendary Creature — Demon",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Flying, trample\nWhenever an opponent searches their library, that player sacrifices a creature of their choice and loses 10 life.\nWhenever another creature dies, put a +1/+1 counter on Ob Nixilis.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "librarySearched"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-search-elemental-you-search-your-library",
+      "request": {
+        "cardName": "Search Elemental",
+        "typeLine": "Creature — Elemental Detective",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you search your library, scry 1.\nScryfall — Whenever you scry, put a +1/+1 counter on Search Elemental. It can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "librarySearched"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-player-searches-their-library",
+      "request": {
+        "cardName": "Seeker Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever a player searches their library, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "librarySearched"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "eachPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-searching-another-players-library-is-not-their-own",
+      "request": {
+        "cardName": "Prying Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever an opponent searches your library, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "event.player.search.library-owner",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kalamax-you-copy-an-instant-spell",
+      "request": {
+        "cardName": "Kalamax, the Stormsire",
+        "typeLine": "Legendary Creature — Elemental Dinosaur",
+        "manaCost": "{3}{G}{U}{R}",
+        "oracleText": "Whenever you cast your first instant spell each turn, if Kalamax is tapped, copy that spell. You may choose new targets for the copy.\nWhenever you copy an instant spell, put a +1/+1 counter on Kalamax.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCopied"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Instant"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-copies-a-sorcery-spell",
+      "request": {
+        "cardName": "Echo Watcher Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever an opponent copies a sorcery spell, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCopied"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Sorcery"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copying-a-permanent-is-not-a-copied-spell",
+      "request": {
+        "cardName": "Mirror Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever you copy a creature you control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "selector.predicate.complete",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0,
+            "expectedContains": "a copied spell query"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fabrication-module-you-get-one-or-more-energy",
+      "request": {
+        "cardName": "Fabrication Module",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Whenever you get one or more {E} (energy counters), put a +1/+1 counter on target creature you control.\n{4}, {T}: You get {E}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerCountersAdded"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/counter",
+                "equals": "energy"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-gets-one-or-more-energy",
+      "request": {
+        "cardName": "Energy Watcher Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever an opponent gets one or more {E}, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerCountersAdded"
+              },
+              {
+                "pointer": "/event/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/counter",
+                "equals": "energy"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-one-or-more-poison-counters-is-no-energy-symbol",
+      "request": {
+        "cardName": "Poison Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever you get one or more poison counters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "player-action.counters.amount-symbol",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-territorial-gorger-you-get-one-or-more-energy",
+      "request": {
+        "cardName": "Territorial Gorger",
+        "typeLine": "Creature — Gremlin",
+        "manaCost": "{3}{R}",
+        "oracleText": "Trample\nWhenever you get one or more {E} (energy counters), this creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "playerCountersAdded"
+              },
+              {
+                "pointer": "/event/counter",
+                "equals": "energy"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-unsettled-mariner-targeting-object-anaphor",
+      "request": {
+        "cardName": "Unsettled Mariner",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Changeling (This card is every creature type.)\nWhenever you or a permanent you control becomes the target of a spell or ability an opponent controls, counter that spell or ability unless its controller pays {1}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "effect.counter.event-spell",
+            "found": "that"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-you-or-a-permanent-you-control-become-the-target-gain-life",
+      "request": {
+        "cardName": "Targeting Probe",
+        "typeLine": "Creature — Faerie Rogue",
+        "manaCost": "{W}{U}",
+        "oracleText": "Whenever you or a permanent you control becomes the target of a spell or ability an opponent controls, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/object/sets/0",
+                "equals": {
+                  "kind": "player",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/oncePerTargetingObject",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-leovold-you-or-a-permanent-you-control",
+      "request": {
+        "cardName": "Leovold, Emissary of Trest",
+        "typeLine": "Legendary Creature — Elf Advisor",
+        "manaCost": "{B}{G}{U}",
+        "oracleText": "Each opponent can't draw more than one card each turn.\nWhenever you or a permanent you control becomes the target of a spell or ability an opponent controls, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "becameTarget"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "union"
+              },
+              {
+                "pointer": "/event/object/sets/0",
+                "equals": {
+                  "kind": "player",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/object/sets/1/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/event/object/sets/1/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/oncePerTargetingObject",
+                "equals": true
+              },
+              {
+                "pointer": "/event/targetingStackObject/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-amulet-of-safekeeping-targeting-object-anaphor",
+      "request": {
+        "cardName": "Amulet of Safekeeping",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you become the target of a spell or ability an opponent controls, counter that spell or ability unless its controller pays {1}.\nCreature tokens get -1/-0.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.counter.event-spell",
+            "found": "that"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-you-become-the-target-gain-life",
+      "request": {
+        "cardName": "Targeting Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you become the target of a spell or ability an opponent controls, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "becameTarget"
+              },
+              {
+                "pointer": "/event/object",
+                "equals": {
+                  "kind": "player",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dormant-gomazoa-you-become-the-target-of-a-spell",
+      "request": {
+        "cardName": "Dormant Gomazoa",
+        "typeLine": "Creature — Jellyfish",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Flying\nThis creature enters tapped.\nThis creature doesn't untap during your untap step.\nWhenever you become the target of a spell, you may untap this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "becameTarget"
+              },
+              {
+                "pointer": "/event/object",
+                "equals": {
+                  "kind": "player",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponent-or-their-creature-becomes-the-target-of-your-spell",
+      "request": {
+        "cardName": "Hunter Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever an opponent or a creature an opponent controls becomes the target of a spell you control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/object/sets/0",
+                "equals": {
+                  "kind": "player",
+                  "player": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/object/sets/1/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/oncePerTargetingObject",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-player-or-bare-permanent-needs-its-article",
+      "request": {
+        "cardName": "Loki, God of Mischief",
+        "typeLine": "Legendary Creature — God",
+        "manaCost": "{2}{U}{R}",
+        "oracleText": "Whenever a player or permanent becomes the target of an ability you control, draw a card. This ability triggers only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "event.became-target.subject.article",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-event-owlbear-cub-attacks-a-player-who-controls-eight-or-more-lands",
+      "request": {
+        "cardName": "Owlbear Cub Event Probe",
+        "typeLine": "Creature — Bird Bear",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever this creature attacks a player who controls eight or more lands, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/attacked/anyOf/0/kind",
+                "equals": "player"
+              },
+              {
+                "pointer": "/event/attacked/anyOf/0/player",
+                "equals": {
+                  "kind": "eachPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-creature-you-control-attacks-an-opponent-who-controls-two-or-more-artifacts",
+      "request": {
+        "cardName": "Raider Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever a creature you control attacks an opponent who controls two or more artifacts, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/attacked/anyOf/0/kind",
+                "equals": "player"
+              },
+              {
+                "pointer": "/event/attacked/anyOf/0/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-an-untyped-player-relative-fails-at-the-tail",
+      "request": {
+        "cardName": "Creepy Probe",
+        "typeLine": "Creature — Spider",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever this creature attacks a player who is afraid of you, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "player-set.relative.who.verb",
+            "expectedContains": "`who is` is not read",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skull-skaab-a-creature-you-control-exploits-a-nontoken-creature",
+      "request": {
+        "cardName": "Skull Skaab",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{U}{B}",
+        "oracleText": "Exploit (When this creature enters, you may sacrifice a creature.)\nWhenever a creature you control exploits a nontoken creature, create a 2/2 black Zombie creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "exploit"
+              },
+              {
+                "pointer": "/event/subject/object/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/event/subject/object/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-colonel-autumn-a-creature-you-control-exploits-a-creature",
+      "request": {
+        "cardName": "Colonel Autumn",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{2}{R}{W}{B}",
+        "oracleText": "Lifelink\nExploit (When this creature enters, you may sacrifice a creature.)\nOther legendary creatures you control have exploit.\nWhenever a creature you control exploits a creature, put a +1/+1 counter on each creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/lemma",
+                "equals": "exploit"
+              },
+              {
+                "pointer": "/event/subject/object/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-another-creature-an-opponent-controls-exploits-a-creature",
+      "request": {
+        "cardName": "Grave Watcher Probe",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever another creature an opponent controls exploits a creature, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/subject/object/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/subject/object/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-an-acted-on-permanent-with-a-controller-is-an-engine-gap",
+      "request": {
+        "cardName": "Rival Exploit Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever a creature you control exploits a creature you don't control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "engine.gap.event-matcher",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-soulherder-a-creature-is-exiled-from-the-battlefield",
+      "request": {
+        "cardName": "Soulherder",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{W}{U}",
+        "oracleText": "Whenever a creature is exiled from the battlefield, put a +1/+1 counter on this creature.\nAt the beginning of your end step, you may exile another target creature you control, then return that card to the battlefield under its owner's control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "move"
+              },
+              {
+                "pointer": "/event/from",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/event/to",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/event/subject/object/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-justice-another-nonland-permanent-you-control-is-returned-to-its-owners-hand",
+      "request": {
+        "cardName": "Justice, Vance Astrovik",
+        "typeLine": "Legendary Creature — Human Hero",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Flying\nWhen Justice enters, return up to one target nonland, nontoken permanent to its owner's hand.\nWhenever another nonland permanent you control is returned to its owner's hand, put a +1/+1 counter on Justice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/to",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/event/subject/object/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/subject/object/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-one-or-more-artifacts-an-opponent-controls-are-exiled-from-the-battlefield",
+      "request": {
+        "cardName": "Scrapper Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever one or more artifacts an opponent controls are exiled from the battlefield, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/to",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/event/subject/object/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "oneOrMore"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-written-hand-owner-fails-at-the-hand",
+      "request": {
+        "cardName": "Azorius Aethermage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{W}{U}",
+        "oracleText": "Whenever a permanent is returned to your hand, you may pay {1}. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "event.object-move.hand-owner",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pia-nalaar-consul-play-a-land-from-exile-or-cast-a-spell-from-exile",
+      "request": {
+        "cardName": "Pia Nalaar, Consul of Revival",
+        "typeLine": "Legendary Creature — Human Artificer",
+        "manaCost": "{2}{R}{W}",
+        "oracleText": "Thopters you control have haste.\nWhenever you play a land from exile or cast a spell from exile, create a 1/1 colorless Thopter artifact creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "landPlayedFromExile"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/events/1/fromZone",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-land-played-from-a-graveyard-has-no-origin-matcher",
+      "request": {
+        "cardName": "Graveyard Land Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever you play a land from your graveyard, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "event.land-played.origin",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    }
+  ]
+}

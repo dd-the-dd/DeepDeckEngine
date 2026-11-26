@@ -51,6 +51,79 @@ pub(super) fn event_is_aggregated(event: &Value) -> bool {
     event["aggregation"].as_str() == Some("oneOrMore")
 }
 
+/// The controller relation of one member of a battlefield batch event
+/// (`one or more creatures attack`, `two or more creatures your opponents
+/// control attack`, CR 603.2c): the source controller's permanents by
+/// default, any player's with `anyPlayer`, and an opponent's with
+/// `opponentOfSourceController`. The relation is read against the
+/// observer's controller (an observer outside the battlefield carries its
+/// owner).
+pub(super) fn batch_member_controller_matches(
+    event: &Value,
+    source_controller: &str,
+    member_controller: &str,
+) -> bool {
+    if event["anyPlayer"].as_bool() == Some(true) {
+        true
+    } else if event["opponentOfSourceController"].as_bool() == Some(true) {
+        member_controller != source_controller
+    } else {
+        member_controller == source_controller
+    }
+}
+
+impl GameEngine {
+    /// The attack-declaration batch matcher (`controlledCreaturesAttacked`,
+    /// CR 508.1, 603.2c): one declaration is one event for all attackers.
+    /// It counts the declared attackers in the pattern's controller relation
+    /// that satisfy `where` (effective characteristics), then reads the
+    /// threshold (`minimum`, `maximum`), the source's own attack, the total
+    /// power and a member event condition. Every observer zone shares it.
+    pub(super) fn attack_batch_observed(
+        &self,
+        event: &Value,
+        source: &super::CardInstance,
+        attacker_ids: &[String],
+    ) -> bool {
+        let controlled_attackers = attacker_ids
+            .iter()
+            .filter(|attacker_id| {
+                self.permanent_position(attacker_id)
+                    .is_some_and(|(player_index, card_index)| {
+                        let permanent = &self.state.players[player_index].battlefield[card_index];
+                        batch_member_controller_matches(
+                            event,
+                            &source.controller,
+                            &permanent.controller,
+                        ) && event.get("where").is_none_or(|where_filter| {
+                            self.permanent_matches_effective_filter(permanent, where_filter)
+                        })
+                    })
+            })
+            .collect::<Vec<_>>();
+        let count = controlled_attackers.len();
+        let total_power = controlled_attackers
+            .iter()
+            .filter_map(|attacker_id| {
+                self.permanent_position(attacker_id)
+                    .map(|(player_index, card_index)| {
+                        self.current_power(
+                            &self.state.players[player_index].battlefield[card_index],
+                        )
+                    })
+            })
+            .sum::<i32>();
+        count >= super::integer_value(&event["minimum"]).unwrap_or(1).max(1) as usize
+            && super::integer_value(&event["maximum"])
+                .is_none_or(|maximum| count <= maximum.max(0) as usize)
+            && (event["sourceMustAttack"].as_bool() != Some(true)
+                || attacker_ids.contains(&source.instance_id))
+            && super::integer_value(&event["totalPowerAtLeast"])
+                .is_none_or(|minimum| total_power >= minimum)
+            && self.member_event_condition_holds(event, source)
+    }
+}
+
 impl EventBatchState {
     /// The simultaneous event currently open, if any.
     pub(super) fn current_batch(&self) -> Option<u64> {

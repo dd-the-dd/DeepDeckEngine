@@ -307,6 +307,182 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_with_regeneration_amen
     }
 }
 
+/// The number a sentence-level regeneration rider's subject states.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RiderNumber {
+    Singular,
+    Plural,
+}
+
+/// The subject of `SUBJECT can't be regenerated.` as a rider of an earlier
+/// destruction, with the width of its words:
+///
+/// ```text
+/// RiderSubject := "it" | "they"
+///               | ("that" | "the") NOUN                     scalar anaphor
+///               | "a" NOUN "destroyed" "this" "way"          restated
+///               | NOUNS "destroyed" "this" "way"             restated set
+/// ```
+fn rider_subject_at(cursor: &OracleTokenCursor<'_>) -> Option<(RiderNumber, usize)> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let singular_type = |offset: usize| {
+        cursor.peek_ahead(offset).is_some_and(|raw| {
+            crate::oracle::characteristic_vocabulary::lookup_card_type(
+                raw,
+                AcceptedForms::SingularOnly,
+            )
+            .is_some()
+        })
+    };
+    let restated = |offset: usize| {
+        word(offset, "destroyed") && word(offset + 1, "this") && word(offset + 2, "way")
+    };
+    if word(0, "it") {
+        return Some((RiderNumber::Singular, 1));
+    }
+    if word(0, "they") {
+        return Some((RiderNumber::Plural, 1));
+    }
+    if (word(0, "that") || word(0, "the")) && singular_type(1) {
+        return Some((RiderNumber::Singular, 2));
+    }
+    if (word(0, "a") || word(0, "an")) && singular_type(1) && restated(2) {
+        return Some((RiderNumber::Singular, 5));
+    }
+    let plural_type = cursor.peek().is_some_and(|raw| {
+        crate::oracle::characteristic_vocabulary::lookup_card_type(
+            raw,
+            AcceptedForms::SingularOrPlural,
+        )
+        .is_some()
+            && crate::oracle::characteristic_vocabulary::lookup_card_type(
+                raw,
+                AcceptedForms::SingularOnly,
+            )
+            .is_none()
+    }) || word(0, "permanents");
+    (plural_type && restated(1)).then_some((RiderNumber::Plural, 4))
+}
+
+/// `SUBJECT can't be regenerated.` at the start of a sentence, with no
+/// duration: a rider of the destruction the previous sentence performed
+/// (CR 701.19c) that the destroy reader could not read as its own
+/// amendment (`Destroy up to X target creatures, where X is ... They can't
+/// be regenerated.`, `destroy that creature. The creature can't be
+/// regenerated.`). With a duration it is a lasting rule
+/// (`object_rule_clause.rs`), never a rider.
+pub(in crate::oracle::canonical) fn regeneration_rider_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let Some((_, width)) = rider_subject_at(cursor) else {
+        return false;
+    };
+    cursor
+        .peek_ahead(width)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t"))
+        && cursor
+            .peek_ahead(width + 1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("be"))
+        && cursor
+            .peek_ahead(width + 2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("regenerated"))
+        && cursor.peek_ahead(width + 3).is_none_or(|raw| raw == ".")
+}
+
+/// The number of objects a destruction destroys, when it is a destroy
+/// action this rider may amend.
+fn destroyed_number(effect: &LocalEffectNode) -> Option<RiderNumber> {
+    match effect {
+        LocalEffectNode::ZoneChange(change) if change.action == ZoneChangeAction::Destroy => {
+            // `up to X target creatures`: a typed count is plural whatever
+            // its literal envelope.
+            let scalar = change.target.slots.len() == 1
+                && change.target.slots[0].cardinality.maximum == 1
+                && change.target.slots[0]
+                    .count
+                    .as_ref()
+                    .is_none_or(|count| !count.is_plural());
+            Some(if scalar {
+                RiderNumber::Singular
+            } else {
+                RiderNumber::Plural
+            })
+        }
+        LocalEffectNode::DestroyCollection(_) => Some(RiderNumber::Plural),
+        LocalEffectNode::ReferencedPermanentAction(action)
+            if action.action == super::ReferencedPermanentAction::Destroy =>
+        {
+            Some(RiderNumber::Singular)
+        }
+        _ => None,
+    }
+}
+
+/// Reads the rider and prohibits regeneration on the destruction it
+/// amends. The rider's number must agree with the destroyed objects; a
+/// rider after anything but a destroy action fails here. The enclosing
+/// sequence consumes the final period.
+pub(in crate::oracle::canonical) fn recognize_regeneration_rider(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: Option<&mut LocalEffectNode>,
+) -> MachineResult<()> {
+    cursor.enter("sequence.regeneration-rider.antecedent");
+    let (number, width) = rider_subject_at(cursor)
+        .ok_or_else(|| cursor.fail("a pronoun or a restated noun of the destroyed objects"))?;
+    let destroyed =
+        antecedent.ok_or_else(|| cursor.fail("a destroy action in the preceding sentence"))?;
+    let destroyed_count = destroyed_number(destroyed)
+        .ok_or_else(|| cursor.fail("a destroy action in the preceding sentence"))?;
+    cursor.enter("sequence.regeneration-rider.agreement");
+    cursor.require(
+        number == destroyed_count,
+        "a rider subject agreeing in number with the destroyed objects",
+    )?;
+    // `That creature` / `A creature destroyed this way`: a declared scalar
+    // target must guarantee the referenced card type.
+    let noun_offset = match width {
+        2 | 5 => Some(1),
+        _ => None,
+    };
+    let mut referenced_type = None;
+    if let Some(offset) = noun_offset {
+        let mut noun = cursor.clone();
+        noun.advance_to(noun.position() + offset)?;
+        let predicate = recognize_object_predicate_atom(&mut noun, AcceptedForms::SingularOnly)?;
+        let ObjectPredicate::CardType(object_type) = predicate else {
+            return Err(noun.fail("a singular registered card type"));
+        };
+        if let LocalEffectNode::ZoneChange(change) = &*destroyed {
+            noun.require(
+                change.target.slots[0]
+                    .selector
+                    .guarantees_card_type(object_type),
+                "a preceding scalar target selector guaranteed to have the referenced card type",
+            )?;
+        }
+        referenced_type = Some(object_type);
+    }
+    cursor.advance_to(cursor.position() + width)?;
+    cursor.enter("sequence.regeneration-rider.negated-modal");
+    let modal = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&modal)?;
+    cursor.enter("sequence.regeneration-rider.regenerated");
+    cursor.consume_phrase(&["be", "regenerated"])?;
+    match destroyed {
+        LocalEffectNode::ZoneChange(change) => {
+            change.regeneration = ZoneChangeRegenerationPolicy::Prohibited { referenced_type };
+        }
+        LocalEffectNode::DestroyCollection(collection) => collection.cannot_regenerate = true,
+        LocalEffectNode::ReferencedPermanentAction(action) => action.cannot_regenerate = true,
+        _ => return Err(cursor.fail("a destroy action in the preceding sentence")),
+    }
+    Ok(())
+}
+
 pub(in crate::oracle::canonical) fn recognize_destroy_regeneration_prohibition(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ZoneChangeEffectNode> {
@@ -330,3 +506,7 @@ pub(in crate::oracle::canonical) fn recognize_destroy_regeneration_prohibition(
 #[cfg(test)]
 #[path = "destroy_regeneration_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "regeneration_rider_tests.rs"]
+mod rider_tests;

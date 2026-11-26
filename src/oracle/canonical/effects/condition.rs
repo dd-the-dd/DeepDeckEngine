@@ -563,6 +563,7 @@ fn history_event_kind(event: HistoryEvent) -> Value {
         HistoryEvent::CardsPutIntoGraveyard => "cardsEnteredGraveyard",
         HistoryEvent::CombatPhaseStarted => "combatPhaseStarted",
         HistoryEvent::CrimeCommitted => "crimeCommitted",
+        HistoryEvent::CardLeftGraveyard => "cardLeftGraveyard",
     };
     json!(kind)
 }
@@ -662,7 +663,8 @@ pub(in crate::oracle::canonical) fn lower_event_history_count(
             | HistoryEvent::CardCycled
             | HistoryEvent::CardDrawn
             | HistoryEvent::LandPlayed
-            | HistoryEvent::CardsPutIntoGraveyard => lower_card_object_predicate(predicate),
+            | HistoryEvent::CardsPutIntoGraveyard
+            | HistoryEvent::CardLeftGraveyard => lower_card_object_predicate(predicate),
             _ => lower_permanent_object_predicate(predicate),
         });
     match scope {

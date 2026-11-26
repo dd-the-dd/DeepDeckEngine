@@ -58,8 +58,10 @@ fn wan_shi_tong_library_search_trigger_is_native_primitive_ir() {
         search["event"],
         json!({
             "kind": "librarySearched",
-            "anyPlayer": true,
-            "opponentOfSourceController": true,
+            "player": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
         })
     );
     assert_eq!(
@@ -111,15 +113,20 @@ fn sibling_counter_amount_type_source_anaphor_then_and_draw_count_are_generic() 
 }
 
 #[test]
-fn a_nonopponent_search_event_is_not_approximated() {
+fn a_nonopponent_search_event_reads_its_own_player_relation() {
+    // The searching player is the shared player relation of the event, not
+    // an opponent-only flag: `a player` is every player, never an opponent.
     let parsed = parse_card(
         "Test Archive",
         "Artifact",
         "Whenever a player searches their library, put a charge counter on this artifact and draw a card.",
     );
 
-    assert_eq!(parsed.status, "unsupported");
-    assert!(parsed.abilities[0].rule.is_none());
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
+    assert_eq!(
+        library_search_rule(&parsed)["event"],
+        json!({ "kind": "librarySearched", "player": { "kind": "eachPlayer" } })
+    );
 }
 
 #[test]

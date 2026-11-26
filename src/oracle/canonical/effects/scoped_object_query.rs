@@ -35,6 +35,10 @@ pub(in crate::oracle::canonical) fn lower_scoped_object_query_amount(
         ZoneHolderQueryNode::Players(PlayerSetReferenceNode::EachPlayer) => {
             count["allPlayers"] = json!(true);
         }
+        // `that player's hand`, `their graveyard`: the one related player.
+        ZoneHolderQueryNode::Related(player) => {
+            count["zone"]["player"] = lower_zone_holder_player(*player);
+        }
         ZoneHolderQueryNode::Player(_) | ZoneHolderQueryNode::Players(_) => return None,
     }
     Some(count)
@@ -126,7 +130,8 @@ pub(in crate::oracle::canonical) fn lower_scoped_object_query_count(
                 LocalPlayerReference::ControllerOf(_)
                 | LocalPlayerReference::ControllerOfQualified(_)
                 | LocalPlayerReference::Bound(_),
-            ) => return None,
+            )
+            | ZoneHolderQueryNode::Related(_) => return None,
         }
         Some(
             json!({"kind":"countObjects","objects":{"kind":"cardsInZone","zone":zone_ref,"where":where_filter}}),

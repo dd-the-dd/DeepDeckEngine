@@ -1,0 +1,407 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "player-performers-batch12",
+  "cases": [
+    {
+      "id": "exact-sudden-impact-that-player-hand-holder",
+      "request": {
+        "cardName": "Sudden Impact",
+        "typeLine": "Instant",
+        "manaCost": "{3}{R}",
+        "oracleText": "Sudden Impact deals damage to target player equal to the number of cards in that player's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "countCards"
+              },
+              {
+                "pointer": "/effects/0/amount/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/0/amount/zone/player/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-search-warrant-that-player-after-declared-performer",
+      "request": {
+        "cardName": "Search Warrant",
+        "typeLine": "Sorcery",
+        "manaCost": "{W}{U}",
+        "oracleText": "Target player reveals their hand. You gain life equal to the number of cards in that player's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-natures-resurgence-their-graveyard-acting-player",
+      "request": {
+        "cardName": "Nature's Resurgence",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Each player draws a card for each creature card in their graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-recurring-insight-declared-holder",
+      "request": {
+        "cardName": "Recurring Insight",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Draw cards equal to the number of cards in target opponent's hand.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-impose-hierarchy-declared-target-controller-holder",
+      "request": {
+        "cardName": "Impose Hierarchy",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target creature with mana value 4 or less. You gain 1 life for each creature card in its controller's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-life-burst-each-graveyard",
+      "request": {
+        "cardName": "Life Burst",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Target player gains 4 life, then gains 4 life for each card named Life Burst in each graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-guiltfeeder-defending-player-their-graveyard",
+      "request": {
+        "cardName": "Guiltfeeder",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)\nWhenever this creature attacks and isn't blocked, defending player loses 1 life for each card in their graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-mill-then-count-that-players-graveyard",
+      "request": {
+        "cardName": "Holder Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target player mills two cards. You gain 1 life for each creature card in that player's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-target-opponent-loses-for-each-card-in-their-hand",
+      "request": {
+        "cardName": "Holder Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target opponent loses 1 life for each card in their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-that-player-holder-without-antecedent",
+      "request": {
+        "cardName": "Holder Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "You gain 1 life for each card in that player's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-their-holder-in-a-static-count",
+      "request": {
+        "cardName": "Holder Probe",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{2}",
+        "oracleText": "This creature gets +1/+1 for each card in their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skull-rend-those-players-each",
+      "request": {
+        "cardName": "Skull Rend",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{R}",
+        "oracleText": "Skull Rend deals 2 damage to each opponent. Those players each discard two cards at random.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/1/players/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-those-players-each-mill-after-population-life-loss",
+      "request": {
+        "cardName": "Plural Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Each opponent loses 2 life. Those players each mill two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-those-players-after-one-declared-player",
+      "request": {
+        "cardName": "Plural Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target player loses 2 life. Those players each discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "clause.performer.player-set-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-step-between-worlds-each-player-who-does",
+      "request": {
+        "cardName": "Step Between Worlds",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Each player may shuffle their hand and graveyard into their library. Each player who does draws seven cards. Exile Step Between Worlds.\nPlot {4}{U}{U} (You may pay {4}{U}{U} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/record",
+                "equals": "performedPlayers0"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/1/players/kind",
+                "equals": "recordedPlayers"
+              },
+              {
+                "pointer": "/effects/1/players/performed",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponent-who-cant-after-quantified-discard",
+      "request": {
+        "cardName": "Performance Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Each opponent discards a card. Each opponent who can't loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/record",
+                "equals": "performedPlayers0"
+              },
+              {
+                "pointer": "/effects/1/players/kind",
+                "equals": "recordedPlayers"
+              },
+              {
+                "pointer": "/effects/1/players/performed",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-who-does-without-a-preceding-population-action",
+      "request": {
+        "cardName": "Performance Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Each player who does draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-who-cant-after-a-permission",
+      "request": {
+        "cardName": "Performance Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Each player may draw a card. Each player who can't loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

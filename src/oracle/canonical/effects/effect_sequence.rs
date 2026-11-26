@@ -583,12 +583,13 @@ fn lower_local_effect_sequence_with_collections(
             },
         )?;
         action_starts.push((effects.len(), decisions.len()));
-        // A postposed definition supplies X to the actions of its sentence, so
-        // those actions lower X provisionally and the binding replaces it below.
+        // A postposed definition supplies X to the actions of its sentence and
+        // of the later sentences, so those actions lower X provisionally and
+        // the binding replaces it below.
         let context = if sequence
             .where_x
             .iter()
-            .any(|binding| binding.covers(effect_index))
+            .any(|binding| binding.reaches(effect_index))
         {
             EffectSequenceLoweringContext::ValidateXAfterCardComposition
         } else {
@@ -894,10 +895,18 @@ fn lower_local_effect_sequence_with_collections(
                             &target_bindings,
                             context,
                         )?;
-                        effects.push(
+                        let mut creation =
                             lower_token_creation_body(body, lowered.player, quantity)
-                                .map_err(|expected| cursor.fail(expected))?,
-                        );
+                                .map_err(|expected| cursor.fail(expected))?;
+                        // `that player creates a token ... The token is
+                        // goaded`: bound only when the next action names
+                        // the created tokens (`prior_object_set`).
+                        if created_tokens_are_next_antecedent(sequence, effect_index)
+                            && creation["kind"] == "createTokens"
+                        {
+                            creation["bind"] = json!(CREATED_TOKENS_BINDING);
+                        }
+                        effects.push(creation);
                         continue;
                     }
                     SingularPlayerAction::Hand(PlayerHandVerb::Discard) => {
@@ -1033,6 +1042,30 @@ fn lower_local_effect_sequence_with_collections(
                 let mut lowered = collections
                     .lower_action(cursor, action, declarations, &mut decisions)
                     .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                // `exile target creature card with mana value 3 or less from
+                // your graveyard. Create a token that's a copy of it.`: the
+                // one card this action declared is the program's card target
+                // (`declared_card_target`), recorded under its first slot as
+                // the historical targeted card move records it.
+                if let Some((true, _)) = declared_card_target(effect)
+                    && let [id] = decisions[first_decision..]
+                        .iter()
+                        .filter(|decision| {
+                            decision["kind"] == "chooseTargets"
+                                && decision["candidates"]["kind"] == "cards"
+                        })
+                        .filter_map(|decision| decision["id"].as_str())
+                        .collect::<Vec<_>>()
+                        .as_slice()
+                {
+                    card_target_bindings.push((
+                        TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                        (*id).to_string(),
+                    ));
+                }
                 // `exile all cards from your hand. ... return those cards`:
                 // the cards a zone-wide exile moved are the observed exile
                 // collection of the next card action (CR 400.7: the cards
@@ -2561,13 +2594,31 @@ fn lower_local_effect_sequence_with_collections(
                     super::permanent_subject::single_object_reference(source.clone()),
                     "one object dealing the damage: a target, an attached, event, bound or source object",
                 )?;
-                let amount = lower_sequence_bound_amount(
-                    cursor,
-                    &damage.amount,
-                    sequence,
-                    &target_bindings,
-                    context,
-                )?;
+                // `up to one other target creature ... each deal damage
+                // equal to their power`: a declared source that may be
+                // absent deals its damage once per declared object, zero or
+                // one time (CR 608.2c); its amount reads that member.
+                let optional_member = optional_declared_source(sequence, damage, &target_bindings);
+                let amount = match &optional_member {
+                    Some(member) => lower_numeric_expression_for_targets(
+                        &damage.amount,
+                        std::slice::from_ref(member),
+                    )
+                    .map_err(|_| {
+                        cursor.enter("sequence.target-numeric.optional-member");
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                            cursor.fail("an amount that reads only the optional declared source"),
+                        )
+                    })?,
+                    None => lower_sequence_bound_amount(
+                        cursor,
+                        &damage.amount,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?,
+                };
+                let first_damage = effects.len();
                 let recipients = match &damage.recipient {
                     DamageRecipientNode::Targets(targets) => {
                         cursor.enter("lower.damage.object-source.recipient");
@@ -2593,6 +2644,20 @@ fn lower_local_effect_sequence_with_collections(
                         let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
                         used_target_base_ids.push(base_id);
                         decisions.push(target_decision(&target_id, candidates, minimum, maximum));
+                        // A singular recipient is the antecedent a later
+                        // reference names (`... to that creature`).
+                        if let [slot] = targets.slots.as_slice()
+                            && slot.cardinality == TargetCardinality::EXACTLY_ONE
+                            && slot.count.is_none()
+                        {
+                            target_bindings.push((
+                                TargetBinding {
+                                    effect_index,
+                                    slot_index: 0,
+                                },
+                                target_id.clone(),
+                            ));
+                        }
                         vec![damage_target_recipient(&target_id, maximum)]
                     }
                     DamageRecipientNode::All(groups) => groups
@@ -2643,6 +2708,24 @@ fn lower_local_effect_sequence_with_collections(
                         "source": source.clone(),
                         "amount": amount.clone(),
                         "recipient": recipient,
+                    }));
+                }
+                if let Some(member) = optional_member {
+                    let bind = format!("iteratedObject{effect_index}");
+                    let singular = chosen_target(&member.target_id);
+                    let mut body = effects.split_off(first_damage);
+                    for effect in &mut body {
+                        replace_json_value(
+                            effect,
+                            &singular,
+                            &json!({"kind": "boundValue", "id": bind}),
+                        );
+                    }
+                    effects.push(json!({
+                        "kind": "forEachObject",
+                        "objects": {"kind": "chosenTargets", "id": member.target_id},
+                        "bind": bind,
+                        "effects": body,
                     }));
                 }
             }
@@ -3206,6 +3289,7 @@ fn lower_local_effect_sequence_with_collections(
     })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     bind_returned_source_when_read(cursor, &mut effects, collections)?;
+    contrast_other_tokens_with_created_tokens(cursor, &mut effects)?;
     bind_battlefield_search_when_read(cursor, sequence, &mut effects, collections)?;
     effect_alternatives::apply_alternative_frames(
         cursor,
@@ -3239,6 +3323,18 @@ fn lower_local_effect_sequence_with_collections(
         &mut decisions,
         &mut effects,
     )?;
+    // Before the conditional instructions are wrapped, while every action
+    // start is a top-level position: a binding precedes the sentences and
+    // conditions that read it.
+    apply_where_x_bindings(
+        cursor,
+        &mut action_starts,
+        &mut decisions,
+        sequence,
+        &target_bindings,
+        &mut conditional_scopes.conditions,
+        &mut effects,
+    )?;
     conditional_scopes.wrap(
         cursor,
         sequence,
@@ -3248,14 +3344,6 @@ fn lower_local_effect_sequence_with_collections(
         &mut effects,
     )?;
     resolve_optional_outcomes(cursor, &mut effects)?;
-    apply_where_x_bindings(
-        cursor,
-        &sequence.where_x,
-        &action_starts,
-        &decisions,
-        &sequence_numeric_target_slots(sequence, &target_bindings),
-        &mut effects,
-    )?;
     for effect in &mut effects {
         super::resolution_choice::rebind_resolution_players(effect, &resolution_players);
         super::resolution_object_choice::rebind_chosen_objects(effect, &chosen_object_bindings);
@@ -3342,12 +3430,6 @@ impl ConditionalScopes {
                 "ordered, nonempty and disjoint conditional sentence ranges",
             )?;
             previous_end = conditional.end();
-        }
-        if !sequence.conditionals.is_empty() && !sequence.where_x.is_empty() {
-            cursor.enter("lower.sentence-conditional.where-x");
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
-                "a sequence without both a sentence conditional and a postposed definition of X",
-            )));
         }
         // Later lowering failures belong to the action being lowered, not
         // to the conditional ranges checked here.
@@ -3968,41 +4050,75 @@ fn bind_condition_action_result_quantities(
 }
 
 /// Binds each postposed `where X is EXPR` definition (CR 107.3). The value is
-/// computed once, by a `bind` placed before the sentence's first action, and
-/// every X reference lowered by that sentence's actions reads the binding.
-/// An X that a target declaration needs, or an expression the shared numeric
-/// lowering cannot represent, fails explicitly instead of defaulting.
+/// computed once, by a `bind` placed before the sentence's first action;
+/// every X reference of that sentence and of the later sentences of the
+/// program (`... deals X damage to each opponent, where X is .... You gain
+/// X life.`, `If X is three or more, ...`) reads the binding, up to the next
+/// definition. An X a target declaration reads is the same amount read when
+/// the targets are chosen (CR 601.2c, 603.3d) and rechecked (CR 608.2b): the
+/// declaration carries the amount itself (`where_x_declaration`). An
+/// expression the shared numeric lowering cannot represent, or one with no
+/// value when targets are chosen, fails explicitly instead of defaulting.
+///
+/// Runs before the conditional instructions are wrapped: each inserted
+/// `bind` belongs to the first action of its sentence, so a conditional
+/// governing that sentence contains it, and a later conditional sees it.
 fn apply_where_x_bindings(
     cursor: &mut OracleTokenCursor<'_>,
-    bindings: &[WhereXBindingNode],
-    action_starts: &[(usize, usize)],
-    decisions: &[Value],
-    target_slots: &[NumericTargetSlot],
+    action_starts: &mut [(usize, usize)],
+    decisions: &mut [Value],
+    sequence: &EffectSequenceNode,
+    target_bindings: &[(TargetBinding, String)],
+    conditions: &mut [Option<Value>],
     effects: &mut Vec<Value>,
 ) -> Result<(), EffectSequenceLoweringFailure> {
+    let bindings = &sequence.where_x;
+    let target_slots = sequence_numeric_target_slots(sequence, target_bindings);
+    let counter_slots = where_x_declaration::countered_spell_bindings(sequence, target_bindings);
+    let mut slots_before_counter = sequence_numeric_target_slots(sequence, target_bindings);
+    slots_before_counter.extend(where_x_declaration::countered_spell_slots(
+        sequence,
+        target_bindings,
+    ));
     let mut binds = Vec::new();
     for (ordinal, binding) in bindings.iter().enumerate() {
+        // The definition holds from its sentence to the next definition.
+        let scope_end = bindings
+            .get(ordinal + 1)
+            .map_or(sequence.effects.len(), |next| next.first_effect)
+            .max(binding.end_effect);
         let (effect_from, decision_from) = action_starts[binding.first_effect];
-        let (effect_to, decision_to) = action_starts[binding.end_effect];
-        cursor.enter("lower.where-x.declarations");
-        if decisions[decision_from..decision_to]
+        let (effect_to, decision_to) = action_starts[scope_end];
+        let declares_x = decisions[decision_from..decision_to]
             .iter()
-            .any(references_x_value)
-        {
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                cursor.fail("X in action quantities, not in a target declaration"),
-            ));
-        }
+            .any(references_x_value);
         cursor.enter("lower.where-x.definition");
         // A property of a declared target reads the slot that declared it
         // (its last known information once it left, CR 608.2h).
-        let value = lower_numeric_expression(&binding.expression)
+        let plain = lower_numeric_expression(&binding.expression);
+        let reads_target = plain.is_none() && binding.expression.requires_target_binding();
+        // A countered spell leaves the stack (CR 701.6a): a definition that
+        // reads nothing but declared targets is read before the counter,
+        // while the spell is still there.
+        let read_before_counter = reads_target
+            .then(|| {
+                where_x_declaration::target_read_position(
+                    &binding.expression,
+                    &counter_slots,
+                    action_starts,
+                )
+            })
+            .flatten();
+        let read_slots = if read_before_counter.is_some() {
+            &slots_before_counter[..]
+        } else {
+            &target_slots[..]
+        };
+        let value = plain
             .or_else(|| {
-                binding
-                    .expression
-                    .requires_target_binding()
+                reads_target
                     .then(|| {
-                        lower_numeric_expression_for_targets(&binding.expression, target_slots).ok()
+                        lower_numeric_expression_for_targets(&binding.expression, read_slots).ok()
                     })
                     .flatten()
             })
@@ -4011,6 +4127,22 @@ fn apply_where_x_bindings(
                     cursor.fail("a definition of X that the shared numeric lowering represents"),
                 )
             })?;
+        if declares_x {
+            // A declaration cannot read a target it declares.
+            cursor.enter("lower.where-x.declarations");
+            if reads_target {
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+                    "a definition of X read when targets are chosen, not a property of a declared target",
+                )));
+            }
+            where_x_declaration::bind_declaration_x(
+                &mut decisions[decision_from..decision_to],
+                &value,
+            )
+            .map_err(|expected| {
+                EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+            })?;
+        }
         let id = if ordinal == 0 {
             WHERE_X_BINDING_ID.to_owned()
         } else {
@@ -4021,11 +4153,48 @@ fn apply_where_x_bindings(
         for effect in &mut effects[effect_from..effect_to] {
             uses += replace_x_value(effect, &id);
         }
-        cursor.require(uses > 0, "an action in this sentence whose quantity is X")?;
-        binds.push((
-            effect_from,
-            json!({ "kind": "bind", "id": id, "value": value }),
-        ));
+        // `If X is three or more, ...` after the definition reads it. A
+        // conditional governing the defining sentence itself is tested
+        // before the binding inside its branch exists.
+        for (conditional, condition) in sequence.conditionals.iter().zip(conditions.iter_mut()) {
+            let Some(condition) = condition.as_mut() else {
+                continue;
+            };
+            if !(binding.first_effect..scope_end).contains(&conditional.start())
+                || !references_x_value(condition)
+            {
+                continue;
+            }
+            cursor.enter("lower.sentence-conditional.where-x");
+            if conditional.start() == binding.first_effect {
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("a condition on X after the sentence that defines X"),
+                ));
+            }
+            uses += replace_x_value(condition, &id);
+        }
+        cursor.enter("lower.where-x.scope");
+        cursor.require(
+            uses > 0 || declares_x,
+            "an action or a target declaration in this sentence whose quantity is X",
+        )?;
+        if uses > 0 {
+            let position =
+                read_before_counter.map_or(effect_from, |position| position.min(effect_from));
+            binds.push((
+                position,
+                json!({ "kind": "bind", "id": id, "value": value }),
+            ));
+        }
+    }
+    binds.sort_by_key(|(position, _)| *position);
+    // Each bind belongs to the action that starts at its position: later
+    // action starts move past it.
+    for start in action_starts.iter_mut() {
+        start.0 += binds
+            .iter()
+            .filter(|(position, _)| *position < start.0)
+            .count();
     }
     for (position, bind) in binds.into_iter().rev() {
         effects.insert(position, bind);
@@ -4315,6 +4484,9 @@ pub(in crate::oracle::canonical) use optional_outcome::resolve_program_optional_
 #[path = "where_x_tests.rs"]
 mod where_x_tests;
 
+#[path = "where_x_declaration.rs"]
+mod where_x_declaration;
+
 #[cfg(test)]
 #[path = "unless_frame_tests.rs"]
 mod unless_frame_tests;
@@ -4406,10 +4578,24 @@ fn sequence_numeric_target_slots(
                     first,
                     second: PermanentOperandNode::Targets(targets),
                 }) if !matches!(first, PermanentOperandNode::Targets(_)) => (targets, false),
+                // `choose target ...`, or the declared subject of a
+                // distributive predicate (`TARGETS each deal damage equal
+                // to their power`): the declaration names its own slots.
+                LocalEffectNode::Choose(ChooseInstructionNode {
+                    domain: ChoiceDomainNode::PermanentTargets(targets),
+                    ..
+                }) => (targets, false),
                 _ => return None,
             };
             let slot = targets.slots.get(binding.slot_index)?;
-            if slot.cardinality.minimum != 1 || slot.cardinality.maximum != 1 {
+            // A plural slot registers only its set binding: its singular
+            // binding exists only while an iteration frame binds the slot to
+            // one member at a time (CR 608.2c), and that member exists.
+            let plural = slot
+                .count
+                .as_ref()
+                .map_or(slot.cardinality.maximum > 1, TargetCount::is_plural);
+            if !plural && (slot.cardinality.minimum != 1 || slot.cardinality.maximum != 1) {
                 return None;
             }
             Some(NumericTargetSlot {
@@ -4420,6 +4606,58 @@ fn sequence_numeric_target_slots(
             })
         })
         .collect()
+}
+
+/// The optional singular slot (`up to one other target creature`) a
+/// distributive subject declared, when it is this damage's own source: the
+/// numeric context of that one member.
+fn optional_declared_source(
+    sequence: &EffectSequenceNode,
+    damage: &DamageEffectNode,
+    bindings: &[(TargetBinding, String)],
+) -> Option<NumericTargetSlot> {
+    let PermanentOperandNode::BoundReference(PermanentEffectReference::Target(binding)) =
+        &damage.source
+    else {
+        return None;
+    };
+    let LocalEffectNode::Choose(ChooseInstructionNode {
+        domain: ChoiceDomainNode::PermanentTargets(targets),
+        ..
+    }) = sequence.effects.get(binding.effect_index)?
+    else {
+        return None;
+    };
+    let slot = targets.slots.get(binding.slot_index)?;
+    if slot.count.is_some() || slot.cardinality.minimum != 0 || slot.cardinality.maximum != 1 {
+        return None;
+    }
+    let id = bindings
+        .iter()
+        .find(|(candidate, _)| candidate == binding)
+        .map(|(_, id)| id.clone())?;
+    Some(NumericTargetSlot {
+        binding: *binding,
+        target_id: id,
+        selector: slot.selector.clone(),
+        requires_post_zone_change_lki: false,
+    })
+}
+
+fn replace_json_value(value: &mut Value, from: &Value, to: &Value) {
+    if value == from {
+        *value = to.clone();
+        return;
+    }
+    match value {
+        Value::Object(map) => map
+            .values_mut()
+            .for_each(|child| replace_json_value(child, from, to)),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| replace_json_value(child, from, to)),
+        _ => {}
+    }
 }
 
 fn lower_sequence_bound_amount(
@@ -4639,6 +4877,13 @@ fn apply_performer(
         effects.len() > start,
         "an action that produces at least one primitive for its performer",
     )?;
+    // A population derived from a previous action's performance (`each
+    // player who does`) is owned by the performer lowering module.
+    if let Some(result) =
+        super::lower_derived_performer(cursor, effects, start, effect_index, &performer)
+    {
+        return result.map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit);
+    }
     let player = match &performer {
         PerformerNode::Player(PlayerEffectSubject::EventPlayer) => {
             json!({"kind": "triggeringPlayer"})
@@ -5026,6 +5271,70 @@ fn declare_player_targets(
     }
     decisions.push(decision);
     declared_player_targets.push((key, target_id));
+    Ok(())
+}
+
+/// `Create a token ... Then exile all other Nightmare tokens you control`:
+/// `other` contrasts its noun with the nearest antecedent of that noun. A
+/// collection of tokens can't contrast with the ability's printed source
+/// (a card is not a token), so right after a token creation of the same
+/// program it contrasts with the tokens that action created: those are the
+/// excluded objects, and the source is an ordinary member (Abyssal
+/// Harvester ruling: the new token copy isn't exiled). Every other `other`
+/// collection keeps excluding the source.
+fn contrast_other_tokens_with_created_tokens(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+) -> Result<(), EffectSequenceLoweringFailure> {
+    fn requires_token(filter: &Value) -> bool {
+        match filter.get("kind").and_then(Value::as_str) {
+            Some("isToken") => true,
+            Some("and") => filter["operands"]
+                .as_array()
+                .is_some_and(|operands| operands.iter().any(requires_token)),
+            _ => false,
+        }
+    }
+    fn other_token_collection(effect: &Value) -> Option<&'static str> {
+        ["permanent", "object", "objects"]
+            .into_iter()
+            .find(|field| {
+                let collection = &effect[*field];
+                collection.get("kind").and_then(Value::as_str) == Some("eachPermanent")
+                    && collection.get("excludeSource").and_then(Value::as_bool) == Some(true)
+                    && collection.get("exclude").is_none()
+                    && requires_token(&collection["where"])
+            })
+    }
+    for index in 1..effects.len() {
+        let Some(field) = other_token_collection(&effects[index]) else {
+            continue;
+        };
+        let creation = &effects[index - 1];
+        if creation.get("kind").and_then(Value::as_str) != Some("createTokens") {
+            continue;
+        }
+        cursor.enter("lower.other-collection.created-tokens");
+        if creation
+            .get("bind")
+            .is_some_and(|bind| bind != CREATED_TOKENS_BINDING)
+        {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("the created tokens as the antecedent `other` contrasts with"),
+            ));
+        }
+        effects[index - 1]["bind"] = json!(CREATED_TOKENS_BINDING);
+        let collection = effects[index][field].as_object_mut().ok_or_else(|| {
+            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("an `other` token collection"),
+            )
+        })?;
+        collection.remove("excludeSource");
+        collection.insert(
+            "exclude".to_owned(),
+            json!({"kind": "boundObjects", "binding": CREATED_TOKENS_BINDING}),
+        );
+    }
     Ok(())
 }
 

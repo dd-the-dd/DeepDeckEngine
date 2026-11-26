@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "distributive-member/each-member-deals-its-own-toughness",
+  "cardName": "Distributive Toughness Probe",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "distributive-member-each-member-deals-its-own-toughness-input",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Distributive Toughness Probe",
+      "typeLine": "Instant",
+      "manaCost": "{2}{G}",
+      "oracleText": "Up to two target creatures you control each deal damage equal to their toughness to target creature an opponent controls.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

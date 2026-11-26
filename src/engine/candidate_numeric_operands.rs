@@ -132,6 +132,52 @@ fn candidates_need_binding(candidates: &Value) -> bool {
     candidates.get("where").is_some_and(filter_needs_binding)
 }
 
+/// Replaces each comparison amount the binder reads with a placeholder
+/// integer, once the amount itself is a supported numeric expression.
+fn placeholder_filter(filter: &mut Value) {
+    match value_kind(filter) {
+        Some("compare")
+            if value_kind(&filter["left"]["object"]) == Some("candidate")
+                && bindable_amount(&filter["right"])
+                && super::numeric_expression_supported(&filter["right"]) =>
+        {
+            filter["right"] = Value::from(0);
+        }
+        Some("and" | "or") => {
+            if let Some(operands) = filter["operands"].as_array_mut() {
+                for operand in operands {
+                    placeholder_filter(operand);
+                }
+            }
+        }
+        Some("not") => placeholder_filter(&mut filter["operand"]),
+        _ => {}
+    }
+}
+
+/// The candidate domain as a support check sees it: a controller-relative
+/// comparison amount is a well-formed integer once bound, in every domain
+/// whose candidates `bind_candidate_amounts` prepares (spells included).
+pub(super) fn with_amount_placeholders(candidates: &Value) -> Value {
+    let mut bound = candidates.clone();
+    placeholder_sets(&mut bound);
+    bound
+}
+
+fn placeholder_sets(candidates: &mut Value) {
+    if value_kind(candidates) == Some("union") {
+        if let Some(sets) = candidates["sets"].as_array_mut() {
+            for set in sets {
+                placeholder_sets(set);
+            }
+        }
+        return;
+    }
+    if let Some(filter) = candidates.get_mut("where") {
+        placeholder_filter(filter);
+    }
+}
+
 impl GameEngine {
     /// The amount relative to `controller_id`, read now. `None` when a
     /// leaf has no value (a missing player); the filter then stays unbound.

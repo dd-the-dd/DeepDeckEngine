@@ -1,8 +1,10 @@
 use super::super::{CommitPoint, MachineResult, OracleTokenCursor};
 use super::{
-    ManaCostNode, SpellCastQueryNode, SpellCasterScope, recognize_mana_cost,
-    recognize_spell_cast_collection,
+    AbilityTargetCondition, ManaCostNode, SpellCastQueryNode, SpellCasterScope,
+    recognize_mana_cost, recognize_spell_cast_collection, recognize_target_relative,
+    target_relative_follows,
 };
+use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 /// What one copy of an own-spell increase is paid for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -54,6 +56,9 @@ pub(in crate::oracle::canonical) fn recognize_own_spell_cost_increase(
 pub(in crate::oracle::canonical) struct SpellCostIncreaseNode {
     pub spells: SpellCastQueryNode,
     pub cost: ManaCostNode,
+    /// `that target OBJECT`: matched against the spell's chosen targets
+    /// (CR 601.2c, 601.2f).
+    pub target: Option<AbilityTargetCondition>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,9 +81,20 @@ enum SpellCostIncreaseState {
 pub(in crate::oracle::canonical) fn recognize_spell_cost_increase(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<SpellCostIncreaseNode> {
+    recognize_spell_cost_increase_with_names(cursor, &[], None)
+}
+
+/// The same envelope, with the source's name links for a targeted object
+/// named by the card (`Spells your opponents cast that target NAME`).
+pub(in crate::oracle::canonical) fn recognize_spell_cost_increase_with_names(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<SpellCostIncreaseNode> {
     let mut state = SpellCostIncreaseState::Spells;
     let mut spells = None;
     let mut cost = None;
+    let mut target = None;
 
     loop {
         state = match state {
@@ -99,6 +115,10 @@ pub(in crate::oracle::canonical) fn recognize_spell_cost_increase(
                 SpellCostIncreaseState::CostAction
             }
             SpellCostIncreaseState::CostAction => {
+                if target_relative_follows(cursor) {
+                    cursor.enter("static.spell-cost-increase.target");
+                    target = Some(recognize_target_relative(cursor, name_links, name_failure)?);
+                }
                 cursor.enter("static.spell-cost-increase.cost-action");
                 cursor.consume("cost")?;
                 SpellCostIncreaseState::Cost
@@ -134,6 +154,7 @@ pub(in crate::oracle::canonical) fn recognize_spell_cost_increase(
                 return Ok(SpellCostIncreaseNode {
                     spells: cursor.require_value(spells, "a populated spell collection")?,
                     cost: cursor.require_value(cost, "a populated additional mana cost")?,
+                    target,
                 });
             }
         };

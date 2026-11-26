@@ -168,6 +168,15 @@ fn lower_unlimited_program_step<E>(
             CardCollectionMemory::default()
         };
         let body = lower_with(cursor, body.inner_sequence(), &mut body_scope)?;
+        // `You may copy the exiled card. If you do, you may cast the copy`:
+        // the body casts the copies its producer created (CR 707.12).
+        cursor.enter("lower.program.outcome.card-copies");
+        cursor
+            .require(
+                !body_scope.holds_uncast_card_copies(),
+                "an outcome body that casts the card copies its producer created",
+            )
+            .map_err(&program_failure)?;
         let otherwise = match otherwise {
             Some(otherwise) => {
                 let lowered = lower_with(
@@ -205,7 +214,17 @@ fn lower_unlimited_program_step<E>(
         .map_err(program_failure);
     }
     let mut lower = |cursor: &mut OracleTokenCursor<'_>, sequence: &EffectSequenceNode| {
-        lower_with(cursor, sequence, &mut CardCollectionMemory::default())
+        let mut collections = CardCollectionMemory::default();
+        let lowered = lower_with(cursor, sequence, &mut collections)?;
+        // A card copy exists only to be cast (CR 707.12): a sentence whose
+        // copies no cast consumes, and no `If you do` body casts, is refused.
+        if collections.holds_uncast_card_copies() {
+            cursor.enter("lower.program.card-copies.uncast");
+            return Err(program_failure(cursor.fail(
+                "an instruction casting the card copies this sentence created",
+            )));
+        }
+        Ok(lowered)
     };
     if let EffectProgramNode::Outcome {
         permission,
@@ -912,6 +931,8 @@ fn optional_action_measured(instruction: &Value) -> bool {
         }
         // The object was still the permanent the effect applied to.
         Some("modifyPowerToughness" | "grantKeyword") => instruction["object"].is_object(),
+        // The card copy was created in exile (CR 707.12).
+        Some("createCardCopy") => single_player(&instruction["player"]),
         _ => false,
     }
 }

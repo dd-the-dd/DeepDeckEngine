@@ -132,6 +132,7 @@ pub(in crate::oracle::canonical) fn recognize_chosen_permanent_operand(
         selector,
         remainder: None,
         random,
+        partition: None,
     })
 }
 

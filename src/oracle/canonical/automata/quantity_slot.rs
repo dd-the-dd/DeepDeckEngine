@@ -184,6 +184,12 @@ impl PartialEq<NumericExpression> for SelectionCount {
 pub(in crate::oracle::canonical) struct ChosenAmountBounds {
     pub minimum: i64,
     pub maximum: Option<i64>,
+    /// The universal determiner `all` (`Remove all charge counters from this
+    /// artifact`, CR 122.8): the cost acts on every payable member, so the
+    /// number is not chosen but fixed when the cost is paid; both bounds are
+    /// the payable count. It is still the activation's one recorded number,
+    /// which `that much` and `counters removed this way` restate.
+    pub exhaustive: bool,
 }
 
 /// The quantity slot of a counted cost action: exactly a literal or the
@@ -261,6 +267,28 @@ pub(in crate::oracle::canonical) fn recognize_cost_quantity(
     Ok(CostQuantity::Chosen(ChosenAmountBounds {
         minimum: range.minimum(),
         maximum,
+        exhaustive: false,
+    }))
+}
+
+/// Reads the quantity of a counter-removal cost: the universal determiner
+/// `all` before the counter kind, or any [`recognize_cost_quantity`]. `all`
+/// is admitted only here: every counter of one kind on a holder is a count
+/// the holder fixes, while `all` objects of a query have no payable-count
+/// declaration of their own and are left to their own grammar.
+pub(in crate::oracle::canonical) fn recognize_counter_cost_quantity(
+    cursor: &mut OracleTokenCursor<'_>,
+    expected: &str,
+) -> MachineResult<CostQuantity> {
+    if !word_at(cursor, 0, "all") {
+        return recognize_cost_quantity(cursor, expected);
+    }
+    cursor.enter("quantity-slot.cost-all");
+    cursor.consume("all")?;
+    Ok(CostQuantity::Chosen(ChosenAmountBounds {
+        minimum: 0,
+        maximum: None,
+        exhaustive: true,
     }))
 }
 

@@ -194,17 +194,37 @@ pub(in crate::oracle::canonical) fn recognize_subject_possessive_property(
 pub(in crate::oracle::canonical) fn environment_possessive_property_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
+    cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("its")
+            || (raw.eq_ignore_ascii_case("their") && distributive_member_subject(cursor))
+    }) && cursor.peek_ahead(1).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("power")
+            || raw.eq_ignore_ascii_case("toughness")
+            || (raw.eq_ignore_ascii_case("mana")
+                && cursor
+                    .peek_ahead(2)
+                    .is_some_and(|next| next.eq_ignore_ascii_case("value")))
+    })
+}
+
+/// Lexical lookahead for `their PROPERTY` naming the iterated member of a
+/// distributive plural subject: it wins over any other antecedent the
+/// parent supplies, as `its` of a singular clause subject does.
+pub(in crate::oracle::canonical) fn distributive_member_possessive_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
     cursor
         .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
-        && cursor.peek_ahead(1).is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("power")
-                || raw.eq_ignore_ascii_case("toughness")
-                || (raw.eq_ignore_ascii_case("mana")
-                    && cursor
-                        .peek_ahead(2)
-                        .is_some_and(|next| next.eq_ignore_ascii_case("value")))
-        })
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("their"))
+        && environment_possessive_property_starts(cursor)
+}
+
+/// Whether the clause subject is one iterated member of a distributive
+/// plural subject, which a plural `their` names (CR 608.2c).
+fn distributive_member_subject(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.binding_environment().is_some_and(|environment| {
+        environment.distributive_subject && environment.subject.is_some()
+    })
 }
 
 pub(in crate::oracle::canonical) fn recognize_environment_possessive_property(
@@ -212,7 +232,18 @@ pub(in crate::oracle::canonical) fn recognize_environment_possessive_property(
     environment: &super::BindingEnvironment,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.possessive.pronoun");
-    cursor.consume("its")?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("their"))
+    {
+        cursor.require(
+            environment.distributive_subject && environment.subject.is_some(),
+            "a distributive member subject that `their` names",
+        )?;
+        cursor.consume("their")?;
+    } else {
+        cursor.consume("its")?;
+    }
     cursor.enter("numeric.possessive.property");
     let property = super::recognize_selector_numeric_property(cursor)?;
     cursor.enter("numeric.possessive.antecedent");
@@ -473,6 +504,14 @@ pub(in crate::oracle::canonical) fn source_counter_count_starts(
                     "counterNamePart" | "counterValue"
                 )
             })
+        // `the number of +1/+1 counters removed this way` restates the
+        // number this activation's cost chose: the shared counted
+        // collection reads it, never a holder of counters.
+        && {
+            let mut counted = cursor.clone();
+            counted.advance_to(counted.position() + 3).is_err()
+                || !super::cost_chosen_amount_reference_starts(&counted)
+        }
 }
 
 /// Pure source query. Counter names remain data from the shared bounded slot.

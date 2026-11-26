@@ -13,6 +13,10 @@
 //! proliferate             proliferated     CR 701.34
 //! exert PERMANENT         permanentExerted CR 701.43 (where)
 //! complete a dungeon      dungeonCompleted CR 309.7
+//! become the monarch      becameMonarch    CR 724.1
+//! search their library    librarySearched  CR 701.23 (player relation)
+//! get one or more {E}     playerCountersAdded CR 122.1 (counter `energy`)
+//! copy a SPELL            spellCopied      CR 707.10 (where)
 //! When CONDITION          stateConditionMet CR 603.8
 //! ```
 //!
@@ -131,6 +135,67 @@ fn lower_outcome(
                     "a dungeon-completion matcher for a player other than the ability controller",
                 ));
             }
+        }
+        _ => {}
+    }
+    Ok(lowered)
+}
+
+/// The lexicon player actions (`become the monarch`, `search their
+/// library`, `get one or more {E}`, `copy a SPELL`): one runtime event of
+/// the acting player, matched with the shared player relation. `None` for
+/// any other action.
+pub(in crate::oracle::canonical) fn lower_player_lexicon_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+    action: PlayerEventAction,
+    one_or_more: bool,
+    card: Option<&PlayerEventCardObject>,
+) -> Option<MachineResult<Value>> {
+    let kind = match action {
+        PlayerEventAction::BecomeMonarch => "becameMonarch",
+        PlayerEventAction::SearchLibrary => "librarySearched",
+        PlayerEventAction::GetEnergy => "playerCountersAdded",
+        PlayerEventAction::CopySpell => "spellCopied",
+        _ => return None,
+    };
+    Some(lower_lexicon_event(
+        cursor,
+        kind,
+        actor,
+        action,
+        one_or_more,
+        card,
+    ))
+}
+
+fn lower_lexicon_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    kind: &'static str,
+    actor: EventActorScope,
+    action: PlayerEventAction,
+    one_or_more: bool,
+    card: Option<&PlayerEventCardObject>,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.player-event.lexicon-support");
+    cursor.require(
+        !one_or_more,
+        "a per-player event (no one-or-more player batch for this action)",
+    )?;
+    let mut lowered = json!({"kind": kind, "player": event_actor_player(actor)});
+    match action {
+        // CR 122.1: `{E}` is the energy player counter; one instruction that
+        // gives at least one is one occurrence (CR 603.2c).
+        PlayerEventAction::GetEnergy => lowered["counter"] = json!("energy"),
+        PlayerEventAction::CopySpell => {
+            cursor.enter("trigger.player-event.copied-spell");
+            let card = card.ok_or_else(|| cursor.fail("the copied spell of the event"))?;
+            let predicate = &card.query.predicate;
+            cursor.require(
+                !card.exclude_source && !predicate.contains_numeric_comparison(),
+                "a copied-spell predicate without numeric characteristics",
+            )?;
+            lowered["where"] = lower_spell_object_predicate(predicate).unwrap_or(Value::Null);
         }
         _ => {}
     }

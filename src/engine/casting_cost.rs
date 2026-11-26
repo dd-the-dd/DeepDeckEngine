@@ -150,6 +150,14 @@ const COLORED_REDUCTION_SYMBOLS: [&str; 6] = ["W", "U", "B", "R", "G", "C"];
 
 /// Shape of a reduction modifier's `coloredMana` field: the symbols of one
 /// delta, how many times it applies, and the excess policy.
+/// `castOrdinal`: a later spell of the caster's turn (the first one is
+/// `firstEachTurn`), CR 601.2i.
+pub(super) fn cast_ordinal_supported(ordinal: &Value) -> bool {
+    ordinal
+        .as_u64()
+        .is_some_and(|ordinal| (2..=10).contains(&ordinal))
+}
+
 pub(super) fn colored_reduction_supported(reduction: &Value) -> bool {
     reduction.as_object().is_some_and(|fields| {
         fields
@@ -710,6 +718,283 @@ impl GameEngine {
         };
         selected_cost_contains_x
     }
+}
+
+/// The activated ability whose total cost is being determined (CR 602.2b
+/// applies CR 601.2f): who activates it, the object it is an ability of,
+/// its class and the targets chosen before the cost (CR 601.2c).
+pub(super) struct ActivationCostSubject<'a> {
+    pub activator: &'a str,
+    pub source: &'a CardInstance,
+    pub on_battlefield: bool,
+    pub class: Option<&'a str>,
+    pub targets: &'a BTreeMap<String, TargetRef>,
+}
+
+/// The ability classes the activation paths name: `equip` and `cycling`
+/// keyword abilities, loyalty abilities (CR 606.3) and the classes an
+/// activated rule records (`abilityClass`).
+const ACTIVATION_CLASSES: [&str; 7] = [
+    "equip", "cycling", "loyalty", "boast", "powerUp", "exhaust", "forecast",
+];
+
+/// The class of an activated rule: its recorded keyword class, or `loyalty`
+/// for an ability with a loyalty cost (CR 606.3).
+pub(super) fn activation_rule_class(rule: &Value, loyalty_cost: bool) -> Option<&str> {
+    rule.get("abilityClass")
+        .and_then(Value::as_str)
+        .or(loyalty_cost.then_some("loyalty"))
+}
+
+/// `modifyActivationCost`: a population of activated abilities without mana
+/// abilities (those keep their printed costs while paying), and either a
+/// generic reduction or an added fixed mana cost.
+pub(super) fn modify_activation_cost_supported(modifier: &Value) -> bool {
+    let abilities = &modifier["abilities"];
+    let reduction = modifier
+        .get("reduceGeneric")
+        .map(|amount| integer_value(amount).is_some_and(|amount| amount > 0));
+    let increase = modifier.get("addManaCost").map(|cost| {
+        cost.as_str()
+            .is_some_and(|cost| parse_mana_requirement(cost).is_some())
+    });
+    abilities.is_object()
+        && matches!((reduction, increase), (Some(true), None) | (None, Some(true)))
+        && abilities
+            .get("class")
+            .is_none_or(|class| class.as_str().is_some_and(|class| ACTIVATION_CLASSES.contains(&class)))
+        && abilities
+            .get("activators")
+            .is_none_or(player_reference_supported)
+        && abilities
+            .get("sources")
+            .is_none_or(static_object_selector_supported)
+        && abilities
+            .get("target")
+            .is_none_or(static_object_selector_supported)
+        // Mana abilities are activated while paying and keep their printed
+        // costs there; a population including them is not represented.
+        && abilities["excludesManaAbilities"].as_bool() == Some(true)
+        && modifier.get("minimumOneMana").is_none_or(Value::is_boolean)
+        && (modifier.get("minimumOneMana").is_none() || reduction == Some(true))
+        && modifier.get("condition").is_none_or(condition_supported)
+}
+
+/// The mana value of cost components, counting each non-generic symbol once.
+fn components_mana_value(costs: &[String]) -> i32 {
+    costs
+        .iter()
+        .flat_map(|cost| parse_mana_symbols(cost))
+        .map(|symbol| symbol.parse::<i32>().unwrap_or(1))
+        .fold(0_i32, i32::saturating_add)
+}
+
+impl GameEngine {
+    fn activation_population_matches(
+        &self,
+        source: &CardInstance,
+        abilities: &Value,
+        subject: &ActivationCostSubject<'_>,
+    ) -> bool {
+        abilities
+            .get("class")
+            .is_none_or(|class| class.as_str() == subject.class)
+            && abilities.get("activators").is_none_or(|activators| {
+                self.event_player_reference_matches(activators, source, subject.activator)
+            })
+            && abilities.get("sources").is_none_or(|sources| {
+                subject.on_battlefield
+                    && Self::static_selector_matches(source, sources, subject.source)
+            })
+            && abilities.get("target").is_none_or(|target| {
+                subject.targets.values().any(|chosen| {
+                    let TargetRef::Permanent { instance_id } = chosen else {
+                        return false;
+                    };
+                    self.permanent_position(instance_id).is_some_and(
+                        |(player_index, card_index)| {
+                            Self::static_selector_matches(
+                                source,
+                                target,
+                                &self.state.players[player_index].battlefield[card_index],
+                            )
+                        },
+                    )
+                })
+            })
+    }
+
+    /// Applies the static activation cost modifications to an ability's
+    /// mana cost components (CR 602.2b, 601.2f): increases join the total
+    /// cost, then generic reductions apply, each floored reduction last and
+    /// never below one mana.
+    pub(super) fn adjust_activation_mana_costs(
+        &self,
+        costs: &mut Vec<String>,
+        subject: &ActivationCostSubject<'_>,
+    ) {
+        let mut reduction = 0_i32;
+        let mut floored = Vec::new();
+        for (source, modifier) in self.battlefield_static_modifiers() {
+            if value_kind(&modifier) != Some("modifyActivationCost")
+                || !self.activation_population_matches(&source, &modifier["abilities"], subject)
+                || modifier.get("condition").is_some_and(|condition| {
+                    !self.condition_value_with_source(
+                        condition,
+                        &source.controller,
+                        &BTreeMap::new(),
+                        Some(&source),
+                    )
+                })
+            {
+                continue;
+            }
+            if let Some(cost) = modifier["addManaCost"].as_str() {
+                costs.push(cost.to_string());
+            }
+            if let Some(amount) = integer_value(&modifier["reduceGeneric"]) {
+                if modifier["minimumOneMana"].as_bool() == Some(true) {
+                    floored.push(amount.max(0));
+                } else {
+                    reduction = reduction.saturating_add(amount.max(0));
+                }
+            }
+        }
+        if reduction > 0 {
+            remove_generic_mana_from_components(costs, reduction);
+        }
+        for amount in floored {
+            let allowed = amount.min(components_mana_value(costs).saturating_sub(1));
+            if allowed > 0 {
+                remove_generic_mana_from_components(costs, allowed);
+            }
+        }
+    }
+
+    /// The mana cost of a cycling ability of a card in hand after the static
+    /// activation cost modifications (CR 702.29, 602.2b).
+    pub(super) fn cycling_activation_mana_costs(
+        &self,
+        player_id: &str,
+        card: &CardInstance,
+        mana_cost: &str,
+    ) -> Vec<String> {
+        let mut costs = vec![mana_cost.to_string()];
+        self.adjust_activation_mana_costs(
+            &mut costs,
+            &ActivationCostSubject {
+                activator: player_id,
+                source: card,
+                on_battlefield: false,
+                class: Some("cycling"),
+                targets: &BTreeMap::new(),
+            },
+        );
+        costs
+    }
+}
+
+impl GameEngine {
+    /// Whether one of a spell's chosen targets is a permanent the selector
+    /// names, relative to the static ability's source (CR 115.1, 601.2c).
+    fn chosen_targets_match(
+        &self,
+        source: &CardInstance,
+        selector: &Value,
+        targets: &BTreeMap<String, TargetRef>,
+    ) -> bool {
+        targets.values().any(|chosen| {
+            let TargetRef::Permanent { instance_id } = chosen else {
+                return false;
+            };
+            self.permanent_position(instance_id)
+                .is_some_and(|(player_index, card_index)| {
+                    Self::static_selector_matches(
+                        source,
+                        selector,
+                        &self.state.players[player_index].battlefield[card_index],
+                    )
+                })
+        })
+    }
+
+    /// The static cost changes of spells that target an object (`Spells
+    /// your opponents cast that target this creature cost {2} more to
+    /// cast`): read once the targets are chosen, while the total cost is
+    /// determined (CR 601.2c, 601.2f). Returns the generic reduction and the
+    /// added mana costs.
+    pub(super) fn spell_targeting_cost_adjustment(
+        &self,
+        player_id: &str,
+        card: &CardDefinition,
+        targets: &BTreeMap<String, TargetRef>,
+    ) -> (i32, Vec<String>) {
+        let mut reduction = 0_i32;
+        let mut increases = Vec::new();
+        for (source, modifier) in self.battlefield_static_modifiers() {
+            let Some(selector) = modifier.get("spellTarget") else {
+                continue;
+            };
+            if !self.chosen_targets_match(&source, selector, targets)
+                || modifier.get("condition").is_some_and(|condition| {
+                    !self.condition_value_with_source(
+                        condition,
+                        &source.controller,
+                        &BTreeMap::new(),
+                        Some(&source),
+                    )
+                })
+            {
+                continue;
+            }
+            match value_kind(&modifier) {
+                Some("reduceCastingCost")
+                    if self.event_player_reference_matches(
+                        &modifier["player"],
+                        &source,
+                        player_id,
+                    ) && (modifier["where"].is_null()
+                        || matches_card_filter(card, &modifier["where"])) =>
+                {
+                    reduction =
+                        reduction.saturating_add(integer_value(&modifier["amount"]).unwrap_or(0));
+                }
+                Some("additionalCastingCost")
+                    if self.event_player_reference_matches(
+                        &modifier["players"],
+                        &source,
+                        player_id,
+                    ) && Self::static_card_filter_matches(&source, card, &modifier["where"]) =>
+                {
+                    if let Some(cost) = modifier["cost"]["manaCost"].as_str() {
+                        increases.push(cost.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+        (reduction.max(0), increases)
+    }
+}
+
+/// A spell-target selector rides only on fixed generic deltas, which the
+/// targeting adjustment reads (`spellTarget`).
+pub(super) fn spell_target_modifier_supported(modifier: &Value) -> bool {
+    modifier.get("spellTarget").is_none_or(|selector| {
+        static_object_selector_supported(selector)
+            && match value_kind(modifier) {
+                Some("reduceCastingCost") => {
+                    integer_value(&modifier["amount"]).is_some_and(|amount| amount > 0)
+                        && modifier.get("coloredMana").is_none()
+                        && modifier.get("firstEachTurn").is_none()
+                        && modifier.get("castOrdinal").is_none()
+                        && modifier.get("sourceZone").is_none()
+                        && modifier.get("sourceZoneNot").is_none()
+                }
+                Some("additionalCastingCost") => value_kind(&modifier["cost"]) == Some("payMana"),
+                _ => false,
+            }
+    })
 }
 
 #[cfg(all(
