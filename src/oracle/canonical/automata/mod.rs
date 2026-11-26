@@ -1732,6 +1732,8 @@ pub(super) struct ColoredReductionNode {
 pub(super) enum CastingReductionSubject {
     CurrentSpell,
     SpellSet(SpellCastQueryNode),
+    /// `the first|second SPELL you cast each turn` (CR 601.2f, 601.2i).
+    OrdinalSpell(OrdinalSpellSubjectNode),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

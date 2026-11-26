@@ -150,6 +150,12 @@ const COLORED_REDUCTION_SYMBOLS: [&str; 6] = ["W", "U", "B", "R", "G", "C"];
 
 /// Shape of a reduction modifier's `coloredMana` field: the symbols of one
 /// delta, how many times it applies, and the excess policy.
+/// `castOrdinal`: a later spell of the caster's turn (the first one is
+/// `firstEachTurn`), CR 601.2i.
+pub(super) fn cast_ordinal_supported(ordinal: &Value) -> bool {
+    ordinal.as_u64().is_some_and(|ordinal| (2..=10).contains(&ordinal))
+}
+
 pub(super) fn colored_reduction_supported(reduction: &Value) -> bool {
     reduction.as_object().is_some_and(|fields| {
         fields

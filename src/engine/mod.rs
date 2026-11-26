@@ -5831,6 +5831,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                     .get("coloredMana")
                     .is_none_or(casting_cost::colored_reduction_supported)
                 && modifier.get("firstEachTurn").is_none_or(Value::is_boolean)
+                && modifier.get("castOrdinal").is_none_or(casting_cost::cast_ordinal_supported)
                 && modifier
                     .get("duringOtherPlayersTurns")
                     .is_none_or(Value::is_boolean)
