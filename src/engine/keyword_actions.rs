@@ -58,17 +58,35 @@ pub(super) fn keyword_action_event_supported(event: &Value) -> Option<bool> {
             .keys()
             .all(|key| ["kind", "lemma", "subject", "counterpart"].contains(&key.as_str()))
     });
-    let subject_is_source = event["subject"]
+    let subject_supported = event["subject"]
         .as_object()
         .is_some_and(|subject| subject.len() == 1)
-        && value_kind(&event["subject"]["object"]) == Some("self");
+        && (value_kind(&event["subject"]["object"]) == Some("self")
+            || acting_permanents_supported(&event["subject"]["object"]));
     let counterpart_supported = event.get("counterpart").is_none_or(|counterpart| {
         counterpart
             .as_object()
             .is_some_and(|fields| fields.keys().all(|key| key == "where"))
             && counterpart_filter_supported(&counterpart["where"])
     });
-    Some(fields_known && subject_is_source && counterpart_supported)
+    Some(fields_known && subject_supported && counterpart_supported)
+}
+
+/// `a creature you control exploits ...`: the acting permanent of another
+/// object's keyword action, with an optional controller relation to the
+/// observer, a printed-characteristics predicate and the observer excluded.
+fn acting_permanents_supported(object: &Value) -> bool {
+    value_kind(object) == Some("permanents")
+        && object.as_object().is_some_and(|fields| {
+            fields
+                .keys()
+                .all(|key| ["kind", "controller", "where", "excludeSource"].contains(&key.as_str()))
+        })
+        && object
+            .get("controller")
+            .is_none_or(player_action_events::event_player_reference_supported)
+        && object.get("where").is_none_or(card_filter_supported)
+        && object.get("excludeSource").is_none_or(Value::is_boolean)
 }
 
 /// The acted-on object is read from the performing event's record, which
@@ -101,6 +119,73 @@ fn counterpart_matches(filter: &Value, detail: &Value) -> bool {
 }
 
 impl GameEngine {
+    /// Battlefield observers of a keyword action performed by another
+    /// permanent (`a creature you control exploits a creature`): the acting
+    /// permanent `actor` (as it existed when its ability resolved) satisfies
+    /// the subject's controller relation and predicate, and the acted-on
+    /// object its counterpart filter. Each triggers with the acted-on
+    /// permanent bound. False when a quantity failure stops the publication.
+    fn publish_observed_keyword_action(
+        &mut self,
+        lemma: &str,
+        actor: &CardInstance,
+        object_id: &str,
+        detail: &Value,
+    ) -> bool {
+        let triggers = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .flat_map(|player| player.battlefield.iter())
+            .flat_map(|observer| {
+                self.effective_rules(observer)
+                    .iter()
+                    .filter(|rule| triggered_rule_supported(rule))
+                    .filter(|rule| {
+                        triggered_event_variants(&rule["event"])
+                            .iter()
+                            .any(|event| {
+                                let subject = &event["subject"]["object"];
+                                value_kind(event) == Some("eventPattern")
+                                    && event["lemma"].as_str() == Some(lemma)
+                                    && value_kind(subject) == Some("permanents")
+                                    && !(subject["excludeSource"].as_bool() == Some(true)
+                                        && observer.instance_id == actor.instance_id)
+                                    && subject.get("controller").is_none_or(|controller| {
+                                        self.event_player_reference_matches(
+                                            controller,
+                                            observer,
+                                            &actor.controller,
+                                        )
+                                    })
+                                    && subject.get("where").is_none_or(|filter| {
+                                        matches_card_filter(&actor.definition, filter)
+                                    })
+                                    && counterpart_matches(&event["counterpart"]["where"], detail)
+                            })
+                    })
+                    .cloned()
+                    .map(|rule| (observer.clone(), rule))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        for (observer, rule) in triggers {
+            self.put_triggered_ability_on_stack_with_decisions(
+                &observer,
+                rule,
+                BTreeMap::from([(
+                    "triggeringPermanentId".to_string(),
+                    Value::String(object_id.to_string()),
+                )]),
+            );
+            if self.check_quantity_failure().is_err() {
+                return false;
+            }
+        }
+        true
+    }
+
     /// After `resolved` resolved, publishes its keyword's named action for
     /// each qualifying action its controller performed during resolution
     /// (events recorded from `first_event`).
@@ -171,6 +256,9 @@ impl GameEngine {
                 if self.check_quantity_failure().is_err() {
                     return;
                 }
+            }
+            if !self.publish_observed_keyword_action(&lemma, &source, &object_id, &detail) {
+                return;
             }
             self.record_event(
                 "keywordActionPerformed",

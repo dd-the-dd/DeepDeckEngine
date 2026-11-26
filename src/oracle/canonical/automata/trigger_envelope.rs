@@ -52,6 +52,9 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
     /// A targeted-object union `becomes the target of` a spell or ability
     /// (CR 115.1). The source subject is a `SourceEvent` verb.
     BecameTarget(super::BecameTargetEventNode),
+    /// A quantified permanent performing a keyword action on another
+    /// permanent (`a creature you control exploits a creature`, CR 702.110b).
+    ObjectAction(super::ObjectActionEventNode),
     /// A trigger condition list (CR 603.2): `EVENT and when|whenever|at the
     /// beginning of EVENT ...`. Each member is a complete typed clause with
     /// its own introducer; the ability triggers once per occurrence of any

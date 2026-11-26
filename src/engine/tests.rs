@@ -270,6 +270,10 @@ mod player_action_event_runtime;
 mod event_slots_player_events_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/trigger_event_language_runtime.rs"]
+mod trigger_event_language_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_damage_event_runtime.rs"]
 mod source_damage_event_runtime;
 

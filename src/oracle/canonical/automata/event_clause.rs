@@ -1009,6 +1009,21 @@ fn read_occurrence_alternatives(
         }
         Err(failure) => reading.reject(cursor, failure),
     }
+    // `a creature you control exploits a creature` (CR 702.110b): a singular
+    // object subject performing a keyword action on a counterpart, claimed
+    // once its verb is read.
+    match super::recognize_object_action_event(cursor) {
+        Ok(event) => {
+            return reading
+                .finish(
+                    cursor,
+                    GenericTriggerEventNode::ObjectAction(event),
+                    BoundaryPolicy::Commit,
+                )
+                .expect("a committed alternative always concludes");
+        }
+        Err(failure) => reading.reject(cursor, failure),
+    }
     // A plural `N or more` subject commits to the shared object-event frame;
     // a singular subject is claimed only when its verb frame is complete.
     let plural = super::quantified_plural_subject_starts(cursor);

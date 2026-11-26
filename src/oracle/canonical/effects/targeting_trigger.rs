@@ -70,21 +70,31 @@ pub(in crate::oracle::canonical) fn lower_targeting_stack_selector(
 pub(in crate::oracle::canonical) fn lower_became_target_event(
     event: &BecameTargetEventNode,
 ) -> Value {
+    // A player member is targeted as a player (CR 115.1): the shared event
+    // player relation, in written order before the object selectors.
     let mut object_sets = event
-        .objects
+        .players
         .iter()
-        .map(lower_targeted_object_selector)
+        .map(|actor| json!({"kind": "player", "player": event_actor_player(*actor)}))
+        .chain(event.objects.iter().map(lower_targeted_object_selector))
         .collect::<Vec<_>>();
     let object = if object_sets.len() == 1 {
         object_sets.pop().expect("one object selector")
     } else {
         json!({ "kind": "union", "sets": object_sets })
     };
-    json!({
+    let mut lowered = json!({
         "kind": "becameTarget",
         "object": object,
         "targetingStackObject": lower_targeting_stack_selector(&event.targeting_stack),
-    })
+    });
+    // `you or a permanent you control becomes the target of ...`: one
+    // occurrence per targeting spell or ability, whichever members it
+    // targets.
+    if !event.players.is_empty() && event.players.len() + event.objects.len() > 1 {
+        lowered["oncePerTargetingObject"] = json!(true);
+    }
+    lowered
 }
 
 /// The source itself as the targeted object (`this creature becomes the

@@ -370,7 +370,7 @@ fn counter_symbol_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
 
 /// One registered player-counter symbol after a written amount: only the
 /// energy symbol `{E}` names a player counter (CR 107.14).
-fn recognize_written_amount_symbol(
+pub(in crate::oracle::canonical) fn recognize_written_amount_symbol(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<CounterName> {
     cursor.enter("player-action.counters.amount-symbol");
@@ -388,7 +388,9 @@ fn recognize_written_amount_symbol(
 
 /// `(energy counters)` after a written amount of `{E}`: the reminder names
 /// the counter kind without restating the amount (CR 207.2).
-fn recognize_uncounted_energy_reminder(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+pub(in crate::oracle::canonical) fn recognize_uncounted_energy_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<()> {
     if cursor.peek() != Some("(") {
         return Ok(());
     }

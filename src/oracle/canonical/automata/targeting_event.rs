@@ -1,12 +1,24 @@
 //! The targeting frame of `become` (CR 115.1, 603.2): `SUBJECT becomes the
-//! target of STACK-OBJECT`. The subject is either a union of targeted-object
-//! selectors (this module) or the ability source (`source_event_union.rs`);
+//! target of STACK-OBJECT`. The subject is either a union of targeted
+//! members (this module) or the ability source (`source_event_union.rs`);
 //! both share the targeting stack-object selector read here. The enclosing
 //! event clause (`event_clause.rs`) owns the trigger word and separator.
+//!
+//! ```text
+//! Subject := Member (("or" | "and/or") Member)*
+//! Member  := PLAYER-ACTOR                        -- `you`, `a player`, `an opponent`
+//!          | ("a" | "an" | "another" | "at least one") OBJECT-QUERY
+//! Verb    := `become` agreeing with the last member (`you become`,
+//!            `you or a permanent you control becomes`)
+//! ```
+//!
+//! A player is targeted as a player (CR 115.1, 115.10); a subject that
+//! lists a player with permanents observes one occurrence per targeting
+//! spell or ability, however many listed members it targets.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ObjectControllerScope, ObjectKind, ObjectPredicate, VerbAgreement, VerbLemma, consume_lemma,
-    recognize_object_query,
+    EventActorScope, ObjectControllerScope, ObjectKind, ObjectPredicate, VerbAgreement, VerbLemma,
+    consume_lemma, recognize_object_query, try_recognize_event_actor_scope,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,7 +55,18 @@ pub(in crate::oracle::canonical) struct TargetingStackSelectorNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct BecameTargetEventNode {
     pub objects: Vec<TargetedObjectSelectorNode>,
+    /// The player members of the targeted subject (`you`, `you or a
+    /// permanent you control`), each a relation to the ability controller.
+    pub players: Vec<EventActorScope>,
     pub targeting_stack: TargetingStackSelectorNode,
+}
+
+/// The targeted subject: object selectors and player members, and the
+/// agreement of `become` with its last member.
+struct TargetedSubject {
+    objects: Vec<TargetedObjectSelectorNode>,
+    players: Vec<EventActorScope>,
+    agreement: VerbAgreement,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,13 +79,49 @@ enum SubjectState {
 
 fn recognize_targeted_object_selectors(
     cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<Vec<TargetedObjectSelectorNode>> {
+) -> MachineResult<TargetedSubject> {
     let mut state = SubjectState::Article;
     let mut selectors = Vec::new();
+    let mut players = Vec::new();
+    let mut agreement = VerbAgreement::ThirdPersonSingular;
     let mut exclude_source = false;
     loop {
         state = match state {
             SubjectState::Article => {
+                // A player member through the shared event actor (`you`,
+                // `a player`, `an opponent`): targeted as a player.
+                if let Some(actor) = try_recognize_event_actor_scope(cursor)? {
+                    cursor.enter("event.became-target.subject.player");
+                    cursor.require(!players.contains(&actor), "a distinct player member")?;
+                    players.push(actor);
+                    agreement = if actor == EventActorScope::Controller {
+                        VerbAgreement::Base
+                    } else {
+                        VerbAgreement::ThirdPersonSingular
+                    };
+                    state = SubjectState::ConnectorOrEvent;
+                    continue;
+                }
+                // `at least one PERMANENT` after a player member (`you
+                // and/or at least one permanent you control`): one member
+                // of the subject, like `a PERMANENT`.
+                if !players.is_empty()
+                    && ["at", "least", "one"]
+                        .iter()
+                        .enumerate()
+                        .all(|(offset, word)| {
+                            cursor
+                                .peek_ahead(offset)
+                                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+                        })
+                {
+                    cursor.enter("event.became-target.subject.at-least-one");
+                    cursor.consume_phrase(&["at", "least", "one"])?;
+                    exclude_source = false;
+                    agreement = VerbAgreement::ThirdPersonSingular;
+                    state = SubjectState::Selector;
+                    continue;
+                }
                 cursor.enter("event.became-target.subject.article");
                 let article = cursor
                     .peek()
@@ -75,6 +134,7 @@ fn recognize_targeted_object_selectors(
                     .to_string();
                 exclude_source = article.eq_ignore_ascii_case("another");
                 cursor.consume(&article)?;
+                agreement = VerbAgreement::ThirdPersonSingular;
                 SubjectState::Selector
             }
             SubjectState::Selector => {
@@ -113,6 +173,18 @@ fn recognize_targeted_object_selectors(
                 {
                     cursor.consume("or")?;
                     SubjectState::Article
+                } else if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and/or"))
+                {
+                    // `you and/or at least one permanent you control`: the
+                    // same alternatives, observed once per targeting object.
+                    cursor.require(
+                        !players.is_empty(),
+                        "`and/or` after a player member of the targeted subject",
+                    )?;
+                    cursor.consume("and/or")?;
+                    SubjectState::Article
                 } else {
                     SubjectState::Complete
                 }
@@ -120,10 +192,14 @@ fn recognize_targeted_object_selectors(
             SubjectState::Complete => {
                 cursor.enter("event.became-target.subject.complete");
                 cursor.require(
-                    !selectors.is_empty(),
-                    "at least one targeted-object selector",
+                    !selectors.is_empty() || !players.is_empty(),
+                    "at least one targeted member",
                 )?;
-                return Ok(selectors);
+                return Ok(TargetedSubject {
+                    objects: selectors,
+                    players,
+                    agreement,
+                });
             }
         };
     }
@@ -266,31 +342,29 @@ pub(in crate::oracle::canonical) fn consume_targeting_relation(
     cursor.consume_phrase(&["the", "target", "of"])
 }
 
-/// Reads `a|an SELECTOR (or a|an SELECTOR)* becomes the target of STACK`
-/// after the trigger word; the enclosing clause owns the separator.
+/// Reads `MEMBER (or|and/or MEMBER)* become(s) the target of STACK` after
+/// the trigger word; the enclosing clause owns the separator.
 pub(in crate::oracle::canonical) fn recognize_became_target_event(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<BecameTargetEventNode> {
-    let objects = recognize_targeted_object_selectors(cursor)?;
+    let subject = recognize_targeted_object_selectors(cursor)?;
     cursor.enter("event.became-target.action");
-    // Only `becomes the target of` is this frame; another complement of
-    // `become` (`becomes tapped`) belongs to a later event reader, whose
-    // further-reaching diagnostic must not be shadowed by this one.
+    // Only `become(s) the target of` is this frame; another complement of
+    // `become` (`becomes tapped`, `become the monarch`) belongs to a later
+    // event reader, whose further-reaching diagnostic must not be shadowed
+    // by this one.
     cursor.require(
         targeting_frame_starts(cursor, 1),
         "`becomes the target of` after the targeted-object subject",
     )?;
-    consume_lemma(
-        cursor,
-        VerbLemma::Become,
-        VerbAgreement::ThirdPersonSingular,
-    )?;
+    consume_lemma(cursor, VerbLemma::Become, subject.agreement)?;
     consume_targeting_relation(cursor)?;
     // The targeting object's controller is an optional typed relation, as
     // for the source observer: absent, a spell or ability of any player.
     let targeting_stack = recognize_targeting_stack_selector(cursor)?;
     Ok(BecameTargetEventNode {
-        objects,
+        objects: subject.objects,
+        players: subject.players,
         targeting_stack,
     })
 }

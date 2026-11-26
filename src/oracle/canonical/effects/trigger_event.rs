@@ -197,6 +197,7 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             lower_counter_placement_event(cursor, event)
         }
         GenericTriggerEventNode::BecameTarget(event) => Ok(lower_became_target_event(event)),
+        GenericTriggerEventNode::ObjectAction(event) => lower_object_action_event(cursor, event),
         GenericTriggerEventNode::Compound(members) => lower_compound_trigger_event(cursor, members),
         GenericTriggerEventNode::Conditioned { .. } => {
             // A single occurrence's condition belongs to the ability
@@ -211,6 +212,63 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             lower_state_trigger_event(cursor, condition)
         }
     }
+}
+
+/// `a creature you control exploits a nontoken creature` (CR 702.110b): the
+/// keyword-action pattern the runtime publishes when the subject's exploit
+/// ability sacrifices the counterpart (`src/engine/keyword_actions.rs`). The
+/// subject is the acting permanent with its controller relation and
+/// predicate; the counterpart keeps the characteristics its sacrifice record
+/// holds.
+fn lower_object_action_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectActionEventNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.object-action.subject-support");
+    let subject = &event.subject;
+    let predicate = &subject.query.predicate;
+    cursor.require(
+        !predicate.contains_numeric_comparison() && domain_filter_is_representable(predicate),
+        "a representable acting-permanent predicate without numeric characteristics",
+    )?;
+    let mut object = json!({"kind": "permanents"});
+    match subject.query.controller {
+        None => {}
+        Some(
+            scope @ (ObjectControllerScope::AbilityController
+            | ObjectControllerScope::OpponentOfAbilityController),
+        ) => object["controller"] = lower_object_controller_scope(scope),
+        Some(_) => {
+            return Err(cursor.fail("a controller relation of the acting permanent to you"));
+        }
+    }
+    if *predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+        let filter = lower_permanent_object_predicate(predicate);
+        cursor.require(!filter.is_null(), "a lowered acting-permanent predicate")?;
+        object["where"] = filter;
+    }
+    if subject.exclude_source || subject.query.exclude_source {
+        object["excludeSource"] = json!(true);
+    }
+    cursor.enter("trigger.object-action.counterpart-support");
+    let counterpart = &event.counterpart;
+    if counterpart.controller.is_some()
+        || counterpart.predicate.contains_numeric_comparison()
+        || !domain_filter_is_representable(&counterpart.predicate)
+    {
+        return Err(engine_gap(
+            cursor,
+            "an engine event matcher for an acted-on object without controller or numeric characteristics",
+        ));
+    }
+    let filter = lower_permanent_object_predicate(&counterpart.predicate);
+    cursor.require(!filter.is_null(), "a lowered acted-on permanent predicate")?;
+    Ok(json!({
+        "kind": "eventPattern",
+        "lemma": event.verb.pattern_lemma(),
+        "subject": {"object": object},
+        "counterpart": {"where": filter},
+    }))
 }
 
 /// Event kinds whose matcher evaluates a member's own `eventCondition` as
@@ -1738,6 +1796,26 @@ fn lower_attacked_recipients(
             AttackedRecipientNode::Player(actor) => {
                 Ok(json!({"kind": "player", "player": event_actor_player(*actor)}))
             }
+            // The shared `filterPlayers` member condition (`quantifiedPlayer`
+            // is the attacked player), on the player alternative.
+            AttackedRecipientNode::PlayerWhere { actor, query } => {
+                cursor.enter("trigger.attack.attacked-player-predicate");
+                let population = lower_player_population_query(query, None)
+                    .map_err(|expected| cursor.fail(expected))?;
+                let condition = population
+                    .get("where")
+                    .cloned()
+                    .ok_or_else(|| cursor.fail("a member condition of the attacked player"))?;
+                cursor.require(
+                    population.get("superlative").is_none(),
+                    "a member condition without a superlative",
+                )?;
+                Ok(json!({
+                    "kind": "player",
+                    "player": event_actor_player(*actor),
+                    "where": condition,
+                }))
+            }
             AttackedRecipientNode::Permanent(query) => {
                 let mut lowered = json!({"kind": "permanents"});
                 if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut lowered)? {
@@ -2396,6 +2474,11 @@ fn lower_player_event(
     {
         return lowered;
     }
+    if let [action] = actions
+        && let Some(lowered) = lower_player_lexicon_event(cursor, actor, *action, one_or_more, card)
+    {
+        return lowered;
+    }
     let player = event_actor_player(actor);
     match actions {
         [] => Err(cursor.fail("at least one player-event verb")),
@@ -2615,7 +2698,11 @@ fn lower_fixed_player_event(
             | PlayerEventAction::Proliferate
             | PlayerEventAction::Exert
             | PlayerEventAction::CompleteDungeon
-            | PlayerEventAction::CounterSpell,
+            | PlayerEventAction::CounterSpell
+            | PlayerEventAction::BecomeMonarch
+            | PlayerEventAction::SearchLibrary
+            | PlayerEventAction::CopySpell
+            | PlayerEventAction::GetEnergy,
             _,
         ) => unreachable!(
             "lowered by the received-damage, action-union, action-frame or outcome branches"
