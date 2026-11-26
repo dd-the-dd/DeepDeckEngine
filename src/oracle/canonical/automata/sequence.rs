@@ -4122,6 +4122,10 @@ fn recognize_subject_frame(
         object_set_antecedent: _,
         context,
     } = *inputs;
+    // The rejected subject frames' deepest failure (S0): a subject reader
+    // that read past the clause head before refusing names the component it
+    // met, instead of the bare `effect.start` sink at the clause head.
+    let mut rejected = crate::oracle::canonical::failure_owner::DeepestRejection::at(cursor);
     match try_recognize_temporary_player_permission(cursor, context.preposed_duration.as_ref()) {
         TemporaryPlayerPermissionParseAttempt::Parsed(node) => {
             return Ok(LocalEffectNode::TemporaryPlayerPermission(node));
@@ -4130,8 +4134,10 @@ fn recognize_subject_frame(
             attempt_frame.commit();
             return Err(failure);
         }
-        TemporaryPlayerPermissionParseAttempt::NotClaimed
-        | TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_) => {}
+        TemporaryPlayerPermissionParseAttempt::NotClaimed => {}
+        TemporaryPlayerPermissionParseAttempt::RejectedCandidate(failure) => {
+            rejected.keep(failure);
+        }
     }
     if head.subject == Subject::Declared {
         match try_recognize_temporary_combat_restriction(cursor) {
@@ -4140,7 +4146,9 @@ fn recognize_subject_frame(
                     super::ordinary_keyword_subject(restriction),
                 ));
             }
-            TemporaryCombatRestrictionParseAttempt::RejectedCandidate(_) => {}
+            TemporaryCombatRestrictionParseAttempt::RejectedCandidate(failure) => {
+                rejected.keep(failure);
+            }
             TemporaryCombatRestrictionParseAttempt::FailedCommitted(failure) => {
                 attempt_frame.commit();
                 return Err(failure);
@@ -4153,8 +4161,8 @@ fn recognize_subject_frame(
             attempt_frame.commit();
             return Err(failure);
         }
-        super::PermanentActionAttempt::NotClaimed
-        | super::PermanentActionAttempt::RejectedCandidate(_) => {}
+        super::PermanentActionAttempt::NotClaimed => {}
+        super::PermanentActionAttempt::RejectedCandidate(failure) => rejected.keep(failure),
     }
     // `SUBJECT phases out` / `SUBJECT assigns no combat damage this turn`:
     // a rules-state predicate of any permanent subject the frames above
@@ -4165,8 +4173,8 @@ fn recognize_subject_frame(
             attempt_frame.commit();
             return Err(failure);
         }
-        super::PermanentActionAttempt::NotClaimed
-        | super::PermanentActionAttempt::RejectedCandidate(_) => {}
+        super::PermanentActionAttempt::NotClaimed => {}
+        super::PermanentActionAttempt::RejectedCandidate(failure) => rejected.keep(failure),
     }
     if head.subject == Subject::Declared {
         return recognize_declared_subject_clause(cursor);
@@ -4270,7 +4278,7 @@ fn recognize_subject_frame(
             recognize_optional_card_deployment_effect_with_context(cursor, context)
                 .map(LocalEffectNode::OptionalCardDeployment)
         }
-        _ => Err(cursor.fail("a supported effect subject")),
+        _ => Err(rejected.into_failure(cursor, "a supported effect subject")),
     }
 }
 
