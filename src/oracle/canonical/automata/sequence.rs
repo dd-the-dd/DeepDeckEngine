@@ -281,6 +281,15 @@ struct SequenceMemory {
     /// The previous action declared the object of a `the owner|controller
     /// of TARGET` subject: its performed verb follows without a connector.
     subject_continuation: bool,
+    /// Where the clause whose head writes an inline resolution choice (`of
+    /// the creature type of your choice`) began: its `choose` instruction is
+    /// already emitted, so the clause itself is read next.
+    inline_choice_at: Option<usize>,
+    /// The target slots a distributive subject (`Up to two target
+    /// creatures you control each deal ...`, `Target creature you control
+    /// and up to one other target creature you control each deal ...`)
+    /// just declared: its predicate is read next, once per member.
+    distributive_members: Vec<TargetBinding>,
     /// Delayed action ranges (CR 603.7a) closed so far.
     delayed: Vec<super::DelayedFrameNode>,
     /// A preposed created rule (`At the beginning of ... ,`, `When EVENT
@@ -910,6 +919,9 @@ fn recognize_effect_sequence_attempt_scoped(
                 // `the owner|controller of TARGET`: the relation whose player
                 // performs the rest of the clause after this declaration.
                 let mut declared_subject: Option<super::ObjectPlayerRelation> = None;
+                // The clause writes an inline resolution choice: the
+                // `choose` instruction is this action; the clause follows it.
+                let mut inline_choice = false;
                 let mut causative: bool;
                 let mut from_ellipsis = false;
                 let mut effect = loop {
@@ -929,6 +941,123 @@ fn recognize_effect_sequence_attempt_scoped(
                             }
                             None => pending,
                         };
+                    }
+                    // `creatures of the creature type of your choice get
+                    // +2/+2`: the controller chooses first (CR 608.2d); the
+                    // clause then reads the choice as `of the chosen type`.
+                    if memory.inline_choice_at != Some(cursor.position())
+                        && let Some(choice) = super::inline_choice::clause_inline_choice(cursor)
+                    {
+                        memory.inline_choice_at = Some(cursor.position());
+                        causative = false;
+                        inline_choice = true;
+                        break LocalEffectNode::Choose(choice);
+                    }
+                    // `Up to two target creatures you control each deal
+                    // damage equal to their power to ...` (CR 608.2c): the
+                    // subject declares its slot first; the predicate is
+                    // then performed once per member of that slot.
+                    if !memory.distributive_members.is_empty() {
+                        let members = std::mem::take(&mut memory.distributive_members);
+                        causative = false;
+                        // One plural slot: the predicate is performed once
+                        // per member of the slot.
+                        if let [member] = members.as_slice() {
+                            open_iteration(
+                                &mut memory,
+                                super::IterationDomain::DeclaredObjects(*member),
+                            );
+                            break LocalEffectNode::DealDamage(
+                                super::recognize_distributive_member_damage(cursor, *member)?,
+                            );
+                        }
+                        // Several singular slots: one damage action per slot,
+                        // each to the recipient the first one declared.
+                        let first =
+                            super::recognize_distributive_member_damage(cursor, members[0])?;
+                        cursor.enter("sequence.distributive-damage.shared-recipient");
+                        let recipient = match &first.recipient {
+                            super::DamageRecipientNode::Targets(targets)
+                                if targets.slots.len() == 1
+                                    && targets.slots[0].cardinality.maximum == 1
+                                    && targets.slots[0].count.is_none() =>
+                            {
+                                super::DamageRecipientNode::BoundObject(
+                                    super::PermanentEffectReference::Target(TargetBinding {
+                                        effect_index,
+                                        slot_index: 0,
+                                    }),
+                                )
+                            }
+                            super::DamageRecipientNode::Targets(_) => {
+                                return Err(cursor.fail(
+                                    "one declared recipient shared by every distributed source",
+                                ));
+                            }
+                            other => other.clone(),
+                        };
+                        memory.distributed_performer = None;
+                        for member in members[1..].iter().rev() {
+                            memory.distributed.push(LocalEffectNode::DealDamage(
+                                super::DamageEffectNode {
+                                    source: super::PermanentOperandNode::BoundReference(
+                                        super::PermanentEffectReference::Target(*member),
+                                    ),
+                                    amount: super::NumericExpression::PowerOf(*member),
+                                    recipient: recipient.clone(),
+                                },
+                            ));
+                        }
+                        break LocalEffectNode::DealDamage(first);
+                    }
+                    if memory.open_iteration.is_none()
+                        && memory.distributed.is_empty()
+                        && let Some((targets, subject_end)) = distributive_target_subject(cursor)
+                    {
+                        attempt_frame.commit();
+                        *cursor = subject_end;
+                        memory.distributive_members = (0..targets.slots.len())
+                            .map(|slot_index| TargetBinding {
+                                effect_index,
+                                slot_index,
+                            })
+                            .collect();
+                        causative = false;
+                        inline_choice = true;
+                        break LocalEffectNode::Choose(super::ChooseInstructionNode {
+                            chooser: super::ChooserNode::Controller,
+                            domain: super::ChoiceDomainNode::PermanentTargets(targets),
+                        });
+                    }
+                    // `They each deal damage equal to their power to ...`:
+                    // one damage action per member of the plural slot the
+                    // previous action declared.
+                    if memory.open_iteration.is_none()
+                        && cursor
+                            .peek()
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
+                        && {
+                            let mut predicate = cursor.clone();
+                            predicate.advance_to(predicate.position() + 1).is_ok()
+                                && super::distributive_member_damage_starts(&predicate)
+                        }
+                    {
+                        attempt_frame.commit();
+                        let member = resolve_iterated_set(
+                            cursor,
+                            &memory.effects,
+                            &super::IteratedSetAnaphor::Pronoun,
+                        )?;
+                        open_iteration(
+                            &mut memory,
+                            super::IterationDomain::DeclaredObjects(member),
+                        );
+                        cursor.enter("sequence.distributive-damage.subject");
+                        cursor.consume("they")?;
+                        causative = false;
+                        break LocalEffectNode::DealDamage(
+                            super::recognize_distributive_member_damage(cursor, member)?,
+                        );
                     }
                     let mut action_context = base_action_context.clone();
                     action_context.preposed_duration = preposed_duration.clone();
@@ -2456,6 +2585,9 @@ fn recognize_effect_sequence_attempt_scoped(
                     ));
                     memory.subject_continuation = true;
                 }
+                if inline_choice {
+                    memory.subject_continuation = true;
+                }
                 memory.current_player_subject = match &effect {
                     LocalEffectNode::PlayerAction(action) => {
                         if let super::PlayerEffectSubject::DeclaredTarget { binding, .. } =
@@ -2816,6 +2948,29 @@ fn recognize_effect_sequence_attempt_scoped(
                             )?;
                             cursor.enter("sequence.type-retention.terminator");
                             cursor.consume(".")?;
+                        }
+                        if super::token_entry_amendment_starts(cursor, memory.effects.last()) {
+                            // CR 111.2, 508.4: the sentence states how the
+                            // tokens the sentence just closed created enter.
+                            attempt_frame.commit();
+                            super::recognize_token_entry_amendment(
+                                cursor,
+                                memory.effects.last_mut(),
+                            )?;
+                            cursor.enter("sequence.token-entry-amendment.terminator");
+                            if cursor.peek() == Some(".") {
+                                cursor.consume(".")?;
+                            }
+                        }
+                        if super::regeneration_rider_starts(cursor) {
+                            // CR 701.19c: the sentence prohibits regenerating
+                            // the objects the sentence just closed destroyed.
+                            attempt_frame.commit();
+                            super::recognize_regeneration_rider(cursor, memory.effects.last_mut())?;
+                            cursor.enter("sequence.regeneration-rider.terminator");
+                            if cursor.peek() == Some(".") {
+                                cursor.consume(".")?;
+                            }
                         }
                         if super::granted_keyword_cost_amendment_starts(cursor) {
                             // CR 702.34a: the sentence states the cost of the
@@ -4128,6 +4283,29 @@ fn recognize_subject_frame(
         object_set_antecedent: _,
         context,
     } = *inputs;
+    // The rejected subject frames' deepest failure (S0): a subject reader
+    // that read past the clause head before refusing names the component it
+    // met, instead of the bare `effect.start` sink at the clause head.
+    let mut rejected = crate::oracle::canonical::failure_owner::DeepestRejection::at(cursor);
+    // `the base power and toughness of OBJECTS become ...`: the possessed
+    // characteristic pair is the subject; its possessor is any permanent
+    // operand (CR 613.4b).
+    if super::become_types::base_stats_of_operand_starts(cursor) {
+        attempt_frame.commit();
+        return super::become_types::recognize_base_stats_of_operand(
+            cursor,
+            |cursor| {
+                super::recognize_contextual_permanent_operand(
+                    cursor,
+                    name_links,
+                    name_failure,
+                    context,
+                )
+            },
+            context.preposed_duration.as_ref(),
+        )
+        .map(LocalEffectNode::BecomeTypes);
+    }
     match try_recognize_temporary_player_permission(cursor, context.preposed_duration.as_ref()) {
         TemporaryPlayerPermissionParseAttempt::Parsed(node) => {
             return Ok(LocalEffectNode::TemporaryPlayerPermission(node));
@@ -4136,8 +4314,10 @@ fn recognize_subject_frame(
             attempt_frame.commit();
             return Err(failure);
         }
-        TemporaryPlayerPermissionParseAttempt::NotClaimed
-        | TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_) => {}
+        TemporaryPlayerPermissionParseAttempt::NotClaimed => {}
+        TemporaryPlayerPermissionParseAttempt::RejectedCandidate(failure) => {
+            rejected.keep(failure);
+        }
     }
     if head.subject == Subject::Declared {
         match try_recognize_temporary_combat_restriction(cursor) {
@@ -4146,7 +4326,9 @@ fn recognize_subject_frame(
                     super::ordinary_keyword_subject(restriction),
                 ));
             }
-            TemporaryCombatRestrictionParseAttempt::RejectedCandidate(_) => {}
+            TemporaryCombatRestrictionParseAttempt::RejectedCandidate(failure) => {
+                rejected.keep(failure);
+            }
             TemporaryCombatRestrictionParseAttempt::FailedCommitted(failure) => {
                 attempt_frame.commit();
                 return Err(failure);
@@ -4159,8 +4341,8 @@ fn recognize_subject_frame(
             attempt_frame.commit();
             return Err(failure);
         }
-        super::PermanentActionAttempt::NotClaimed
-        | super::PermanentActionAttempt::RejectedCandidate(_) => {}
+        super::PermanentActionAttempt::NotClaimed => {}
+        super::PermanentActionAttempt::RejectedCandidate(failure) => rejected.keep(failure),
     }
     // `SUBJECT phases out` / `SUBJECT assigns no combat damage this turn`:
     // a rules-state predicate of any permanent subject the frames above
@@ -4171,8 +4353,8 @@ fn recognize_subject_frame(
             attempt_frame.commit();
             return Err(failure);
         }
-        super::PermanentActionAttempt::NotClaimed
-        | super::PermanentActionAttempt::RejectedCandidate(_) => {}
+        super::PermanentActionAttempt::NotClaimed => {}
+        super::PermanentActionAttempt::RejectedCandidate(failure) => rejected.keep(failure),
     }
     if head.subject == Subject::Declared {
         return recognize_declared_subject_clause(cursor);
@@ -4276,7 +4458,7 @@ fn recognize_subject_frame(
             recognize_optional_card_deployment_effect_with_context(cursor, context)
                 .map(LocalEffectNode::OptionalCardDeployment)
         }
-        _ => Err(cursor.fail("a supported effect subject")),
+        _ => Err(rejected.into_failure(cursor, "a supported effect subject")),
     }
 }
 
@@ -4545,6 +4727,57 @@ fn resolve_iterated_set(
         )?;
     }
     Ok(binding)
+}
+
+/// How far a distributive subject may span before `each deal`.
+const DISTRIBUTIVE_SUBJECT_LIMIT: usize = 14;
+
+/// `TARGETS each deal damage ...` at the cursor: a declared subject of one
+/// plural permanent target slot, or of several singular slots, followed by
+/// the distributive predicate. `None` leaves the clause to the other
+/// readers (a lone singular slot, or a plural slot coordinated with
+/// another, is not claimed).
+fn distributive_target_subject<'tokens>(
+    cursor: &OracleTokenCursor<'tokens>,
+) -> Option<(super::TargetListNode, OracleTokenCursor<'tokens>)> {
+    let each_deal = (1..DISTRIBUTIVE_SUBJECT_LIMIT)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .any(|offset| {
+            let mut at = cursor.clone();
+            at.advance_to(at.position() + offset).is_ok()
+                && super::distributive_member_damage_starts(&at)
+        });
+    if !each_deal {
+        return None;
+    }
+    let mut subject = cursor.clone();
+    let targets = super::recognize_target_list_with_counts(
+        &mut subject,
+        super::TargetCountSupport::Expressed,
+    )
+    .ok()?;
+    let plural = |slot: &super::TargetSlot| {
+        slot.count
+            .as_ref()
+            .map_or(slot.cardinality.maximum > 1, super::TargetCount::is_plural)
+    };
+    // One plural slot is iterated member by member; several slots must each
+    // name at most one object, one damage action per slot.
+    let distributable = match targets.slots.as_slice() {
+        [slot] => plural(slot),
+        slots => slots.len() > 1 && slots.iter().all(|slot| !plural(slot)),
+    };
+    (distributable
+        && targets
+            .slots
+            .iter()
+            .all(|slot| super::permanent_subject::selector_guarantees_permanent(&slot.selector))
+        && super::distributive_member_damage_starts(&subject))
+    .then_some((targets, subject))
 }
 
 /// True when the last action read restates an earlier action of the same

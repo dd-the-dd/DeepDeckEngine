@@ -1113,7 +1113,16 @@ fn recognize_object_query_frame_from(
                         retain_player_relation(cursor, &mut frame, verb, relation)?;
                     }
                     ObjectQueryState::ReadPostnominalQualifier
-                } else if let Some(length) = chosen_creature_type_qualifier_length(cursor) {
+                } else if let Some(length) =
+                    chosen_creature_type_qualifier_length(cursor).or_else(|| {
+                        // `of the creature type of your choice`: the inline
+                        // resolution choice the sequence emits first.
+                        super::inline_choice::inline_choice_qualifier_length(
+                            cursor,
+                            super::inline_choice::InlineChoiceKind::CreatureType,
+                        )
+                    })
+                {
                     // `of the chosen type` / `of that [creature] type`: the
                     // creature type chosen earlier in the program (CR 608.2d).
                     cursor.enter("selector.chosen-creature-type-qualifier");
@@ -1123,7 +1132,14 @@ fn recognize_object_query_frame_from(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
-                } else if let Some(length) = super::chosen_color_qualifier_length(cursor) {
+                } else if let Some(length) =
+                    super::chosen_color_qualifier_length(cursor).or_else(|| {
+                        super::inline_choice::inline_choice_qualifier_length(
+                            cursor,
+                            super::inline_choice::InlineChoiceKind::Color,
+                        )
+                    })
+                {
                     // `of the chosen color` / `of that color`: the color
                     // chosen earlier in the program (CR 608.2d).
                     cursor.enter("selector.chosen-color-qualifier");

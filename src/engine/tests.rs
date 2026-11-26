@@ -33372,3 +33372,6 @@ mod stack_and_damage_cells_runtime;
 mod static_frame_runtime;
 #[path = "tests/where_x_declaration_runtime.rs"]
 mod where_x_declaration_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/object_subject_effect_clauses_runtime.rs"]
+mod object_subject_effect_clauses_runtime;

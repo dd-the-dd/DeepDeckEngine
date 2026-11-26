@@ -83,6 +83,55 @@ pub(super) fn assign_failure_owner(
     }
 }
 
+/// The deepest refusal of the transactional subject frames tried at one
+/// effect head (S0). A frame that rejects its candidate after its subject
+/// reader read past the head carries the component it met there (`Equipped
+/// creatures you control` refused at `creatures`, a relative clause the
+/// shared query does not read). Dropping it reported the bare `effect.start`
+/// sink at the clause head, so unrelated subjects ranked together.
+///
+/// Only a refusal strictly past the head is kept; ties keep the first frame
+/// in dispatch order. The kept failure is still a failure: ownership never
+/// changes support, and a refusal at the head keeps the generic sink, which
+/// the dispatcher then owns with `diagnose_clause_head`.
+pub(crate) struct DeepestRejection {
+    head: usize,
+    deepest: Option<MachineFailure>,
+}
+
+impl DeepestRejection {
+    pub(crate) fn at(cursor: &OracleTokenCursor<'_>) -> Self {
+        Self {
+            head: cursor.position(),
+            deepest: None,
+        }
+    }
+
+    /// Keeps `failure` when it reached further than every earlier refusal.
+    pub(crate) fn keep(&mut self, failure: MachineFailure) {
+        if failure.token_index <= self.head {
+            return;
+        }
+        if self
+            .deepest
+            .as_ref()
+            .is_some_and(|deepest| deepest.token_index >= failure.token_index)
+        {
+            return;
+        }
+        self.deepest = Some(failure);
+    }
+
+    /// The kept refusal, or the generic sink failure at the clause head.
+    pub(crate) fn into_failure(
+        self,
+        cursor: &OracleTokenCursor<'_>,
+        expected: &str,
+    ) -> MachineFailure {
+        self.deepest.unwrap_or_else(|| cursor.fail(expected))
+    }
+}
+
 /// The effect-clause diagnostic at `start`, as a failure of `cursor`. A
 /// transactional child that returned `NoMatch` hands its clause to this
 /// function instead of reporting the requirement it did not meet. The failure

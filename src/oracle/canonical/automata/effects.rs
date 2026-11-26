@@ -466,7 +466,7 @@ fn damage_recipient_boundary(cursor: &OracleTokenCursor<'_>) -> bool {
 
 /// One recipient group: `you`, a player set (`each opponent`), a permanent
 /// collection (`each [other] creature [you don't control]`) or targets.
-fn recognize_damage_recipient_group(
+pub(in crate::oracle::canonical) fn recognize_damage_recipient_group(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<DamageRecipientNode> {
     if let Some(reference) = super::recognize_damage_recipient_reference(cursor) {
