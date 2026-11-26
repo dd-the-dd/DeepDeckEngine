@@ -191,6 +191,24 @@ pub(in crate::oracle::canonical) enum CreatedReplacementRuleNode {
     /// A damage replacement or prevention through this turn
     /// (`damage_replacement.rs`).
     Damage(DamageReplacementNode),
+    /// `Until end of turn, if a nontoken creature would enter and it wasn't
+    /// cast, exile it instead.`: the shared uncast-entry replacement frame
+    /// (`entry_replacement.rs`) created by a resolving program for its
+    /// lifetime (CR 611.2a, 614.1c).
+    UncastEntry {
+        replacement: CreatedEntryReplacementNode,
+        lifetime: Option<CreatedRuleLifetime>,
+    },
+}
+
+/// The typed parts of an entry replacement a program creates: the entering
+/// object, its cast status and the replacing destination, all bound to the
+/// one event object.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CreatedEntryReplacementNode {
+    pub event: WouldEnterBattlefieldEventNode,
+    pub condition: ObjectCastConditionNode,
+    pub replacement: ZoneReplacementNode,
 }
 
 impl CreatedReplacementRuleNode {
@@ -214,9 +232,53 @@ pub(in crate::oracle::canonical) fn created_replacement_sentence_starts(
     departure_replacement_starts(cursor)
         || created_damage_replacement_starts(cursor)
         || quantity_replacement_sentence_starts(cursor)
+        || entry_replacement_sentence_starts(cursor)
 }
 
-/// `[Until end of turn,] if ... would (be created|be put|create|put) ...`
+/// `[Until end of turn,] if ... would enter ...` before the sentence's first
+/// comma after `if`: an entry replacement a program may create.
+fn entry_replacement_sentence_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let offset = preposed_end_of_turn_width(cursor);
+    if !word_at(cursor, offset, "if") {
+        return false;
+    }
+    (offset + 1..)
+        .take_while(|index| {
+            cursor
+                .peek_ahead(*index)
+                .is_some_and(|raw| raw != "," && raw != ".")
+        })
+        .any(|index| word_at(cursor, index, "would") && word_at(cursor, index + 1, "enter"))
+}
+
+/// `if a|an OBJECT would enter [the battlefield] and it wasn't cast, exile
+/// it instead`: the shared entry-replacement children, each bound to the
+/// event object. The event commits the frame.
+fn recognize_created_entry_replacement(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CreatedEntryReplacementNode> {
+    cursor.enter("replacement.created-entry.envelope");
+    cursor.consume("if")?;
+    let event = super::entry_replacement::recognize_would_enter_battlefield_event(cursor)?;
+    let condition =
+        super::entry_replacement::recognize_object_not_cast_condition(cursor, event.binding)?;
+    let replacement =
+        super::entry_replacement::recognize_exile_instead_replacement(cursor, event.binding)?;
+    cursor.enter("replacement.created-entry.terminator");
+    cursor.consume(".")?;
+    cursor.enter("replacement.created-entry.binding-validation");
+    cursor.require(
+        event.binding == condition.object && event.binding == replacement.object,
+        "one event-object binding shared by condition and replacement",
+    )?;
+    Ok(CreatedEntryReplacementNode {
+        event,
+        condition,
+        replacement,
+    })
+}
+
+/// `[Until end of turn,] if ... would (be created|be put|create|put|mill) ...`
 /// before the sentence's first comma after `if`.
 fn quantity_replacement_sentence_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     let offset = preposed_end_of_turn_width(cursor);
@@ -233,6 +295,7 @@ fn quantity_replacement_sentence_starts(cursor: &OracleTokenCursor<'_>) -> bool 
             word_at(cursor, index, "would")
                 && (word_at(cursor, index + 1, "create")
                     || word_at(cursor, index + 1, "put")
+                    || word_at(cursor, index + 1, "mill")
                     || (word_at(cursor, index + 1, "be")
                         && (word_at(cursor, index + 2, "created")
                             || word_at(cursor, index + 2, "put"))))
@@ -283,6 +346,34 @@ pub(in crate::oracle::canonical) fn try_recognize_created_replacement_sentence(
         ChildOutcome::NoMatch(_) => {}
     }
     let checkpoint = cursor.checkpoint();
+    if entry_replacement_sentence_starts(cursor) {
+        cursor.enter("replacement.created-entry.lifetime");
+        let lifetime = if preposed_end_of_turn_width(cursor) > 0 {
+            match super::embedded_delayed_trigger::recognize_created_rule_lifetime(cursor)
+                .and_then(|lifetime| cursor.consume(",").map(|_| lifetime))
+            {
+                Ok(lifetime) => Some(lifetime),
+                Err(failure) => {
+                    cursor.rollback(checkpoint);
+                    return ChildOutcome::NoMatch(failure);
+                }
+            }
+        } else {
+            None
+        };
+        // The `would enter` event commits the frame: a failure below is
+        // this replacement's own diagnostic.
+        return match recognize_created_entry_replacement(cursor) {
+            Ok(replacement) => ChildOutcome::Matched(CreatedReplacementRuleNode::UncastEntry {
+                replacement,
+                lifetime,
+            }),
+            Err(failure) => {
+                cursor.rollback(checkpoint);
+                ChildOutcome::Committed(failure)
+            }
+        };
+    }
     cursor.enter("replacement.created-quantity.lifetime");
     let lifetime = if preposed_end_of_turn_width(cursor) > 0 {
         let lifetime = super::embedded_delayed_trigger::recognize_created_rule_lifetime(cursor)

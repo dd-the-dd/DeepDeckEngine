@@ -330,6 +330,75 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-mistcaller-created-uncast-entry-replacement",
+      "request": {
+        "cardName": "Mistcaller",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{U}",
+        "oracleText": "Sacrifice this creature: Until end of turn, if a nontoken creature would enter and it wasn't cast, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "prohibitUncastBattlefieldEntry"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-spell-created-uncast-artifact-entry",
+      "request": {
+        "cardName": "Entry Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Until end of turn, if a nontoken artifact would enter and it wasn't cast, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-created-entry-replacement-until-next-turn",
+      "request": {
+        "cardName": "Entry Probe",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{U}",
+        "oracleText": "Sacrifice this creature: Until your next turn, if a nontoken creature would enter and it wasn't cast, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "lower.created-entry-replacement.lifetime"
+          }
+        ]
+      }
     }
   ]
 }
