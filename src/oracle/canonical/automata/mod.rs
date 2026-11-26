@@ -158,6 +158,7 @@ mod object_argument;
 mod object_predicate;
 mod object_rule_clause;
 mod object_set;
+mod object_subject;
 mod opening_hand_battlefield;
 mod opponent_library_search;
 mod optional_bound_mill;

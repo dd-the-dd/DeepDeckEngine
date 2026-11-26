@@ -1292,6 +1292,11 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
     context: &EffectRecognitionContext,
 ) -> MachineResult<PermanentOperandNode> {
     cursor.enter("permanent.subject.head");
+    // `equipped creatures you control`: the attachment status of a plural
+    // collection (`object_subject.rs`), never the attached-object reference.
+    if super::object_subject::attached_status_collection_starts(cursor) {
+        return super::object_subject::recognize_attached_status_collection(cursor);
+    }
     if super::reference::attached_object_reference_starts(cursor) {
         // `enchanted creature` / `equipped creature` is a reference, never
         // a target declaration or a query (CR 301.5a, 303.4a).
