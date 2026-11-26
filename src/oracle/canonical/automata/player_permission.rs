@@ -60,11 +60,13 @@ pub(in crate::oracle::canonical) enum TemporaryRuleNode {
     /// `damage can't be prevented` (CR 615.12): a game rule over every
     /// damage event while it lasts.
     DamageCantBePrevented,
-    /// `the next SPELLS you cast this turn MODIFICATION`: a one-shot rule
-    /// consumed by the first matching cast of the controller.
+    /// `the next SPELLS you cast [this turn] MODIFICATION`: a one-shot rule
+    /// consumed by the first matching cast of the controller. Without `this
+    /// turn` it lasts until that spell is cast (CR 611.2a).
     NextSpell {
         spells: ObjectPredicate,
         modification: NextSpellModification,
+        this_turn: bool,
     },
     /// `you may cast SPELLS this turn as though they had flash`: the
     /// controller casts every matching spell with instant timing while the
@@ -79,6 +81,22 @@ pub(in crate::oracle::canonical) enum TemporaryRuleNode {
     /// cast sorcery spells as though they had flash`: the static allowance
     /// frame's clause, held by its actor while the rule lasts (CR 601.3).
     Casting(CastingPermissionNode),
+    /// Any rules-changing static body the static families read, with its
+    /// lifetime removed: `Artifact spells you cast [this turn] cost {1} less
+    /// to cast`, `Creature spells you cast [this turn] can't be countered`,
+    /// `Noncreature spells your opponents cast cost {2} more to cast [until
+    /// your next turn]` (CR 611.2a, 611.2c).
+    Static(TemporaryStaticBodyNode),
+}
+
+/// A static ability body compiled by the ordinary static families as an
+/// ability of a permanent, then applied by the created effect while it lasts.
+/// Only rules-changing modifiers are admitted (CR 611.2c): a characteristic
+/// change of a collection stays with the families that lock the affected set
+/// at resolution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TemporaryStaticBodyNode {
+    pub rule: serde_json::Value,
 }
 
 /// `the "legend rule" doesn't apply [to PERMANENTS]`: `None` waives it for
@@ -108,6 +126,9 @@ pub(in crate::oracle::canonical) enum TemporaryRuleDuration {
     Effect(EffectDurationNode),
     /// `for the rest of the game`.
     RestOfGame,
+    /// A next-spell rule without a written period: it lasts until the spell
+    /// it names is cast.
+    UntilUsed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -310,7 +331,11 @@ pub(in crate::oracle::canonical) fn try_recognize_temporary_player_permission(
     if word_at(cursor, 0, "the") && word_at(cursor, 1, "next") && !word_at(cursor, 2, "time") {
         return try_recognize_next_spell_rule(cursor);
     }
-    try_recognize_temporary_player_rule(cursor, supplied)
+    match try_recognize_temporary_player_rule(cursor, supplied) {
+        attempt @ (TemporaryPlayerPermissionParseAttempt::Parsed(_)
+        | TemporaryPlayerPermissionParseAttempt::FailedCommitted(_)) => attempt,
+        other => try_recognize_temporary_static_body(cursor, supplied).unwrap_or(other),
+    }
 }
 
 /// `you may play|cast COLLECTION [from ZONE] [MANNER] LIFETIME` (CR 611.2a,
@@ -485,7 +510,8 @@ fn try_recognize_temporary_flash_permission(
     }
 }
 
-/// The offset of `you cast this turn` closing a next-spell subject.
+/// The offset of `you cast` closing a next-spell subject, followed by a
+/// modification head (`costs`, `can`, `can't`) or by `this turn`.
 fn next_spell_relation_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
     (2..)
         .take_while(|offset| {
@@ -494,16 +520,19 @@ fn next_spell_relation_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
                 .is_some_and(|raw| raw != "." && raw != "," && raw != "(")
         })
         .find(|offset| {
-            ["you", "cast", "this", "turn"]
-                .iter()
-                .enumerate()
-                .all(|(at, word)| word_at(cursor, offset + at, word))
+            word_at(cursor, *offset, "you")
+                && word_at(cursor, offset + 1, "cast")
+                && ((word_at(cursor, offset + 2, "this") && word_at(cursor, offset + 3, "turn"))
+                    || word_at(cursor, offset + 2, "costs")
+                    || word_at(cursor, offset + 2, "can")
+                    || super::player_prohibition_word_at(cursor, offset + 2))
         })
 }
 
-/// `the next SPELLS you cast this turn RULE`. The spell query is the shared
-/// object query read up to its relation; the relation and its period are
-/// the ordinal's (the controller's casts this turn).
+/// `the next SPELLS you cast [this turn] RULE`. The spell query is the
+/// shared object query read up to its relation; the relation and its
+/// optional period are the ordinal's (the controller's next matching cast,
+/// this turn or whenever it comes).
 fn try_recognize_next_spell_rule(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> TemporaryPlayerPermissionParseAttempt {
@@ -539,7 +568,11 @@ fn try_recognize_next_spell_rule(
         return reject(cursor, failure);
     }
     cursor.enter("temporary-rule.next-spell.relation");
-    if let Err(failure) = cursor.consume_phrase(&["you", "cast", "this", "turn"]) {
+    if let Err(failure) = cursor.consume_phrase(&["you", "cast"]) {
+        return reject(cursor, failure);
+    }
+    let this_turn = word_at(cursor, 0, "this") && word_at(cursor, 1, "turn");
+    if this_turn && let Err(failure) = cursor.consume_phrase(&["this", "turn"]) {
         return reject(cursor, failure);
     }
     // The ordinal subject is read: the rule after it belongs to this frame.
@@ -549,8 +582,13 @@ fn try_recognize_next_spell_rule(
                 rule: TemporaryRuleNode::NextSpell {
                     spells: query.predicate,
                     modification,
+                    this_turn,
                 },
-                duration: TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn),
+                duration: if this_turn {
+                    TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn)
+                } else {
+                    TemporaryRuleDuration::UntilUsed
+                },
             })
         }
         Err(failure) => TemporaryPlayerPermissionParseAttempt::FailedCommitted(failure),
@@ -688,6 +726,307 @@ fn try_recognize_temporary_player_rule(
         },
         supplied,
     )
+}
+
+/// The rules-changing static modifiers a created effect may apply to objects
+/// that did not exist when it was created (CR 611.2c): cost rules, counter
+/// prohibitions and casting prohibitions.
+const TEMPORARY_STATIC_RULE_MODIFIERS: [&str; 5] = [
+    "reduceCastingCost",
+    "additionalCastingCost",
+    "cantBeCountered",
+    "prohibitCast",
+    "modifyActivationCost",
+];
+
+/// The holder face a temporary static body is compiled for: an ability of a
+/// permanent with no name of its own in the body.
+const TEMPORARY_STATIC_HOLDER_NAME: &str = "Temporary Rule Holder";
+const TEMPORARY_STATIC_HOLDER_TYPE_LINE: &str = "Enchantment";
+
+/// Offset of the root period closing the current sentence (outside quotes
+/// and parentheses).
+fn sentence_period_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let mut quoted = false;
+    let mut depth = 0_usize;
+    let mut offset = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        match raw {
+            "\"" => quoted = !quoted,
+            "(" if !quoted => depth += 1,
+            ")" if !quoted => depth = depth.saturating_sub(1),
+            "." if !quoted && depth == 0 => return Some(offset),
+            _ => {}
+        }
+        offset += 1;
+    }
+    None
+}
+
+/// The token at `offset` from the cursor.
+fn token_at<'a>(
+    cursor: &OracleTokenCursor<'a>,
+    offset: usize,
+) -> Option<&'a crate::oracle::model::RecognizedEntity> {
+    let at = cursor.position() + offset;
+    cursor.token_slice(at, at + 1).first()
+}
+
+/// Offset of a static rule predicate head before `end`: `cost(s) MANA` or a
+/// passive prohibition `can't be countered|cast|played`. Without one the
+/// sentence is not a static rule body.
+fn static_rule_head_offset(cursor: &OracleTokenCursor<'_>, end: usize) -> Option<usize> {
+    (0..end).find(|offset| {
+        let cost = (word_at(cursor, *offset, "cost") || word_at(cursor, *offset, "costs"))
+            && token_at(cursor, offset + 1).is_some_and(|token| token.token_type == "manaSymbol");
+        let prohibition = super::player_prohibition_word_at(cursor, *offset)
+            && word_at(cursor, offset + 1, "be")
+            && ["countered", "cast", "played"]
+                .iter()
+                .any(|word| word_at(cursor, offset + 2, word));
+        cost || prohibition
+    })
+}
+
+/// Where the lifetime of a temporary static body is written.
+#[derive(Clone, Debug)]
+enum StaticBodyLifetime {
+    /// The sentence's preposed `Until your next turn,` (supplied).
+    Preposed(EffectDurationNode),
+    /// `SPELLS you cast this turn PREDICATE`: the period of the subject's
+    /// cast relation is the effect's lifetime (CR 611.2a); `start` is the
+    /// offset of `this`.
+    InSubject { start: usize },
+    /// `... PREDICATE this turn|until ...` before the period.
+    Trailing {
+        start: usize,
+        duration: TemporaryRuleDuration,
+    },
+}
+
+/// Offsets of `this` in `cast|casts this turn` inside the subject, before
+/// the predicate head.
+fn subject_lifetime_offsets(cursor: &OracleTokenCursor<'_>, head: usize) -> Vec<usize> {
+    (0..head)
+        .filter(|offset| {
+            (word_at(cursor, *offset, "cast") || word_at(cursor, *offset, "casts"))
+                && word_at(cursor, offset + 1, "this")
+                && word_at(cursor, offset + 2, "turn")
+                && offset + 2 < head
+        })
+        .map(|offset| offset + 1)
+        .collect()
+}
+
+/// A written lifetime after the predicate head that ends exactly at the
+/// period, or the first `until` there that does not read as a lifetime.
+enum TrailingLifetime {
+    Absent,
+    Read {
+        start: usize,
+        duration: TemporaryRuleDuration,
+    },
+    Malformed {
+        start: usize,
+        failure: MachineFailure,
+    },
+}
+
+fn trailing_lifetime(cursor: &OracleTokenCursor<'_>, head: usize, end: usize) -> TrailingLifetime {
+    let mut malformed = None;
+    for start in head + 1..end {
+        let mut probe = cursor.clone();
+        if probe.advance_to(cursor.position() + start).is_err()
+            || !temporary_duration_starts(&probe)
+        {
+            continue;
+        }
+        match recognize_temporary_duration(&mut probe) {
+            Ok(duration) if probe.position() == cursor.position() + end => {
+                return TrailingLifetime::Read { start, duration };
+            }
+            Ok(_) => {}
+            Err(failure) => {
+                if malformed.is_none() && word_at(cursor, start, "until") {
+                    malformed = Some((start, failure));
+                }
+            }
+        }
+    }
+    match malformed {
+        Some((start, failure)) => TrailingLifetime::Malformed { start, failure },
+        None => TrailingLifetime::Absent,
+    }
+}
+
+/// Compiles `body` (the tokens of one sentence without its lifetime) with
+/// the ordinary ability pipeline as a static ability of a permanent, and
+/// admits it only when every modifier changes the game's rules.
+fn compile_temporary_static_body(
+    body: &[crate::oracle::model::RecognizedEntity],
+) -> Result<serde_json::Value, String> {
+    let mut text = super::source_text(body);
+    if let Some(first) = text.chars().next() {
+        let upper = first.to_uppercase().collect::<String>();
+        text.replace_range(..first.len_utf8(), &upper);
+    }
+    if !text.ends_with('.') {
+        text.push('.');
+    }
+    let result = crate::oracle::parse_oracle_card(crate::oracle::OracleCardParseRequest {
+        card_name: TEMPORARY_STATIC_HOLDER_NAME.to_string(),
+        type_line: TEMPORARY_STATIC_HOLDER_TYPE_LINE.to_string(),
+        mana_cost: None,
+        oracle_text: Some(text),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    });
+    let rule = match result.abilities.as_slice() {
+        [ability] if ability.status == "canonical" && ability.rule.is_some() => {
+            ability.rule.clone().expect("checked canonical rule")
+        }
+        [ability] => {
+            return Err(ability
+                .diagnostics
+                .first()
+                .map(|diagnostic| diagnostic.message.clone())
+                .unwrap_or_else(|| "not a canonical ability".to_string()));
+        }
+        _ => return Err("exactly one static ability".to_string()),
+    };
+    let battlefield_static = rule["kind"] == "staticAbility"
+        && rule["activeWhile"]["kind"] == "inZone"
+        && rule["activeWhile"]["object"]["kind"] == "self"
+        && rule["activeWhile"]["zone"]["kind"] == "battlefield"
+        && rule.get("condition").is_none();
+    let modifiers_change_rules = rule["modifiers"].as_array().is_some_and(|modifiers| {
+        !modifiers.is_empty()
+            && modifiers.iter().all(|modifier| {
+                modifier["kind"]
+                    .as_str()
+                    .is_some_and(|kind| TEMPORARY_STATIC_RULE_MODIFIERS.contains(&kind))
+                    && modifier.get("excludeSource").is_none()
+                    && !mentions_holder_object(modifier, false)
+            })
+    });
+    if !(battlefield_static && modifiers_change_rules) {
+        return Err(
+            "an unconditional battlefield static body whose modifiers change the game's rules (CR 611.2c)"
+                .to_string(),
+        );
+    }
+    Ok(rule)
+}
+
+/// Whether a modifier names the holder object itself rather than only its
+/// controller or owner: a created effect has no such object.
+fn mentions_holder_object(value: &serde_json::Value, under_player: bool) -> bool {
+    match value {
+        serde_json::Value::Object(map) => {
+            let kind = map.get("kind").and_then(serde_json::Value::as_str);
+            if kind == Some("self") && !under_player {
+                return true;
+            }
+            let player = matches!(kind, Some("controllerOf" | "ownerOf"));
+            map.values()
+                .any(|child| mentions_holder_object(child, player))
+        }
+        serde_json::Value::Array(items) => items
+            .iter()
+            .any(|child| mentions_holder_object(child, false)),
+        _ => false,
+    }
+}
+
+/// `SPELLS [you cast this turn] PREDICATE [LIFETIME].` (CR 611.2a, 611.2c):
+/// one sentence whose body is a rules-changing static ability and whose
+/// lifetime is preposed, embedded in the subject's cast relation, or
+/// trailing. The body is compiled by the ordinary static families; this
+/// frame owns only the lifetime. A sentence without a lifetime is a static
+/// ability, not this frame's; a body that compiles but whose lifetime is
+/// malformed or written twice fails here explicitly.
+fn try_recognize_temporary_static_body(
+    cursor: &mut OracleTokenCursor<'_>,
+    supplied: Option<&EffectDurationNode>,
+) -> Option<TemporaryPlayerPermissionParseAttempt> {
+    if word_at(cursor, 0, "the") && word_at(cursor, 1, "next") {
+        return None;
+    }
+    let end = sentence_period_offset(cursor)?;
+    let head = static_rule_head_offset(cursor, end)?;
+    let mut lifetimes = Vec::new();
+    if let Some(duration) = supplied {
+        lifetimes.push(StaticBodyLifetime::Preposed(duration.clone()));
+    }
+    for start in subject_lifetime_offsets(cursor, head) {
+        lifetimes.push(StaticBodyLifetime::InSubject { start });
+    }
+    let mut malformed = None;
+    match trailing_lifetime(cursor, head, end) {
+        TrailingLifetime::Read { start, duration } => {
+            lifetimes.push(StaticBodyLifetime::Trailing { start, duration });
+        }
+        TrailingLifetime::Malformed { start, failure } => malformed = Some((start, failure)),
+        TrailingLifetime::Absent => {}
+    }
+    if lifetimes.is_empty() && malformed.is_none() {
+        return None;
+    }
+    let base = cursor.position();
+    let trailing_start = lifetimes.iter().find_map(|lifetime| match lifetime {
+        StaticBodyLifetime::Trailing { start, .. } => Some(*start),
+        _ => None,
+    });
+    let body_end = malformed
+        .as_ref()
+        .map(|(start, _)| *start)
+        .or(trailing_start)
+        .unwrap_or(end);
+    // The body is the sentence without its lifetime words.
+    let mut body = Vec::new();
+    let mut offset = 0;
+    while offset < body_end {
+        if lifetimes.iter().any(|lifetime| {
+            matches!(lifetime, StaticBodyLifetime::InSubject { start } if *start == offset)
+        }) {
+            offset += 2;
+            continue;
+        }
+        body.extend(token_at(cursor, offset).cloned());
+        offset += 1;
+    }
+    let rule = compile_temporary_static_body(&body).ok()?;
+    // The body is a rules-changing static ability: its lifetime is this
+    // frame's to read.
+    cursor.enter("temporary-rule.static-body.lifetime");
+    if let Some((_, failure)) = malformed {
+        return Some(TemporaryPlayerPermissionParseAttempt::FailedCommitted(
+            failure,
+        ));
+    }
+    if lifetimes.len() > 1 {
+        return Some(TemporaryPlayerPermissionParseAttempt::FailedCommitted(
+            cursor.fail("one lifetime for a temporary static rule"),
+        ));
+    }
+    let duration = match lifetimes.pop()? {
+        StaticBodyLifetime::Preposed(duration) => TemporaryRuleDuration::Effect(duration),
+        StaticBodyLifetime::InSubject { .. } => {
+            TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn)
+        }
+        StaticBodyLifetime::Trailing { duration, .. } => duration,
+    };
+    if let Err(failure) = cursor.advance_to(base + end) {
+        return Some(TemporaryPlayerPermissionParseAttempt::FailedCommitted(
+            failure,
+        ));
+    }
+    Some(TemporaryPlayerPermissionParseAttempt::Parsed(
+        TemporaryPlayerPermissionNode {
+            rule: TemporaryRuleNode::Static(TemporaryStaticBodyNode { rule }),
+            duration,
+        },
+    ))
 }
 
 #[cfg(test)]

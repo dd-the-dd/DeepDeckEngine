@@ -58,7 +58,11 @@ pub(super) fn install_one_shot_modifier_supported(effect: &Value) -> bool {
         },
     };
     captures.values().all(player_reference_supported)
-        && value_kind(&effect["expires"]) == Some("endOfCurrentTurn")
+        // `this turn`, or no period: the modifier waits for its spell.
+        && matches!(
+            value_kind(&effect["expires"]),
+            Some("endOfCurrentTurn" | "whenConsumed")
+        )
         && effect
             .get("consume")
             .is_none_or(|consume| value_kind(consume) == Some("firstMatchingEvent"))
@@ -128,7 +132,11 @@ impl GameEngine {
             "playerId": player_id,
             "where": effect["match"].get("where").cloned().unwrap_or(Value::Null),
             "apply": operations,
-            "expiresAfterTurn": self.state.turn_number,
+            "expiresAfterTurn": if value_kind(&effect["expires"]) == Some("whenConsumed") {
+                Value::Null
+            } else {
+                json!(self.state.turn_number)
+            },
             "sourceCardInstanceId": stack_object.card.instance_id,
         });
         self.state.rule_modifiers.push(modifier.clone());

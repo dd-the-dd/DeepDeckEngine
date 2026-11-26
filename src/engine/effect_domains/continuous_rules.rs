@@ -670,6 +670,45 @@ impl GameEngine {
     }
 }
 
+impl GameEngine {
+    /// The static modifiers a resolving effect installs, with each numeric
+    /// `amount` determined once as the effect is applied (CR 608.2h,
+    /// 611.2a): `spells you cast this turn cost {1} less to cast for each
+    /// Wizard you control` keeps the count of the resolution. An amount the
+    /// runtime cannot evaluate here stays symbolic.
+    pub(in crate::engine) fn locked_temporary_static_modifiers(
+        &self,
+        modifiers: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> Value {
+        let Some(items) = modifiers.as_array() else {
+            return modifiers.clone();
+        };
+        let decisions = BTreeMap::new();
+        Value::Array(
+            items
+                .iter()
+                .map(|modifier| {
+                    let mut locked = modifier.clone();
+                    if let Some(amount) = modifier.get("amount")
+                        && integer_value(amount).is_none()
+                        && let Some(value) = self.runtime_numeric_expression(
+                            amount,
+                            stack_object,
+                            bindings,
+                            &decisions,
+                        )
+                    {
+                        locked["amount"] = json!({"kind": "integer", "value": value.max(0)});
+                    }
+                    locked
+                })
+                .collect(),
+        )
+    }
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
