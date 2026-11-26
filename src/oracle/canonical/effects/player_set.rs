@@ -80,6 +80,14 @@ pub(in crate::oracle::canonical) fn lower_player_population_query(
             };
             lowered["where"] = compare(">=", events, integer(1));
         }
+        // The members' performance of an earlier action is recorded by that
+        // action's own player loop; only the performer lowering that marks
+        // the loop (`lower_performance_population`) reads it.
+        Some(PlayerRelativePredicate::Performance { .. }) => {
+            return Err(
+                "the recorded performance of the preceding population action, read by the performer lowering",
+            );
+        }
         Some(PlayerRelativePredicate::Superlative { measure, extremum }) => {
             if query.players != PlayerSetReferenceNode::EachPlayer
                 || query.excluding_controller
@@ -104,6 +112,35 @@ pub(in crate::oracle::canonical) fn lower_player_population_query(
         return Err("a superlative that singles out one player");
     }
     Ok(lowered)
+}
+
+/// The holder a related zone holder names (`that player's hand`, `their
+/// graveyard`, `its controller's hand`, `target opponent's hand`), written
+/// as the query lowerings write a related player: the controller or owner
+/// of a declared target is a symbolic declared-target anchor the program
+/// lowering resolves (`resolve_relation_target_anchors`), and every other
+/// player is the shared related-player value (`lower_related_player`: a
+/// bound-player anchor, an embedded declared player target, the acting
+/// player's placeholder, or a context-free reference). A placeholder no
+/// enclosing pass resolves stays in the rule, which the engine refuses.
+pub(in crate::oracle::canonical) fn lower_zone_holder_player(player: RelatedPlayer) -> Value {
+    match player {
+        RelatedPlayer::Bound(BoundPlayerReference::ObjectRelation {
+            relation,
+            object: PermanentEffectReference::Target(binding),
+        }) => json!({
+            "kind": match relation {
+                ObjectPlayerRelation::Controller => "controllerOf",
+                ObjectPlayerRelation::Owner => "ownerOf",
+            },
+            "object": {
+                "kind": DECLARED_TARGET_ANCHOR,
+                "effectIndex": binding.effect_index,
+                "slotIndex": binding.slot_index,
+            },
+        }),
+        other => lower_related_player(other),
+    }
 }
 
 /// `the player to your left|right` of the ability's controller (CR 101.4).

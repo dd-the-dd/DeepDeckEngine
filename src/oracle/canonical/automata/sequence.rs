@@ -1477,6 +1477,12 @@ fn recognize_effect_sequence_attempt_scoped(
                                         object_antecedent.as_ref(),
                                     ),
                                 },
+                                player_set_antecedent: super::prior_player_set_performer(
+                                    &memory.effects,
+                                ),
+                                performance_producer: super::population_performance_producer(
+                                    &memory.effects,
+                                ),
                             };
                             let mut head = cursor.clone();
                             // A subjectless verb continues the performer of

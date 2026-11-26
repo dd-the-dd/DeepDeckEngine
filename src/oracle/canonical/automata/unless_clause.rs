@@ -255,6 +255,8 @@ fn recognize_performed_payer(
             selector: None,
         }),
         object_player_antecedent: None,
+        player_set_antecedent: None,
+        performance_producer: None,
     };
     let (performer, _) = recognize_performer(cursor, &context)
         .ok_or_else(|| cursor.fail("an `unless` payer the performer grammar names"))??;

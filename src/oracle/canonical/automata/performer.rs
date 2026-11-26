@@ -174,6 +174,14 @@ pub(in crate::oracle::canonical) struct PerformerContext {
     /// creature an opponent controls`): the antecedent of `that player` when
     /// no player was declared or bound (CR 108.3, 109.4).
     pub object_player_antecedent: Option<(ObjectPlayerRelation, super::PermanentEffectReference)>,
+    /// The plural player set the immediately preceding action named
+    /// (`player_antecedent::prior_player_set_performer`): the antecedent of
+    /// `those players` / `they each` (CR 608.2c).
+    pub player_set_antecedent: Option<PerformerNode>,
+    /// The immediately preceding population action whose per-player
+    /// performance a relative of this subject observes (`each player who
+    /// does`, `player_antecedent::population_performance_producer`).
+    pub performance_producer: Option<super::PopulationPerformanceProducer>,
 }
 
 /// A performer subject at the cursor and the agreement its verb takes.
@@ -227,6 +235,15 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
                 VerbAgreement::ThirdPersonSingular,
             )
         }));
+    }
+    // `those players [each] VERB`, `they each VERB` (CR 608.2c): the plural
+    // player set the preceding action named. `they each` is that set only
+    // when the preceding action named one; otherwise `they` keeps its
+    // singular reading below.
+    if let Some(width) = plural_player_anaphor_width(&head)
+        && (is(0, "those") || context.player_set_antecedent.is_some())
+    {
+        return Some(recognize_plural_player_anaphor(cursor, context, width));
     }
     if is(0, "they") && (context.player_antecedent.is_some() || context.event_player) {
         let player = context
@@ -285,6 +302,7 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
             player_antecedent: context.player_antecedent,
             event_player: context.event_player,
             object_antecedent: context.object_antecedent.clone(),
+            performance_producer: context.performance_producer,
         };
         return Some(
             super::recognize_definite_player_description(cursor, &relative).map(|query| {
@@ -346,6 +364,37 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
     None
 }
 
+/// The width of a plural player anaphor at the cursor, from its lowercase
+/// head words: `those players|opponents [each]` or `they each`. Lexical
+/// lookahead only.
+fn plural_player_anaphor_width(head: &[String]) -> Option<usize> {
+    let word = |offset: usize| head.get(offset).map_or("", String::as_str);
+    if word(0) == "those" && matches!(word(1), "players" | "opponents") {
+        return Some(if word(2) == "each" { 3 } else { 2 });
+    }
+    (word(0) == "they" && word(1) == "each").then_some(2)
+}
+
+/// `those players [each]`, `they each` (CR 608.2c): every member of the
+/// player set the immediately preceding action named performs the clause in
+/// turn order (a population is read again, declared players are the same
+/// declaration); the verb takes the base form. Without such a set the
+/// anaphor has no antecedent and fails here, never as another player.
+fn recognize_plural_player_anaphor(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &PerformerContext,
+    width: usize,
+) -> MachineResult<(PerformerNode, VerbAgreement)> {
+    cursor.enter("clause.performer.player-set-anaphor");
+    cursor.advance_to(cursor.position() + width)?;
+    cursor.enter("clause.performer.player-set-anaphor.antecedent");
+    let performer = cursor.require_value(
+        context.player_set_antecedent.clone(),
+        "a player set the preceding action named (`each opponent`, `two target players`) for `those players`",
+    )?;
+    Ok((performer, VerbAgreement::Base))
+}
+
 /// The population read so far, restricted by a relative clause when one
 /// follows (`each player who controls the most lands`, `each player other
 /// than its controller`). The restriction is the shared player-set grammar
@@ -370,6 +419,7 @@ fn restricted_population(
         player_antecedent: context.player_antecedent,
         event_player: context.event_player,
         object_antecedent: context.object_antecedent.clone(),
+        performance_producer: context.performance_producer,
     };
     let query = super::recognize_player_population_restriction(
         cursor,

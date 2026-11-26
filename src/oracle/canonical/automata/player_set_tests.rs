@@ -152,7 +152,10 @@ fn untyped_relative_clauses_fail_with_their_own_states() {
             "who attacked this turn draws a card.",
             "player-set.relative.who.verb",
         ),
-        ("who can't discards a card.", "player-set.relative.who.verb"),
+        (
+            "who can't discards a card.",
+            "player-set.relative.who.performance.producer",
+        ),
         (
             "other than target player creates a token.",
             "player-set.relative.exclusion.player",

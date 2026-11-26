@@ -33270,6 +33270,10 @@ mod subject_verb_actions_runtime;
 mod performer_subjects_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_performers_runtime.rs"]
+mod player_performers_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/extra_turn_runtime.rs"]
 mod extra_turn_runtime;
 
