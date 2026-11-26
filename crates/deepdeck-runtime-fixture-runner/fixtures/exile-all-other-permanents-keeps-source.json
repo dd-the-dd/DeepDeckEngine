@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "exile-all-other-permanents-keeps-source",
+  "seed": 12202,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "declaration": { "kind": "castingDeclaration", "decisions": [] },
+    "effects": [
+      {
+        "kind": "exilePermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "cardTypeContains", "value": "Artifact" },
+          "excludeSource": true
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Exiler",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "exiling-source",
+            "name": "Exiling Source",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "other-artifact",
+            "name": "Other Artifact",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "exiling-source",
+      "abilityRuleIndex": 0
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "exiling-source", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "other-artifact", "equals": true },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

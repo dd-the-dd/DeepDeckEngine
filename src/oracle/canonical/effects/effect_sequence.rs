@@ -3289,6 +3289,7 @@ fn lower_local_effect_sequence_with_collections(
     })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     bind_returned_source_when_read(cursor, &mut effects, collections)?;
+    contrast_other_tokens_with_created_tokens(cursor, &mut effects)?;
     bind_battlefield_search_when_read(cursor, sequence, &mut effects, collections)?;
     effect_alternatives::apply_alternative_frames(
         cursor,
@@ -5270,6 +5271,70 @@ fn declare_player_targets(
     }
     decisions.push(decision);
     declared_player_targets.push((key, target_id));
+    Ok(())
+}
+
+/// `Create a token ... Then exile all other Nightmare tokens you control`:
+/// `other` contrasts its noun with the nearest antecedent of that noun. A
+/// collection of tokens can't contrast with the ability's printed source
+/// (a card is not a token), so right after a token creation of the same
+/// program it contrasts with the tokens that action created: those are the
+/// excluded objects, and the source is an ordinary member (Abyssal
+/// Harvester ruling: the new token copy isn't exiled). Every other `other`
+/// collection keeps excluding the source.
+fn contrast_other_tokens_with_created_tokens(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+) -> Result<(), EffectSequenceLoweringFailure> {
+    fn requires_token(filter: &Value) -> bool {
+        match filter.get("kind").and_then(Value::as_str) {
+            Some("isToken") => true,
+            Some("and") => filter["operands"]
+                .as_array()
+                .is_some_and(|operands| operands.iter().any(requires_token)),
+            _ => false,
+        }
+    }
+    fn other_token_collection(effect: &Value) -> Option<&'static str> {
+        ["permanent", "object", "objects"]
+            .into_iter()
+            .find(|field| {
+                let collection = &effect[*field];
+                collection.get("kind").and_then(Value::as_str) == Some("eachPermanent")
+                    && collection.get("excludeSource").and_then(Value::as_bool) == Some(true)
+                    && collection.get("exclude").is_none()
+                    && requires_token(&collection["where"])
+            })
+    }
+    for index in 1..effects.len() {
+        let Some(field) = other_token_collection(&effects[index]) else {
+            continue;
+        };
+        let creation = &effects[index - 1];
+        if creation.get("kind").and_then(Value::as_str) != Some("createTokens") {
+            continue;
+        }
+        cursor.enter("lower.other-collection.created-tokens");
+        if creation
+            .get("bind")
+            .is_some_and(|bind| bind != CREATED_TOKENS_BINDING)
+        {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("the created tokens as the antecedent `other` contrasts with"),
+            ));
+        }
+        effects[index - 1]["bind"] = json!(CREATED_TOKENS_BINDING);
+        let collection = effects[index][field].as_object_mut().ok_or_else(|| {
+            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("an `other` token collection"),
+            )
+        })?;
+        collection.remove("excludeSource");
+        collection.insert(
+            "exclude".to_owned(),
+            json!({"kind": "boundObjects", "binding": CREATED_TOKENS_BINDING}),
+        );
+    }
     Ok(())
 }
 

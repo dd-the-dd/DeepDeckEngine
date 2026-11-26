@@ -209,6 +209,86 @@
                   "kind": "chosenTarget",
                   "id": "targetCardOperand"
                 }
+              },
+              {
+                "pointer": "/effects/1/bind",
+                "equals": "createdTokens"
+              },
+              {
+                "pointer": "/effects/2/permanent",
+                "equals": {
+                  "kind": "eachPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": { "kind": "self" }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      { "kind": "subtypeContains", "value": "Nightmare" },
+                      { "kind": "isToken" }
+                    ]
+                  },
+                  "exclude": { "kind": "boundObjects", "binding": "createdTokens" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-other-tokens-contrast-with-the-created-token",
+      "request": {
+        "cardName": "Contrast Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature enters, create a 1/1 white Spirit creature token. Then return all other Spirit tokens you control to their owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "createdTokens"
+              },
+              {
+                "pointer": "/effects/1/object/exclude",
+                "equals": { "kind": "boundObjects", "binding": "createdTokens" }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-other-nontoken-collection-still-excludes-the-source",
+      "request": {
+        "cardName": "Contrast Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature enters, create a 1/1 white Spirit creature token. Then exile all other creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/permanent/excludeSource",
+                "equals": true
               }
             ]
           }

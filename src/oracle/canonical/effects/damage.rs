@@ -167,7 +167,7 @@ pub(in crate::oracle::canonical) fn lower_targeted_damage_effect(
     effect: &DamageEffectNode,
     decision_id: &str,
 ) -> Option<LoweredTargetedDamageEffect> {
-    let DamageRecipientNode::Targets(targets) = &effect.recipient else {
+    let DamageRecipientNode::Targets(_) = &effect.recipient else {
         return None;
     };
     lower_targeted_damage_effect_with_amount(

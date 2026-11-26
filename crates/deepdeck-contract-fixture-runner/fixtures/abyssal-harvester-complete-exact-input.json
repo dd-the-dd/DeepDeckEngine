@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "abyssal-harvester/other-nightmare-tokens-contrast-with-the-created-copy",
+  "cardName": "Abyssal Harvester",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "abyssal-harvester-contract-input",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Abyssal Harvester",
+      "typeLine": "Creature — Demon Warlock",
+      "manaCost": "{1}{B}{B}",
+      "oracleText": "{T}: Exile target creature card from a graveyard that was put there this turn. Create a token that's a copy of it, except it's a Nightmare in addition to its other types. Then exile all other Nightmare tokens you control.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}
