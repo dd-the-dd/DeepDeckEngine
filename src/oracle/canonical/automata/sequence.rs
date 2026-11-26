@@ -2236,15 +2236,14 @@ fn recognize_effect_sequence_attempt_scoped(
                                 preposed_for_each = Some(count);
                                 continue;
                             }
-                            // `Until DURATION, EFFECTS.`: the introducer is read
-                            // only after the ordinary effect readers decline, and
+                            // `Until DURATION, EFFECTS.` or `For as long as
+                            // STATE, EFFECTS.`: the introducer is read only
+                            // after the ordinary effect readers decline, and
                             // never after a committed failure (diagnostics of
                             // those readers stay authoritative).
                             if attempt_frame.is_committed()
                                 || preposed_duration.is_some()
-                                || !cursor
-                                    .peek()
-                                    .is_some_and(|raw| raw.eq_ignore_ascii_case("until"))
+                                || !super::effect_duration_starts(cursor)
                             {
                                 return Err(failure);
                             }

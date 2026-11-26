@@ -4741,6 +4741,13 @@ fn apply_performer(
         effects.len() > start,
         "an action that produces at least one primitive for its performer",
     )?;
+    // A population derived from a previous action's performance (`each
+    // player who does`) is owned by the performer lowering module.
+    if let Some(result) =
+        super::lower_derived_performer(cursor, effects, start, effect_index, &performer)
+    {
+        return result.map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit);
+    }
     let player = match &performer {
         PerformerNode::Player(PlayerEffectSubject::EventPlayer) => {
             json!({"kind": "triggeringPlayer"})

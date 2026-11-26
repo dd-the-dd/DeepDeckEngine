@@ -202,21 +202,6 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// program's own actions. Installed only by the producers of this
     /// module, around the clause they scope.
     pub object_producer: Option<ObjectProducer>,
-    /// The player population an earlier action or frame of the program named
-    /// as a set (`each opponent ... Those players ...`, the players a
-    /// performer subject distributed over). Installed only by a producer
-    /// through `with_registered_player_set`; never guessed.
-    pub player_set: Option<PlayerSetAntecedent>,
-}
-
-/// A player population a producer published as the antecedent of a later
-/// plural player reference (`those players`, `they`, `each of them`), with
-/// the number the producer stated (a population is plural; a population
-/// that can contain at most one player is singular).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) struct PlayerSetAntecedent {
-    pub players: super::PlayerSetReferenceNode,
-    pub number: GrammaticalNumber,
 }
 
 /// The structural producer that published the singular object antecedent
@@ -1232,7 +1217,6 @@ impl BindingEnvironment {
             declared_objects: Vec::new(),
             acting_player: false,
             object_producer: None,
-            player_set: None,
         }
     }
 }
@@ -3737,49 +3721,6 @@ pub(in crate::oracle::canonical) fn with_registered_object_set<T>(
     let mut environment = installed_binding_environment(cursor);
     environment.objects = Some(set);
     with_installed_environment(cursor, environment, read)
-}
-
-/// The player form of [`with_registered_object_set`]: a parent that named a
-/// player population as a set (a performer subject distributed over `each
-/// opponent`, a frame iterating players) reads its child with that
-/// population as the player-set antecedent of a later `those players` /
-/// `they`. The parent owns the population's lowering; nothing here binds a
-/// player. The player-performer readers (`player_antecedent.rs`) resolve it
-/// through [`resolve_player_set_antecedent`].
-#[allow(dead_code)]
-pub(in crate::oracle::canonical) fn with_registered_player_set<T>(
-    cursor: &mut OracleTokenCursor<'_>,
-    set: PlayerSetAntecedent,
-    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
-) -> T {
-    let mut environment = installed_binding_environment(cursor);
-    environment.player_set = Some(set);
-    with_installed_environment(cursor, environment, read)
-}
-
-/// The diagnostic of a plural player reference without a registered
-/// population.
-pub(in crate::oracle::canonical) const PLAYER_SET_MISSING: &str =
-    "a player population a preceding action or frame of this program named as a set";
-
-/// The one resolver of a player-set anaphor: the population a producer
-/// registered, with the number the reference states. A singular reference
-/// never names a population and a plural one never names one player.
-#[allow(dead_code)]
-pub(in crate::oracle::canonical) fn resolve_player_set_antecedent(
-    environment: &BindingEnvironment,
-    number: GrammaticalNumber,
-) -> Result<super::PlayerSetReferenceNode, &'static str> {
-    let set = environment.player_set.ok_or(PLAYER_SET_MISSING)?;
-    if set.number != number {
-        return Err(match number {
-            GrammaticalNumber::Singular => {
-                "a singular player antecedent; the producer named a population"
-            }
-            _ => "a plural player antecedent; the producer named one player",
-        });
-    }
-    Ok(set.players)
 }
 
 /// The one resolver a condition reader calls for a pronoun subject (`If

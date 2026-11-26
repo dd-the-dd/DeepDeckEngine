@@ -1,18 +1,16 @@
 //! Antecedent producers (batch 12): the block record's other combatant
-//! stays the lexical antecedent of a later `that creature` operand, a
-//! registered player population answers only a plural player reference, and
+//! stays the lexical antecedent of a later `that creature` operand, and
 //! a condition pronoun reads the program's permanent subject before the
 //! antecedents outside the permanent scope. Card-level evidence (exact,
 //! sibling and near-miss Oracle texts) lives in the parser fixture
 //! `antecedent-producers-batch12.json`.
 use super::super::{
     GrammaticalNumber, ObjectCardType, ObjectSubjectAntecedent, PermanentEffectReference,
-    PlayerSetReferenceNode, TargetNominal, TypedObservedEventObject,
+    TargetNominal, TypedObservedEventObject,
 };
 use super::{
     BindingEnvironment, ConditionPronounAntecedentOrObject, ObjectSetAntecedent,
-    ObjectSetDenotation, PLAYER_SET_MISSING, PlayerSetAntecedent,
-    resolve_condition_subject_pronoun, resolve_nominal_antecedent, resolve_player_set_antecedent,
+    ObjectSetDenotation, resolve_condition_subject_pronoun, resolve_nominal_antecedent,
 };
 
 const CREATURE: TargetNominal = TargetNominal::CardType(ObjectCardType::Creature);
@@ -48,24 +46,6 @@ fn restated_combat_counterpart_is_an_operand_antecedent_only() {
     // A nominal the block record does not guarantee is not the counterpart.
     let land = TargetNominal::CardType(ObjectCardType::Land);
     assert!(resolve_nominal_antecedent(&environment, &[land], false).is_err());
-}
-
-#[test]
-fn registered_player_set_answers_only_its_number() {
-    let mut environment = BindingEnvironment::default();
-    assert_eq!(
-        resolve_player_set_antecedent(&environment, GrammaticalNumber::Plural),
-        Err(PLAYER_SET_MISSING)
-    );
-    environment.player_set = Some(PlayerSetAntecedent {
-        players: PlayerSetReferenceNode::OpponentsOfAbilityController,
-        number: GrammaticalNumber::Plural,
-    });
-    assert_eq!(
-        resolve_player_set_antecedent(&environment, GrammaticalNumber::Plural),
-        Ok(PlayerSetReferenceNode::OpponentsOfAbilityController)
-    );
-    assert!(resolve_player_set_antecedent(&environment, GrammaticalNumber::Singular).is_err());
 }
 
 #[test]
