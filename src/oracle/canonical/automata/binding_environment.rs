@@ -202,6 +202,21 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// program's own actions. Installed only by the producers of this
     /// module, around the clause they scope.
     pub object_producer: Option<ObjectProducer>,
+    /// The player population an earlier action or frame of the program named
+    /// as a set (`each opponent ... Those players ...`, the players a
+    /// performer subject distributed over). Installed only by a producer
+    /// through `with_registered_player_set`; never guessed.
+    pub player_set: Option<PlayerSetAntecedent>,
+}
+
+/// A player population a producer published as the antecedent of a later
+/// plural player reference (`those players`, `they`, `each of them`), with
+/// the number the producer stated (a population is plural; a population
+/// that can contain at most one player is singular).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerSetAntecedent {
+    pub players: super::PlayerSetReferenceNode,
+    pub number: GrammaticalNumber,
 }
 
 /// The structural producer that published the singular object antecedent
@@ -341,19 +356,43 @@ fn program_declared_objects(effects: &[super::LocalEffectNode]) -> Vec<DeclaredT
 /// key (`card_target_bindings`).
 fn program_card_target(effects: &[super::LocalEffectNode]) -> Option<DeclaredTargetAntecedent> {
     for (effect_index, effect) in effects.iter().enumerate().rev() {
-        if let super::LocalEffectNode::TargetCardZoneChange(change) = effect {
-            return (change.cardinality == super::ExpressedTargetCardinality::EXACTLY_ONE).then(
-                || DeclaredTargetAntecedent {
-                    binding: super::TargetBinding {
-                        effect_index,
-                        slot_index: 0,
-                    },
-                    selector: TargetSelector::Object(change.predicate.clone()),
+        if let Some((exactly_one, predicate)) = declared_card_target(effect) {
+            return exactly_one.then(|| DeclaredTargetAntecedent {
+                binding: super::TargetBinding {
+                    effect_index,
+                    slot_index: 0,
                 },
-            );
+                selector: TargetSelector::Object(predicate.clone()),
+            });
         }
     }
     None
+}
+
+/// The card targets one card zone change declares, whether the historical
+/// targeted node or the shared card action carries them (`exile target
+/// creature card with mana value 3 or less from your graveyard`, CR 115.1):
+/// whether it declared exactly one card, and the card predicate. Both
+/// lowerings record a singular declaration under the action's first slot
+/// (`card_target_bindings`).
+pub(in crate::oracle::canonical) fn declared_card_target(
+    effect: &super::LocalEffectNode,
+) -> Option<(bool, &ObjectPredicate)> {
+    match effect {
+        super::LocalEffectNode::TargetCardZoneChange(change) => Some((
+            change.cardinality == super::ExpressedTargetCardinality::EXACTLY_ONE,
+            &change.predicate,
+        )),
+        super::LocalEffectNode::CardAction(super::CardActionNode::Move {
+            cards: super::CardOperandNode::Targets(target),
+            ..
+        }) => Some((
+            !target.unbounded
+                && target.cardinality == super::ExpressedTargetCardinality::EXACTLY_ONE,
+            &target.predicate,
+        )),
+        _ => None,
+    }
 }
 
 /// Publishes the payer of the latest `unless` frame of the program on the
@@ -1193,6 +1232,7 @@ impl BindingEnvironment {
             declared_objects: Vec::new(),
             acting_player: false,
             object_producer: None,
+            player_set: None,
         }
     }
 }
@@ -2826,6 +2866,19 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
             {
                 return Ok(antecedent.reference);
             }
+            // `Whenever this creature blocks a creature, tap that creature.
+            // That creature doesn't untap ...`: an earlier action of the
+            // program already named the block record's other combatant, which
+            // stays the lexical antecedent; every blocker and blocked object
+            // is a creature (CR 509.1a, 509.1h). The runtime denotes it only
+            // while it is the incarnation the record saw (CR 400.7), so only
+            // an operand names it here: no last known information of the
+            // counterpart is recorded for a read after it left.
+            PermanentEffectReference::Observed(TypedObservedEventObject::CombatCounterpart)
+                if nominals == [creature] && !departed_readable =>
+            {
+                return Ok(antecedent.reference);
+            }
             // `enchanted creature ... that creature`: the one permanent the
             // Aura enchants, whose kind its enchant ability fixes (CR
             // 303.4a); the anaphor names that object by a permanent nominal.
@@ -3686,6 +3739,80 @@ pub(in crate::oracle::canonical) fn with_registered_object_set<T>(
     with_installed_environment(cursor, environment, read)
 }
 
+/// The player form of [`with_registered_object_set`]: a parent that named a
+/// player population as a set (a performer subject distributed over `each
+/// opponent`, a frame iterating players) reads its child with that
+/// population as the player-set antecedent of a later `those players` /
+/// `they`. The parent owns the population's lowering; nothing here binds a
+/// player. The player-performer readers (`player_antecedent.rs`) resolve it
+/// through [`resolve_player_set_antecedent`].
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn with_registered_player_set<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    set: PlayerSetAntecedent,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.player_set = Some(set);
+    with_installed_environment(cursor, environment, read)
+}
+
+/// The diagnostic of a plural player reference without a registered
+/// population.
+pub(in crate::oracle::canonical) const PLAYER_SET_MISSING: &str =
+    "a player population a preceding action or frame of this program named as a set";
+
+/// The one resolver of a player-set anaphor: the population a producer
+/// registered, with the number the reference states. A singular reference
+/// never names a population and a plural one never names one player.
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn resolve_player_set_antecedent(
+    environment: &BindingEnvironment,
+    number: GrammaticalNumber,
+) -> Result<super::PlayerSetReferenceNode, &'static str> {
+    let set = environment.player_set.ok_or(PLAYER_SET_MISSING)?;
+    if set.number != number {
+        return Err(match number {
+            GrammaticalNumber::Singular => {
+                "a singular player antecedent; the producer named a population"
+            }
+            _ => "a plural player antecedent; the producer named one player",
+        });
+    }
+    Ok(set.players)
+}
+
+/// The one resolver a condition reader calls for a pronoun subject (`If
+/// it's a creature`, `if it had counters on it`, `If it's a land card`):
+/// the program's proven permanent antecedent first, read for its last known
+/// information (CR 608.2h); otherwise the antecedents outside the permanent
+/// scope (`resolve_condition_pronoun`): a declared spell or `any target`
+/// slot, the one object an earlier action selected or moved, the event's
+/// subject, the cast record's spell. A plural set and a missing antecedent
+/// keep distinct diagnostics; nothing is guessed.
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn resolve_condition_subject_pronoun(
+    environment: &BindingEnvironment,
+) -> Result<ConditionPronounAntecedentOrObject, &'static str> {
+    if let Some(object) = environment.object.as_ref() {
+        return singular_reference(object.reference)
+            .then_some(ConditionPronounAntecedentOrObject::Object(object.reference))
+            .ok_or(PLURAL_SET_FOR_SINGULAR);
+    }
+    match resolve_condition_pronoun(environment) {
+        Ok(antecedent) => Ok(ConditionPronounAntecedentOrObject::Antecedent(antecedent)),
+        Err(_)
+            if environment
+                .objects
+                .as_ref()
+                .is_some_and(|set| set.number == GrammaticalNumber::Plural) =>
+        {
+            Err(PLURAL_SET_FOR_SINGULAR)
+        }
+        Err(expected) => Err(expected),
+    }
+}
+
 /// Reads with `antecedent` as the singular object antecedent when one is
 /// proven, else with the installed environment unchanged. A postposed
 /// `where X is its power` reads the object of the clause it closes.
@@ -3774,3 +3901,7 @@ mod tests;
 #[cfg(test)]
 #[path = "antecedent_environment_tests.rs"]
 mod antecedent_environment_tests;
+
+#[cfg(test)]
+#[path = "antecedent_producer_tests.rs"]
+mod antecedent_producer_tests;
