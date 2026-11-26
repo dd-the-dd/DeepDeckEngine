@@ -49,12 +49,12 @@
       }
     },
     {
-      "id": "exact-everglove-courier-stat-and-keyword-while-source-tapped",
+      "id": "exact-zelyon-sword-stat-change-while-source-tapped",
       "request": {
-        "cardName": "Everglove Courier",
-        "typeLine": "Creature — Elf",
-        "manaCost": "{2}{G}",
-        "oracleText": "You may choose not to untap this creature during your untap step.\n{2}{G}, {T}: Target Elf creature gets +2/+2 and has trample for as long as this creature remains tapped.",
+        "cardName": "Zelyon Sword",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "You may choose not to untap this artifact during your untap step.\n{3}, {T}: Target creature gets +2/+0 for as long as this artifact remains tapped.",
         "layout": "normal",
         "faces": []
       },
@@ -67,11 +67,7 @@
             "status": "canonical",
             "ruleAssertions": [
               {
-                "pointer": "/effects/1/kind",
-                "equals": "grantKeyword"
-              },
-              {
-                "pointer": "/effects/1/duration/kind",
+                "pointer": "/effects/0/duration/kind",
                 "equals": "whileSourceTapped"
               }
             ]
@@ -86,6 +82,21 @@
         "typeLine": "Creature — Angel",
         "manaCost": "{4}{W}{W}",
         "oracleText": "Flying (This creature can't be blocked except by creatures with flying or reach.)\nWhen this creature enters, another target permanent gains indestructible for as long as you control this creature. (Effects that say \"destroy\" don't destroy it. A creature with indestructible can't be destroyed by damage.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-kyodai-keyword-while-named-source-controlled",
+      "request": {
+        "cardName": "Kyodai, Soul of Kamigawa",
+        "typeLine": "Legendary Creature — Dragon Spirit",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flash\nFlying\nWhen Kyodai enters, another target permanent gains indestructible for as long as you control Kyodai.\n{W}{U}{B}{R}{G}: Kyodai gets +5/+5 until end of turn.",
         "layout": "normal",
         "faces": []
       },
