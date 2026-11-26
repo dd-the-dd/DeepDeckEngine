@@ -839,7 +839,10 @@ enum TrailingLifetime {
 
 fn trailing_lifetime(cursor: &OracleTokenCursor<'_>, head: usize, end: usize) -> TrailingLifetime {
     let mut malformed = None;
-    for start in head + 1..end {
+    // A postposed `where X is ...` definition owns its own periods (`the
+    // amount of life you gained this turn`).
+    let definition = (head + 1..end).find(|offset| word_at(cursor, *offset, "where"));
+    for start in head + 1..definition.unwrap_or(end) {
         let mut probe = cursor.clone();
         if probe.advance_to(cursor.position() + start).is_err()
             || !temporary_duration_starts(&probe)
