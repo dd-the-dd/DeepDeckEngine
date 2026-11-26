@@ -236,8 +236,9 @@ impl OtherSource {
 
 /// Resolves the target-list child's typed `otherThanEarlierTargets` relation
 /// (`another target X`, `each of two other target X`) in one declaration.
-/// An earlier target slot counts when it is declared under the same mode
-/// condition (a modal mode's `another` relates to its own mode's slots) and
+/// An earlier target slot counts when it is unconditional or declared under
+/// the same condition (a modal mode's `another` relates to its own mode's
+/// slots; a kicked slot to every slot the spell always declares) and
 /// its domain can overlap the later slot's (a player slot never does). With
 /// such slots the relation records `distinctFrom` (compared by owning slot
 /// in the engine, whatever the slot sizes) and `another` names them, not
@@ -273,7 +274,14 @@ fn resolve_other_target_relation(decisions: &mut [Value], source: &OtherSource) 
         let earlier = decisions[..index]
             .iter()
             .filter(|earlier| earlier["kind"].as_str() == Some("chooseTargets"))
-            .filter(|earlier| earlier.get("condition").cloned() == condition)
+            // An unconditional earlier slot is declared whenever the later
+            // one is (`If this spell was kicked, it deals 2 damage to another
+            // target creature`, CR 115.3, 601.2c); a conditional one counts
+            // only under the same condition (its own modal mode).
+            .filter(|earlier| {
+                earlier.get("condition").is_none_or(Value::is_null)
+                    || earlier.get("condition").cloned() == condition
+            })
             .filter(|earlier| {
                 lowered_candidate_domains(&earlier["candidates"])
                     .iter()

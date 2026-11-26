@@ -386,6 +386,29 @@
       }
     },
     {
+      "id": "near-miss-joined-cost-with-an-effect-verb",
+      "request": {
+        "cardName": "Generic Joined Sacrifice",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{2}{B}",
+        "oracleText": "Sacrifice a Swamp and draw a card: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "cost.payment.verb",
+            "found": "draw"
+          }
+        ]
+      }
+    },
+    {
       "id": "unused-combination-x-counter-removal-and-other-sacrifice",
       "request": {
         "cardName": "Generic Variable Counter Cost",

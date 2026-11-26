@@ -162,6 +162,19 @@ fn greatest_power_among_your_creatures_is_an_aggregate_quantity() {
     assert_eq!(draw["count"]["kind"], "aggregateObjects");
     assert_eq!(draw["count"]["function"], "greatest");
     assert_eq!(draw["count"]["objects"]["player"]["kind"], "opponentsOf");
+    // Near miss: a hidden zone of a targeted player is no aggregated
+    // battlefield collection.
+    let abilities = card(
+        "Aggregate Probe",
+        "Sorcery",
+        "{3}{G}",
+        "Draw cards equal to the greatest power among creature cards in target player's hand.",
+    );
+    assert!(
+        abilities[0].0.starts_with("unsupported"),
+        "{}",
+        abilities[0].0
+    );
 }
 
 #[test]

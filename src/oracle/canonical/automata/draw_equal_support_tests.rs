@@ -5,9 +5,13 @@ use crate::oracle::syntax::recognize_entities;
 fn unsupported_equal_count_families_reject_and_roll_back_the_shared_sequence() {
     // The count is the shared `equal to` quantity: each unimplemented family
     // reports its own numeric state, and the draw candidate stays tentative.
-    // (`the least power among ...` is now the shared aggregate quantity, and
-    // `target player's hand` a declared zone holder.)
-    for text in ["Draw cards equal to the number of cards in that player's hand."] {
+    // (`the least power among` a battlefield collection is now the shared
+    // aggregate quantity; another zone's collection is still refused.
+    // `target player's hand` is a declared zone holder.)
+    for text in [
+        "Draw cards equal to the least power among creature cards in target player's graveyard.",
+        "Draw cards equal to the number of cards in that player's hand.",
+    ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("draw-equal-support-test", &tokens);
         let outcome = super::super::try_recognize_effect_sequence_with_context(

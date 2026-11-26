@@ -1034,8 +1034,11 @@ fn lower_local_effect_sequence_with_collections(
                     }
                 };
                 let first_decision = decisions.len();
-                // A card pronoun may name a target an earlier action declared.
-                collections.bind_object_references(&target_bindings);
+                // A card pronoun may name a target an earlier action declared:
+                // a permanent, or a card a targeted card move declared.
+                collections.bind_object_references(
+                    &[target_bindings.as_slice(), card_target_bindings.as_slice()].concat(),
+                );
                 let mut lowered = collections
                     .lower_action(cursor, action, declarations, &mut decisions)
                     .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
@@ -2827,8 +2830,24 @@ fn lower_local_effect_sequence_with_collections(
                     .count();
                 let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
                 used_target_base_ids.push(base_id);
-                let lowered = lower_targeted_damage_effect(damage, &target_id)
-                    .ok_or_else(|| cursor.fail("a targeted damage effect"))?;
+                // An amount read from an earlier target of the program
+                // (`damage equal to that permanent's mana value`) is lowered
+                // against the sequence's bindings.
+                let lowered = if damage.amount.requires_target_binding() {
+                    let amount = lower_sequence_bound_amount(
+                        cursor,
+                        &damage.amount,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?;
+                    super::damage::lower_targeted_damage_effect_with_amount(
+                        damage, &target_id, amount,
+                    )
+                } else {
+                    lower_targeted_damage_effect(damage, &target_id)
+                }
+                .ok_or_else(|| cursor.fail("a targeted damage effect"))?;
                 decisions.push(lowered.decision);
                 effects.push(lowered.effect);
                 // A singular damage target is the antecedent a later reference
