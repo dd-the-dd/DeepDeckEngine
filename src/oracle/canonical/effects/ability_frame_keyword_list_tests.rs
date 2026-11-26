@@ -51,6 +51,13 @@ fn a_later_parameterized_item_or_the_separator_is_reported() {
         faces: Vec::new(),
     });
     assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
+    // Near miss: `;` separates keyword items only; a conjunction after it
+    // is no list form, so the separator is still the reported item.
+    let (state, found) = failure("Haste; and horsemanship");
+    assert_eq!(
+        (state.as_str(), found.as_str()),
+        ("ability-frame.keyword.list-separator", ";")
+    );
 }
 
 #[test]

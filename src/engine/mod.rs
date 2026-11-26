@@ -10092,8 +10092,12 @@ impl GameEngine {
             Some("decisionResult") => expression["decisionId"]
                 .as_str()
                 .and_then(|decision_id| decisions.get(decision_id))
-                .and_then(Value::as_i64)
-                .and_then(|value| i32::try_from(value).ok()),
+                .and_then(|value| {
+                    value
+                        .as_i64()
+                        .and_then(|value| i32::try_from(value).ok())
+                        .or_else(|| self.deferred_card_characteristic(value))
+                }),
             Some("triggeringSpellManaValue") => decisions
                 .get("triggeringSpellManaValue")
                 .and_then(Value::as_i64)
@@ -14162,8 +14166,11 @@ impl GameEngine {
                             && matches_card_filter(&candidate.definition, &cost["where"])
                     })
                     .ok_or_else(|| EngineError::new("keyword discard is no longer payable"))?;
-                let (discarded, graveyard_destination) =
-                    self.take_hand_card_for_discard(player_index, card_index)?;
+                let (discarded, graveyard_destination) = self.take_hand_card_for_discard_with(
+                    player_index,
+                    card_index,
+                    Some(&mut *provider as &mut dyn DecisionProvider),
+                )?;
                 self.put_owned_card_into_prepared_graveyard(
                     player_index,
                     discarded,
@@ -27215,8 +27222,11 @@ impl GameEngine {
                         .map(|rule| rule["ability"].clone())
                         .ok_or_else(|| EngineError::new("cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
-                    let (card, graveyard_destination) =
-                        self.take_hand_card_for_discard(player_index, card_index)?;
+                    let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                        player_index,
+                        card_index,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
+                    )?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -27316,8 +27326,11 @@ impl GameEngine {
                         .map(|rule| rule["ability"].clone())
                         .ok_or_else(|| EngineError::new("typed cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
-                    let (card, graveyard_destination) =
-                        self.take_hand_card_for_discard(player_index, card_index)?;
+                    let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                        player_index,
+                        card_index,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
+                    )?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -31955,8 +31968,12 @@ impl GameEngine {
             Some("decisionResult") => expression["decisionId"]
                 .as_str()
                 .and_then(|id| decisions.get(id))
-                .and_then(Value::as_i64)
-                .and_then(|value| i32::try_from(value).ok()),
+                .and_then(|value| {
+                    value
+                        .as_i64()
+                        .and_then(|value| i32::try_from(value).ok())
+                        .or_else(|| self.deferred_card_characteristic(value))
+                }),
             Some("triggeringSpellManaValue") => decisions
                 .get("triggeringSpellManaValue")
                 .and_then(Value::as_i64)
@@ -36673,7 +36690,6 @@ impl GameEngine {
                 && selected.len() < self.combat_participant_limit("attack")
                 && !selected_has_attack_alone
                 && (selected.is_empty() || !attacks_alone(card))
-                && self.lone_attack_restriction_allows(card, selected, &active.battlefield)
         }) {
             for (defender, defender_id) in &defenders {
                 let defending_player_id = self
@@ -36801,6 +36817,7 @@ impl GameEngine {
             }
         }
         self.add_exert_attack_options(&mut actions);
+        self.retain_lone_attack_partners(selected, &active.battlefield, &mut actions)?;
         let required_attack_available = actions.iter().any(|action| {
             action
                 .attacker_id
@@ -36844,7 +36861,12 @@ impl GameEngine {
             }
         }
         if !required_attack_available
-            && !self.lone_attacker_pending(selected, &active.battlefield, &actions)
+            && !self.lone_attacker_pending(
+                selected,
+                &active.battlefield,
+                &actions,
+                allow_revisions,
+            )?
         {
             actions.push(LegalAction {
                 id: format!("finishAttackers:{}", self.state.turn_number),
@@ -37159,7 +37181,6 @@ impl GameEngine {
                 && self.blocker_has_capacity(card, blocks)
                 && (used_blockers.contains(&card.instance_id)
                     || used_blockers.len() < self.combat_participant_limit("block"))
-                && self.lone_block_restriction_allows(card, used_blockers, &defender.battlefield)
         }) {
             for attacker_id in attackers {
                 if !incomplete_menace_attackers.is_empty()
@@ -37223,6 +37244,13 @@ impl GameEngine {
                 });
             }
         }
+        self.retain_lone_block_partners(
+            defending_index,
+            attackers,
+            used_blockers,
+            blocks,
+            &mut actions,
+        );
         let must_block_available = attackers.iter().any(|attacker_id| {
             active
                 .battlefield
@@ -37258,7 +37286,7 @@ impl GameEngine {
             && !must_block_available
             && !required_blocker_available
             && !self.block_requirement_pending(defending_index, attackers, blocks, &actions)
-            && !self.lone_blocker_pending(used_blockers, &defender.battlefield, &actions)
+            && !self.lone_blocker_pending(used_blockers, &defender.battlefield)
         {
             actions.push(LegalAction {
                 id: format!("finishBlockers:{}:{}", self.state.turn_number, defender.id),
@@ -37440,6 +37468,12 @@ impl GameEngine {
                     && options[0].kind == ActionKind::FinishBlockers
                 {
                     break;
+                }
+                if options.is_empty() {
+                    return Err(EngineError::new(
+                        "block declaration can't end: a creature that can't block alone has no \
+                         other blocker left to declare (CR 506.5)",
+                    ));
                 }
                 let action = self.choose_action(
                     provider,
@@ -38237,8 +38271,11 @@ impl GameEngine {
                 .as_deref()
                 .ok_or_else(|| EngineError::new("discard action has no card"))?;
             let card_index = self.hand_position(active, instance_id)?;
-            let (card, graveyard_destination) =
-                self.take_hand_card_for_discard(active, card_index)?;
+            let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                active,
+                card_index,
+                Some(&mut *provider as &mut dyn DecisionProvider),
+            )?;
             let card_id = card.instance_id.clone();
             self.put_owned_card_into_prepared_graveyard(active, card, graveyard_destination)?;
             eprintln!(

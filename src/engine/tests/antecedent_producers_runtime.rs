@@ -207,34 +207,128 @@ fn living_destiny_gains_the_revealed_additional_cost_cards_mana_value() {
     assert_eq!(engine.state.players[0].life, 26);
 }
 
+const CORPSE_LUNGE: &str = "As an additional cost to cast this spell, exile a creature card from your graveyard.\nCorpse Lunge deals damage equal to the exiled card's power to target creature.";
+
+/// Corpse Lunge exiling `exiled` (already moved to exile by the payment) at
+/// a 2/10 creature of player 1: the resolution's result and the damage the
+/// creature has marked.
+fn corpse_lunge(exiled: CardDefinition) -> (Result<(), EngineError>, i32) {
+    let rules = parsed_rules("Corpse Lunge", "Instant", CORPSE_LUNGE);
+    let mut costs = Vec::new();
+    rules
+        .iter()
+        .for_each(|rule| recording_costs(rule, &mut costs));
+    let [exile] = costs.as_slice() else {
+        panic!("exactly one recording cost: {costs:#?}");
+    };
+    assert_eq!(value_kind(exile), Some("exileObject"));
+    let binding = exile["bindPowerAs"]
+        .as_str()
+        .expect("the power is recorded");
+    let spell = rules
+        .iter()
+        .find(|rule| {
+            rule["effects"]
+                .as_array()
+                .is_some_and(|effects| !effects.is_empty())
+        })
+        .expect("the spell's effects");
+    let target_id = spell["declaration"]["decisions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|decision| value_kind(decision) == Some("chooseTargets"))
+        .and_then(|decision| decision["id"].as_str())
+        .expect("one target creature")
+        .to_string();
+    let mut engine = test_engine(2);
+    engine.state.players[0]
+        .exile
+        .push(test_instance("exiled", exiled, "player-0"));
+    let mut victim = card("victim", "Creature — Wall", "{1}", "2");
+    victim.toughness = Some("10".to_string());
+    engine.state.players[1]
+        .battlefield
+        .push(test_instance("victim", victim, "player-1"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let source = test_instance("lunge", test_definition("lunge", "Instant"), "player-0");
+    let mut stack = stack_object(source, spell);
+    engine.record_cost_paid_card_properties(
+        &Value::Array(vec![exile.clone()]),
+        &BTreeMap::from([(
+            chosen_card_id(exile),
+            TargetRef::Card {
+                instance_id: "exiled".to_string(),
+            },
+        )]),
+        &mut stack.decisions,
+    );
+    assert!(
+        stack.decisions.contains_key(binding),
+        "{:#?}",
+        stack.decisions
+    );
+    stack.targets.insert(
+        target_id,
+        TargetRef::Permanent {
+            instance_id: "victim".to_string(),
+        },
+    );
+    let effects = spell["effects"].clone();
+    let result = execute_effects_at_resolution_start(
+        &mut engine,
+        &effects,
+        &stack,
+        &mut BTreeMap::new(),
+        &mut stack.decisions.clone(),
+        &mut EmeritusDecisionProvider,
+    );
+    let damage = engine
+        .permanent_position("victim")
+        .map(|(player, index)| engine.state.players[player].battlefield[index].damage_marked)
+        .unwrap_or_default();
+    (result, damage)
+}
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
-fn a_characteristic_defining_power_is_not_recorded_as_a_number() {
-    // A `*` power is defined by an ability, not printed: the cost records
-    // only the printed numbers, so a read of that power stays unbound
-    // instead of becoming zero.
-    let mut engine = test_engine(2);
-    engine.state.players[0].graveyard.push(test_instance(
-        "variable",
-        card("variable", "Creature — Avatar", "{3}{G}", "*"),
-        "player-0",
-    ));
-    let cost = json!({
-        "kind": "exileObject",
-        "object": { "kind": "chosenObject", "id": "exiledCard" },
-        "bindPowerAs": "exiledCostCardPower",
-        "bindManaValueAs": "exiledCostCardManaValue",
-    });
-    let targets = BTreeMap::from([(
-        "exiledCard".to_string(),
-        TargetRef::Card {
-            instance_id: "variable".to_string(),
+fn corpse_lunge_reads_a_characteristic_defining_power_in_exile() {
+    // A printed power is recorded when the cost is paid.
+    let (result, damage) = corpse_lunge(card("printed", "Creature — Horror", "{3}", "3"));
+    result.expect("a printed power resolves");
+    assert_eq!(damage, 3);
+    // A `*` power is defined by the card's own ability in exile (CR 604.3),
+    // never dealt as 0.
+    let mut defined = card("defined", "Creature — Lhurgoyf", "{2}{G}", "*");
+    defined.toughness = Some("1+*".to_string());
+    defined.rules = vec![json!({
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
         },
-    )]);
-    let mut decisions = BTreeMap::new();
-    engine.record_cost_paid_card_properties(&Value::Array(vec![cost]), &targets, &mut decisions);
-    assert_eq!(decisions.get("exiledCostCardManaValue"), Some(&json!(4)));
-    assert!(!decisions.contains_key("exiledCostCardPower"));
+        "characteristicDefining": true,
+        "modifiers": [{
+            "kind": "setBasePowerToughness",
+            "objects": { "kind": "self" },
+            "layer": "7a",
+            "power": { "kind": "integer", "value": 5 },
+            "toughness": { "kind": "integer", "value": 6 },
+        }],
+    })];
+    let (result, damage) = corpse_lunge(defined);
+    result.expect("a defined power resolves");
+    assert_eq!(damage, 5);
+    // Near miss: a `*` power with no ability the engine evaluates is refused
+    // explicitly instead of dealing 0 damage.
+    let (result, damage) = corpse_lunge(card("undefined", "Creature — Avatar", "{3}{G}", "*"));
+    let error = result.expect_err("an undetermined power is refused");
+    assert!(error.to_string().contains("has no value"), "{error}");
+    assert_eq!(damage, 0);
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

@@ -613,7 +613,7 @@
       }
     },
     {
-      "id": "conditional-prefix-is-not-unconditional",
+      "id": "conditional-prefix-gates-the-grant",
       "request": {
         "cardName": "Synthetic Collection Grant",
         "typeLine": "Enchantment",
@@ -640,6 +640,28 @@
                 "equals": "flying"
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unread-conditional-prefix-is-not-dropped",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "If an opponent was dealt damage by a Pirate this turn, creatures you control have flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.conditional.body"
           }
         ]
       }

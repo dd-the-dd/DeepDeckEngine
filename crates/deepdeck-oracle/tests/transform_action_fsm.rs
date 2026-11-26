@@ -94,4 +94,18 @@ fn a_target_operand_is_transformed_by_the_shared_operand_reader() {
     assert_eq!(rule["declaration"]["decisions"][0]["kind"], "chooseTargets");
     assert_eq!(rule["effects"][0]["kind"], "transformPermanent");
     assert_eq!(rule["effects"][0]["object"]["kind"], "chosenTarget");
+
+    // Near miss: only a permanent transforms (CR 701.27a); a target card in
+    // a graveyard is refused by the shared permanent target slot.
+    let refused = parse(
+        "Test Shifter",
+        "Creature — Shapeshifter",
+        "{3}: Transform target card in your graveyard.",
+    );
+    assert_eq!(refused.status, "unsupported", "{refused:#?}");
+    assert!(refused.abilities[0].rule.is_none());
+    assert_eq!(
+        refused.abilities[0].diagnostics[0].state.as_deref(),
+        Some("target-list.complete")
+    );
 }
