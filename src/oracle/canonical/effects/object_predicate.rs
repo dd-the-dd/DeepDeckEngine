@@ -1133,6 +1133,9 @@ fn lower_aggregate_card_zone(cards: &ScopedObjectQueryNode) -> Option<Value> {
         ZoneHolderQueryNode::Players(players) => {
             zone_reference["players"] = lower_player_set_reference(*players);
         }
+        ZoneHolderQueryNode::Related(player) => {
+            zone_reference["player"] = lower_zone_holder_player(*player);
+        }
         ZoneHolderQueryNode::Player(_) => return None,
     }
     let mut collection = json!({ "kind": "cardsInZone", "zone": zone_reference });
