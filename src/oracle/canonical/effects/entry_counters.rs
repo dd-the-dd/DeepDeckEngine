@@ -90,10 +90,14 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_counters(
                 }),
             ));
         }
+        let options = placements
+            .iter()
+            .map(|(counter, _)| *counter)
+            .collect::<Vec<_>>();
         decisions.push(json!({
             "id": ENTRY_COUNTER_KIND_DECISION,
             "kind": "chooseOption",
-            "options": placements.iter().map(|(counter, _)| *counter).collect::<Vec<_>>(),
+            "options": options,
         }));
         placements
             .into_iter()
