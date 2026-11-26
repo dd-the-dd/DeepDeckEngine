@@ -804,17 +804,22 @@ enum StaticBodyLifetime {
     },
 }
 
-/// Offsets of `this` in `cast|casts this turn` inside the subject, before
-/// the predicate head.
+/// Offsets of `this turn` closing the subject's cast relation before the
+/// predicate head: `spells you cast this turn`, `spells you cast from exile
+/// this turn`. A `this turn` with no cast relation before it is not the
+/// subject's period.
 fn subject_lifetime_offsets(cursor: &OracleTokenCursor<'_>, head: usize) -> Vec<usize> {
-    (0..head)
+    let Some(relation) = (0..head)
+        .find(|offset| word_at(cursor, *offset, "cast") || word_at(cursor, *offset, "casts"))
+    else {
+        return Vec::new();
+    };
+    (relation + 1..head)
         .filter(|offset| {
-            (word_at(cursor, *offset, "cast") || word_at(cursor, *offset, "casts"))
-                && word_at(cursor, offset + 1, "this")
-                && word_at(cursor, offset + 2, "turn")
-                && offset + 2 < head
+            word_at(cursor, *offset, "this")
+                && word_at(cursor, offset + 1, "turn")
+                && offset + 1 < head
         })
-        .map(|offset| offset + 1)
         .collect()
 }
 
