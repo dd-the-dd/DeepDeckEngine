@@ -2832,6 +2832,19 @@ fn recognize_effect_sequence_attempt_scoped(
                             cursor.enter("sequence.type-retention.terminator");
                             cursor.consume(".")?;
                         }
+                        if super::token_entry_amendment_starts(cursor, memory.effects.last()) {
+                            // CR 111.2, 508.4: the sentence states how the
+                            // tokens the sentence just closed created enter.
+                            attempt_frame.commit();
+                            super::recognize_token_entry_amendment(
+                                cursor,
+                                memory.effects.last_mut(),
+                            )?;
+                            cursor.enter("sequence.token-entry-amendment.terminator");
+                            if cursor.peek() == Some(".") {
+                                cursor.consume(".")?;
+                            }
+                        }
                         if super::regeneration_rider_starts(cursor) {
                             // CR 701.19c: the sentence prohibits regenerating
                             // the objects the sentence just closed destroyed.

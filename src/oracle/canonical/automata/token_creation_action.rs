@@ -904,3 +904,131 @@ fn recognize_given_token_name(
     trial.require(!words.is_empty(), "a capitalized token name after `named`")?;
     Ok(words.join(" "))
 }
+
+/// The subject of a sentence that states how the tokens the previous
+/// sentence created enter, with its number and width: `the token`, `the
+/// tokens`, `it`, `they`.
+fn token_entry_subject_at(cursor: &OracleTokenCursor<'_>) -> Option<(bool, usize)> {
+    if word_at(cursor, 0, "the") && word_at(cursor, 1, "token") {
+        return Some((true, 2));
+    }
+    if word_at(cursor, 0, "the") && word_at(cursor, 1, "tokens") {
+        return Some((false, 2));
+    }
+    if word_at(cursor, 0, "it") {
+        return Some((true, 1));
+    }
+    word_at(cursor, 0, "they").then_some((false, 1))
+}
+
+/// `The token enters tapped and attacking.` / `They enter tapped.` at the
+/// start of a sentence: the entry state of the tokens the previous sentence
+/// created (CR 111.2, 508.4), the same state as `that's tapped and
+/// attacking` written in the creation. The verb agrees with the subject and
+/// the sentence ends after the state and its optional defender.
+pub(in crate::oracle::canonical) fn token_entry_amendment_starts(
+    cursor: &OracleTokenCursor<'_>,
+    antecedent: Option<&LocalEffectNode>,
+) -> bool {
+    if !creates_tokens(antecedent) {
+        return false;
+    }
+    let Some((singular, width)) = token_entry_subject_at(cursor) else {
+        return false;
+    };
+    let verb = if singular { "enters" } else { "enter" };
+    word_at(cursor, width, verb)
+        && (word_at(cursor, width + 1, "tapped") || word_at(cursor, width + 1, "attacking"))
+}
+
+/// Whether the last action of the sentence just closed creates tokens.
+fn creates_tokens(effect: Option<&LocalEffectNode>) -> bool {
+    match effect {
+        Some(LocalEffectNode::CreateExplicitTokens(node)) => node.additional.is_empty(),
+        Some(LocalEffectNode::PlayerAction(action)) => {
+            matches!(action.action, super::SingularPlayerAction::CreateTokens(_))
+        }
+        Some(LocalEffectNode::Performed(performed)) => {
+            creates_tokens(Some(performed.effect.as_ref()))
+        }
+        _ => false,
+    }
+}
+
+/// The creation body an entry sentence amends: the last action of the
+/// sentence just closed, created by the controller or a player subject.
+fn amended_creation_body(
+    effect: Option<&mut LocalEffectNode>,
+) -> Option<&mut TokenCreationBodyNode> {
+    match effect? {
+        LocalEffectNode::CreateExplicitTokens(node) if node.additional.is_empty() => {
+            Some(&mut node.body)
+        }
+        LocalEffectNode::PlayerAction(action) => match &mut action.action {
+            super::SingularPlayerAction::CreateTokens(body) => Some(body.as_mut()),
+            _ => None,
+        },
+        LocalEffectNode::Performed(performed) => {
+            amended_creation_body(Some(performed.effect.as_mut()))
+        }
+        _ => None,
+    }
+}
+
+/// Reads the entry sentence and records its state on the creation it
+/// amends. A singular subject names one created token; the creation must
+/// not state an entry state already. The enclosing sequence consumes the
+/// final period.
+pub(in crate::oracle::canonical) fn recognize_token_entry_amendment(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: Option<&mut LocalEffectNode>,
+) -> super::super::MachineResult<()> {
+    cursor.enter("sequence.token-entry-amendment.antecedent");
+    let (singular, width) = token_entry_subject_at(cursor)
+        .ok_or_else(|| cursor.fail("`the token`, `the tokens`, `it` or `they`"))?;
+    let body = amended_creation_body(antecedent)
+        .ok_or_else(|| cursor.fail("a token creation in the preceding sentence"))?;
+    cursor.require(
+        !(body.tapped || body.attacking),
+        "a token creation that states no entry state of its own",
+    )?;
+    // `for each ..., create a token ... The tokens enter ...`: a plural
+    // subject names every created token; a singular one exactly one.
+    cursor.require(
+        !singular
+            || body.quantity == super::NumericExpression::Atom(super::NumericAtom::Integer(1)),
+        "a singular subject naming exactly one created token",
+    )?;
+    cursor.advance_to(cursor.position() + width)?;
+    cursor.enter("sequence.token-entry-amendment.verb");
+    let verb = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&verb)?;
+    cursor.enter("sequence.token-entry-amendment.state");
+    let tapped = word_at(cursor, 0, "tapped");
+    if tapped {
+        cursor.consume("tapped")?;
+        if word_at(cursor, 0, "and") && word_at(cursor, 1, "attacking") {
+            cursor.consume("and")?;
+        }
+    }
+    let attacking = if word_at(cursor, 0, "attacking") {
+        Some(super::recognize_entering_attack(cursor)?)
+    } else {
+        None
+    };
+    cursor.require(tapped || attacking.is_some(), "`tapped` or `attacking`")?;
+    cursor.enter("sequence.token-entry-amendment.end");
+    let ended = cursor.peek().is_none_or(|raw| raw == ".");
+    cursor.require(ended, "the end of the entry sentence")?;
+    body.tapped = tapped;
+    body.attacking = attacking.is_some();
+    body.attack_defender = match attacking {
+        Some(super::EnteringAttackNode::AnyDefender) | None => None,
+        Some(defender) => Some(defender),
+    };
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "token_entry_amendment_tests.rs"]
+mod token_entry_amendment_tests;

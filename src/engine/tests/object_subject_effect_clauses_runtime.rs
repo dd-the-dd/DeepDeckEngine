@@ -179,3 +179,68 @@ fn an_inline_type_choice_feeds_a_one_shot_collection() {
     );
     assert!(!survivors.contains(&"goblin".to_string()), "{survivors:?}");
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn an_entry_sentence_makes_the_copied_token_enter_tapped_and_attacking() {
+    // Thousand-Faced Shadow's shape without its intervening condition: the
+    // token a copy creation makes enters tapped and attacking (CR 508.4).
+    let rule = parsed_rule(
+        "Entry Sentence Probe",
+        "Sorcery",
+        "Create a token that's a copy of target creature you control. The token enters tapped and attacking.",
+    );
+    let mut engine = test_engine(2);
+    let attacker = test_instance(
+        "ninja",
+        test_definition("ninja", "Creature - Human Ninja"),
+        "player-0",
+    );
+    engine.state.players[0].battlefield = vec![attacker];
+    engine.state.combat.attackers = vec![DeclaredAttacker {
+        attacker_id: "ninja".to_string(),
+        defender: TargetRef::Player {
+            player_id: "player-1".to_string(),
+        },
+        defending_player_id: "player-1".to_string(),
+    }];
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("the copied creature is a declared target")
+        .to_string();
+    let stack_object = StackObject {
+        id: "stack:entry-sentence".to_string(),
+        controller: "player-0".to_string(),
+        card: permanent("entry-source", "Sorcery", "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "ninja".to_string(),
+            },
+        )]),
+    };
+    let mut decisions = BTreeMap::new();
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut decisions,
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the copy creation resolves");
+    let tokens = engine.state.players[0]
+        .battlefield
+        .iter()
+        .filter(|card| card.definition.is_token)
+        .collect::<Vec<_>>();
+    assert_eq!(tokens.len(), 1);
+    assert!(tokens[0].tapped);
+    assert_eq!(tokens[0].flags.get("attacking"), Some(&true));
+    assert_eq!(engine.state.combat.attackers.len(), 2);
+}
