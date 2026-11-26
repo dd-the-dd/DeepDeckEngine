@@ -952,6 +952,96 @@ pub(in crate::oracle::canonical) fn recognize_possessed_base_power_toughness<Sub
     })
 }
 
+/// `the base power and toughness of OBJECTS become ...` at the cursor: the
+/// characteristic pair is the grammatical subject; its possessor is any
+/// permanent operand (CR 613.4b).
+pub(in crate::oracle::canonical) fn base_stats_of_operand_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    word_at(cursor, 0, "the")
+        && base_stats_length(cursor, 1)
+            .is_some_and(|(length, base)| base && word_at(cursor, 1 + length, "of"))
+}
+
+/// `equal to AMOUNT` after a base-stats subject: one shared amount sets both
+/// characteristics (`equal to Sita Varma's power`), and `OBJECT's power and
+/// toughness` sets each one from the same characteristic of that object
+/// (`equal to this creature's power and toughness`). The amount is the
+/// shared arithmetic expression.
+fn recognize_equal_base_stats(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<BasePowerToughnessNode> {
+    cursor.enter("effect.base-stats-of.equal-to");
+    cursor.consume_phrase(&["equal", "to"])?;
+    let amount = super::recognize_equal_to_amount_expression(cursor, None)?;
+    if word_at(cursor, 0, "and") && word_at(cursor, 1, "toughness") {
+        cursor.enter("effect.base-stats-of.paired-toughness");
+        let NumericExpression::ObjectProperty {
+            object,
+            property: super::NumericObjectProperty::Power,
+        } = &amount
+        else {
+            return Err(cursor.fail("an object's power before `and toughness`"));
+        };
+        let toughness = NumericExpression::ObjectProperty {
+            object: object.clone(),
+            property: super::NumericObjectProperty::Toughness,
+        };
+        cursor.consume_phrase(&["and", "toughness"])?;
+        return Ok(BasePowerToughnessNode {
+            power: amount,
+            toughness,
+        });
+    }
+    Ok(BasePowerToughnessNode {
+        power: amount.clone(),
+        toughness: amount,
+    })
+}
+
+/// `the base power and toughness of OBJECTS become P/T | equal to SOURCE's
+/// power and toughness [DURATION]` (CR 613.4b): the shared layer-7b change
+/// of the objects the shared permanent operand names. The characteristic
+/// pair is plural, so the verb is always `become`, after a causative `have`
+/// too.
+pub(in crate::oracle::canonical) fn recognize_base_stats_of_operand<'tokens, Subject>(
+    cursor: &mut OracleTokenCursor<'tokens>,
+    objects: impl FnOnce(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
+    preposed_duration: Option<&EffectDurationNode>,
+) -> MachineResult<BecomeTypesNode<Subject>> {
+    cursor.enter("effect.base-stats-of.subject");
+    cursor.consume("the")?;
+    let (length, _) =
+        base_stats_length(cursor, 0).ok_or_else(|| cursor.fail("`base power and toughness`"))?;
+    cursor.advance_to(cursor.position() + length)?;
+    cursor.consume("of")?;
+    cursor.enter("effect.base-stats-of.objects");
+    let subject = objects(cursor)?;
+    cursor.enter("effect.base-stats-of.verb");
+    cursor.require(
+        verb_at(cursor, 0, VerbLemma::Become, VerbAgreement::Base),
+        "`become` after the plural characteristic pair",
+    )?;
+    let raw = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&raw)?;
+    let mut node = BecomeTypesNode::empty(subject);
+    node.characteristics.base_power_toughness = Some(if word_at(cursor, 0, "equal") {
+        recognize_equal_base_stats(cursor)?
+    } else {
+        recognize_numeric_power_toughness(cursor)?
+    });
+    cursor.enter("effect.base-stats-of.duration");
+    node.duration = if preposed_duration.is_some() || word_at(cursor, 0, "until") {
+        Some(recognize_trailing_or_supplied_duration(
+            cursor,
+            preposed_duration,
+        )?)
+    } else {
+        None
+    };
+    Ok(node)
+}
+
 /// Whether `switch` (CR 613.4d) opens an imperative instruction here.
 pub(in crate::oracle::canonical) fn switch_power_toughness_starts(
     cursor: &OracleTokenCursor<'_>,
@@ -1206,3 +1296,7 @@ fn recognize_become_characteristics(
 #[cfg(test)]
 #[path = "become_types_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "base_stats_of_tests.rs"]
+mod base_stats_of_tests;

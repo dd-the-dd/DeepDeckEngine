@@ -4170,6 +4170,25 @@ fn recognize_subject_frame(
     // that read past the clause head before refusing names the component it
     // met, instead of the bare `effect.start` sink at the clause head.
     let mut rejected = crate::oracle::canonical::failure_owner::DeepestRejection::at(cursor);
+    // `the base power and toughness of OBJECTS become ...`: the possessed
+    // characteristic pair is the subject; its possessor is any permanent
+    // operand (CR 613.4b).
+    if super::become_types::base_stats_of_operand_starts(cursor) {
+        attempt_frame.commit();
+        return super::become_types::recognize_base_stats_of_operand(
+            cursor,
+            |cursor| {
+                super::recognize_contextual_permanent_operand(
+                    cursor,
+                    name_links,
+                    name_failure,
+                    context,
+                )
+            },
+            context.preposed_duration.as_ref(),
+        )
+        .map(LocalEffectNode::BecomeTypes);
+    }
     match try_recognize_temporary_player_permission(cursor, context.preposed_duration.as_ref()) {
         TemporaryPlayerPermissionParseAttempt::Parsed(node) => {
             return Ok(LocalEffectNode::TemporaryPlayerPermission(node));
