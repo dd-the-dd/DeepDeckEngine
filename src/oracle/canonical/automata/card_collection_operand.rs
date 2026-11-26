@@ -22,7 +22,10 @@ pub(in crate::oracle::canonical) enum CardCollectionReferenceNode {
     Revealed,
 }
 
-/// `card(s) exiled with this NOUN` / `with it` after the head the caller read.
+/// `card(s) exiled with this NOUN|it|SOURCE NAME` after the head the caller
+/// read. The source is the shared card-location reader's (CR 607.2a): `it`,
+/// `this` and a registered source noun, or a name link to this card or face
+/// (`cards exiled with Jeleva`).
 fn recognize_exiled_with_source(trial: &mut OracleTokenCursor<'_>) -> Result<(), MachineFailure> {
     let noun = trial.peek().map(str::to_ascii_lowercase);
     if !matches!(noun.as_deref(), Some("card" | "cards")) {
@@ -30,25 +33,9 @@ fn recognize_exiled_with_source(trial: &mut OracleTokenCursor<'_>) -> Result<(),
     }
     trial.consume(noun.as_deref().unwrap_or("cards"))?;
     trial.enter("collection.reference.linked-exile");
-    trial.consume_phrase(&["exiled", "with"])?;
-    if trial
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
-    {
-        return trial.consume("it");
+    match super::recognize_card_location(trial)? {
+        super::CardLocationNode::LinkedExile => Ok(()),
     }
-    trial.consume("this")?;
-    let noun = trial
-        .peek()
-        .ok_or_else(|| trial.fail("a source noun after `exiled with this`"))?
-        .to_string();
-    trial.require(
-        crate::oracle::characteristic_vocabulary::lookup_object_selector_lexeme(&noun).is_some()
-            || crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(&noun)
-                .is_some(),
-        "a registered source noun after `exiled with this`",
-    )?;
-    trial.consume(&noun)
 }
 
 /// `of them`, `of those cards`, `of the [revealed|exiled] cards` after `the

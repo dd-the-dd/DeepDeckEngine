@@ -57,6 +57,10 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("moveCards") => {
             object_expression_supported(&effect["cards"])
                 && effect.get("bind").is_none_or(Value::is_string)
+                // CR 607.2a: only an exile links its cards to the source.
+                && effect.get("linkToSource").is_none_or(|link| {
+                    link.is_boolean() && value_kind(&effect["to"]) == Some("exile")
+                })
                 && effect.get("from").is_none_or(|from| {
                     matches!(
                         value_kind(from),
@@ -154,6 +158,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && library_zone_supported(&effect["card"]["zone"])
                 && value_kind(&effect["to"]) == Some("exile")
                 && effect["bind"].is_string()
+                && effect.get("linkToSource").is_none_or(Value::is_boolean)
         }
         Some("moveTargetCard") => {
             target_reference_supported(&effect["card"])
@@ -612,6 +617,9 @@ impl GameEngine {
                                 *card.card.counters.entry(counter).or_default() += count;
                             }
                             self.state.players[destination_index].exile.push(card.card);
+                            if Self::exile_links_to_source(effect) {
+                                self.register_linked_exiled_card(&stack_object.card, &exiled_id)?;
+                            }
                             // Shared event path: owner selection changes only
                             // the destination, never whether a move is recorded.
                             self.record_event("cardExiled",Some(origin.player_id),Some(exiled_id),json!({"from":origin.zone,"reason":"effect","to":"exile","destinationPlayerId":destination_player_id}));
@@ -814,6 +822,9 @@ impl GameEngine {
                     super::super::card_zone_transition::ObjectTransitionReason::Reexile,
                 )?;
                 self.state.players[player_index].exile.push(card.card);
+                if Self::exile_links_to_source(effect) {
+                    self.register_linked_exiled_card(&stack_object.card, &card_id)?;
+                }
                 if let Some(binding_id) = effect["bind"].as_str() {
                     bindings.insert(
                         binding_id.to_string(),

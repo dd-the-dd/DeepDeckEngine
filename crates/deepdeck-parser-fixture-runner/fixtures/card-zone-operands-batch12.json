@@ -1,0 +1,346 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "card-actions/card-zone-operands-batch12",
+  "cases": [
+    {
+      "id": "exact-seed-of-hope-the-milled-cards",
+      "request": {
+        "cardName": "Seed of Hope",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Mill two cards. You may put a permanent card from among the milled cards into your hand. You gain 2 life. (To mill two cards, put the top two cards of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-dredgers-insight-type-disjunction-from-the-milled-cards",
+      "request": {
+        "cardName": "Dredger's Insight",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever one or more artifact and/or creature cards leave your graveyard, you gain 1 life.\nWhen this enchantment enters, mill four cards. You may put an artifact, creature, or land card from among the milled cards into your hand. (To mill four cards, put the top four cards of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-wasteful-harvest-cards-milled-this-way",
+      "request": {
+        "cardName": "Wasteful Harvest",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Mill five cards. You may put a permanent card from among the cards milled this way into your hand. (To mill a card, put the top card of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-artifact-or-creature-from-the-milled-cards-onto-battlefield",
+      "request": {
+        "cardName": "Probe Milled Return",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Mill three cards. Put an artifact or creature card from among the milled cards onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-any-number-of-land-cards-milled-this-way",
+      "request": {
+        "cardName": "Probe Milled Lands",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Mill four cards, then put any number of land cards milled this way into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-the-milled-cards-after-a-look",
+      "request": {
+        "cardName": "Probe Wrong Producer",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Look at the top three cards of your library. Put a card from among the milled cards into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "expectedContains": "a collection produced by the verb restated with `this way`"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-those-cards-without-observation",
+      "request": {
+        "cardName": "Probe Unscoped Those",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Return those cards to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "expectedContains": "an observed card collection in the current lexical scope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ainok-wayfarer-observed-producer-if-you-dont",
+      "request": {
+        "cardName": "Ainok Wayfarer",
+        "typeLine": "Creature — Dog Scout",
+        "manaCost": "{1}{G}",
+        "oracleText": "When this creature enters, mill three cards. You may put a land card from among them into your hand. If you don't, put a +1/+1 counter on this creature. (To mill three cards, put the top three cards of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-ravenous-gigamole-cards-milled-this-way-if-you-dont",
+      "request": {
+        "cardName": "Ravenous Gigamole",
+        "typeLine": "Creature — Mole Horror",
+        "manaCost": "{3}{B}",
+        "oracleText": "When this creature enters, mill three cards. You may put a creature card from among the cards milled this way into your hand. If you don't, put a +1/+1 counter on this creature. (To mill a card, put the top card of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-blanchwood-prowler",
+      "request": {
+        "cardName": "Blanchwood Prowler",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{1}{G}",
+        "oracleText": "When this creature enters, mill three cards. You may put a land card from among the cards milled this way into your hand. If you don't, put a +1/+1 counter on this creature. (To mill a card, put the top card of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-look-then-optional-put-if-you-dont-gain-life",
+      "request": {
+        "cardName": "Probe Observed Producer",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, look at the top three cards of your library. You may put a creature card from among them into your hand. If you don't, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-producer-reads-no-observation",
+      "request": {
+        "cardName": "Probe Unobserved Producer",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, draw a card. You may put a land card from among them into your hand. If you don't, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "expectedContains": "an observed card collection in the current lexical scope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-isochron-scepter-copy-the-imprinted-card",
+      "request": {
+        "cardName": "Isochron Scepter",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Imprint — When this artifact enters, you may exile an instant card with mana value 2 or less from your hand.\n{2}, {T}: You may copy the exiled card. If you do, you may cast the copy without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-spellbinder-copy-on-combat-damage",
+      "request": {
+        "cardName": "Spellbinder",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{3}",
+        "oracleText": "Imprint — When this Equipment enters, you may exile an instant card from your hand.\nWhenever equipped creature deals combat damage to a player, you may copy the exiled card. If you do, you may cast the copy without paying its mana cost.\nEquip {4}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-tidehollow-sculler-linked-hand-exile",
+      "request": {
+        "cardName": "Tidehollow Sculler",
+        "typeLine": "Artifact Creature — Zombie",
+        "manaCost": "{W}{B}",
+        "oracleText": "When this creature enters, target opponent reveals their hand and you choose a nonland card from it. Exile that card.\nWhen this creature leaves the battlefield, return the exiled card to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-wormfang-behemoth-linked-zone-exile",
+      "request": {
+        "cardName": "Wormfang Behemoth",
+        "typeLine": "Creature — Nightmare Fish Beast",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "When this creature enters, exile all cards from your hand.\nWhen this creature leaves the battlefield, return the exiled cards to their owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-ghost-vacuum-linked-target-card-exile",
+      "request": {
+        "cardName": "Ghost Vacuum",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Exile target card from a graveyard.\n{6}, {T}, Sacrifice this artifact: Put each creature card exiled with this artifact onto the battlefield under your control with a flying counter on it. Each of them is a 1/1 Spirit in addition to its other types. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-jeleva-cards-exiled-with-name",
+      "request": {
+        "cardName": "Jeleva, Nephalia's Scourge",
+        "typeLine": "Legendary Creature — Vampire Wizard",
+        "manaCost": "{1}{U}{B}{R}",
+        "oracleText": "Flying\nWhen Jeleva enters, each player exiles the top X cards of their library, where X is the amount of mana spent to cast Jeleva.\nWhenever Jeleva attacks, you may cast an instant or sorcery spell from among cards exiled with Jeleva without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-imprint-creature-copy-cast",
+      "request": {
+        "cardName": "Probe Creature Scepter",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Imprint — When this artifact enters, you may exile a creature card with mana value 3 or less from your hand.\n{4}, {T}: You may copy the exiled card. If you do, you may cast the copy without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-copy-the-exiled-card-without-linked-exile",
+      "request": {
+        "cardName": "Probe Unlinked Scepter",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: You may copy the exiled card. If you do, you may cast the copy without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "binding.linked-exile.producer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-the-plural-exiled-cards",
+      "request": {
+        "cardName": "Probe Plural Scepter",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Imprint — When this artifact enters, you may exile an instant card from your hand.\n{2}, {T}: You may copy the exiled cards. If you do, you may cast the copies without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

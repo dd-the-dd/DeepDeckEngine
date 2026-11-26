@@ -42,6 +42,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("exileTargetCards") => {
             object_expression_supported(&effect["cards"])
                 && effect.get("bind").is_none_or(Value::is_string)
+                && effect.get("linkToSource").is_none_or(Value::is_boolean)
         }
         Some("exileCards") => {
             matches!(integer_value(&effect["count"]), Some(count) if count >= 0)
@@ -427,6 +428,9 @@ impl GameEngine {
                         )?;
                         let exiled_id = card.card.instance_id.clone();
                         self.state.players[owner_index].exile.push(card.card);
+                        if Self::exile_links_to_source(effect) {
+                            self.register_linked_exiled_card(&stack_object.card, &exiled_id)?;
+                        }
                         exiled_ids.push(exiled_id);
                         self.record_event(
                             "cardExiled",

@@ -28,6 +28,27 @@ pub(in crate::oracle::canonical) enum CardSelectionQuantityNode {
 pub(in crate::oracle::canonical) enum CardCollectionVerb {
     Revealed,
     Exiled,
+    /// `milled this way`, `the milled cards` (CR 701.13a): the cards a mill
+    /// of this program put into a graveyard.
+    Milled,
+}
+
+impl CardCollectionVerb {
+    /// The past participle restating the producing verb.
+    pub(in crate::oracle::canonical) fn participle(self) -> &'static str {
+        match self {
+            Self::Revealed => "revealed",
+            Self::Exiled => "exiled",
+            Self::Milled => "milled",
+        }
+    }
+
+    /// The restating participle `raw` spells, if any.
+    fn at(raw: &str) -> Option<Self> {
+        [Self::Revealed, Self::Exiled, Self::Milled]
+            .into_iter()
+            .find(|verb| raw.eq_ignore_ascii_case(verb.participle()))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,9 +110,9 @@ fn bare_this_way_collection_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
-        && cursor.peek_ahead(1).is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
-        })
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| CardCollectionVerb::at(raw).is_some())
         && cursor
             .peek_ahead(2)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
@@ -113,35 +134,66 @@ fn of_names_collection_reference(cursor: &OracleTokenCursor<'_>) -> bool {
     )
 }
 
-/// `revealed|exiled this way` at the cursor. Pure lookahead.
+/// `revealed|exiled|milled this way` at the cursor. Pure lookahead.
 pub(in crate::oracle::canonical) fn this_way_verb_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    cursor.peek().is_some_and(|raw| {
-        raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
-    }) && cursor
-        .peek_ahead(1)
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+    cursor
+        .peek()
+        .is_some_and(|raw| CardCollectionVerb::at(raw).is_some())
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
         && cursor
             .peek_ahead(2)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("way"))
 }
 
-/// `revealed|exiled this way`: the verb restating a collection's producer.
+/// `revealed|exiled|milled this way`: the verb restating a collection's producer.
 pub(in crate::oracle::canonical) fn recognize_this_way_verb(
     trial: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<CardCollectionVerb> {
     trial.enter("collection.selection.this-way");
-    let verb = if trial
+    let verb = trial
         .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("revealed"))
-    {
-        trial.consume("revealed")?;
-        CardCollectionVerb::Revealed
-    } else {
-        trial.consume("exiled")?;
-        CardCollectionVerb::Exiled
-    };
+        .and_then(CardCollectionVerb::at)
+        .ok_or_else(|| trial.fail("`revealed`, `exiled` or `milled` before `this way`"))?;
+    trial.consume(verb.participle())?;
     trial.consume_phrase(&["this", "way"])?;
     Ok(verb)
+}
+
+/// `the milled cards` or `[the] cards VERBed this way` after `from among`:
+/// the scope's antecedent collection restated by its producing verb (CR
+/// 608.2c). The prenominal participle is read only for `milled`: `the
+/// revealed cards` and `the exiled cards` keep their own collection
+/// references (the latest reveal, the program's or a linked exile). `None`
+/// consumes nothing.
+pub(in crate::oracle::canonical) fn try_recognize_restated_producer(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<CardCollectionVerb>> {
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(cursor, 0, "the") && word(cursor, 1, "milled") && word(cursor, 2, "cards") {
+        cursor.enter("collection.selection.restated-producer");
+        cursor.consume_phrase(&["the", "milled", "cards"])?;
+        return Ok(Some(CardCollectionVerb::Milled));
+    }
+    let article = word(cursor, 0, "the");
+    let mut probe = cursor.clone();
+    if article {
+        probe.consume("the")?;
+    }
+    if !bare_this_way_collection_starts(&probe) {
+        return Ok(None);
+    }
+    cursor.enter("collection.selection.restated-producer");
+    if article {
+        cursor.consume("the")?;
+    }
+    cursor.consume("cards")?;
+    recognize_this_way_verb(cursor).map(Some)
 }
 
 /// The postnominal items after the collection a selection chooses from
@@ -238,9 +290,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             && trial
                 .peek()
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
-            && trial.peek_ahead(1).is_some_and(|raw| {
-                raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
-            }) {
+            && trial
+                .peek_ahead(1)
+                .is_some_and(|raw| CardCollectionVerb::at(raw).is_some())
+        {
             trial.consume("cards")?;
             via = Some(recognize_this_way_verb(&mut trial)?);
             committed = true;
@@ -281,14 +334,17 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             trial.enter("collection.selection.source-relation");
             if matches!(quantity, CardSelectionQuantityNode::All { .. })
                 && !super::card_location_starts(&trial)
-                && trial.peek().is_some_and(|raw| {
-                    raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
-                })
+                && this_way_verb_starts(&trial)
             {
                 via = Some(recognize_this_way_verb(&mut trial)?);
                 quantity = CardSelectionQuantityNode::All {
                     except_cast: recognize_uncast_relative_clause(&mut trial)?,
                 };
+            } else if !super::card_location_starts(&trial) && this_way_verb_starts(&trial) {
+                // `any number of creature cards milled this way`: the
+                // restated producer names the antecedent scope the quantity
+                // chooses from (CR 608.2c).
+                via = Some(recognize_this_way_verb(&mut trial)?);
             } else if trial
                 .peek()
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("from"))
@@ -309,6 +365,9 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 }
             } else {
                 trial.consume_phrase(&["from", "among"])?;
+                // `from among the milled cards`, `from among the cards
+                // milled this way`: the antecedent restated by its producer.
+                via = try_recognize_restated_producer(&mut trial)?;
             }
             committed = true;
             Some(query.predicate().clone())
