@@ -159,6 +159,33 @@ pub(in crate::oracle::canonical) fn lower_created_replacement_step(
             "program": lower_damage_replacement(cursor, replacement)?,
             "duration": { "kind": "untilEndOfCurrentTurn" },
         }),
+        // The static uncast-entry modifier, installed as a created
+        // continuous effect for the replacement's lifetime (CR 611.2a).
+        CreatedReplacementRuleNode::UncastEntry {
+            replacement,
+            lifetime,
+        } => {
+            cursor.enter("lower.created-entry-replacement.lifetime");
+            cursor.require(
+                *lifetime == Some(CreatedRuleLifetime::ThisTurn),
+                "a created entry replacement lasting this turn (`Until end of turn,`)",
+            )?;
+            cursor.enter("lower.created-entry-replacement.status");
+            cursor.require(
+                replacement.condition.status == ObjectCastStatus::NotCast
+                    && replacement.replacement.destination == ReplacementDestination::Exile,
+                "an uncast entering object exiled instead",
+            )?;
+            json!({
+                "kind": "installTemporaryStaticModifiers",
+                "modifiers": [{
+                    "kind": "prohibitUncastBattlefieldEntry",
+                    "where": lower_permanent_object_predicate(&replacement.event.object),
+                    "destination": "exile",
+                }],
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })
+        }
     };
     Ok(LoweredEffectSequence {
         decisions: Vec::new(),

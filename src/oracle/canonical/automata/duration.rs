@@ -33,8 +33,15 @@ pub(in crate::oracle::canonical) fn recognize_effect_duration(
                         duration = Some(EffectDurationNode::UntilEndOfCurrentTurn);
                         EffectDurationState::Unit
                     }
+                    // CR 611.2b: `for as long as STATE`, a duration bounded
+                    // by a watched state instead of a turn boundary.
+                    Some("for") if source_control_duration_starts(cursor) => {
+                        return recognize_condition_duration(cursor);
+                    }
                     _ => {
-                        return Err(cursor.fail("`this turn` or a duration beginning with `until`"));
+                        return Err(cursor.fail(
+                            "`this turn`, a duration beginning with `until`, or `for as long as`",
+                        ));
                     }
                 }
             }
@@ -132,9 +139,7 @@ pub(in crate::oracle::canonical) fn recognize_trailing_or_supplied_duration(
     match supplied {
         Some(duration) => {
             cursor.require(
-                !cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("until")),
+                !effect_duration_starts(cursor),
                 "no second duration after a sentence-level preposed duration",
             )?;
             Ok(duration.clone())
@@ -151,6 +156,43 @@ pub(in crate::oracle::canonical) fn recognize_trailing_or_supplied_duration(
         }
         None => recognize_effect_duration(cursor),
     }
+}
+
+/// Whether the cursor stands on a written duration introducer that excludes
+/// a second, sentence-level one: `until` or `for as long as`. Lexical only;
+/// it commits nothing and says nothing about the window being supported.
+pub(in crate::oracle::canonical) fn effect_duration_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("until"))
+        || source_control_duration_starts(cursor)
+}
+
+/// `for as long as STATE` as an effect duration (CR 611.2b). The state is
+/// one of the ability source's observable states, read by the shared
+/// source-state grammar (`you control SOURCE`, `SOURCE remains tapped`,
+/// `SOURCE remains on the battlefield`); the source is the shared current-
+/// object reference resolved against the names the parent published on the
+/// cursor. A state of another object (`that creature has a bounty counter
+/// on it`, `it remains exiled`) is not a source-state window: it fails with
+/// its own state instead of being read as one.
+pub(in crate::oracle::canonical) fn recognize_condition_duration(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<EffectDurationNode> {
+    cursor.enter("duration.while-condition.subject");
+    let subject = cursor.peek_ahead(4).map(str::to_ascii_lowercase);
+    let names = cursor.source_names().to_vec();
+    let source_subject = matches!(subject.as_deref(), Some("you" | "this"))
+        || names
+            .iter()
+            .any(|link| link.token_start == cursor.position() + 4);
+    if !source_subject {
+        cursor.consume_phrase(&["for", "as", "long", "as"])?;
+        return Err(cursor.fail(
+            "the ability's own source as the watched object (`you control SOURCE`, `SOURCE remains tapped|on the battlefield`)",
+        ));
+    }
+    recognize_source_state_duration(cursor, &names, None).map(SourceStateDuration::effect_duration)
 }
 
 /// Whether the cursor stands on `for as long as`.

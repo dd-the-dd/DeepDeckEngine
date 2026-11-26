@@ -289,10 +289,10 @@ fn supports_known_effect(effect: &Value) -> bool {
                     && card_filter_supported(&effect["object"]["where"]))
                 || object_relation_eval::related_collection_supported(&effect["object"]))
                 && supported_keyword
-                && matches!(
+                && (matches!(
                     value_kind(&effect["duration"]),
                     Some("untilEndOfCurrentTurn" | "untilNextTurn" | "permanent")
-                )
+                ) || condition_durations::watched_duration_supported(&effect["duration"]))
                 && (value_kind(&effect["duration"]) != Some("untilNextTurn")
                     || player_reference_supported(&effect["duration"]["player"]))
         }
@@ -747,16 +747,29 @@ impl GameEngine {
                 };
                 let keyword = keyword.as_str();
                 let temporary = value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
-                let expires_before_turn =
-                    self.permanent_action_expiry_turn(&effect["duration"], stack_object, bindings)?;
+                // CR 611.2b: a watched source state bounds the grant.
+                let watch = match self.begin_watched_duration(&effect["duration"], stack_object) {
+                    condition_durations::WatchedDurationStart::NeverStarts => return Ok(()),
+                    condition_durations::WatchedDurationStart::Watch(watch) => Some(watch),
+                    condition_durations::WatchedDurationStart::Unwatched => None,
+                };
+                let expires_before_turn = if watch.is_some() {
+                    Some(condition_durations::WATCHED_EXPIRY_TURN)
+                } else {
+                    self.permanent_action_expiry_turn(&effect["duration"], stack_object, bindings)?
+                };
                 for instance_id in instance_ids {
                     if let Some(expires_before_turn) = expires_before_turn {
-                        self.state.rule_modifiers.push(json!({
+                        let mut modifier = json!({
                             "kind": "temporaryKeywordUntilTurn",
                             "cardInstanceId": instance_id,
                             "keyword": keyword,
                             "expiresBeforeTurn": expires_before_turn,
-                        }));
+                        });
+                        if let Some(watch) = &watch {
+                            modifier[condition_durations::WATCH_FIELD] = watch.clone();
+                        }
+                        self.state.rule_modifiers.push(modifier);
                     } else if let Some((player_index, card_index)) =
                         self.permanent_position(&instance_id)
                     {

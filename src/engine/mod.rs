@@ -110,6 +110,7 @@ mod characteristic_observation;
 mod chosen_object_costs;
 mod city_blessing;
 mod combat_requirements;
+mod condition_durations;
 mod copy_program;
 mod cost_paid_card_properties;
 mod cost_payment;
@@ -134,6 +135,7 @@ mod end_of_combat;
 mod event_batch;
 mod event_card_batch;
 mod event_model;
+mod graveyard_departure_history;
 mod invariants;
 mod keyword_actions;
 mod keyword_programs;
@@ -8022,6 +8024,13 @@ impl GameEngine {
     ) -> Result<Vec<String>, EngineError> {
         let player_index = self.player_index(player_id)?;
         let count = count.saturating_mul(self.mill_factor(player_id).max(1) as usize);
+        let count = self.replaced_mill_count(
+            player_id,
+            count,
+            provider
+                .as_mut()
+                .map(|provider| &mut **provider as &mut dyn DecisionProvider),
+        )?;
         let mut milled = Vec::new();
         let mut milled_cards = Vec::new();
         for _ in 0..count {
@@ -10485,6 +10494,7 @@ impl GameEngine {
                 value_kind(modifier) == Some("temporaryKeywordUntilTurn")
                     && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
                     && modifier["keyword"].as_str() == Some(keyword)
+                    && self.watched_duration_holds(modifier)
                     && modifier["expiresBeforeTurn"]
                         .as_u64()
                         .is_some_and(|turn| turn > u64::from(self.state.turn_number))
@@ -11589,6 +11599,7 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("temporaryPowerToughnessUntilTurn")
                     && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+                    && self.watched_duration_holds(modifier)
                     && modifier["expiresBeforeTurn"]
                         .as_u64()
                         .is_some_and(|turn| turn > u64::from(self.state.turn_number))
@@ -21415,6 +21426,7 @@ impl GameEngine {
     }
 
     fn refresh_control_effects(&mut self) {
+        self.expire_watched_durations();
         let expired = self
             .state
             .rule_modifiers
@@ -23762,6 +23774,7 @@ impl GameEngine {
         if card_ids.is_empty() {
             return;
         }
+        self.record_cards_left_graveyard(player_id, card_ids);
         let sources = self
             .state
             .players
@@ -35937,6 +35950,7 @@ impl GameEngine {
         mut provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<(), EngineError> {
         self.check_quantity_failure()?;
+        self.expire_watched_durations();
         let enduring_story_players = self
             .state
             .players

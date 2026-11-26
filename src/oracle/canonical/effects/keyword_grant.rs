@@ -35,10 +35,14 @@ fn lower_keyword_grant_duration(duration: EffectDurationNode) -> Option<Value> {
         // The engine's permanent grant belongs to the object it was granted
         // to; a new object does not keep it (CR 400.7).
         EffectDurationNode::Indefinite => json!({ "kind": "permanent" }),
-        EffectDurationNode::UntilEndOfNextTurn { .. }
-        | EffectDurationNode::WhileSourceControlled
-        | EffectDurationNode::WhileSourceTapped
-        | EffectDurationNode::WhileSourceOnBattlefield => return None,
+        // CR 611.2b: a watched source state ends the grant
+        // (`engine/condition_durations.rs`).
+        EffectDurationNode::WhileSourceControlled => json!({ "kind": "whileSourceControlled" }),
+        EffectDurationNode::WhileSourceTapped => json!({ "kind": "whileSourceTapped" }),
+        EffectDurationNode::WhileSourceOnBattlefield => {
+            json!({ "kind": "whileSourceOnBattlefield" })
+        }
+        EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
     })
 }
 

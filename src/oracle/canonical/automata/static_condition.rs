@@ -1546,6 +1546,8 @@ enum ObjectHistoryVerb {
     PutIntoGraveyard,
     /// `was put into a hand from the battlefield`.
     PutIntoHand,
+    /// `left your graveyard`, `left a graveyard` (CR 400.7).
+    LeftGraveyard,
 }
 
 /// Casting-mode participles: the decision the cast record keeps for a
@@ -1568,6 +1570,12 @@ fn object_history_verb_at(cursor: &OracleTokenCursor<'_>) -> Option<(usize, Obje
             && word_is(cursor, offset + 2, "battlefield")
         {
             return Some((offset, ObjectHistoryVerb::LeftBattlefield));
+        }
+        if is_verb_form(raw, VerbLemma::Leave, VerbForm::Past)
+            && (word_is(cursor, offset + 1, "your") || word_is(cursor, offset + 1, "a"))
+            && word_is(cursor, offset + 2, "graveyard")
+        {
+            return Some((offset, ObjectHistoryVerb::LeftGraveyard));
         }
         if is_verb_form(raw, VerbLemma::Enter, VerbForm::Past)
             && word_is(cursor, offset + 1, "the")
@@ -1749,8 +1757,9 @@ pub(in crate::oracle::canonical) fn recognize_object_event_history_atom(
             "an explicit spell-domain query",
         )?;
         (query.predicate, HistoryPlayer::Any, ObjectKind::Spell)
-    } else if from_anywhere {
-        // Cards put into a graveyard from anywhere: the arrival record.
+    } else if from_anywhere || verb == ObjectHistoryVerb::LeftGraveyard {
+        // Cards put into a graveyard from anywhere (the arrival record), or
+        // cards that left a graveyard (one departure record per card).
         cursor.require(!exclude_source, "counted cards without `another`")?;
         let predicate = cursor.bounded(verb_position, recognize_counted_cards)?;
         (predicate, HistoryPlayer::Any, ObjectKind::Card)
@@ -1822,6 +1831,13 @@ pub(in crate::oracle::canonical) fn recognize_object_event_history_atom(
         ObjectHistoryVerb::Attacked => {
             consume_current(cursor)?;
             HistoryEvent::AttackerDeclared
+        }
+        ObjectHistoryVerb::LeftGraveyard => {
+            // CR 404.2, 400.7: the record's player owns the graveyard the
+            // card left.
+            consume_current(cursor)?;
+            player = recognize_owned_zone(cursor, "graveyard")?.unwrap_or(HistoryPlayer::Any);
+            HistoryEvent::CardLeftGraveyard
         }
         ObjectHistoryVerb::WasCast => {
             consume_current(cursor)?;

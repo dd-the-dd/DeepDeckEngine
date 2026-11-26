@@ -440,6 +440,18 @@ mod target_collection_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/temporary_continuous_rules_runtime.rs"]
 mod temporary_continuous_rules_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/condition_duration_runtime.rs"]
+mod condition_duration_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/graveyard_departure_history_runtime.rs"]
+mod graveyard_departure_history_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/created_entry_replacement_runtime.rs"]
+mod created_entry_replacement_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/player_quantity_replacement_runtime.rs"]
+mod player_quantity_replacement_runtime;
 
 #[path = "tests/alternative_additional_cost_runtime.rs"]
 mod alternative_additional_cost_runtime;
