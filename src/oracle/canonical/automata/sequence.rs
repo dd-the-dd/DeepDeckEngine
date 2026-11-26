@@ -2832,6 +2832,16 @@ fn recognize_effect_sequence_attempt_scoped(
                             cursor.enter("sequence.type-retention.terminator");
                             cursor.consume(".")?;
                         }
+                        if super::regeneration_rider_starts(cursor) {
+                            // CR 701.19c: the sentence prohibits regenerating
+                            // the objects the sentence just closed destroyed.
+                            attempt_frame.commit();
+                            super::recognize_regeneration_rider(cursor, memory.effects.last_mut())?;
+                            cursor.enter("sequence.regeneration-rider.terminator");
+                            if cursor.peek() == Some(".") {
+                                cursor.consume(".")?;
+                            }
+                        }
                         if super::granted_keyword_cost_amendment_starts(cursor) {
                             // CR 702.34a: the sentence states the cost of the
                             // keyword the sentence just closed granted.
