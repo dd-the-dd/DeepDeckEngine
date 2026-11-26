@@ -102,7 +102,7 @@ fn martok_reads_the_attacked_opponents_as_the_declared_count() {
     let [decision] = target_decisions(rule)[..] else {
         panic!("one declared slot: {rule}");
     };
-    assert_eq!(decision["minimum"], 0);
+    assert!(!mentions_x(decision), "{decision}");
     assert_eq!(
         decision["maximum"]["kind"],
         "countOpponentsAttackedThisTurn"
