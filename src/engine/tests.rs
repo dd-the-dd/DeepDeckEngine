@@ -72,6 +72,9 @@ mod condition_guards_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/measured_instruction_runtime.rs"]
 mod measured_instruction_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/zone_of_function_trigger_runtime.rs"]
+mod zone_of_function_trigger_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/effect_subject_runtime.rs"]

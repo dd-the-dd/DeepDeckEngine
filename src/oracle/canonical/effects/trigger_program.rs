@@ -192,28 +192,20 @@ fn compile_recognized_trigger_program(
         &lowered.effects,
         &node.event.value,
     )?;
-    if trigger_zone.is_none() && !battlefield_face {
+    if trigger_zone == TriggerZone::Battlefield && !battlefield_face {
         return Err(
             face_cursor.fail("a permanent source face for this battlefield triggered ability")
         );
     }
-    if let Some(zone) = trigger_zone {
-        cursor.enter("trigger.program.zone-of-function.event");
-        let event_kind = event["kind"].as_str().unwrap_or_default();
-        let observed = ZONE_OF_FUNCTION_EVENTS
-            .iter()
-            .any(|(observed_zone, observed_kind)| {
-                *observed_zone == zone && *observed_kind == event_kind
-            });
-        if !observed {
-            return Err(cursor.engine_gap(
-                crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
-                "a runtime observer of this event for a source in its zone of function (CR 113.6)",
-            ));
-        }
+    cursor.enter("trigger.program.zone-of-function.event");
+    if !trigger_zone.observes(&event) {
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
+            "a runtime observer of this event for a source in its zone of function (CR 113.6)",
+        ));
     }
     let mut rule = json!({"kind":"triggeredAbility", "source":self_ref(), "event":event, "effects":lowered.effects});
-    if let Some(zone) = trigger_zone {
+    if let Some(zone) = trigger_zone.card_zone_name() {
         rule["triggerZone"] = json!(zone);
     }
     if let Some(condition) = condition {
@@ -244,26 +236,105 @@ fn compile_recognized_trigger_program(
     Ok(result)
 }
 
-/// The (zone of function, lowered event kind) pairs whose runtime observer
-/// scans sources in that zone: an observed permanent's entry is matched for
-/// cards in a graveyard as well as for permanents. Any other pair is an
-/// explicit engine gap, never a rule that silently cannot trigger.
-const ZONE_OF_FUNCTION_EVENTS: &[(&str, &str)] = &[("graveyard", "permanentEntered")];
+/// The zone a triggered ability functions from (CR 113.6), one typed
+/// attribute of the trigger frame. The battlefield is the default; the
+/// stack is the zone of a spell's own cast observer (CR 601.2i); a card zone
+/// is declared by the ability's own evidence (an intervening `if this card
+/// is in your graveyard`, or a program that moves `this card` out of that
+/// zone), never by the card's name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum TriggerZone {
+    Battlefield,
+    Stack,
+    Graveyard,
+    Hand,
+    Exile,
+}
 
-/// The engine zone a guard's zone-of-function atom names, when it is a card
+/// Lowered event kinds a card in a graveyard observes through the shared
+/// publication of their family (`engine::zone_of_function`): an observed
+/// entry, a step, a spell cast by a player, a draw, a life gain, an attack
+/// declaration batch and the player outcome events. Other zone changes are
+/// admitted by their move shape in [`graveyard_observes`].
+const GRAVEYARD_OBSERVED_EVENT_KINDS: [&str; 12] = [
+    "permanentEntered",
+    "stepBegan",
+    "spellCast",
+    "cardDrawn",
+    "lifeGained",
+    "controlledCreaturesAttacked",
+    "crimeCommitted",
+    "proliferated",
+    "dieRolled",
+    "coinFlipped",
+    "clashed",
+    "permanentExerted",
+];
+
+/// Whether a card in a graveyard observes one lowered event (every
+/// alternative of a list): a kind of [`GRAVEYARD_OBSERVED_EVENT_KINDS`]
+/// other than a spell's own cast, a death of another permanent, an entry,
+/// or cards arriving in a graveyard (a generic move of cards to a
+/// graveyard). A departure read only by permanents captured on the
+/// battlefield is not observed from a graveyard.
+fn graveyard_observes(event: &Value) -> bool {
+    match event["kind"].as_str() {
+        Some("oneOf") => event["events"]
+            .as_array()
+            .is_some_and(|events| !events.is_empty() && events.iter().all(graveyard_observes)),
+        Some("spellCast") => event["sourceIsSelf"].as_bool() != Some(true),
+        Some("permanentDied") => event.get("object").is_none(),
+        Some("eventPattern") => {
+            event["lemma"] == "move"
+                && ((event["to"] == "graveyard" && event["subject"]["object"]["kind"] == "cards")
+                    || (event["to"] == "battlefield"
+                        && event["subject"]["object"]["kind"] == "permanents"))
+        }
+        Some(kind) => GRAVEYARD_OBSERVED_EVENT_KINDS.contains(&kind),
+        None => false,
+    }
+}
+
+impl TriggerZone {
+    /// The engine name of a card zone outside the battlefield and the
+    /// stack, written as the rule's `triggerZone`; `None` for the default
+    /// battlefield and for a spell's own cast, typed by its event.
+    fn card_zone_name(self) -> Option<&'static str> {
+        match self {
+            Self::Battlefield | Self::Stack => None,
+            Self::Graveyard => Some("graveyard"),
+            Self::Hand => Some("hand"),
+            Self::Exile => Some("exile"),
+        }
+    }
+
+    /// Whether the runtime observes this lowered event for a source in this
+    /// zone. The battlefield and the stack keep their event lowering; a
+    /// graveyard reads [`graveyard_observes`]; the hand and exile have no
+    /// observer of a printed triggered ability (an explicit engine gap).
+    fn observes(self, event: &Value) -> bool {
+        match self {
+            Self::Battlefield | Self::Stack => true,
+            Self::Graveyard => graveyard_observes(event),
+            Self::Hand | Self::Exile => false,
+        }
+    }
+}
+
+/// The card zone a guard's zone-of-function atom names, when it is a card
 /// zone outside the battlefield.
-fn card_zone_of_function(zone: ConditionZone) -> Option<&'static str> {
+fn card_zone_of_function(zone: ConditionZone) -> Option<TriggerZone> {
     match zone {
-        ConditionZone::Graveyard => Some("graveyard"),
-        ConditionZone::Exile => Some("exile"),
-        ConditionZone::Hand => Some("hand"),
+        ConditionZone::Graveyard => Some(TriggerZone::Graveyard),
+        ConditionZone::Exile => Some(TriggerZone::Exile),
+        ConditionZone::Hand => Some(TriggerZone::Hand),
         _ => None,
     }
 }
 
 /// The card zone a source atom of the guard names (`if this card is in your
 /// graveyard`), or `None`.
-fn guard_zone_atom(atom: &ConditionAtom) -> Option<&'static str> {
+fn guard_zone_atom(atom: &ConditionAtom) -> Option<TriggerZone> {
     match atom {
         ConditionAtom::ObjectZone(ObjectZoneConditionNode {
             object,
@@ -300,8 +371,11 @@ fn event_names_source(event: &GenericTriggerEventNode) -> bool {
 }
 
 /// The card zone a lowered program moves the ability's own source out of
-/// (`return this card from your graveyard to your hand`).
-fn program_source_origin(value: &Value) -> Option<&'static str> {
+/// (`return this card from your graveyard to your hand`): the `this card`
+/// operand of the move is the card in that zone. Moving another card out of
+/// a graveyard (`return target creature card from your graveyard`) declares
+/// nothing.
+fn program_source_origin(value: &Value) -> Option<TriggerZone> {
     match value {
         Value::Object(map) => {
             let moves_source = matches!(
@@ -317,8 +391,8 @@ fn program_source_origin(value: &Value) -> Option<&'static str> {
                     .and_then(|from| from.get("kind"))
                     .and_then(Value::as_str)
                 {
-                    Some("graveyard") => Some("graveyard"),
-                    Some("hand") => Some("hand"),
+                    Some("graveyard") => Some(TriggerZone::Graveyard),
+                    Some("hand") => Some(TriggerZone::Hand),
                     _ => None,
                 }
             } else {
@@ -342,7 +416,7 @@ fn declared_trigger_zone(
     guard: Option<&SentenceConditionNode>,
     effects: &[Value],
     event: &GenericTriggerEventNode,
-) -> MachineResult<Option<&'static str>> {
+) -> MachineResult<TriggerZone> {
     cursor.enter("trigger.program.zone-of-function");
     let conjuncts: Vec<&SentenceConditionNode> = match guard {
         None => Vec::new(),
@@ -363,12 +437,18 @@ fn declared_trigger_zone(
         "one zone of function stated by a conjunct of the intervening `if`",
     )?;
     if let Some(zone) = zones.first() {
-        return Ok(Some(*zone));
+        return Ok(*zone);
+    }
+    if event.functions_on_the_stack() {
+        return Ok(TriggerZone::Stack);
     }
     if event_names_source(event) {
-        return Ok(None);
+        return Ok(TriggerZone::Battlefield);
     }
-    Ok(effects.iter().find_map(program_source_origin))
+    Ok(effects
+        .iter()
+        .find_map(program_source_origin)
+        .unwrap_or(TriggerZone::Battlefield))
 }
 
 /// Every source zone atom of the guard, wherever it is.

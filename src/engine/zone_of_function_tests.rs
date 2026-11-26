@@ -43,3 +43,41 @@ fn card_zone_statics_reuse_the_battlefield_modifier_vocabulary() {
     unknown["modifiers"][0]["kind"] = json!("notAModifier");
     assert!(!card_zone_static_rule_supported(&unknown));
 }
+
+fn graveyard_trigger(event: Value) -> Value {
+    json!({"kind":"triggeredAbility","source":{"kind":"self"},"triggerZone":"graveyard",
+        "event":event,"effects":[{"kind":"moveAbilitySourceToHand"}]})
+}
+
+/// A graveyard rule is admitted only for event alternatives a graveyard
+/// card observes (CR 113.6); a spell's own cast and a look-back departure
+/// are not observed from a graveyard.
+#[test]
+fn graveyard_triggers_are_admitted_only_for_observed_events() {
+    let controller = json!({"kind":"controllerOf","object":{"kind":"self"}});
+    let step = json!({"kind":"stepBegan","step":"upkeep","player":controller.clone()});
+    assert!(trigger_zone_observed(&graveyard_trigger(step.clone())));
+    assert!(graveyard_event_observed(
+        &json!({"kind":"spellCast","player":controller.clone(),"where":null})
+    ));
+    assert!(!graveyard_event_observed(
+        &json!({"kind":"spellCast","sourceIsSelf":true,"where":null})
+    ));
+    let departure = json!({"kind":"permanentLeftBattlefield","object":{"kind":"self"}});
+    assert!(!graveyard_event_observed(&departure));
+    let arrival = json!({"kind":"eventPattern","lemma":"move",
+        "subject":{"object":{"kind":"cards","owner":controller.clone()}},
+        "from":"battlefield","to":"graveyard"});
+    assert!(graveyard_event_observed(&arrival));
+    // Every alternative of a list must be observed.
+    assert!(!trigger_zone_observed(&graveyard_trigger(
+        json!({"kind":"oneOf","events":[step.clone(), departure]})
+    )));
+    // A battlefield rule is unaffected; a graveyard rule does not function
+    // on a permanent.
+    let mut battlefield = graveyard_trigger(step);
+    assert!(functions_only_off_battlefield(&battlefield));
+    battlefield.as_object_mut().unwrap().remove("triggerZone");
+    assert!(trigger_zone_observed(&battlefield));
+    assert!(!functions_only_off_battlefield(&battlefield));
+}

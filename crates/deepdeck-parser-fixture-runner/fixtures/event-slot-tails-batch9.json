@@ -449,7 +449,7 @@
       }
     },
     {
-      "id": "exact-duelists-heritage-any-controller-attack-batch-is-an-engine-gap",
+      "id": "exact-duelists-heritage-any-controller-attack-batch",
       "request": {
         "cardName": "Duelist's Heritage",
         "typeLine": "Enchantment",
@@ -459,13 +459,22 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "engine.gap.event-matcher"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledCreaturesAttacked"
+              },
+              {
+                "pointer": "/event/anyPlayer",
+                "equals": true
+              }
+            ]
           }
         ]
       }

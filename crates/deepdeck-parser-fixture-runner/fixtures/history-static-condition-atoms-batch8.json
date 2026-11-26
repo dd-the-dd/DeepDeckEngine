@@ -135,13 +135,26 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "engine.gap.event-matcher"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/condition/kind",
+                "equals": "spellCastOrdinal"
+              }
+            ]
           }
         ]
       }

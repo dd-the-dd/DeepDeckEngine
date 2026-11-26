@@ -1235,10 +1235,13 @@ impl GameEngine {
             .filter_map(|attacker_id| self.permanent_position(attacker_id))
             .filter(|(player_index, card_index)| {
                 let permanent = &self.state.players[*player_index].battlefield[*card_index];
-                permanent.controller == source.controller
-                    && event.get("where").is_none_or(|filter| {
-                        self.permanent_matches_effective_filter(permanent, filter)
-                    })
+                event_batch::batch_member_controller_matches(
+                    event,
+                    &source.controller,
+                    &permanent.controller,
+                ) && event
+                    .get("where")
+                    .is_none_or(|filter| self.permanent_matches_effective_filter(permanent, filter))
             })
             .count();
         decisions.insert("eventObjectCount".to_string(), Value::from(count as u64));
