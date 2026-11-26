@@ -22,7 +22,10 @@
 //! approximated. Mode choices (`choose one —`) belong to the modal parent.
 //!
 //! ```text
-//! OBJECTS   := COUNT QUERY [REMAINDER]          (battlefield permanents)
+//! OBJECTS   := COUNT QUERY ["on" "the" "battlefield"] [PARTITION] [REMAINDER]
+//!                                               (battlefield permanents)
+//! PARTITION := "of" "each" ("basic" "land" | "permanent") "type"
+//!                                               (after "a"/"an" only)
 //! COUNT     := "a" | "an" | N | "up" "to" N
 //! REMAINDER := [","] ("then" | "and") VERB "the" "rest"
 //!            | "." VERB "the" "rest"             (VERB: sacrifice | destroy)
@@ -109,12 +112,50 @@ pub(in crate::oracle::canonical) struct ObjectChoiceNode {
     /// `at random`: the game picks the objects among the candidates
     /// instead of the chooser (CR 608.2d); the count and query are the same.
     pub random: bool,
+    /// `a land of each basic land type`: one object per value of a
+    /// characteristic, each chosen among the query's objects with that value.
+    pub partition: Option<ChoicePartition>,
 }
 
 impl ObjectChoiceNode {
-    /// At most one object: a singular antecedent.
+    /// At most one object: a singular antecedent. A partitioned choice
+    /// chooses one object per part, a plural set.
     pub(in crate::oracle::canonical) fn singular(&self) -> bool {
-        self.quantity.maximum == NumericAtom::Integer(1)
+        self.partition.is_none() && self.quantity.maximum == NumericAtom::Integer(1)
+    }
+}
+
+/// `of each basic land type` (CR 305.6) / `of each permanent type` (CR
+/// 110.4): the counted choice is made once per value of the characteristic,
+/// among the query's objects that have that value. One object may have
+/// several values; it may then be chosen for each of them, and the chosen
+/// set holds it once.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ChoicePartition {
+    EachBasicLandType,
+    EachPermanentType,
+}
+
+impl ChoicePartition {
+    /// The predicate of each part, in rules order.
+    pub(in crate::oracle::canonical) fn parts(self) -> Vec<ObjectPredicate> {
+        match self {
+            Self::EachBasicLandType => ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+                .into_iter()
+                .map(|subtype| ObjectPredicate::Subtype(subtype.to_string()))
+                .collect(),
+            Self::EachPermanentType => [
+                ObjectCardType::Artifact,
+                ObjectCardType::Battle,
+                ObjectCardType::Creature,
+                ObjectCardType::Enchantment,
+                ObjectCardType::Land,
+                ObjectCardType::Planeswalker,
+            ]
+            .into_iter()
+            .map(ObjectPredicate::CardType)
+            .collect(),
+        }
     }
 }
 
@@ -383,7 +424,12 @@ fn classify_resolution_domain(cursor: &OracleTokenCursor<'_>) -> Option<Resoluti
         && word_at(cursor, 2, "type")
     {
         ResolutionDomain::CardType
-    } else if (word_at(cursor, 1, "land") || word_at(cursor, 1, "basic")) && has("type") {
+    } else if (word_at(cursor, 1, "land") && word_at(cursor, 2, "type"))
+        || ((word_at(cursor, 1, "basic") || word_at(cursor, 1, "nonbasic"))
+            && word_at(cursor, 2, "land")
+            && word_at(cursor, 3, "type"))
+    {
+        // `a land of each basic land type` chooses lands, not a type.
         ResolutionDomain::LandType
     } else if word_at(cursor, 1, "opponent") || word_at(cursor, 1, "player") {
         ResolutionDomain::Player
@@ -499,13 +545,20 @@ fn recognize_object_domain(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
         query.denotes_battlefield_permanents(),
         "permanents on the battlefield; a card choice names its zone (`in your graveyard`, `exiled with this artifact`)",
     )?;
+    // `a creature on the battlefield`: the zone the query already denotes
+    // (CR 110.1), restated.
+    if word_at(cursor, 0, "on") && word_at(cursor, 1, "the") && word_at(cursor, 2, "battlefield") {
+        cursor.enter("choose.domain.object.battlefield");
+        cursor.consume_phrase(&["on", "the", "battlefield"])?;
+    }
+    let partition = recognize_choice_partition(cursor, quantity)?;
     // `at random` (CR 608.2d): the game picks among the same candidates.
     // Only an exact count is picked at random; a range has no random size.
     cursor.enter("choose.domain.object.selection");
     let random = word_at(cursor, 0, "at") && word_at(cursor, 1, "random");
     if random {
         cursor.require(
-            quantity.minimum == quantity.maximum,
+            quantity.minimum == quantity.maximum && partition.is_none(),
             "an exact number of permanents picked at random",
         )?;
         cursor.consume_phrase(&["at", "random"])?;
@@ -537,7 +590,38 @@ fn recognize_object_domain(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
         selector,
         remainder,
         random,
+        partition,
     })
+}
+
+/// `of each basic land type` / `of each permanent type` after a choice of
+/// one object (`a land of each basic land type`). Any other `of each ...`
+/// fails at this state; nothing is consumed without `of each`.
+fn recognize_choice_partition(
+    cursor: &mut OracleTokenCursor<'_>,
+    quantity: ExpressedTargetCardinality,
+) -> MachineResult<Option<ChoicePartition>> {
+    if !(word_at(cursor, 0, "of") && word_at(cursor, 1, "each")) {
+        return Ok(None);
+    }
+    cursor.enter("choose.domain.object.partition");
+    cursor.require(
+        quantity == ExpressedTargetCardinality::EXACTLY_ONE,
+        "one object of each value (`a land of each basic land type`)",
+    )?;
+    let partition = if word_at(cursor, 2, "basic")
+        && word_at(cursor, 3, "land")
+        && word_at(cursor, 4, "type")
+    {
+        cursor.consume_phrase(&["of", "each", "basic", "land", "type"])?;
+        ChoicePartition::EachBasicLandType
+    } else if word_at(cursor, 2, "permanent") && word_at(cursor, 3, "type") {
+        cursor.consume_phrase(&["of", "each", "permanent", "type"])?;
+        ChoicePartition::EachPermanentType
+    } else {
+        return Err(cursor.fail("`of each basic land type` or `of each permanent type`"));
+    };
+    Ok(Some(partition))
 }
 
 /// `[,] then|and VERB the rest` in the same clause, or `. Destroy the

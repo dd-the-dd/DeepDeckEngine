@@ -583,12 +583,13 @@ fn lower_local_effect_sequence_with_collections(
             },
         )?;
         action_starts.push((effects.len(), decisions.len()));
-        // A postposed definition supplies X to the actions of its sentence, so
-        // those actions lower X provisionally and the binding replaces it below.
+        // A postposed definition supplies X to the actions of its sentence and
+        // of the later sentences, so those actions lower X provisionally and
+        // the binding replaces it below.
         let context = if sequence
             .where_x
             .iter()
-            .any(|binding| binding.covers(effect_index))
+            .any(|binding| binding.reaches(effect_index))
         {
             EffectSequenceLoweringContext::ValidateXAfterCardComposition
         } else {
@@ -3252,6 +3253,18 @@ fn lower_local_effect_sequence_with_collections(
         &mut decisions,
         &mut effects,
     )?;
+    // Before the conditional instructions are wrapped, while every action
+    // start is a top-level position: a binding precedes the sentences and
+    // conditions that read it.
+    apply_where_x_bindings(
+        cursor,
+        &mut action_starts,
+        &mut decisions,
+        sequence,
+        &target_bindings,
+        &mut conditional_scopes.conditions,
+        &mut effects,
+    )?;
     conditional_scopes.wrap(
         cursor,
         sequence,
@@ -3261,14 +3274,6 @@ fn lower_local_effect_sequence_with_collections(
         &mut effects,
     )?;
     resolve_optional_outcomes(cursor, &mut effects)?;
-    apply_where_x_bindings(
-        cursor,
-        &sequence.where_x,
-        &action_starts,
-        &decisions,
-        &sequence_numeric_target_slots(sequence, &target_bindings),
-        &mut effects,
-    )?;
     for effect in &mut effects {
         super::resolution_choice::rebind_resolution_players(effect, &resolution_players);
         super::resolution_object_choice::rebind_chosen_objects(effect, &chosen_object_bindings);
@@ -3355,12 +3360,6 @@ impl ConditionalScopes {
                 "ordered, nonempty and disjoint conditional sentence ranges",
             )?;
             previous_end = conditional.end();
-        }
-        if !sequence.conditionals.is_empty() && !sequence.where_x.is_empty() {
-            cursor.enter("lower.sentence-conditional.where-x");
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
-                "a sequence without both a sentence conditional and a postposed definition of X",
-            )));
         }
         // Later lowering failures belong to the action being lowered, not
         // to the conditional ranges checked here.
@@ -3981,41 +3980,75 @@ fn bind_condition_action_result_quantities(
 }
 
 /// Binds each postposed `where X is EXPR` definition (CR 107.3). The value is
-/// computed once, by a `bind` placed before the sentence's first action, and
-/// every X reference lowered by that sentence's actions reads the binding.
-/// An X that a target declaration needs, or an expression the shared numeric
-/// lowering cannot represent, fails explicitly instead of defaulting.
+/// computed once, by a `bind` placed before the sentence's first action;
+/// every X reference of that sentence and of the later sentences of the
+/// program (`... deals X damage to each opponent, where X is .... You gain
+/// X life.`, `If X is three or more, ...`) reads the binding, up to the next
+/// definition. An X a target declaration reads is the same amount read when
+/// the targets are chosen (CR 601.2c, 603.3d) and rechecked (CR 608.2b): the
+/// declaration carries the amount itself (`where_x_declaration`). An
+/// expression the shared numeric lowering cannot represent, or one with no
+/// value when targets are chosen, fails explicitly instead of defaulting.
+///
+/// Runs before the conditional instructions are wrapped: each inserted
+/// `bind` belongs to the first action of its sentence, so a conditional
+/// governing that sentence contains it, and a later conditional sees it.
 fn apply_where_x_bindings(
     cursor: &mut OracleTokenCursor<'_>,
-    bindings: &[WhereXBindingNode],
-    action_starts: &[(usize, usize)],
-    decisions: &[Value],
-    target_slots: &[NumericTargetSlot],
+    action_starts: &mut [(usize, usize)],
+    decisions: &mut [Value],
+    sequence: &EffectSequenceNode,
+    target_bindings: &[(TargetBinding, String)],
+    conditions: &mut [Option<Value>],
     effects: &mut Vec<Value>,
 ) -> Result<(), EffectSequenceLoweringFailure> {
+    let bindings = &sequence.where_x;
+    let target_slots = sequence_numeric_target_slots(sequence, target_bindings);
+    let counter_slots = where_x_declaration::countered_spell_bindings(sequence, target_bindings);
+    let mut slots_before_counter = sequence_numeric_target_slots(sequence, target_bindings);
+    slots_before_counter.extend(where_x_declaration::countered_spell_slots(
+        sequence,
+        target_bindings,
+    ));
     let mut binds = Vec::new();
     for (ordinal, binding) in bindings.iter().enumerate() {
+        // The definition holds from its sentence to the next definition.
+        let scope_end = bindings
+            .get(ordinal + 1)
+            .map_or(sequence.effects.len(), |next| next.first_effect)
+            .max(binding.end_effect);
         let (effect_from, decision_from) = action_starts[binding.first_effect];
-        let (effect_to, decision_to) = action_starts[binding.end_effect];
-        cursor.enter("lower.where-x.declarations");
-        if decisions[decision_from..decision_to]
+        let (effect_to, decision_to) = action_starts[scope_end];
+        let declares_x = decisions[decision_from..decision_to]
             .iter()
-            .any(references_x_value)
-        {
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                cursor.fail("X in action quantities, not in a target declaration"),
-            ));
-        }
+            .any(references_x_value);
         cursor.enter("lower.where-x.definition");
         // A property of a declared target reads the slot that declared it
         // (its last known information once it left, CR 608.2h).
-        let value = lower_numeric_expression(&binding.expression)
+        let plain = lower_numeric_expression(&binding.expression);
+        let reads_target = plain.is_none() && binding.expression.requires_target_binding();
+        // A countered spell leaves the stack (CR 701.6a): a definition that
+        // reads nothing but declared targets is read before the counter,
+        // while the spell is still there.
+        let read_before_counter = reads_target
+            .then(|| {
+                where_x_declaration::target_read_position(
+                    &binding.expression,
+                    &counter_slots,
+                    action_starts,
+                )
+            })
+            .flatten();
+        let read_slots = if read_before_counter.is_some() {
+            &slots_before_counter[..]
+        } else {
+            &target_slots[..]
+        };
+        let value = plain
             .or_else(|| {
-                binding
-                    .expression
-                    .requires_target_binding()
+                reads_target
                     .then(|| {
-                        lower_numeric_expression_for_targets(&binding.expression, target_slots).ok()
+                        lower_numeric_expression_for_targets(&binding.expression, read_slots).ok()
                     })
                     .flatten()
             })
@@ -4024,6 +4057,22 @@ fn apply_where_x_bindings(
                     cursor.fail("a definition of X that the shared numeric lowering represents"),
                 )
             })?;
+        if declares_x {
+            // A declaration cannot read a target it declares.
+            cursor.enter("lower.where-x.declarations");
+            if reads_target {
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+                    "a definition of X read when targets are chosen, not a property of a declared target",
+                )));
+            }
+            where_x_declaration::bind_declaration_x(
+                &mut decisions[decision_from..decision_to],
+                &value,
+            )
+            .map_err(|expected| {
+                EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+            })?;
+        }
         let id = if ordinal == 0 {
             WHERE_X_BINDING_ID.to_owned()
         } else {
@@ -4034,11 +4083,48 @@ fn apply_where_x_bindings(
         for effect in &mut effects[effect_from..effect_to] {
             uses += replace_x_value(effect, &id);
         }
-        cursor.require(uses > 0, "an action in this sentence whose quantity is X")?;
-        binds.push((
-            effect_from,
-            json!({ "kind": "bind", "id": id, "value": value }),
-        ));
+        // `If X is three or more, ...` after the definition reads it. A
+        // conditional governing the defining sentence itself is tested
+        // before the binding inside its branch exists.
+        for (conditional, condition) in sequence.conditionals.iter().zip(conditions.iter_mut()) {
+            let Some(condition) = condition.as_mut() else {
+                continue;
+            };
+            if !(binding.first_effect..scope_end).contains(&conditional.start())
+                || !references_x_value(condition)
+            {
+                continue;
+            }
+            cursor.enter("lower.sentence-conditional.where-x");
+            if conditional.start() == binding.first_effect {
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("a condition on X after the sentence that defines X"),
+                ));
+            }
+            uses += replace_x_value(condition, &id);
+        }
+        cursor.enter("lower.where-x.scope");
+        cursor.require(
+            uses > 0 || declares_x,
+            "an action or a target declaration in this sentence whose quantity is X",
+        )?;
+        if uses > 0 {
+            let position =
+                read_before_counter.map_or(effect_from, |position| position.min(effect_from));
+            binds.push((
+                position,
+                json!({ "kind": "bind", "id": id, "value": value }),
+            ));
+        }
+    }
+    binds.sort_by_key(|(position, _)| *position);
+    // Each bind belongs to the action that starts at its position: later
+    // action starts move past it.
+    for start in action_starts.iter_mut() {
+        start.0 += binds
+            .iter()
+            .filter(|(position, _)| *position < start.0)
+            .count();
     }
     for (position, bind) in binds.into_iter().rev() {
         effects.insert(position, bind);
@@ -4327,6 +4413,9 @@ pub(in crate::oracle::canonical) use optional_outcome::resolve_program_optional_
 #[cfg(test)]
 #[path = "where_x_tests.rs"]
 mod where_x_tests;
+
+#[path = "where_x_declaration.rs"]
+mod where_x_declaration;
 
 #[cfg(test)]
 #[path = "unless_frame_tests.rs"]

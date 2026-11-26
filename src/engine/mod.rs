@@ -3230,7 +3230,9 @@ fn enchant_ability_of(definition: &CardDefinition) -> Option<&Value> {
 }
 
 fn target_candidates_supported(candidates: &Value) -> bool {
-    let candidates = &source_bound_operands::with_placeholder_bindings(candidates);
+    let candidates = &candidate_numeric_operands::with_amount_placeholders(
+        &source_bound_operands::with_placeholder_bindings(candidates),
+    );
     match value_kind(candidates) {
         Some("players" | "anyTarget") => true,
         Some("permanents") => {
