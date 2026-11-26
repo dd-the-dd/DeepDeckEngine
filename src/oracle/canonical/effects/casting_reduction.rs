@@ -68,13 +68,17 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
     };
     // A spell population, possibly narrowed to one spell of the caster's
     // turn history (`the second spell you cast each turn`).
-    let (population, ordinal) = match node.subject {
-        CastingReductionSubject::CurrentSpell => (None, None),
-        CastingReductionSubject::SpellSet(spells) => (Some(spells), None),
+    let (population, ordinal, spell_target) = match node.subject {
+        CastingReductionSubject::CurrentSpell => (None, None, None),
+        CastingReductionSubject::SpellSet(spells) => (Some(spells), None, None),
         CastingReductionSubject::OrdinalSpell(subject) => (
             Some(subject.spells),
             Some((subject.ordinal, subject.own_turns_only)),
+            None,
         ),
+        CastingReductionSubject::TargetingSpells { spells, target } => {
+            (Some(spells), None, Some(target))
+        }
     };
     let rule = match population {
         None => {
@@ -176,6 +180,14 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
             if let Some((ordinal, own_turns_only)) = ordinal {
                 lower_spell_ordinal(cursor, &mut modifier, ordinal, own_turns_only)?;
             }
+            if let Some(target) = &spell_target {
+                cursor.enter("static.spell-cost-reduction.spell-target");
+                cursor.require(
+                    colored.is_none() && integer_value_of(&node.amount).is_some(),
+                    "a fixed generic reduction for spells that target an object",
+                )?;
+                modifier["spellTarget"] = lower_spell_target(cursor, target)?;
+            }
             json!({"kind":"staticAbility","source":self_ref(),"activeWhile":active_while_battlefield(),
                 "modifiers":[modifier]})
         }
@@ -189,6 +201,26 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
             "Project existing reduction and battlefield count primitives without changing their meaning",
         ],
     ))
+}
+
+/// A fixed integer amount.
+fn integer_value_of(amount: &NumericExpression) -> Option<i64> {
+    match amount {
+        NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+        _ => None,
+    }
+}
+
+/// The object a spell or ability population targets (CR 115.1): the static
+/// ability's own source, or a battlefield selector relative to it.
+pub(in crate::oracle::canonical) fn lower_spell_target(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &AbilityTargetCondition,
+) -> MachineResult<Value> {
+    match target {
+        AbilityTargetCondition::Source => Ok(self_ref()),
+        AbilityTargetCondition::Query(query) => lower_static_permanent_query(cursor, query),
+    }
 }
 
 /// `the first|second SPELL you cast each turn` (CR 601.2i): the first is the

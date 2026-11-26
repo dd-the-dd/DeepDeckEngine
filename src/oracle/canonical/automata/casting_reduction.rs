@@ -23,6 +23,7 @@ pub(in crate::oracle::canonical) fn reduction_subject_spells(
         CastingReductionSubject::CurrentSpell => None,
         CastingReductionSubject::SpellSet(query) => Some(query),
         CastingReductionSubject::OrdinalSpell(ordinal) => Some(&ordinal.spells),
+        CastingReductionSubject::TargetingSpells { spells, .. } => Some(spells),
     }
 }
 
@@ -113,7 +114,20 @@ fn read_reduction(
         // `spells you cast from your graveyard`: the reduction records the
         // zone a spell is cast from (CR 601.2a, 601.2f).
         let query = recognize_spell_cast_collection_with_origin(cursor)?;
-        (CastingReductionSubject::SpellSet(query), each)
+        if target_relative_follows(cursor) {
+            // `Spells you cast that target this creature`: the targets are
+            // chosen before the total cost (CR 601.2c, 601.2f).
+            let target = recognize_target_relative(cursor, &[], None)?;
+            (
+                CastingReductionSubject::TargetingSpells {
+                    spells: query,
+                    target,
+                },
+                each,
+            )
+        } else {
+            (CastingReductionSubject::SpellSet(query), each)
+        }
     };
     cursor.enter("casting-reduction.cost-action");
     cursor.consume(if quantified_each { "costs" } else { "cost" })?;

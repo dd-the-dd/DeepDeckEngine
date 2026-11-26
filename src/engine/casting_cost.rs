@@ -891,6 +891,111 @@ impl GameEngine {
     }
 }
 
+impl GameEngine {
+    /// Whether one of a spell's chosen targets is a permanent the selector
+    /// names, relative to the static ability's source (CR 115.1, 601.2c).
+    fn chosen_targets_match(
+        &self,
+        source: &CardInstance,
+        selector: &Value,
+        targets: &BTreeMap<String, TargetRef>,
+    ) -> bool {
+        targets.values().any(|chosen| {
+            let TargetRef::Permanent { instance_id } = chosen else {
+                return false;
+            };
+            self.permanent_position(instance_id)
+                .is_some_and(|(player_index, card_index)| {
+                    Self::static_selector_matches(
+                        source,
+                        selector,
+                        &self.state.players[player_index].battlefield[card_index],
+                    )
+                })
+        })
+    }
+
+    /// The static cost changes of spells that target an object (`Spells
+    /// your opponents cast that target this creature cost {2} more to
+    /// cast`): read once the targets are chosen, while the total cost is
+    /// determined (CR 601.2c, 601.2f). Returns the generic reduction and the
+    /// added mana costs.
+    pub(super) fn spell_targeting_cost_adjustment(
+        &self,
+        player_id: &str,
+        card: &CardDefinition,
+        targets: &BTreeMap<String, TargetRef>,
+    ) -> (i32, Vec<String>) {
+        let mut reduction = 0_i32;
+        let mut increases = Vec::new();
+        for (source, modifier) in self.battlefield_static_modifiers() {
+            let Some(selector) = modifier.get("spellTarget") else {
+                continue;
+            };
+            if !self.chosen_targets_match(&source, selector, targets)
+                || modifier.get("condition").is_some_and(|condition| {
+                    !self.condition_value_with_source(
+                        condition,
+                        &source.controller,
+                        &BTreeMap::new(),
+                        Some(&source),
+                    )
+                })
+            {
+                continue;
+            }
+            match value_kind(&modifier) {
+                Some("reduceCastingCost")
+                    if self.event_player_reference_matches(
+                        &modifier["player"],
+                        &source,
+                        player_id,
+                    ) && (modifier["where"].is_null()
+                        || matches_card_filter(card, &modifier["where"])) =>
+                {
+                    reduction =
+                        reduction.saturating_add(integer_value(&modifier["amount"]).unwrap_or(0));
+                }
+                Some("additionalCastingCost")
+                    if self.event_player_reference_matches(
+                        &modifier["players"],
+                        &source,
+                        player_id,
+                    ) && Self::static_card_filter_matches(&source, card, &modifier["where"]) =>
+                {
+                    if let Some(cost) = modifier["cost"]["manaCost"].as_str() {
+                        increases.push(cost.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+        (reduction.max(0), increases)
+    }
+}
+
+/// A spell-target selector rides only on fixed generic deltas, which the
+/// targeting adjustment reads (`spellTarget`).
+pub(super) fn spell_target_modifier_supported(modifier: &Value) -> bool {
+    modifier.get("spellTarget").is_none_or(|selector| {
+        static_object_selector_supported(selector)
+            && match value_kind(modifier) {
+                Some("reduceCastingCost") => {
+                    integer_value(&modifier["amount"]).is_some_and(|amount| amount > 0)
+                        && modifier.get("coloredMana").is_none()
+                        && modifier.get("firstEachTurn").is_none()
+                        && modifier.get("castOrdinal").is_none()
+                        && modifier.get("sourceZone").is_none()
+                        && modifier.get("sourceZoneNot").is_none()
+                }
+                Some("additionalCastingCost") => {
+                    value_kind(&modifier["cost"]) == Some("payMana")
+                }
+                _ => false,
+            }
+    })
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")

@@ -1734,6 +1734,11 @@ pub(super) enum CastingReductionSubject {
     SpellSet(SpellCastQueryNode),
     /// `the first|second SPELL you cast each turn` (CR 601.2f, 601.2i).
     OrdinalSpell(OrdinalSpellSubjectNode),
+    /// `SPELLS that target OBJECT` (CR 115.1, 601.2c).
+    TargetingSpells {
+        spells: SpellCastQueryNode,
+        target: AbilityTargetCondition,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

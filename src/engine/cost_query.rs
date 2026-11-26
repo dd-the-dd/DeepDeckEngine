@@ -302,7 +302,10 @@ impl GameEngine {
         modifiers.extend(self.eminence_static_modifiers());
         let mut total = 0_i32;
         for (source, modifier) in modifiers {
-            if value_kind(&modifier) != Some("reduceCastingCost") {
+            // A targeting reduction is read once the targets are chosen.
+            if value_kind(&modifier) != Some("reduceCastingCost")
+                || modifier.get("spellTarget").is_some()
+            {
                 continue;
             }
             let context = base.modifier(&source);

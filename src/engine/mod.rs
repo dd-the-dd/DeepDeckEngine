@@ -5832,6 +5832,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                     .is_none_or(casting_cost::colored_reduction_supported)
                 && modifier.get("firstEachTurn").is_none_or(Value::is_boolean)
                 && modifier.get("castOrdinal").is_none_or(casting_cost::cast_ordinal_supported)
+                && casting_cost::spell_target_modifier_supported(modifier)
                 && modifier
                     .get("duringOtherPlayersTurns")
                     .is_none_or(Value::is_boolean)
@@ -5851,7 +5852,8 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && modifier.get("condition").is_none_or(condition_supported)
         }
         Some("additionalCastingCost") => {
-            player_reference_supported(&modifier["players"])
+            casting_cost::spell_target_modifier_supported(modifier)
+                && player_reference_supported(&modifier["players"])
                 && static_card_filter_supported(&modifier["where"])
                 && cost_supported(&modifier["cost"])
                 && modifier.get("condition").is_none_or(condition_supported)
@@ -13222,6 +13224,7 @@ impl GameEngine {
         }
         for (source, modifier) in self.battlefield_static_modifiers() {
             if value_kind(&modifier) != Some("additionalCastingCost")
+                || modifier.get("spellTarget").is_some()
                 || !self.event_player_reference_matches(
                     &modifier["players"],
                     &source,
@@ -18132,8 +18135,10 @@ impl GameEngine {
                             )
                         })
                         .unwrap_or(0);
+                let (static_targeting_reduction, static_targeting_increases) = self.spell_targeting_cost_adjustment(&player.id, &card.definition, &declaration.targets);
                 let targeting_reduction = own_targeting_reduction
                     .saturating_add(aura_targeting_reduction)
+                    .saturating_add(static_targeting_reduction)
                     .max(0);
                 let commander_tax = if *source_zone == "commandZone" {
                     self.state
@@ -18149,6 +18154,7 @@ impl GameEngine {
                     .then(|| format!("{{{commander_tax}}}"))
                     .into_iter()
                     .collect::<Vec<_>>();
+                commander_increases.extend(static_targeting_increases);
                 commander_increases.extend(casting_cost::own_target_count_increases(
                     &card.definition,
                     &declaration.targets,

@@ -384,6 +384,24 @@ fn recognize_ability_population(
     Ok(population)
 }
 
+/// `that target this creature|NAME|a|an OBJECT`: the targeted object of a
+/// spell or ability population, after `that target` (CR 115.1).
+pub(in crate::oracle::canonical) fn recognize_target_relative(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+) -> MachineResult<AbilityTargetCondition> {
+    cursor.enter("target-relative.verb");
+    cursor.consume_phrase(&["that", "target"])?;
+    cursor.enter("target-relative.object");
+    recognize_ability_target(cursor, name_links, name_failure)
+}
+
+/// Whether `that target` follows.
+pub(in crate::oracle::canonical) fn target_relative_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    word(cursor, 0, "that") && word(cursor, 1, "target")
+}
+
 /// `this creature` / the source's name, or `a|an OBJECT`.
 fn recognize_ability_target(
     cursor: &mut OracleTokenCursor<'_>,
