@@ -1,0 +1,335 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch12/program-control-conditions-durations-replacements",
+  "cases": [
+    {
+      "id": "exact-flowstone-armor-stat-change-while-source-tapped",
+      "request": {
+        "cardName": "Flowstone Armor",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "You may choose not to untap this artifact during your untap step.\n{3}, {T}: Target creature gets +1/-1 for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "whileSourceTapped"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thran-weaponry-population-change-while-source-tapped",
+      "request": {
+        "cardName": "Thran Weaponry",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "Echo {4} (At the beginning of your upkeep, if this came under your control since the beginning of your last upkeep, sacrifice it unless you pay its echo cost.)\nYou may choose not to untap this artifact during your untap step.\n{2}, {T}: All creatures get +2/+2 for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-everglove-courier-stat-and-keyword-while-source-tapped",
+      "request": {
+        "cardName": "Everglove Courier",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{2}{G}",
+        "oracleText": "You may choose not to untap this creature during your untap step.\n{2}{G}, {T}: Target Elf creature gets +2/+2 and has trample for as long as this creature remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/1/duration/kind",
+                "equals": "whileSourceTapped"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-aegis-angel-keyword-while-source-controlled",
+      "request": {
+        "cardName": "Aegis Angel",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Flying (This creature can't be blocked except by creatures with flying or reach.)\nWhen this creature enters, another target permanent gains indestructible for as long as you control this creature. (Effects that say \"destroy\" don't destroy it. A creature with indestructible can't be destroyed by damage.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-keyword-grant-while-source-tapped",
+      "request": {
+        "cardName": "Probe Warden",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "{T}: Target creature gains flying for as long as this creature remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "whileSourceTapped"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-another-objects-state-is-not-a-source-window",
+      "request": {
+        "cardName": "Probe Warden",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "{T}: Target creature gets +1/+1 for as long as it has a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "duration.while-condition.subject"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-next-upkeep-is-not-end-of-turn",
+      "request": {
+        "cardName": "Probe Warden",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "{T}: Target creature gets +1/+1 until your next upkeep.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "duration.until-end-of-turn.unit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bruvac-doubles-an-opponents-mill",
+      "request": {
+        "cardName": "Bruvac the Grandiloquent",
+        "typeLine": "Legendary Creature — Human Advisor",
+        "manaCost": "{2}{U}",
+        "oracleText": "If an opponent would mill one or more cards, they mill twice that many cards instead. (To mill a card, a player puts the top card of their library into their graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "replaceEventQuantity"
+              },
+              {
+                "pointer": "/modifiers/0/event/kind",
+                "equals": "mill"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-water-crystal-mill-plus-four",
+      "request": {
+        "cardName": "Crystal Probe",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "If an opponent would mill one or more cards, they mill that many cards plus four instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/event/kind",
+                "equals": "mill"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-controller-mill-plus-one",
+      "request": {
+        "cardName": "Mill Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "If you would mill one or more cards, you mill that many cards plus one instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-mill-replacement-by-another-player",
+      "request": {
+        "cardName": "Mill Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "If an opponent would mill one or more cards, you mill twice that many cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "quantity-replacement.player-subject"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-relic-retriever-card-left-graveyard",
+      "request": {
+        "cardName": "Relic Retriever",
+        "typeLine": "Creature — Spirit Monkey",
+        "manaCost": "{1}{R}",
+        "oracleText": "First strike\nAt the beginning of each end step, if a card left your graveyard this turn, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-gau-card-left-graveyard",
+      "request": {
+        "cardName": "Gau, Feral Youth",
+        "typeLine": "Legendary Creature — Human Berserker",
+        "manaCost": "{1}{R}",
+        "oracleText": "Rage — Whenever Gau attacks, put a +1/+1 counter on it.\nAt the beginning of each end step, if a card left your graveyard this turn, Gau deals damage equal to its power to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-creature-card-left-graveyard-gain-life",
+      "request": {
+        "cardName": "Graveyard Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "At the beginning of your end step, if a creature card left your graveyard this turn, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-card-left-hand-is-not-a-graveyard-departure",
+      "request": {
+        "cardName": "Graveyard Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "At the beginning of your end step, if a card left your hand this turn, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "condition.sentence.atom-kind"
+          }
+        ]
+      }
+    }
+  ]
+}
