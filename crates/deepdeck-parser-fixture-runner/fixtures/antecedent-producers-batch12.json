@@ -1,0 +1,262 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "antecedent-producers-batch12",
+  "cases": [
+    {
+      "id": "vertigo-spawn-exact-combat-counterpart-restated",
+      "request": {
+        "cardName": "Vertigo Spawn",
+        "typeLine": "Creature — Illusion",
+        "manaCost": "{1}{U}",
+        "oracleText": "Defender\nWhenever this creature blocks a creature, tap that creature. That creature doesn't untap during its controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-blocked-by-counterpart-restated-untap-restriction",
+      "request": {
+        "cardName": "Gloomwall Sentry",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever this creature becomes blocked by a creature, tap that creature. That creature doesn't untap during its controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-engulfing-slagwurm-counterpart-read-after-destroy",
+      "request": {
+        "cardName": "Engulfing Slagwurm",
+        "typeLine": "Creature — Wurm",
+        "manaCost": "{5}{G}{G}",
+        "oracleText": "Whenever this creature blocks or becomes blocked by a creature, destroy that creature. You gain life equal to that creature's toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.genitive.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "twilight-prophet-exact-result-kept-across-population-life",
+      "request": {
+        "cardName": "Twilight Prophet",
+        "typeLine": "Creature — Vampire Cleric",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Flying\nAscend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nAt the beginning of your upkeep, if you have the city's blessing, reveal the top card of your library and put it into your hand. Each opponent loses X life and you gain X life, where X is that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-revealed-card-kept-across-counter-placement",
+      "request": {
+        "cardName": "Lantern Oracle",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{2}{U}",
+        "oracleText": "At the beginning of your upkeep, reveal the top card of your library and put it into your hand. Put a +1/+1 counter on this creature. You gain life equal to that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-token-creation-ends-revealed-card-result",
+      "request": {
+        "cardName": "Lantern Heretic",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{2}{U}",
+        "oracleText": "At the beginning of your upkeep, reveal the top card of your library and put it into your hand. Create a 1/1 white Soldier creature token. You gain life equal to that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.genitive.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "blastoneuron-exact-copy-of-card-action-target",
+      "request": {
+        "cardName": "Blastoneuron",
+        "typeLine": "Creature — Jellyfish Leech",
+        "manaCost": "{3}{B}",
+        "oracleText": "Flying\nWhen this creature enters, exile target creature card with mana value 3 or less from your graveyard. Create a token that's a copy of it. That token gains haste. Sacrifice it at the beginning of the next end step.\nWhenever one or more cards leave your graveyard, each opponent loses 1 life and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-copy-of-exiled-artifact-card-target",
+      "request": {
+        "cardName": "Relic Mimic",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}: Exile target artifact card with mana value 2 or less from your graveyard. Create a token that's a copy of it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-copy-of-it-after-plural-card-targets",
+      "request": {
+        "cardName": "Twin Relic Mimic",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}: Exile up to two target artifact cards from your graveyard. Create a token that's a copy of it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "copy.object.pronoun"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-created-token-restated-singular",
+      "request": {
+        "cardName": "Goblin Benefactor",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, target opponent creates a 1/1 red Goblin creature token. That token gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-opponent-created-tokens-restated-plural",
+      "request": {
+        "cardName": "Goblin Patrons",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, target opponent creates two 1/1 red Goblin creature tokens. The tokens gain haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-singular-token-anaphor-after-two-tokens",
+      "request": {
+        "cardName": "Goblin Patron",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, target opponent creates two 1/1 red Goblin creature tokens. That token gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent",
+            "expectedContains": "singular antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "josu-vess-exact-gendered-source-pronoun",
+      "request": {
+        "cardName": "Josu Vess, Lich Knight",
+        "typeLine": "Legendary Creature — Zombie Knight",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Kicker {5}{B} (You may pay an additional {5}{B} as you cast this spell.)\nMenace\nWhen Josu Vess enters, if he was kicked, create eight 2/2 black Zombie Knight creature tokens with menace.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-gendered-source-pronoun-cast-choice",
+      "request": {
+        "cardName": "Kara Vane",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Kicker {2}\nWhen Kara Vane enters, if she was kicked, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-gendered-pronoun-without-named-source",
+      "request": {
+        "cardName": "Vane Apprentice",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "Kicker {2}\nWhen this creature enters, if she was kicked, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "reference.source.unresolved-name"
+          }
+        ]
+      }
+    }
+  ]
+}

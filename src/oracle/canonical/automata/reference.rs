@@ -41,6 +41,14 @@ pub(in crate::oracle::canonical) fn recognize_source_reference(
                     .is_some_and(|token| token.eq_ignore_ascii_case("this"))
                 {
                     SourceReferenceState::ThisObject
+                } else if gendered_source_pronoun_at(cursor, name_links) {
+                    // `When Josu Vess enters, if he was kicked`: a gendered
+                    // personal pronoun names the character the text names,
+                    // the source itself (CR 201.5); never another object.
+                    cursor.enter("reference.source.gendered-pronoun");
+                    let pronoun = cursor.peek().unwrap_or_default().to_owned();
+                    cursor.consume(&pronoun)?;
+                    SourceReferenceState::Complete
                 } else if let Some(unresolved) = unresolved_name_at(cursor.position(), name_failure)
                 {
                     // An unlinked word that names a mechanic or a verb is not
@@ -199,6 +207,19 @@ pub(in crate::oracle::canonical) fn recognize_source_reference_with_antecedent(
                 token.raw.clone(),
             ));
         }
+        // `Whenever a player casts a spell that targets Speedball, he gets
+        // +2/+2`: before any action opened a lexical scope, a gendered
+        // personal pronoun names the character the text names (the source,
+        // CR 201.5), whatever other object the event records. After an
+        // action (`Exile Jace, then return him`) the source may be a new
+        // object (CR 400.7) and the pronoun keeps its diagnostic.
+        let gendered_source = antecedent.is_none()
+            && !cursor
+                .binding_environment()
+                .is_some_and(|environment| environment.local_object_scope)
+            && gendered_source_pronoun_at(cursor, name_links);
+        let gendered = gendered_source.then_some(LocalObjectReference::SourceSelf);
+        let antecedent = antecedent.or(gendered.as_ref());
         let reference = antecedent.cloned().ok_or_else(|| {
             cursor.fail_with_span(
                 "a source binding for the anaphor",
@@ -507,6 +528,63 @@ pub(in crate::oracle::canonical) fn recognize_possessive_source_reference(
     cursor.consume(&genitive)?;
     cursor.enter("reference.source.possessive.complete");
     Ok(LocalObjectReference::SourceSelf)
+}
+
+/// A gendered personal pronoun (`he`, `she`, `him`, the object `her`) that
+/// names the source at the cursor: the ability's text names its source by
+/// its name (a current-card or current-face link, CR 201.5), and the shared
+/// binding environment names no other object with the pronoun. The
+/// possessive `her` (`her owner's library`) is a determiner, followed by its
+/// noun phrase; only an object `her` (before punctuation, a conjunction or a
+/// preposition) is a pronoun here. Lexical and environment lookahead only.
+pub(in crate::oracle::canonical) fn gendered_source_pronoun_at(
+    cursor: &OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+) -> bool {
+    let Some(raw) = cursor.peek().map(str::to_ascii_lowercase) else {
+        return false;
+    };
+    let personal = match raw.as_str() {
+        "he" | "she" | "him" => true,
+        "her" => cursor.peek_ahead(1).is_none_or(|next| {
+            matches!(
+                next.to_ascii_lowercase().as_str(),
+                "." | ","
+                    | ";"
+                    | ":"
+                    | ")"
+                    | "and"
+                    | "or"
+                    | "then"
+                    | "to"
+                    | "into"
+                    | "onto"
+                    | "from"
+                    | "with"
+                    | "until"
+                    | "at"
+                    | "if"
+                    | "unless"
+                    | "as"
+                    | "for"
+                    | "on"
+                    | "in"
+                    | "this"
+            )
+        }),
+        _ => false,
+    };
+    let names_source = name_links.iter().any(|link| {
+        matches!(
+            link.kind,
+            NameLinkKind::CurrentCard | NameLinkKind::CurrentFace
+        )
+    });
+    let other_object = cursor.binding_environment().is_some_and(|environment| {
+        super::resolve_pronoun_antecedent(environment)
+            .is_ok_and(|reference| !matches!(reference, super::PermanentEffectReference::Source(_)))
+    });
+    personal && names_source && !other_object
 }
 
 /// Object pronouns, including the gendered subject and object forms Oracle

@@ -894,10 +894,18 @@ fn lower_local_effect_sequence_with_collections(
                             &target_bindings,
                             context,
                         )?;
-                        effects.push(
+                        let mut creation =
                             lower_token_creation_body(body, lowered.player, quantity)
-                                .map_err(|expected| cursor.fail(expected))?,
-                        );
+                                .map_err(|expected| cursor.fail(expected))?;
+                        // `that player creates a token ... The token is
+                        // goaded`: bound only when the next action names
+                        // the created tokens (`prior_object_set`).
+                        if created_tokens_are_next_antecedent(sequence, effect_index)
+                            && creation["kind"] == "createTokens"
+                        {
+                            creation["bind"] = json!(CREATED_TOKENS_BINDING);
+                        }
+                        effects.push(creation);
                         continue;
                     }
                     SingularPlayerAction::Hand(PlayerHandVerb::Discard) => {
@@ -1030,6 +1038,30 @@ fn lower_local_effect_sequence_with_collections(
                 let mut lowered = collections
                     .lower_action(cursor, action, declarations, &mut decisions)
                     .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                // `exile target creature card with mana value 3 or less from
+                // your graveyard. Create a token that's a copy of it.`: the
+                // one card this action declared is the program's card target
+                // (`declared_card_target`), recorded under its first slot as
+                // the historical targeted card move records it.
+                if let Some((true, _)) = declared_card_target(effect)
+                    && let [id] = decisions[first_decision..]
+                        .iter()
+                        .filter(|decision| {
+                            decision["kind"] == "chooseTargets"
+                                && decision["candidates"]["kind"] == "cards"
+                        })
+                        .filter_map(|decision| decision["id"].as_str())
+                        .collect::<Vec<_>>()
+                        .as_slice()
+                {
+                    card_target_bindings.push((
+                        TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                        (*id).to_string(),
+                    ));
+                }
                 // `exile all cards from your hand. ... return those cards`:
                 // the cards a zone-wide exile moved are the observed exile
                 // collection of the next card action (CR 400.7: the cards
