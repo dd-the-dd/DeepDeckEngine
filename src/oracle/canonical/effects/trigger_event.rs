@@ -1224,20 +1224,30 @@ fn lower_object_event(
             )?;
             // The controller relation is an optional typed field of the
             // subject query (`one or more creatures attack`, `... your
-            // opponents control attack`); the batch matchers count only the
+            // opponents control attack`). The attack batch matcher counts the
+            // attackers of the relation (`anyPlayer`, an opponent's, else the
+            // ability controller's); the combat-damage batch counts only the
             // ability controller's permanents.
-            if subject.query.controller != Some(ObjectControllerScope::AbilityController) {
-                return Err(engine_gap(
-                    cursor,
-                    "a one-or-more attack or combat-damage batch matcher for permanents of another controller relation",
-                ));
-            }
+            let attack_relation = match (event.verb, subject.query.controller) {
+                (_, Some(ObjectControllerScope::AbilityController)) => None,
+                (ObjectEventVerb::Attack, None) => Some("anyPlayer"),
+                (
+                    ObjectEventVerb::Attack,
+                    Some(ObjectControllerScope::OpponentOfAbilityController),
+                ) => Some("opponentOfSourceController"),
+                _ => {
+                    return Err(engine_gap(
+                        cursor,
+                        "a one-or-more attack or combat-damage batch matcher for permanents of another controller relation",
+                    ));
+                }
+            };
             let filter = lower_permanent_object_predicate(&subject.query.predicate);
             let minimum = match subject.multiplicity {
                 EventMultiplicity::PerEvent { minimum } => minimum,
                 EventMultiplicity::PerObject => 1,
             };
-            Ok(match event.verb {
+            let mut lowered = match event.verb {
                 // One attack declaration is one event for all attackers; the
                 // matcher counts the matching attackers (CR 508.1, 603.2c).
                 ObjectEventVerb::Attack if minimum > 1 => json!({
@@ -1257,7 +1267,14 @@ fn lower_object_event(
                     "player": controller(),
                     "where": filter,
                 }),
-            })
+            };
+            if let Some(relation) = attack_relation
+                && let Some(object) = lowered.as_object_mut()
+            {
+                object.remove("player");
+                object.insert(relation.to_string(), json!(true));
+            }
+            Ok(lowered)
         }
         // `one or more PERMANENTS block / become blocked`: the generic block
         // pattern, once per declare-blockers event (CR 509.1, 603.2c).

@@ -181,7 +181,20 @@ impl GameEngine {
         permanent_id: Option<&str>,
         matches: impl Fn(&Value) -> bool,
     ) {
-        let triggers = self
+        let observes = |source: &CardInstance, rule: &Value| {
+            triggered_event_variants(&rule["event"])
+                .iter()
+                .any(|event| {
+                    value_kind(event) == Some(kind)
+                        && self.event_player_reference_matches(
+                            &event["player"],
+                            source,
+                            acting_player_id,
+                        )
+                        && matches(*event)
+                })
+        };
+        let mut triggers = self
             .state
             .players
             .iter()
@@ -193,23 +206,15 @@ impl GameEngine {
                     .filter(|rule| {
                         triggered_rule_supported(rule)
                             && self.rule_active_for_source(source, rule)
-                            && triggered_event_variants(&rule["event"])
-                                .iter()
-                                .any(|event| {
-                                    value_kind(event) == Some(kind)
-                                        && self.event_player_reference_matches(
-                                            &event["player"],
-                                            source,
-                                            acting_player_id,
-                                        )
-                                        && matches(*event)
-                                })
+                            && observes(source, *rule)
                     })
                     .cloned()
                     .map(|rule| (source.clone(), rule))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        // The same occurrence observed from a graveyard (CR 113.6).
+        triggers.extend(self.card_zone_triggered_rules(&observes));
         let mut decisions = BTreeMap::from([(
             "triggeringPlayerId".to_string(),
             Value::String(acting_player_id.to_string()),

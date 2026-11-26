@@ -796,3 +796,65 @@ impl GameEngine {
         })
     }
 }
+
+impl GameEngine {
+    /// The draw matcher of `cardDrawn` observers (CR 121.1): the first
+    /// `cardDrawn` alternative of `rule`, read on the latest draw of
+    /// `drawing_player_id`, which is already recorded. Its player relation
+    /// is relative to the observer's controller (a card outside the
+    /// battlefield carries its owner); `drawOrdinal` is the draw's position
+    /// among that player's draws this turn; `exceptFirstInDrawStep` skips
+    /// the first draw of the draw step; `duringOpponentTurn` reads the
+    /// active player. Every observer zone shares this one matcher.
+    pub(super) fn card_drawn_rule_observed(
+        &self,
+        rule: &Value,
+        source: &CardInstance,
+        drawing_player_id: &str,
+    ) -> bool {
+        let Some(event) = triggered_event_variants(&rule["event"])
+            .into_iter()
+            .find(|event| value_kind(event) == Some("cardDrawn"))
+        else {
+            return false;
+        };
+        let active_player_id = self.state.players[self.state.active_player].id.as_str();
+        let during_opponent_turn = event["duringOpponentTurn"].as_bool() == Some(true);
+        let expected_ordinal = integer_value(&event["drawOrdinal"]);
+        let draw_ordinal = self
+            .state
+            .events
+            .iter()
+            .filter(|event| {
+                event.turn_number == self.state.turn_number
+                    && event.kind == "cardDrawn"
+                    && event.player_id.as_deref() == Some(drawing_player_id)
+            })
+            .count() as i32;
+        let matches_player = if event["anyPlayer"].as_bool() == Some(true) {
+            true
+        } else if event["opponentOfSourceController"].as_bool() == Some(true) {
+            source.controller != drawing_player_id
+        } else {
+            source.controller == drawing_player_id
+        };
+        let except_first_draw_step = event["exceptFirstInDrawStep"].as_bool() == Some(true)
+            && self.state.step == GameStep::Draw
+            && self
+                .state
+                .events
+                .iter()
+                .filter(|recorded| {
+                    recorded.turn_number == self.state.turn_number
+                        && recorded.step == GameStep::Draw
+                        && recorded.kind == "cardDrawn"
+                        && recorded.player_id.as_deref() == Some(drawing_player_id)
+                })
+                .count()
+                == 1;
+        matches_player
+            && expected_ordinal.is_none_or(|ordinal| ordinal == draw_ordinal)
+            && !except_first_draw_step
+            && (!during_opponent_turn || active_player_id != source.controller)
+    }
+}

@@ -1,0 +1,619 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/zone-of-function-triggers-batch12",
+  "cases": [
+    {
+      "id": "exact-arclight-phoenix-graveyard-combat-step",
+      "request": {
+        "cardName": "Arclight Phoenix",
+        "typeLine": "Creature — Phoenix",
+        "manaCost": "{3}{R}",
+        "oracleText": "Flying, haste\nAt the beginning of combat on your turn, if you've cast three or more instant and sorcery spells this turn, return this card from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "stepBegan"
+              },
+              {
+                "pointer": "/event/step",
+                "equals": "beginCombat"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-silversmote-ghoul-graveyard-end-step",
+      "request": {
+        "cardName": "Silversmote Ghoul",
+        "typeLine": "Creature — Zombie Vampire",
+        "manaCost": "{2}{B}",
+        "oracleText": "At the beginning of your end step, if you gained 3 or more life this turn, return this card from your graveyard to the battlefield tapped.\n{1}{B}, Sacrifice this creature: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "stepBegan"
+              },
+              {
+                "pointer": "/event/step",
+                "equals": "endStep"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-masked-admirers-graveyard-creature-spell",
+      "request": {
+        "cardName": "Masked Admirers",
+        "typeLine": "Creature — Elf Shaman",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "When this creature enters, draw a card.\nWhenever you cast a creature spell, you may pay {G}{G}. If you do, return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-verdant-eidolon-graveyard-multicolored-spell",
+      "request": {
+        "cardName": "Verdant Eidolon",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{G}",
+        "oracleText": "{G}, Sacrifice this creature: Add three mana of any one color.\nWhenever you cast a multicolored spell, you may return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-poxwalkers-graveyard-spell-from-another-zone",
+      "request": {
+        "cardName": "Poxwalkers",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{2}{B}",
+        "oracleText": "Deathtouch\nCurse of the Walking Pox — Whenever you cast a spell from anywhere other than your hand, return this card from your graveyard to the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/fromZoneNot",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wolfbat-graveyard-second-draw",
+      "request": {
+        "cardName": "Wolfbat",
+        "typeLine": "Creature — Wolf Bat",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nWhenever you draw your second card each turn, you may pay {B}. If you do, return this card from your graveyard to the battlefield with a finality counter on it. (If a creature with a finality counter on it would die, exile it instead.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "cardDrawn"
+              },
+              {
+                "pointer": "/event/drawOrdinal",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-deathless-knight-graveyard-first-life-gain",
+      "request": {
+        "cardName": "Deathless Knight",
+        "typeLine": "Creature — Skeleton Knight",
+        "manaCost": "{B/G}{B/G}{B/G}{B/G}",
+        "oracleText": "Haste\nWhen you gain life for the first time each turn, return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "lifeGained"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-forsaken-miner-graveyard-crime",
+      "request": {
+        "cardName": "Forsaken Miner",
+        "typeLine": "Creature — Skeleton Rogue",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't block.\nWhenever you commit a crime, you may pay {B}. If you do, return this card from your graveyard to the battlefield. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "crimeCommitted"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-voidwing-hybrid-graveyard-proliferate",
+      "request": {
+        "cardName": "Voidwing Hybrid",
+        "typeLine": "Creature — Phyrexian Bat",
+        "manaCost": "{U}{B}",
+        "oracleText": "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhen you proliferate, return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "proliferated"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-landfall-graveyard-guard-life-gain",
+      "request": {
+        "cardName": "Probe Cairn",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{G}",
+        "oracleText": "Landfall — Whenever a land you control enters, if this card is in your graveyard, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-second-draw-graveyard-guard-life-gain",
+      "request": {
+        "cardName": "Probe Scholar",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever you draw your second card each turn, if this card is in your graveyard, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "cardDrawn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-spell-graveyard-return-to-hand",
+      "request": {
+        "cardName": "Probe Revenant",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever an opponent casts a noncreature spell, you may return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-no-zone-evidence-stays-a-battlefield-trigger",
+      "request": {
+        "cardName": "Second Spell Witness",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Whenever you cast a spell, if it's the second creature spell you cast this turn, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-returning-another-graveyard-card-declares-no-zone",
+      "request": {
+        "cardName": "Probe Raiser",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever you cast a creature spell, return target creature card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-warcry-phoenix-graveyard-attack-batch",
+      "request": {
+        "cardName": "Warcry Phoenix",
+        "typeLine": "Creature — Phoenix",
+        "manaCost": "{3}{R}",
+        "oracleText": "Flying, haste\nWhenever you attack with three or more creatures, you may pay {2}{R}. If you do, return this card from your graveyard to the battlefield tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledCreaturesAttacked"
+              },
+              {
+                "pointer": "/event/minimum",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-argent-dais-any-controller-attack-threshold",
+      "request": {
+        "cardName": "Argent Dais",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{W}",
+        "oracleText": "This artifact enters with two oil counters on it.\nWhenever two or more creatures attack, put an oil counter on this artifact.\n{2}, {T}, Remove two oil counters from this artifact: Exile another target nonland permanent. Its controller draws two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledCreaturesAttacked"
+              },
+              {
+                "pointer": "/event/minimum",
+                "equals": 2
+              },
+              {
+                "pointer": "/event/anyPlayer",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flummoxed-cyclops-opponent-attack-threshold",
+      "request": {
+        "cardName": "Flummoxed Cyclops",
+        "typeLine": "Creature — Cyclops",
+        "manaCost": "{3}{R}",
+        "oracleText": "Reach\nWhenever two or more creatures your opponents control attack, this creature can't block this combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledCreaturesAttacked"
+              },
+              {
+                "pointer": "/event/minimum",
+                "equals": 2
+              },
+              {
+                "pointer": "/event/opponentOfSourceController",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-graveyard-combat-damage-batch-has-no-observer",
+      "request": {
+        "cardName": "Killian's Confidence",
+        "typeLine": "Sorcery",
+        "manaCost": "{W}{B}",
+        "oracleText": "Target creature gets +1/+1 until end of turn. Draw a card.\nWhenever one or more creatures you control deal combat damage to a player, you may pay {W/B}. If you do, return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponent-combat-damage-batch-stays-a-gap",
+      "request": {
+        "cardName": "Probe Warden",
+        "typeLine": "Creature — Human",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever one or more creatures your opponents control deal combat damage to a player, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-hand-zone-trigger-has-no-observer",
+      "request": {
+        "cardName": "Probe Hidden",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever you cast a spell, if this card is in your hand, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -148,6 +148,7 @@ mod mana_ability_execution;
 mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
+mod miracle;
 mod myriad;
 mod observed_state_events;
 mod regeneration;
@@ -4102,6 +4103,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || suspend_ability_supported(&rule["ability"])
                 || mayhem_ability_supported(&rule["ability"])
                 || keyword_programs::madness_ability_supported(&rule["ability"])
+                || miracle_ability_supported(&rule["ability"])
                 || keyword_programs::aftermath_ability_supported(&rule["ability"])
                 || keyword_programs::disturb_ability_supported(&rule["ability"])
                 || keyword_programs::casualty_ability_supported(&rule["ability"])
@@ -5327,6 +5329,7 @@ fn triggered_rule_supported(rule: &Value) -> bool {
                 Some("battlefield" | "graveyard" | "hand" | "exile" | "commandZoneOrBattlefield")
             )
         })
+        && zone_of_function::trigger_zone_observed(rule)
         && rule
             .get("minimumClassLevel")
             .is_none_or(|level| integer_value(level).is_some_and(|level| (2..=3).contains(&level)))
@@ -7797,6 +7800,7 @@ impl GameEngine {
             json!({}),
         );
         self.enqueue_card_drawn_triggers(player_id);
+        self.enqueue_miracle_trigger(player_id);
         self.check_quantity_failure()
     }
 
@@ -7937,62 +7941,19 @@ impl GameEngine {
     }
 
     fn enqueue_card_drawn_triggers(&mut self, drawing_player_id: &str) {
-        let active_player_id = self.state.players[self.state.active_player].id.clone();
         let mut triggers = Vec::new();
         for player in self.state.players.iter().filter(|player| !player.has_lost) {
             for source in &player.battlefield {
                 for rule in self.effective_rules(&source).iter() {
-                    let Some(event) = triggered_event_variants(&rule["event"])
-                        .into_iter()
-                        .find(|event| value_kind(event) == Some("cardDrawn"))
-                    else {
-                        continue;
-                    };
-                    let during_opponent_turn = event["duringOpponentTurn"].as_bool() == Some(true);
-                    let expected_ordinal = integer_value(&event["drawOrdinal"]);
-                    let draw_ordinal = self
-                        .state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            event.turn_number == self.state.turn_number
-                                && event.kind == "cardDrawn"
-                                && event.player_id.as_deref() == Some(drawing_player_id)
-                        })
-                        .count() as i32;
-                    let matches_player = if event["anyPlayer"].as_bool() == Some(true) {
-                        true
-                    } else if event["opponentOfSourceController"].as_bool() == Some(true) {
-                        source.controller != drawing_player_id
-                    } else {
-                        source.controller == drawing_player_id
-                    };
-                    let except_first_draw_step = event["exceptFirstInDrawStep"].as_bool()
-                        == Some(true)
-                        && self.state.step == GameStep::Draw
-                        && self
-                            .state
-                            .events
-                            .iter()
-                            .filter(|recorded| {
-                                recorded.turn_number == self.state.turn_number
-                                    && recorded.step == GameStep::Draw
-                                    && recorded.kind == "cardDrawn"
-                                    && recorded.player_id.as_deref() == Some(drawing_player_id)
-                            })
-                            .count()
-                            == 1;
                     if triggered_rule_supported(rule)
-                        && matches_player
-                        && expected_ordinal.is_none_or(|ordinal| ordinal == draw_ordinal)
-                        && !except_first_draw_step
-                        && (!during_opponent_turn || active_player_id != source.controller)
+                        && self.card_drawn_rule_observed(rule, source, drawing_player_id)
                     {
                         triggers.push((source.clone(), rule.clone()));
                     }
                 }
             }
         }
+        triggers.extend(self.graveyard_card_drawn_triggers(drawing_player_id));
         for (source, rule) in triggers {
             self.put_triggered_ability_on_stack_with_decisions(
                 &source,
@@ -22975,6 +22936,7 @@ impl GameEngine {
                 }
             }
         }
+        triggers.extend(self.graveyard_death_triggers(&death_record));
         let decisions = BTreeMap::from([
             (
                 "triggeringPermanentId".to_string(),
@@ -23128,6 +23090,7 @@ impl GameEngine {
                 }
             }
         }
+        self.enqueue_graveyard_life_gained_triggers(player_id, amount);
     }
 
     fn enqueue_life_lost_triggers(&mut self, player_id: &str, amount: i32) {
@@ -23653,7 +23616,7 @@ impl GameEngine {
         }));
         // Battlefield observers of cards arriving in a graveyard (generic
         // move pattern): per card, or once per simultaneous event.
-        let arrival_observers = self
+        let mut arrival_observers = self
             .state
             .players
             .iter()
@@ -23689,6 +23652,7 @@ impl GameEngine {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        arrival_observers.extend(self.graveyard_arrival_observers(cards, from));
         let card_ids = cards
             .iter()
             .map(|card| card.instance_id.clone())
@@ -24491,49 +24455,7 @@ impl GameEngine {
                                     })
                             }
                             Some("controlledCreaturesAttacked") => {
-                                let controlled_attackers = attacker_ids
-                                    .iter()
-                                    .filter(|attacker_id| {
-                                        self.permanent_position(attacker_id).is_some_and(
-                                            |(player_index, card_index)| {
-                                                let permanent = &self.state.players[player_index]
-                                                    .battlefield[card_index];
-                                                permanent.controller == source.controller
-                                                    && event.get("where").is_none_or(
-                                                        |where_filter| {
-                                                            self.permanent_matches_effective_filter(
-                                                                permanent,
-                                                                where_filter,
-                                                            )
-                                                        },
-                                                    )
-                                            },
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let count = controlled_attackers.len();
-                                let total_power = controlled_attackers
-                                    .iter()
-                                    .filter_map(|attacker_id| {
-                                        self.permanent_position(attacker_id).map(
-                                            |(player_index, card_index)| {
-                                                self.current_power(
-                                                    &self.state.players[player_index].battlefield
-                                                        [card_index],
-                                                )
-                                            },
-                                        )
-                                    })
-                                    .sum::<i32>();
-                                count
-                                    >= integer_value(&event["minimum"]).unwrap_or(1).max(1) as usize
-                                    && integer_value(&event["maximum"])
-                                        .is_none_or(|maximum| count <= maximum.max(0) as usize)
-                                    && (event["sourceMustAttack"].as_bool() != Some(true)
-                                        || attacker_ids.contains(&source.instance_id))
-                                    && integer_value(&event["totalPowerAtLeast"])
-                                        .is_none_or(|minimum| total_power >= minimum)
-                                    && self.member_event_condition_holds(event, &source)
+                                self.attack_batch_observed(event, &source, attacker_ids)
                             }
                             _ => false,
                         }))
@@ -24554,6 +24476,7 @@ impl GameEngine {
                 }
             }
         }
+        triggers.extend(self.graveyard_attack_batch_triggers(attacker_ids));
         for (source, rule, origin) in triggers {
             let triggering_attacker = attacker_ids
                 .iter()
@@ -25094,6 +25017,7 @@ impl GameEngine {
                 ));
             }
         }
+        triggers.extend(self.graveyard_spell_cast_triggers(&cast_record));
         triggers.extend(self.take_created_spell_cast_triggers(&cast_record));
         let mut consumed_delayed = Vec::new();
         for (index, modifier) in self.state.rule_modifiers.iter().enumerate() {
@@ -25359,6 +25283,7 @@ impl GameEngine {
                 .cloned()
                 .map(|source| (source, "commandZone")),
         );
+        sources.extend(self.graveyard_trigger_sources());
         // Triggered abilities that function in exile (CR 113.6k), printed or
         // keyword-expanded (for example Suspend, CR 702.62a).
         sources.extend(
