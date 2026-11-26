@@ -165,3 +165,138 @@ fn untyped_relative_clauses_fail_with_their_own_states() {
         assert_eq!(result.unwrap_err().state, state, "{text}");
     }
 }
+
+fn producer(players: PlayerSetReferenceNode, optional: bool) -> PlayerRelativeContext {
+    PlayerRelativeContext {
+        performance_producer: Some(super::super::PopulationPerformanceProducer {
+            effect_index: 3,
+            players,
+            excluding_controller: false,
+            optional,
+        }),
+        ..PlayerRelativeContext::default()
+    }
+}
+
+fn restriction_after(
+    text: &str,
+    players: PlayerSetReferenceNode,
+    context: &PlayerRelativeContext,
+) -> (MachineResult<PlayerPopulationQueryNode>, Option<String>) {
+    let tokens = recognize_entities(text);
+    let mut cursor = OracleTokenCursor::new("player-population", &tokens);
+    let result = recognize_player_population_restriction(&mut cursor, players, false, context);
+    (result, cursor.peek().map(str::to_string))
+}
+
+#[test]
+fn elided_relatives_observe_the_preceding_population_action_and_stop_before_the_verb() {
+    let every = PlayerSetReferenceNode::EachPlayer;
+    let opponents = PlayerSetReferenceNode::OpponentsOfAbilityController;
+    for (text, players, context, performed, verb) in [
+        (
+            "who does draws seven cards.",
+            every,
+            producer(every, true),
+            true,
+            "draws",
+        ),
+        (
+            "who doesn't loses 3 life.",
+            every,
+            producer(every, true),
+            false,
+            "loses",
+        ),
+        (
+            "who didn't draws a card.",
+            opponents,
+            producer(every, true),
+            false,
+            "draws",
+        ),
+        (
+            "who did not loses 1 life.",
+            opponents,
+            producer(opponents, false),
+            false,
+            "loses",
+        ),
+        (
+            "who can't loses 3 life.",
+            opponents,
+            producer(opponents, false),
+            false,
+            "loses",
+        ),
+        // A modal main clause after the ellipsis.
+        (
+            "who does can't attack you.",
+            opponents,
+            producer(every, true),
+            true,
+            "can't",
+        ),
+    ] {
+        let (result, next) = restriction_after(text, players, &context);
+        let query = result.unwrap_or_else(|failure| panic!("{text}: {failure:?}"));
+        assert_eq!(
+            query.predicate,
+            Some(PlayerRelativePredicate::Performance {
+                producer: 3,
+                performed
+            }),
+            "{text}"
+        );
+        assert_eq!(next.as_deref(), Some(verb), "{text}");
+    }
+}
+
+#[test]
+fn elided_relatives_without_a_matching_producer_fail_explicitly() {
+    let every = PlayerSetReferenceNode::EachPlayer;
+    let opponents = PlayerSetReferenceNode::OpponentsOfAbilityController;
+    for (text, players, context, state) in [
+        // No preceding population action.
+        (
+            "who does draws a card.",
+            every,
+            PlayerRelativeContext::default(),
+            "player-set.relative.who.performance.producer",
+        ),
+        // Every player was not given an opponents-only instruction.
+        (
+            "who doesn't loses 3 life.",
+            every,
+            producer(opponents, false),
+            "player-set.relative.who.performance.producer",
+        ),
+        // A permission's outcome is `who doesn't`, never `who can't`.
+        (
+            "who can't loses 1 life.",
+            every,
+            producer(every, true),
+            "player-set.relative.who.performance.permission",
+        ),
+    ] {
+        let (result, _) = restriction_after(text, players, &context);
+        assert_eq!(result.unwrap_err().state, state, "{text}");
+    }
+    // A written-out relative verb is no ellipsis: the proposition grammar
+    // keeps its own diagnostic even after a population action.
+    let (result, _) = restriction_after(
+        "who didn't discard a nonland card this way loses 3 life.",
+        opponents,
+        &producer(opponents, false),
+    );
+    assert_eq!(result.unwrap_err().state, "player-set.relative.who.verb");
+    let (result, _) = restriction_after(
+        "who doesn't control an Elf loses 1 life.",
+        opponents,
+        &producer(opponents, false),
+    );
+    assert!(matches!(
+        result.unwrap().predicate,
+        Some(PlayerRelativePredicate::State { negated: true, .. })
+    ));
+}
