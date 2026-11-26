@@ -119,7 +119,7 @@ fn counterpart_matches(filter: &Value, detail: &Value) -> bool {
 }
 
 impl GameEngine {
-    /// Battlefield observers of a keyword action performed by another
+    /// Battlefield observers of a keyword action performed by a quantified
     /// permanent (`a creature you control exploits a creature`): the acting
     /// permanent `actor` (as it existed when its ability resolved) satisfies
     /// the subject's controller relation and predicate, and the acted-on
@@ -132,12 +132,19 @@ impl GameEngine {
         object_id: &str,
         detail: &Value,
     ) -> bool {
+        // The acting permanent observes its own action as it last existed
+        // when it sacrificed itself (as for its own `this creature exploits`).
+        let departed_actor = self
+            .permanent_position(&actor.instance_id)
+            .is_none()
+            .then_some(actor);
         let triggers = self
             .state
             .players
             .iter()
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
+            .chain(departed_actor)
             .flat_map(|observer| {
                 self.effective_rules(observer)
                     .iter()

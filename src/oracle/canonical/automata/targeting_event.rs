@@ -347,7 +347,16 @@ pub(in crate::oracle::canonical) fn consume_targeting_relation(
 pub(in crate::oracle::canonical) fn recognize_became_target_event(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<BecameTargetEventNode> {
+    let start = cursor.checkpoint();
     let subject = recognize_targeted_object_selectors(cursor)?;
+    if subject.objects.is_empty() && !targeting_frame_starts(cursor, 1) {
+        // A player subject with another verb is a player event (`you
+        // become the monarch`): this frame fails where it started, so the
+        // player-event reader's diagnostic is the clause's.
+        cursor.rollback(start);
+        cursor.enter("event.became-target.player-subject");
+        return Err(cursor.fail("`become the target of` after a player subject"));
+    }
     cursor.enter("event.became-target.action");
     // Only `become(s) the target of` is this frame; another complement of
     // `become` (`becomes tapped`, `become the monarch`) belongs to a later
