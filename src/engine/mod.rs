@@ -135,6 +135,7 @@ mod end_of_combat;
 mod event_batch;
 mod event_card_batch;
 mod event_model;
+mod graveyard_departure_history;
 mod invariants;
 mod keyword_actions;
 mod keyword_programs;
@@ -23750,6 +23751,7 @@ impl GameEngine {
         if card_ids.is_empty() {
             return;
         }
+        self.record_cards_left_graveyard(player_id, card_ids);
         let sources = self
             .state
             .players

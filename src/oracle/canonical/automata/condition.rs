@@ -395,6 +395,9 @@ pub(in crate::oracle::canonical) enum HistoryEvent {
     CombatPhaseStarted,
     /// CR 700.13: a player committed a crime.
     CrimeCommitted,
+    /// A card left a graveyard (CR 400.7): one record per card, whose
+    /// player is the graveyard's owner and whose object is the card.
+    CardLeftGraveyard,
 }
 
 /// The casting mode a cast record keeps (`a spell was warped`).
