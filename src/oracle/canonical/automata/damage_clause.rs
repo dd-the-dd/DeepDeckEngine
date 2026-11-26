@@ -421,6 +421,54 @@ pub(in crate::oracle::canonical) fn damage_recipient_names_player(
     }
 }
 
+/// `each deal damage equal to their power to RECIPIENT` after a plural
+/// subject the parent iterates member by member (CR 608.2c): each member
+/// deals damage equal to its own power, once per member. The parent opens
+/// the iteration over `member`, the declared plural slot whose singular
+/// binding names the member being iterated; this child only reads the
+/// distributive predicate and builds the ordinary damage action of one
+/// member. The recipient is the shared recipient group.
+pub(in crate::oracle::canonical) fn distributive_member_damage_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    peek_is(cursor, "each")
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| super::is_verb_form(raw, VerbLemma::Deal, super::VerbForm::Base))
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("damage"))
+}
+
+pub(in crate::oracle::canonical) fn recognize_distributive_member_damage(
+    cursor: &mut OracleTokenCursor<'_>,
+    member: super::TargetBinding,
+) -> MachineResult<super::DamageEffectNode> {
+    cursor.enter("effect.distributive-damage.each");
+    cursor.consume("each")?;
+    cursor.enter("effect.distributive-damage.verb");
+    super::consume_lemma(cursor, VerbLemma::Deal, VerbAgreement::Base)?;
+    cursor.enter("effect.distributive-damage.amount");
+    cursor.consume("damage")?;
+    // `their power`: each member's own power, the member the iteration
+    // binds to the slot in turn.
+    cursor.consume_phrase(&["equal", "to", "their", "power"])?;
+    cursor.enter("effect.distributive-damage.recipient");
+    cursor.consume("to")?;
+    let recipient = super::recognize_damage_recipient_group(cursor)?;
+    Ok(super::DamageEffectNode {
+        source: super::PermanentOperandNode::BoundReference(
+            super::PermanentEffectReference::Target(member),
+        ),
+        amount: NumericExpression::PowerOf(member),
+        recipient,
+    })
+}
+
 #[cfg(test)]
 #[path = "damage_clause_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "distributive_damage_tests.rs"]
+mod distributive_damage_tests;

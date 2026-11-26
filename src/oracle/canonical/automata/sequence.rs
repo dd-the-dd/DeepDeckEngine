@@ -285,6 +285,10 @@ struct SequenceMemory {
     /// the creature type of your choice`) began: its `choose` instruction is
     /// already emitted, so the clause itself is read next.
     inline_choice_at: Option<usize>,
+    /// The plural target slot a distributive subject (`Up to two target
+    /// creatures you control each deal ...`) just declared: its predicate
+    /// is read next, once per member of the slot.
+    distributive_member: Option<TargetBinding>,
     /// Delayed action ranges (CR 603.7a) closed so far.
     delayed: Vec<super::DelayedFrameNode>,
     /// A preposed created rule (`At the beginning of ... ,`, `When EVENT
@@ -947,6 +951,66 @@ fn recognize_effect_sequence_attempt_scoped(
                         causative = false;
                         inline_choice = true;
                         break LocalEffectNode::Choose(choice);
+                    }
+                    // `Up to two target creatures you control each deal
+                    // damage equal to their power to ...` (CR 608.2c): the
+                    // subject declares its slot first; the predicate is
+                    // then performed once per member of that slot.
+                    if let Some(member) = memory.distributive_member.take() {
+                        open_iteration(
+                            &mut memory,
+                            super::IterationDomain::DeclaredObjects(member),
+                        );
+                        causative = false;
+                        break LocalEffectNode::DealDamage(
+                            super::recognize_distributive_member_damage(cursor, member)?,
+                        );
+                    }
+                    if memory.open_iteration.is_none()
+                        && let Some((targets, subject_end)) = distributive_target_subject(cursor)
+                    {
+                        attempt_frame.commit();
+                        *cursor = subject_end;
+                        memory.distributive_member = Some(TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        });
+                        causative = false;
+                        inline_choice = true;
+                        break LocalEffectNode::Choose(super::ChooseInstructionNode {
+                            chooser: super::ChooserNode::Controller,
+                            domain: super::ChoiceDomainNode::PermanentTargets(targets),
+                        });
+                    }
+                    // `They each deal damage equal to their power to ...`:
+                    // one damage action per member of the plural slot the
+                    // previous action declared.
+                    if memory.open_iteration.is_none()
+                        && cursor
+                            .peek()
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
+                        && {
+                            let mut predicate = cursor.clone();
+                            predicate.advance_to(predicate.position() + 1).is_ok()
+                                && super::distributive_member_damage_starts(&predicate)
+                        }
+                    {
+                        attempt_frame.commit();
+                        let member = resolve_iterated_set(
+                            cursor,
+                            &memory.effects,
+                            &super::IteratedSetAnaphor::Pronoun,
+                        )?;
+                        open_iteration(
+                            &mut memory,
+                            super::IterationDomain::DeclaredObjects(member),
+                        );
+                        cursor.enter("sequence.distributive-damage.subject");
+                        cursor.consume("they")?;
+                        causative = false;
+                        break LocalEffectNode::DealDamage(
+                            super::recognize_distributive_member_damage(cursor, member)?,
+                        );
                     }
                     let mut action_context = base_action_context.clone();
                     action_context.preposed_duration = preposed_duration.clone();
@@ -4610,6 +4674,49 @@ fn resolve_iterated_set(
         )?;
     }
     Ok(binding)
+}
+
+/// How far a distributive subject may span before `each deal`.
+const DISTRIBUTIVE_SUBJECT_LIMIT: usize = 14;
+
+/// `TARGETS each deal damage ...` at the cursor: a declared subject of one
+/// plural permanent target slot followed by the distributive predicate.
+/// Pure lookahead before the target list is read; `None` leaves the clause
+/// to the other readers (a singular or multi-slot subject is not claimed).
+fn distributive_target_subject<'tokens>(
+    cursor: &OracleTokenCursor<'tokens>,
+) -> Option<(super::TargetListNode, OracleTokenCursor<'tokens>)> {
+    let each_deal = (1..DISTRIBUTIVE_SUBJECT_LIMIT)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .any(|offset| {
+            let mut at = cursor.clone();
+            at.advance_to(at.position() + offset).is_ok()
+                && super::distributive_member_damage_starts(&at)
+        });
+    if !each_deal {
+        return None;
+    }
+    let mut subject = cursor.clone();
+    let targets = super::recognize_target_list_with_counts(
+        &mut subject,
+        super::TargetCountSupport::Expressed,
+    )
+    .ok()?;
+    let [slot] = targets.slots.as_slice() else {
+        return None;
+    };
+    let plural = slot
+        .count
+        .as_ref()
+        .map_or(slot.cardinality.maximum > 1, super::TargetCount::is_plural);
+    (plural
+        && super::permanent_subject::selector_guarantees_permanent(&slot.selector)
+        && super::distributive_member_damage_starts(&subject))
+    .then_some((targets, subject))
 }
 
 /// True when the last action read restates an earlier action of the same

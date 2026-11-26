@@ -244,3 +244,111 @@ fn an_entry_sentence_makes_the_copied_token_enter_tapped_and_attacking() {
     assert_eq!(tokens[0].flags.get("attacking"), Some(&true));
     assert_eq!(engine.state.combat.attackers.len(), 2);
 }
+
+fn compile_free(name: &str, text: &str) -> CardDefinition {
+    let request = OracleCardParseRequest {
+        card_name: name.to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{0}".to_string()),
+        oracle_text: Some(text.to_string()),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    };
+    let compiled = std::thread::Builder::new()
+        .name("object-subject-compiler".to_string())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            compile_playable_card(PlayableCardInput {
+                id: "distributive-source".to_string(),
+                face_id: None,
+                is_token: false,
+                is_game_piece: false,
+                is_sideboard: false,
+                power: None,
+                toughness: None,
+                oracle: request,
+            })
+        })
+        .expect("compiler thread starts")
+        .join()
+        .expect("compiler thread completes")
+        .expect("the card compiles");
+    assert_eq!(compiled.engine_status, "executable", "{name}");
+    compiled.card
+}
+
+fn sized_creature(id: &str, power: &str, toughness: &str, controller: &str) -> CardInstance {
+    let mut definition = test_definition(id, "Creature \u{2014} Bear");
+    definition.power = Some(power.to_string());
+    definition.toughness = Some(toughness.to_string());
+    test_instance(id, definition, controller)
+}
+
+/// Casts the compiled sorcery for free, declaring exactly `wanted` through
+/// the legal cast actions, then resolves it.
+fn cast_and_resolve(engine: &mut GameEngine, card: &CardDefinition, wanted: &[&str]) {
+    engine.state.players[0].hand.push(test_instance(
+        "distributive-source",
+        card.clone(),
+        "player-0",
+    ));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let wanted = wanted
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<BTreeSet<_>>();
+    let cast = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::CastSpell
+                && action
+                    .targets
+                    .values()
+                    .filter_map(|target| match target {
+                        TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
+                        _ => None,
+                    })
+                    .collect::<BTreeSet<_>>()
+                    == wanted
+        })
+        .unwrap_or_else(|| panic!("no cast declaring exactly {wanted:?}"));
+    engine
+        .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
+        .unwrap_or_else(|error| panic!("the spell is cast: {}", error.message));
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .unwrap_or_else(|error| panic!("the spell resolves: {}", error.message));
+}
+
+fn damage_on(engine: &GameEngine, id: &str) -> i64 {
+    engine
+        .state
+        .players
+        .iter()
+        .flat_map(|player| player.battlefield.iter())
+        .find(|card| card.instance_id == id)
+        .map_or(-1, |card| i64::from(card.damage_marked))
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn each_declared_member_deals_damage_equal_to_its_own_power() {
+    // Allies at Last: each of the two declared creatures deals damage equal
+    // to its own power to the one declared recipient (CR 608.2c).
+    let card = compile_free(
+        "Allies at Last",
+        "Up to two target creatures you control each deal damage equal to their power to target creature an opponent controls.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[0].battlefield = vec![
+        sized_creature("small", "2", "2", "player-0"),
+        sized_creature("large", "3", "3", "player-0"),
+    ];
+    engine.state.players[1].battlefield = vec![sized_creature("wall", "0", "9", "player-1")];
+    cast_and_resolve(&mut engine, &card, &["small", "large", "wall"]);
+    assert_eq!(damage_on(&engine, "wall"), 5);
+}
