@@ -923,6 +923,222 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-soulherder-a-creature-is-exiled-from-the-battlefield",
+      "request": {
+        "cardName": "Soulherder",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{W}{U}",
+        "oracleText": "Whenever a creature is exiled from the battlefield, put a +1/+1 counter on this creature.\nAt the beginning of your end step, you may exile another target creature you control, then return that card to the battlefield under its owner's control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "move"
+              },
+              {
+                "pointer": "/event/from",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/event/to",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/event/subject/object/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-justice-another-nonland-permanent-you-control-is-returned-to-its-owners-hand",
+      "request": {
+        "cardName": "Justice, Vance Astrovik",
+        "typeLine": "Legendary Creature — Human Hero",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Flying\nWhen Justice enters, return up to one target nonland, nontoken permanent to its owner's hand.\nWhenever another nonland permanent you control is returned to its owner's hand, put a +1/+1 counter on Justice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/to",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/event/subject/object/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/subject/object/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-one-or-more-artifacts-an-opponent-controls-are-exiled-from-the-battlefield",
+      "request": {
+        "cardName": "Scrapper Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever one or more artifacts an opponent controls are exiled from the battlefield, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/to",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/event/subject/object/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/aggregation",
+                "equals": "oneOrMore"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-written-hand-owner-fails-at-the-hand",
+      "request": {
+        "cardName": "Azorius Aethermage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{W}{U}",
+        "oracleText": "Whenever a permanent is returned to your hand, you may pay {1}. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "event.object-move.hand-owner",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pia-nalaar-consul-play-a-land-from-exile-or-cast-a-spell-from-exile",
+      "request": {
+        "cardName": "Pia Nalaar, Consul of Revival",
+        "typeLine": "Legendary Creature — Human Artificer",
+        "manaCost": "{2}{R}{W}",
+        "oracleText": "Thopters you control have haste.\nWhenever you play a land from exile or cast a spell from exile, create a 1/1 colorless Thopter artifact creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "landPlayedFromExile"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/events/1/fromZone",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-land-played-from-a-graveyard-has-no-origin-matcher",
+      "request": {
+        "cardName": "Graveyard Land Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever you play a land from your graveyard, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "event.land-played.origin",
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
     }
   ]
 }

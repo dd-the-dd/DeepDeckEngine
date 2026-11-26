@@ -55,6 +55,9 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
     /// A quantified permanent performing a keyword action on another
     /// permanent (`a creature you control exploits a creature`, CR 702.110b).
     ObjectAction(super::ObjectActionEventNode),
+    /// A quantified permanent moved from the battlefield to a written zone
+    /// (`a creature is exiled from the battlefield`, CR 603.10a).
+    ObjectMove(super::ObjectMoveEventNode),
     /// A trigger condition list (CR 603.2): `EVENT and when|whenever|at the
     /// beginning of EVENT ...`. Each member is a complete typed clause with
     /// its own introducer; the ability triggers once per occurrence of any

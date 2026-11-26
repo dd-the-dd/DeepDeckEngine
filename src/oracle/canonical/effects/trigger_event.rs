@@ -198,6 +198,7 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
         }
         GenericTriggerEventNode::BecameTarget(event) => Ok(lower_became_target_event(event)),
         GenericTriggerEventNode::ObjectAction(event) => lower_object_action_event(cursor, event),
+        GenericTriggerEventNode::ObjectMove(event) => lower_object_move_event(cursor, event),
         GenericTriggerEventNode::Compound(members) => lower_compound_trigger_event(cursor, members),
         GenericTriggerEventNode::Conditioned { .. } => {
             // A single occurrence's condition belongs to the ability
@@ -269,6 +270,56 @@ fn lower_object_action_event(
         "subject": {"object": object},
         "counterpart": {"where": filter},
     }))
+}
+
+/// `a creature is exiled from the battlefield`, `another nonland permanent
+/// you control is returned to its owner's hand`: the generic departure move
+/// pattern with its destination, read on the last-known permanent (CR
+/// 603.10a); `one or more` is one trigger per simultaneous event (CR
+/// 603.2c).
+fn lower_object_move_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectMoveEventNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.object-move.subject-support");
+    let subject = &event.subject;
+    let predicate = &subject.query.predicate;
+    cursor.require(
+        !predicate.contains_numeric_comparison() && domain_filter_is_representable(predicate),
+        "a representable moved-permanent predicate without numeric characteristics",
+    )?;
+    let mut object = json!({"kind": "permanents"});
+    match subject.query.controller {
+        None => {}
+        Some(
+            scope @ (ObjectControllerScope::AbilityController
+            | ObjectControllerScope::OpponentOfAbilityController),
+        ) => object["controller"] = lower_object_controller_scope(scope),
+        Some(_) => {
+            return Err(
+                cursor.fail("a moved permanent with any controller, yours or an opponent's")
+            );
+        }
+    }
+    if *predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+        let filter = lower_permanent_object_predicate(predicate);
+        cursor.require(!filter.is_null(), "a lowered moved-permanent predicate")?;
+        object["where"] = filter;
+    }
+    if subject.exclude_source || subject.query.exclude_source {
+        object["excludeSource"] = json!(true);
+    }
+    let mut lowered = json!({
+        "kind": "eventPattern",
+        "lemma": "move",
+        "subject": {"object": object},
+        "from": "battlefield",
+        "to": event.destination.zone(),
+    });
+    if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. }) {
+        lowered["aggregation"] = json!("oneOrMore");
+    }
+    Ok(lowered)
 }
 
 /// Event kinds whose matcher evaluates a member's own `eventCondition` as
@@ -2216,13 +2267,21 @@ fn lower_local_event(
         LocalTriggerEventNode::LandPlayed {
             player,
             exclude_source,
+            from_exile,
         } => {
             cursor.enter("trigger.program.land-play.player-support");
             cursor.require(
                 *player == LocalPlayerReference::Controller,
                 "the source controller as land-playing player",
             )?;
-            let mut lowered = json!({"kind": "landPlayed", "player": controller()});
+            // The exile observer is the same land-play record whose origin
+            // zone was exile (CR 305.1).
+            let kind = if *from_exile {
+                "landPlayedFromExile"
+            } else {
+                "landPlayed"
+            };
+            let mut lowered = json!({"kind": kind, "player": controller()});
             if *exclude_source {
                 lowered["excludeSource"] = json!(true);
             }

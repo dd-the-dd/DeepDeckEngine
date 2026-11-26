@@ -40,6 +40,9 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
     LandPlayed {
         player: LocalPlayerReference,
         exclude_source: bool,
+        /// `play a land from exile` (CR 305.1, 601.2a): the land was played
+        /// from exile; the land-play record keeps the zone it left.
+        from_exile: bool,
     },
     CombatDamageToPlayer {
         source: LocalObjectReference,
@@ -1082,10 +1085,21 @@ pub(in crate::oracle::canonical) fn recognize_land_played_event(
                 LandPlayedEventState::Complete
             }
             LandPlayedEventState::Complete => {
+                // `from ZONE` (CR 305.1): the zone the land was played from,
+                // a slot of the same event. Only exile has a matcher; another
+                // zone fails here, never dropped.
+                let from_exile = cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("from"));
+                if from_exile {
+                    cursor.enter("event.land-played.origin");
+                    cursor.consume_phrase(&["from", "exile"])?;
+                }
                 cursor.enter("event.land-played.complete");
                 return Ok(LocalTriggerEventNode::LandPlayed {
                     player: cursor.require_value(player, "a populated event player")?,
                     exclude_source,
+                    from_exile,
                 });
             }
         };

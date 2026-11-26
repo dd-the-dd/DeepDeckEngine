@@ -16,6 +16,7 @@ fn another_land_retains_source_exclusion() {
         LocalTriggerEventNode::LandPlayed {
             player: LocalPlayerReference::Controller,
             exclude_source: true,
+            from_exile: false,
         }
     );
 }
@@ -32,6 +33,7 @@ fn indefinite_land_does_not_exclude_the_source() {
         LocalTriggerEventNode::LandPlayed {
             player: LocalPlayerReference::Controller,
             exclude_source: false,
+            from_exile: false,
         }
     );
 }
@@ -46,4 +48,33 @@ fn another_creature_fails_at_the_object_type_state() {
 
     assert_eq!(failure.state, "event.land-played.object-type");
     assert_eq!(failure.actual.as_deref(), Some("creature"));
+}
+
+#[test]
+fn a_land_played_from_exile_keeps_its_origin() {
+    let tokens = recognize_entities("you play a land from exile or cast a spell from exile");
+    let mut cursor = OracleTokenCursor::new("test.land-played-from-exile", &tokens);
+
+    let event = recognize_land_played_event(&mut cursor).expect("land event parses");
+
+    assert_eq!(
+        event,
+        LocalTriggerEventNode::LandPlayed {
+            player: LocalPlayerReference::Controller,
+            exclude_source: false,
+            from_exile: true,
+        }
+    );
+    assert_eq!(cursor.peek(), Some("or"), "the union belongs to the clause");
+}
+
+#[test]
+fn a_land_played_from_another_zone_fails_at_the_origin() {
+    let tokens = recognize_entities("you play a land from your graveyard");
+    let mut cursor = OracleTokenCursor::new("test.land-played-from-graveyard", &tokens);
+
+    let failure = recognize_land_played_event(&mut cursor)
+        .expect_err("only exile is a land-play origin with a matcher");
+
+    assert_eq!(failure.state, "event.land-played.origin");
 }

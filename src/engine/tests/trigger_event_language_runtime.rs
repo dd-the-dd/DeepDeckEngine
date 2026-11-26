@@ -504,3 +504,43 @@ fn skull_skaab_observes_a_creature_you_control_exploiting_a_nontoken_creature() 
         assert_eq!(created, zombies, "token fodder {fodder_is_token}");
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn soulherder_observes_an_exile_from_the_battlefield_not_a_bounce() {
+    const SOULHERDER: &str = "Whenever a creature is exiled from the battlefield, put a +1/+1 counter on this creature.\nAt the beginning of your end step, you may exile another target creature you control, then return that card to the battlefield under its owner's control.";
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        parsed_card(
+            "herder",
+            "player-0",
+            "Soulherder",
+            "Creature \u{2014} Spirit",
+            SOULHERDER,
+        ),
+        plain_card("own-bear", "player-0", "Creature \u{2014} Bear"),
+    ];
+    engine.state.players[1].battlefield = vec![
+        plain_card("their-bear", "player-1", "Creature \u{2014} Bear"),
+        plain_card("their-rock", "player-1", "Artifact"),
+    ];
+    admit(&mut engine);
+    // An artifact exiled from the battlefield is no creature.
+    resolve_spell_effects(&mut engine, "player-1", "Exile all artifacts you control.");
+    assert_eq!(triggers_from(&engine, "herder"), 0);
+    // An opponent's creature exiled from the battlefield.
+    resolve_spell_effects(&mut engine, "player-1", "Exile all creatures you control.");
+    assert_eq!(triggers_from(&engine, "herder"), 1, "one exiled creature");
+    resolve_stack(&mut engine);
+    // A creature returned to its owner's hand moved to another zone.
+    resolve_spell_effects(
+        &mut engine,
+        "player-1",
+        "Return all creatures to their owners' hands.",
+    );
+    assert_eq!(
+        triggers_from(&engine, "herder"),
+        1,
+        "a bounce is not an exile"
+    );
+}
