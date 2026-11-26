@@ -165,6 +165,28 @@
       }
     },
     {
+      "id": "near-miss-declined-outcome-without-an-option",
+      "request": {
+        "cardName": "Probe Seer",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "At the beginning of your upkeep, look at the top card of your library. If it's a land card, you lose 1 life. If you don't, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.action-outcome.payment-omitted"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-bloodchiefs-thirst-kicked-instead-target",
       "request": {
         "cardName": "Bloodchief's Thirst",

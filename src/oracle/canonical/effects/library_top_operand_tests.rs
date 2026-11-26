@@ -218,6 +218,8 @@ fn unsupported_neighbours_fail_explicitly() {
     );
     let effects = effects_of(&graveyard, 0);
     assert_eq!(effects[0]["value"]["kind"], "graveyardEndCards");
+    // Near miss: the top card of each graveyard is a set, not `that card`.
+    assert_not_canonical("Exile the top card of each graveyard. You may play that card this turn.");
     // `revealed this way` must restate the verb that produced the collection.
     assert_not_canonical(
         "Exile the top three cards of your library. Put all cards revealed this way into your graveyard.",
