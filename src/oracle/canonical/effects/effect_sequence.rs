@@ -2591,13 +2591,31 @@ fn lower_local_effect_sequence_with_collections(
                     super::permanent_subject::single_object_reference(source.clone()),
                     "one object dealing the damage: a target, an attached, event, bound or source object",
                 )?;
-                let amount = lower_sequence_bound_amount(
-                    cursor,
-                    &damage.amount,
-                    sequence,
-                    &target_bindings,
-                    context,
-                )?;
+                // `up to one other target creature ... each deal damage
+                // equal to their power`: a declared source that may be
+                // absent deals its damage once per declared object, zero or
+                // one time (CR 608.2c); its amount reads that member.
+                let optional_member = optional_declared_source(sequence, damage, &target_bindings);
+                let amount = match &optional_member {
+                    Some(member) => lower_numeric_expression_for_targets(
+                        &damage.amount,
+                        std::slice::from_ref(member),
+                    )
+                    .map_err(|_| {
+                        cursor.enter("sequence.target-numeric.optional-member");
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                            cursor.fail("an amount that reads only the optional declared source"),
+                        )
+                    })?,
+                    None => lower_sequence_bound_amount(
+                        cursor,
+                        &damage.amount,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?,
+                };
+                let first_damage = effects.len();
                 let recipients = match &damage.recipient {
                     DamageRecipientNode::Targets(targets) => {
                         cursor.enter("lower.damage.object-source.recipient");
@@ -2623,6 +2641,20 @@ fn lower_local_effect_sequence_with_collections(
                         let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
                         used_target_base_ids.push(base_id);
                         decisions.push(target_decision(&target_id, candidates, minimum, maximum));
+                        // A singular recipient is the antecedent a later
+                        // reference names (`... to that creature`).
+                        if let [slot] = targets.slots.as_slice()
+                            && slot.cardinality == TargetCardinality::EXACTLY_ONE
+                            && slot.count.is_none()
+                        {
+                            target_bindings.push((
+                                TargetBinding {
+                                    effect_index,
+                                    slot_index: 0,
+                                },
+                                target_id.clone(),
+                            ));
+                        }
                         vec![damage_target_recipient(&target_id, maximum)]
                     }
                     DamageRecipientNode::All(groups) => groups
@@ -2673,6 +2705,24 @@ fn lower_local_effect_sequence_with_collections(
                         "source": source.clone(),
                         "amount": amount.clone(),
                         "recipient": recipient,
+                    }));
+                }
+                if let Some(member) = optional_member {
+                    let bind = format!("iteratedObject{effect_index}");
+                    let singular = chosen_target(&member.target_id);
+                    let mut body = effects.split_off(first_damage);
+                    for effect in &mut body {
+                        replace_json_value(
+                            effect,
+                            &singular,
+                            &json!({"kind": "boundValue", "id": bind}),
+                        );
+                    }
+                    effects.push(json!({
+                        "kind": "forEachObject",
+                        "objects": {"kind": "chosenTargets", "id": member.target_id},
+                        "bind": bind,
+                        "effects": body,
                     }));
                 }
             }
@@ -4508,10 +4558,24 @@ fn sequence_numeric_target_slots(
                     first,
                     second: PermanentOperandNode::Targets(targets),
                 }) if !matches!(first, PermanentOperandNode::Targets(_)) => (targets, false),
+                // `choose target ...`, or the declared subject of a
+                // distributive predicate (`TARGETS each deal damage equal
+                // to their power`): the declaration names its own slots.
+                LocalEffectNode::Choose(ChooseInstructionNode {
+                    domain: ChoiceDomainNode::PermanentTargets(targets),
+                    ..
+                }) => (targets, false),
                 _ => return None,
             };
             let slot = targets.slots.get(binding.slot_index)?;
-            if slot.cardinality.minimum != 1 || slot.cardinality.maximum != 1 {
+            // A plural slot registers only its set binding: its singular
+            // binding exists only while an iteration frame binds the slot to
+            // one member at a time (CR 608.2c), and that member exists.
+            let plural = slot
+                .count
+                .as_ref()
+                .map_or(slot.cardinality.maximum > 1, TargetCount::is_plural);
+            if !plural && (slot.cardinality.minimum != 1 || slot.cardinality.maximum != 1) {
                 return None;
             }
             Some(NumericTargetSlot {
@@ -4522,6 +4586,58 @@ fn sequence_numeric_target_slots(
             })
         })
         .collect()
+}
+
+/// The optional singular slot (`up to one other target creature`) a
+/// distributive subject declared, when it is this damage's own source: the
+/// numeric context of that one member.
+fn optional_declared_source(
+    sequence: &EffectSequenceNode,
+    damage: &DamageEffectNode,
+    bindings: &[(TargetBinding, String)],
+) -> Option<NumericTargetSlot> {
+    let PermanentOperandNode::BoundReference(PermanentEffectReference::Target(binding)) =
+        &damage.source
+    else {
+        return None;
+    };
+    let LocalEffectNode::Choose(ChooseInstructionNode {
+        domain: ChoiceDomainNode::PermanentTargets(targets),
+        ..
+    }) = sequence.effects.get(binding.effect_index)?
+    else {
+        return None;
+    };
+    let slot = targets.slots.get(binding.slot_index)?;
+    if slot.count.is_some() || slot.cardinality.minimum != 0 || slot.cardinality.maximum != 1 {
+        return None;
+    }
+    let id = bindings
+        .iter()
+        .find(|(candidate, _)| candidate == binding)
+        .map(|(_, id)| id.clone())?;
+    Some(NumericTargetSlot {
+        binding: *binding,
+        target_id: id,
+        selector: slot.selector.clone(),
+        requires_post_zone_change_lki: false,
+    })
+}
+
+fn replace_json_value(value: &mut Value, from: &Value, to: &Value) {
+    if value == from {
+        *value = to.clone();
+        return;
+    }
+    match value {
+        Value::Object(map) => map
+            .values_mut()
+            .for_each(|child| replace_json_value(child, from, to)),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| replace_json_value(child, from, to)),
+        _ => {}
+    }
 }
 
 fn lower_sequence_bound_amount(

@@ -108,7 +108,7 @@
       }
     },
     {
-      "id": "known-gap-muse-vessel-exact-linked-exile-choice",
+      "id": "linked-muse-vessel-exact-linked-exile-choice",
       "request": {
         "cardName": "Muse Vessel",
         "typeLine": "Artifact",
@@ -118,18 +118,24 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_card_composition_failure",
-            "state": "composition.linked-exile.relation"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/linkToSource",
+                "equals": true
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "known-gap-chaos-shrines-black-crystal-exact-linked-exile-put",
+      "id": "linked-chaos-shrines-black-crystal-exact-linked-exile-put",
       "request": {
         "cardName": "Chaos Shrine's Black Crystal",
         "typeLine": "Legendary Artifact",
@@ -139,18 +145,24 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_card_composition_failure",
-            "state": "composition.linked-exile.relation"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/linkToSource",
+                "equals": true
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "known-gap-nautiloid-ship-exact-linked-exile-put",
+      "id": "linked-nautiloid-ship-exact-linked-exile-put",
       "request": {
         "cardName": "Nautiloid Ship",
         "typeLine": "Artifact — Vehicle",
@@ -160,12 +172,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_card_composition_failure",
-            "state": "composition.linked-exile.relation"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/linkToSource",
+                "equals": true
+              }
+            ]
           }
         ]
       }
@@ -323,7 +341,7 @@
       }
     },
     {
-      "id": "known-gap-sibling-linked-exile-choice-cast",
+      "id": "linked-sibling-linked-exile-choice-cast",
       "request": {
         "cardName": "Vault Sibling",
         "typeLine": "Artifact",
@@ -333,12 +351,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_card_composition_failure",
-            "state": "composition.linked-exile.relation"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/linkToSource",
+                "equals": true
+              }
+            ]
           }
         ]
       }

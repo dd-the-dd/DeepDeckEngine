@@ -73,6 +73,9 @@ fn engine_with_tribes() -> GameEngine {
         .battlefield
         .push(permanent("rival-elf", "Creature — Elf", "player-1"));
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture permanents are admitted");
+    engine
 }
 
 fn parsed_rule(name: &str, type_line: &str, text: &str) -> Value {
@@ -197,6 +200,10 @@ fn an_entry_sentence_makes_the_copied_token_enter_tapped_and_attacking() {
         "player-0",
     );
     engine.state.players[0].battlefield = vec![attacker];
+    // A permanent enters attacking only during combat, under the active
+    // player's control (CR 508.4).
+    engine.state.active_player = 0;
+    engine.state.step = GameStep::DeclareBlockers;
     engine.state.combat.attackers = vec![DeclaredAttacker {
         attacker_id: "ninja".to_string(),
         defender: TargetRef::Player {

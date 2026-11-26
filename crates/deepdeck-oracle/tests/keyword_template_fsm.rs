@@ -443,13 +443,21 @@ fn exploit_names_its_action_and_its_trigger_reads_the_keyword_event() {
         named.abilities[0].rule.as_ref().unwrap()["event"],
         trigger["event"]
     );
-    // Another creature exploiting (Skull Skaab) has no matcher: explicit.
+    // Another creature exploiting (Skull Skaab) is the same event with a
+    // quantified subject and a qualified counterpart.
     let other = parse(
         "Skull Skaab",
         "Creature \u{2014} Zombie",
         "Whenever a creature you control exploits a nontoken creature, create a 2/2 black Zombie creature token.",
     );
-    assert_eq!(other.status, "unsupported");
+    assert_eq!(other.status, "canonical", "{:#?}", other.diagnostics);
+    let event = &other.abilities[0].rule.as_ref().unwrap()["event"];
+    assert_eq!(event["lemma"], "exploit");
+    assert_eq!(event["subject"]["object"]["kind"], "permanents");
+    assert_eq!(
+        event["counterpart"]["where"]["operands"][0],
+        json!({ "kind": "not", "operand": { "kind": "isToken" } })
+    );
 }
 
 #[test]

@@ -214,7 +214,17 @@ fn lower_unlimited_program_step<E>(
         .map_err(program_failure);
     }
     let mut lower = |cursor: &mut OracleTokenCursor<'_>, sequence: &EffectSequenceNode| {
-        lower_with(cursor, sequence, &mut CardCollectionMemory::default())
+        let mut collections = CardCollectionMemory::default();
+        let lowered = lower_with(cursor, sequence, &mut collections)?;
+        // A card copy exists only to be cast (CR 707.12): a sentence whose
+        // copies no cast consumes, and no `If you do` body casts, is refused.
+        if collections.holds_uncast_card_copies() {
+            cursor.enter("lower.program.card-copies.uncast");
+            return Err(program_failure(cursor.fail(
+                "an instruction casting the card copies this sentence created",
+            )));
+        }
+        Ok(lowered)
     };
     if let EffectProgramNode::Outcome {
         permission,

@@ -473,6 +473,14 @@ pub(in crate::oracle::canonical) fn source_counter_count_starts(
                     "counterNamePart" | "counterValue"
                 )
             })
+        // `the number of +1/+1 counters removed this way` restates the
+        // number this activation's cost chose: the shared counted
+        // collection reads it, never a holder of counters.
+        && {
+            let mut counted = cursor.clone();
+            counted.advance_to(counted.position() + 3).is_err()
+                || !super::cost_chosen_amount_reference_starts(&counted)
+        }
 }
 
 /// Pure source query. Counter names remain data from the shared bounded slot.

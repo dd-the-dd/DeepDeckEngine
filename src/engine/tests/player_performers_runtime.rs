@@ -76,7 +76,7 @@ fn position(players: usize) -> (GameEngine, StackObject) {
         card,
         cant_be_countered: false,
         exile_on_leave_stack: false,
-        ability_kind: Some("spellAbility".to_string()),
+        ability_kind: None,
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
@@ -135,8 +135,13 @@ fn run(
     provider: &mut Choosing,
 ) {
     let mut stack = stack.clone();
-    stack.ability_rule = Some(rule.clone());
-    stack.ability_kind = rule["kind"].as_str().map(str::to_string);
+    // A resolving spell is the card itself on the stack (CR 608.2): no
+    // ability kind or rule, so its damage source is the spell, never a
+    // battlefield permanent whose incarnation must be authenticated.
+    if rule["kind"] != "spellAbility" {
+        stack.ability_rule = Some(rule.clone());
+        stack.ability_kind = rule["kind"].as_str().map(str::to_string);
+    }
     if let Some(target) = target {
         let id = rule["declaration"]["decisions"]
             .as_array()

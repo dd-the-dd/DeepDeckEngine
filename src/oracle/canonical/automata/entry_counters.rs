@@ -282,6 +282,17 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
             State::Terminator => {
                 cursor.enter("replacement.entry-counters.terminator");
                 cursor.consume(".")?;
+                // A keyword counter grants its keyword (CR 122.1b): a
+                // reminder of a keyword one of the placements grants.
+                if cursor.peek() == Some("(") {
+                    cursor.enter("replacement.entry-counters.keyword-reminder");
+                    let keywords = counter
+                        .iter()
+                        .chain(alternatives.iter().map(|placement| &placement.counter))
+                        .filter_map(keyword_of_counter)
+                        .collect::<Vec<_>>();
+                    super::recognize_granted_keyword_reminder(cursor, &keywords, false)?;
+                }
                 State::Complete
             }
             State::Complete => {
@@ -297,5 +308,18 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                 });
             }
         };
+    }
+}
+
+/// The keyword a keyword counter grants its permanent (CR 122.1b).
+fn keyword_of_counter(
+    counter: &crate::oracle::counter_name::CounterName,
+) -> Option<super::GrantedKeyword> {
+    match counter.as_str() {
+        "first strike" => Some(super::GrantedKeyword::FirstStrike),
+        "double strike" => Some(super::GrantedKeyword::DoubleStrike),
+        name if !name.contains(' ') => super::parameterless_keyword_from_oracle_word(name)
+            .filter(|keyword| !matches!(keyword, super::GrantedKeyword::Landwalk(_))),
+        _ => None,
     }
 }

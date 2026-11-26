@@ -87,7 +87,18 @@ impl DecisionProvider for AcceptAndCast {
         if request.options.is_empty() {
             return Err(EngineError::new(format!("{} offers no option", request.id)));
         }
-        Ok(0)
+        // A permission is accepted: never the option that declines it.
+        let declines = |action: &LegalAction| {
+            action
+                .decisions
+                .values()
+                .any(|value| *value == json!(["Decline"]) || *value == json!(false))
+        };
+        Ok(request
+            .options
+            .iter()
+            .position(|action| !declines(action))
+            .unwrap_or(0))
     }
 }
 

@@ -109,14 +109,31 @@ fn unused_zone_count_combinations_need_no_new_production() {
 
 #[test]
 fn zone_counts_without_an_evaluable_holder_fail_explicitly() {
-    // A targeted or per-player holder has no typed producer in this child.
+    // A holder resolves through the shared binding environment: `their`
+    // after a performed population is each member (its own graveyard), but
+    // a holder with no antecedent in the program is never guessed.
+    let each = rule(
+        "Each Holder",
+        "Sorcery",
+        "Each player draws a card for each creature card in their graveyard.",
+    );
+    let count = find(&each, "countCards").expect("per-player count");
+    assert_eq!(count["zone"]["player"]["kind"], "boundValue");
     assert_eq!(
         failure_state(
             "Near Holder",
             "Sorcery",
-            "Each player draws a card for each creature card in their graveyard.",
+            "Draw a card for each creature card in that player's graveyard.",
         ),
-        "query.zone.holder"
+        "player-subject.bound.resolve"
+    );
+    assert_eq!(
+        failure_state(
+            "Near Holder",
+            "Sorcery",
+            "Draw a card for each creature card in defending player's graveyard.",
+        ),
+        "player-subject.defending-player"
     );
 }
 

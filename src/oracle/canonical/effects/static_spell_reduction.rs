@@ -43,7 +43,10 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_static_spell_reduction(
             StaticSpellReductionParseAttempt::Failed(failure)
         }
         CastingReductionReadAttempt::Parsed(node) => {
-            if !matches!(&node.subject, CastingReductionSubject::SpellSet(_)) {
+            // Every spell-population subject (a spell set, one ordinal
+            // spell of the caster's turn, spells that target an object) is
+            // a static modifier of this permanent; `this spell` is not.
+            if matches!(&node.subject, CastingReductionSubject::CurrentSpell) {
                 return StaticSpellReductionParseAttempt::NotClaimed;
             }
             match lower_casting_cost_reduction(input, &mut cursor, node) {

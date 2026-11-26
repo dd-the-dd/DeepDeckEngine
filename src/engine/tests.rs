@@ -26502,10 +26502,6 @@ fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Bilbo, Thief in the Night; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31667,10 +31663,6 @@ fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: The One Ring; see docs/coverage-targets.md"
-)]
 #[test]
 fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31908,10 +31900,6 @@ fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Uruk-hai Berserker; see docs/coverage-targets.md"
-)]
 #[test]
 fn ring_temptation_levels_drive_bearer_combat_rules() {
     let bearer = test_instance(

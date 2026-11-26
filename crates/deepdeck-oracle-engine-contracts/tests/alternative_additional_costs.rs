@@ -39,10 +39,6 @@ fn discard_or_life_additional_cost_and_effect_are_executable() {
     );
 }
 
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Bone Shards pattern; see docs/coverage-targets.md"
-)]
 #[test]
 fn sacrifice_or_life_sibling_is_executable() {
     assert_all_rules_executable(

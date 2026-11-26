@@ -224,11 +224,22 @@ fn near_misses_fail_at_precise_states() {
         "Draw X cards, where X is the number of mysteries.",
     );
     assert_ne!(unsupported.status, "canonical");
-    // X cannot be bound inside a target declaration.
+    // A target count carries its own definition only when the amount is
+    // readable as targets are chosen (CR 601.2c): the controller's land
+    // count is, the mana spent to cast the spell is not yet known.
     let declared = parse(
         "Sorcery",
         "{2}{U}",
         "Up to X target creatures get +1/+1 until end of turn, where X is the number of lands you control.",
     );
-    assert_ne!(declared.status, "canonical");
+    assert_eq!(declared.status, "canonical", "{:#?}", declared.diagnostics);
+    let unreadable = parse(
+        "Sorcery",
+        "{2}{U}",
+        "Up to X target creatures get +1/+1 until end of turn, where X is the amount of mana spent to cast this spell.",
+    );
+    assert_eq!(
+        failure_state(&unreadable),
+        Some("lower.where-x.declarations")
+    );
 }

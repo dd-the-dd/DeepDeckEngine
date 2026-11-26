@@ -246,7 +246,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "query.zone.holder"
+            "state": "query.zone.holder.related"
           }
         ]
       }

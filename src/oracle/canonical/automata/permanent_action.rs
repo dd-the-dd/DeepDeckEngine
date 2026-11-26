@@ -477,6 +477,12 @@ fn classify_permanent_predicate(
     {
         return Some(PermanentPredicate::Fight);
     }
+    // A plural (not distributive) collection takes the base form of its
+    // verb (`Equipped creatures you control gain ...`); a singular form
+    // after it is not this predicate's agreement and is not claimed.
+    let plural_collection =
+        !distributive_subject && matches!(subject, PermanentOperandNode::Collection { .. });
+    let bare = bare || plural_collection;
     if finite_or_bare(action, VerbLemma::Gain, bare) {
         return Some(PermanentPredicate::KeywordGrant);
     }

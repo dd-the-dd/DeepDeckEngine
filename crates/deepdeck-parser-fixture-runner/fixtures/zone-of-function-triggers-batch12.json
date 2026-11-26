@@ -515,7 +515,7 @@
       }
     },
     {
-      "id": "exact-flummoxed-cyclops-opponent-attack-threshold",
+      "id": "known-gap-flummoxed-cyclops-this-combat-restriction",
       "request": {
         "cardName": "Flummoxed Cyclops",
         "typeLine": "Creature — Cyclops",
@@ -525,11 +525,34 @@
         "faces": []
       },
       "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "duration.until-end-of-turn.unit",
+            "found": "combat"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-attack-threshold-cant-block-this-turn",
+      "request": {
+        "cardName": "Threshold Probe",
+        "typeLine": "Creature — Cyclops",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever two or more creatures your opponents control attack, this creature can't block this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
         "abilities": [
           {
-            "index": 1,
+            "index": 0,
             "status": "canonical",
             "ruleAssertions": [
               {

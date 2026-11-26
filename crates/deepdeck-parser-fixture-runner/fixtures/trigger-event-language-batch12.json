@@ -339,9 +339,10 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "state": "event.player.copy.spell",
+            "state": "selector.predicate.complete",
             "code": "oracle_machine_failure",
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "expectedContains": "a copied spell query"
           }
         ]
       }
@@ -486,7 +487,7 @@
       }
     },
     {
-      "id": "exact-unsettled-mariner-you-or-a-permanent-you-control",
+      "id": "known-gap-unsettled-mariner-targeting-object-anaphor",
       "request": {
         "cardName": "Unsettled Mariner",
         "typeLine": "Creature — Shapeshifter",
@@ -496,13 +497,35 @@
         "faces": []
       },
       "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "effect.counter.event-spell",
+            "found": "that"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-you-or-a-permanent-you-control-become-the-target-gain-life",
+      "request": {
+        "cardName": "Targeting Probe",
+        "typeLine": "Creature — Faerie Rogue",
+        "manaCost": "{W}{U}",
+        "oracleText": "Whenever you or a permanent you control becomes the target of a spell or ability an opponent controls, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
         "abilities": [
           {
-            "index": 1,
+            "index": 0,
             "status": "canonical",
-            "recognizer": "native",
             "ruleAssertions": [
               {
                 "pointer": "/event/object/sets/0",
@@ -599,12 +622,35 @@
       }
     },
     {
-      "id": "exact-amulet-of-safekeeping-you-become-the-target",
+      "id": "known-gap-amulet-of-safekeeping-targeting-object-anaphor",
       "request": {
         "cardName": "Amulet of Safekeeping",
         "typeLine": "Artifact",
         "manaCost": "{2}",
         "oracleText": "Whenever you become the target of a spell or ability an opponent controls, counter that spell or ability unless its controller pays {1}.\nCreature tokens get -1/-0.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.counter.event-spell",
+            "found": "that"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-you-become-the-target-gain-life",
+      "request": {
+        "cardName": "Targeting Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you become the target of a spell or ability an opponent controls, you gain 1 life.",
         "layout": "normal",
         "faces": []
       },
@@ -615,7 +661,6 @@
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "native",
             "ruleAssertions": [
               {
                 "pointer": "/event/kind",

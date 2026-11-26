@@ -691,7 +691,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "effect.start"
+            "state": "lower.card-action.copy"
           }
         ]
       }

@@ -183,6 +183,9 @@ fn one_land_of_each_basic_land_type_is_destroyed() {
             .battlefield
             .push(instance(id, type_line, "", "player-1"));
     }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture lands are admitted");
     let stack_object = StackObject {
         id: "stack:census".to_string(),
         controller: "player-0".to_string(),

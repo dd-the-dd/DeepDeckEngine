@@ -288,7 +288,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "temporary-rule.next-spell.rule"
+            "state": "effect.start"
           }
         ]
       }
@@ -408,7 +408,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "state": "ability-frame.static.subject"
           }
         ]
       }
@@ -781,7 +782,9 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 1
+            "abilityIndex": 1,
+            "state": "reference.source.start",
+            "found": "enchanted"
           }
         ]
       }

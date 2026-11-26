@@ -4083,19 +4083,22 @@ fn recognize_destroy_frame(
                 )?;
             Ok(LocalEffectNode::DestroyCollection(collection))
         }
-        super::OperandDeterminer::Those => {
+        super::OperandDeterminer::Those if inputs.object_set_antecedent.is_some() => {
             recognize_destroy_referenced_set_effect(cursor, inputs.object_set_antecedent)
                 .map(LocalEffectNode::DestroyReferencedSet)
         }
-        // `destroy that creature` / `destroy enchanted creature`: a bound
-        // reference, never a declaration.
-        super::OperandDeterminer::That => super::recognize_destroy_reference_effect(
-            cursor,
-            inputs.name_links,
-            inputs.name_failure,
-            inputs.context,
-        )
-        .map(LocalEffectNode::ReferencedPermanentAction),
+        // `destroy that creature` / `destroy enchanted creature` / `destroy
+        // those lands` naming a set the binding environment holds (a choice,
+        // a declared set): a bound reference, never a declaration.
+        super::OperandDeterminer::That | super::OperandDeterminer::Those => {
+            super::recognize_destroy_reference_effect(
+                cursor,
+                inputs.name_links,
+                inputs.name_failure,
+                inputs.context,
+            )
+            .map(LocalEffectNode::ReferencedPermanentAction)
+        }
         super::OperandDeterminer::Other if super::attached_object_operand_follows_verb(cursor) => {
             super::recognize_destroy_reference_effect(
                 cursor,
@@ -4729,7 +4732,7 @@ fn resolve_iterated_set(
 }
 
 /// How far a distributive subject may span before `each deal`.
-const DISTRIBUTIVE_SUBJECT_LIMIT: usize = 14;
+const DISTRIBUTIVE_SUBJECT_LIMIT: usize = 24;
 
 /// `TARGETS each deal damage ...` at the cursor: a declared subject of one
 /// plural permanent target slot, or of several singular slots, followed by
@@ -4739,7 +4742,7 @@ const DISTRIBUTIVE_SUBJECT_LIMIT: usize = 14;
 fn distributive_target_subject<'tokens>(
     cursor: &OracleTokenCursor<'tokens>,
 ) -> Option<(super::TargetListNode, OracleTokenCursor<'tokens>)> {
-    let each_deal = (1..DISTRIBUTIVE_SUBJECT_LIMIT)
+    let each_deal = (1..=DISTRIBUTIVE_SUBJECT_LIMIT)
         .take_while(|offset| {
             cursor
                 .peek_ahead(offset - 1)
