@@ -363,12 +363,12 @@
       }
     },
     {
-      "id": "unused-combination-spell-created-uncast-artifact-entry",
+      "id": "unused-combination-activated-created-uncast-artifact-entry",
       "request": {
         "cardName": "Entry Probe",
-        "typeLine": "Instant",
+        "typeLine": "Artifact",
         "manaCost": "{1}{U}",
-        "oracleText": "Until end of turn, if a nontoken artifact would enter and it wasn't cast, exile it instead.",
+        "oracleText": "{2}, Sacrifice this artifact: Until end of turn, if a nontoken artifact would enter and it wasn't cast, exile it instead.",
         "layout": "normal",
         "faces": []
       },
