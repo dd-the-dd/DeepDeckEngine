@@ -323,7 +323,7 @@ impl GameEngine {
             "createdRuleId": self.next_created_rule_id(),
             "controllerId": controller_id,
             "sourceCard": Self::created_rule_source(stack_object, &controller_id),
-            "modifiers": effect["modifiers"].clone(),
+            "modifiers": self.locked_temporary_static_modifiers(&effect["modifiers"], stack_object, bindings),
         });
         if let Value::Object(lifetime) =
             self.created_rule_lifetime(&effect["duration"], stack_object, bindings)

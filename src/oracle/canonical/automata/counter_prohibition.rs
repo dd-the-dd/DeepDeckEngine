@@ -1,10 +1,39 @@
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{LocalObjectReference, ObjectQueryNode, recognize_object_query};
+use super::{
+    LocalObjectReference, ObjectQueryNode, SpellCastQueryNode, recognize_object_query,
+    recognize_spell_cast_collection,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CounterProhibitionSubjectNode {
     SourceSelf(LocalObjectReference),
     ObjectSet(ObjectQueryNode),
+    /// `SPELLS [PLAYER cast] can't be countered`: the shared spell
+    /// collection with its optional caster relation (CR 601.2, 701.6).
+    CastSpells(SpellCastQueryNode),
+}
+
+/// `can't` / `cannot` at the cursor.
+fn negation_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("cannot"))
+}
+
+/// The spell subject: an object set (`spells you control`) or, when that
+/// reading does not reach the negation, the spell collection with a cast
+/// relation (`creature spells you cast`, `spells`).
+fn recognize_spell_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CounterProhibitionSubjectNode> {
+    let mut trial = cursor.clone();
+    if let Ok(query) = recognize_object_query(&mut trial)
+        && negation_follows(&trial)
+    {
+        *cursor = trial;
+        return Ok(CounterProhibitionSubjectNode::ObjectSet(query));
+    }
+    recognize_spell_cast_collection(cursor).map(CounterProhibitionSubjectNode::CastSpells)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,7 +69,7 @@ pub(in crate::oracle::canonical) fn recognize_counter_prohibition(
                         cursor.consume_phrase(&["this", "spell"])?;
                         CounterProhibitionSubjectNode::SourceSelf(LocalObjectReference::SourceSelf)
                     } else {
-                        CounterProhibitionSubjectNode::ObjectSet(recognize_object_query(cursor)?)
+                        recognize_spell_subject(cursor)?
                     },
                 );
                 CounterProhibitionState::Negation

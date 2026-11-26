@@ -1,0 +1,851 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch12/spell-and-ability-rules",
+  "cases": [
+    {
+      "id": "exact-armor-wars-temporary-artifact-reduction",
+      "request": {
+        "cardName": "Armor Wars",
+        "typeLine": "Enchantment — Saga",
+        "manaCost": "{2}{U}{R}",
+        "oracleText": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — You may draw a card for each artifact you control. If you do, each opponent draws a card.\nII — Artifact spells you cast this turn cost {1} less to cast.\nIII — This Saga deals X damage to target opponent, where X is the greatest mana value among artifacts you control.",
+        "layout": "saga",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-domri-anarch-of-bolas-temporary-uncounterable",
+      "request": {
+        "cardName": "Domri, Anarch of Bolas",
+        "typeLine": "Legendary Planeswalker — Domri",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "Creatures you control get +1/+0.\n+1: Add {R} or {G}. Creature spells you cast this turn can't be countered.\n−2: Target creature you control fights target creature you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-instant-spells-uncounterable-this-turn",
+      "request": {
+        "cardName": "Test Hush",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Instant spells you cast this turn can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "cantBeCountered"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/objects/controller/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-tax-trailing-until-next-turn",
+      "request": {
+        "cardName": "Test Embargo",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Noncreature spells your opponents cast cost {2} more to cast until your next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "additionalCastingCost"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/players/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilNextTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-preposed-lifetime-spell-reduction",
+      "request": {
+        "cardName": "Test Surge",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Until your next turn, instant and sorcery spells you cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/amount/value",
+                "equals": 1
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilNextTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-temporary-activation-reduction-population",
+      "request": {
+        "cardName": "Test Workshop",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Equip abilities you activate cost {1} less to activate this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "modifyActivationCost"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/abilities/class",
+                "equals": "equip"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-static-body-with-an-unsupported-lifetime-fails",
+      "request": {
+        "cardName": "Test Lapse",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Spells cost {1} less to cast until a creature dies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "traceContainsState": "temporary-rule.duration"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-temporary-body-with-two-lifetimes-fails",
+      "request": {
+        "cardName": "Test Overlap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Until your next turn, artifact spells you cast this turn cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "temporary-rule.static-body.lifetime"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-xho-cai-untimed-next-spell-reduction",
+      "request": {
+        "cardName": "Xho Cai, Flickering Talon",
+        "typeLine": "Legendary Creature — Bird Monk",
+        "manaCost": "{U}{R}{W}",
+        "oracleText": "Flying, Vigilance, Haste\nWhen Xho Cai enters, the next noncreature spell you cast costs {1} less to cast.\nFlurry — Whenever you cast your second spell each turn, exile up to one target creature you control, then return it to the battlefield under its owner's control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-untimed-next-spell-uncounterable",
+      "request": {
+        "cardName": "Test Promise",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "The next artifact spell you cast can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installOneShotModifier"
+              },
+              {
+                "pointer": "/effects/0/expires/kind",
+                "equals": "whenConsumed"
+              },
+              {
+                "pointer": "/effects/0/apply/modifier/kind",
+                "equals": "cantBeCountered"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-next-spell-unrepresented-rule-fails",
+      "request": {
+        "cardName": "Test Gift",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "The next creature spell you cast has trample.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "temporary-rule.next-spell.rule"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-melek-first-instant-or-sorcery-each-turn",
+      "request": {
+        "cardName": "Melek, Reforged Researcher",
+        "typeLine": "Legendary Creature — Weird Detective",
+        "manaCost": "{3}{U}{R}",
+        "oracleText": "Melek's power and toughness are each equal to twice the number of instant and sorcery cards in your graveyard.\nThe first instant or sorcery spell you cast each turn costs {3} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-raging-battle-mouse-second-spell-each-turn",
+      "request": {
+        "cardName": "Raging Battle Mouse",
+        "typeLine": "Creature — Mouse",
+        "manaCost": "{1}{R}",
+        "oracleText": "The second spell you cast each turn costs {1} less to cast.\nCelebration — At the beginning of combat on your turn, if two or more nonland permanents entered the battlefield under your control this turn, target creature you control gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-second-instant-during-your-turns",
+      "request": {
+        "cardName": "Test Bellwether",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{1}{U}",
+        "oracleText": "The second instant spell you cast during each of your turns costs {2} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              },
+              {
+                "pointer": "/modifiers/0/castOrdinal",
+                "equals": 2
+              },
+              {
+                "pointer": "/modifiers/0/amount/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/modifiers/0/condition/kind",
+                "equals": "duringControllerTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-first-creature-spell-each-turn",
+      "request": {
+        "cardName": "Test Conduit",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}",
+        "oracleText": "The first creature spell you cast each turn costs {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/firstEachTurn",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/amount/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ordinal-of-another-caster-fails",
+      "request": {
+        "cardName": "Test Tollkeeper",
+        "typeLine": "Creature — Human",
+        "manaCost": "{2}",
+        "oracleText": "The first noncreature spell each opponent casts each turn costs {1} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fervent-champion-equip-targeting-reduction",
+      "request": {
+        "cardName": "Fervent Champion",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{R}",
+        "oracleText": "First strike, haste\nWhenever this creature attacks, another target attacking Knight you control gets +1/+0 until end of turn.\nEquip abilities you activate that target this creature cost {3} less to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-helitrooper-equip-targeting-reduction",
+      "request": {
+        "cardName": "Helitrooper",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "Flying\nWhenever this creature attacks, another target attacking creature gains flying until end of turn.\nEquip abilities you activate that target this creature cost {2} less to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-bureau-headmaster-equip-reduction",
+      "request": {
+        "cardName": "Bureau Headmaster",
+        "typeLine": "Creature — Human Assassin",
+        "manaCost": "{R}{W}",
+        "oracleText": "Equipment spells you cast cost {1} less to cast.\nEquip abilities you activate cost {1} less to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-bladehold-war-whip-equip-of-other-equipment",
+      "request": {
+        "cardName": "Bladehold War-Whip",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}{R}{W}",
+        "oracleText": "For Mirrodin! (When this Equipment enters, create a 2/2 red Rebel creature token, then attach this to it.)\nEquip abilities you activate of other Equipment cost {1} less to activate.\nEquipped creature has double strike.\nEquip {3}{R}{W}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-eidolon-of-obstruction-loyalty-tax",
+      "request": {
+        "cardName": "Eidolon of Obstruction",
+        "typeLine": "Enchantment Creature — Spirit",
+        "manaCost": "{1}{W}",
+        "oracleText": "First strike\nLoyalty abilities of planeswalkers your opponents control cost {1} more to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-fluctuator-cycling-reduction",
+      "request": {
+        "cardName": "Fluctuator",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Cycling abilities you activate cost {2} less to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-auriok-steelshaper-equip-costs-you-pay",
+      "request": {
+        "cardName": "Auriok Steelshaper",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "Equip costs you pay cost {1} less.\nAs long as this creature is equipped, each creature you control that's a Soldier or a Knight gets +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-kopala-spell-and-ability-targeting-taxes",
+      "request": {
+        "cardName": "Kopala, Warden of Waves",
+        "typeLine": "Legendary Creature — Merfolk Wizard",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Spells your opponents cast that target a Merfolk you control cost {2} more to cast.\nAbilities your opponents activate that target a Merfolk you control cost {2} more to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-boast-abilities-of-creatures-you-control",
+      "request": {
+        "cardName": "Test Skald",
+        "typeLine": "Creature — Dwarf",
+        "manaCost": "{2}{R}",
+        "oracleText": "Boast abilities of creatures you control cost {2} less to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "modifyActivationCost"
+              },
+              {
+                "pointer": "/modifiers/0/abilities/class",
+                "equals": "boast"
+              },
+              {
+                "pointer": "/modifiers/0/abilities/sources/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/modifiers/0/reduceGeneric",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-loyalty-reduction-during-your-turn",
+      "request": {
+        "cardName": "Test Oracle",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Loyalty abilities you activate cost {1} less to activate during your turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/abilities/class",
+                "equals": "loyalty"
+              },
+              {
+                "pointer": "/modifiers/0/abilities/activators/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/modifiers/0/condition/kind",
+                "equals": "duringControllerTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-activated-abilities-tax-unless-mana",
+      "request": {
+        "cardName": "Test Dampening",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "Activated abilities of artifacts your opponents control cost {1} more to activate unless they're mana abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/addManaCost",
+                "equals": "{1}"
+              },
+              {
+                "pointer": "/modifiers/0/abilities/excludesManaAbilities",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-training-grounds-population-with-mana-abilities",
+      "request": {
+        "cardName": "Training Grounds",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}",
+        "oracleText": "Activated abilities of creatures you control cost {2} less to activate. This effect can't reduce the mana in that cost to less than one mana.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "activation-cost.lower.mana-abilities"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-silver-fur-master-ninjutsu-without-runtime-class",
+      "request": {
+        "cardName": "Silver-Fur Master",
+        "typeLine": "Creature — Rat Ninja",
+        "manaCost": "{U}{B}",
+        "oracleText": "Ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nNinjutsu abilities you activate cost {1} less to activate.\nOther Ninja and Rogue creatures you control get +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "state": "activation-cost.lower.class"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-buyback-costs-without-runtime-class",
+      "request": {
+        "cardName": "Test Crystal",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "Buyback costs cost {2} less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "activation-cost.lower.class"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pursued-whale-targeting-tax",
+      "request": {
+        "cardName": "Pursued Whale",
+        "typeLine": "Creature — Whale",
+        "manaCost": "{5}{U}{U}",
+        "oracleText": "When this creature enters, each opponent creates a 1/1 red Pirate creature token with \"This token can't block\" and \"Creatures you control attack each combat if able.\"\nSpells your opponents cast that target this creature cost {3} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-spellwild-ouphe-targeting-reduction",
+      "request": {
+        "cardName": "Spellwild Ouphe",
+        "typeLine": "Creature — Ouphe",
+        "manaCost": "{1}{G}",
+        "oracleText": "Spells that target this creature cost {2} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-spells-you-cast-that-target-your-creature",
+      "request": {
+        "cardName": "Test Mentor",
+        "typeLine": "Creature — Human Monk",
+        "manaCost": "{1}{W}",
+        "oracleText": "Spells you cast that target a creature you control cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              },
+              {
+                "pointer": "/modifiers/0/spellTarget/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/modifiers/0/spellTarget/controller/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-targeted-player-population-fails",
+      "request": {
+        "cardName": "Test Hex",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Enchant player\nSpells your opponents cast that target enchanted player cost {1} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gaeas-herald-creature-spells-uncounterable",
+      "request": {
+        "cardName": "Gaea's Herald",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Creature spells can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-root-sliver-sliver-spells-uncounterable",
+      "request": {
+        "cardName": "Root Sliver",
+        "typeLine": "Creature — Sliver",
+        "manaCost": "{3}{G}",
+        "oracleText": "This spell can't be countered.\nSliver spells can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-instant-spells-you-cast-uncounterable",
+      "request": {
+        "cardName": "Test Warden",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Instant spells you cast can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "cantBeCountered"
+              },
+              {
+                "pointer": "/modifiers/0/objects/controller/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

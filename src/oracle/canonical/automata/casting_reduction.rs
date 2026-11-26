@@ -2,6 +2,67 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::*;
 
+/// `the ORDINAL SPELL you cast [from ZONE] each turn | during each of your
+/// turns`: one spell of the caster's turn history, matched by the shared
+/// spell query (CR 601.2i). The ordinal counts the caster's earlier casts
+/// of matching spells this turn; the cost is determined before this spell
+/// becomes cast (CR 601.2f), so it is not one of them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct OrdinalSpellSubjectNode {
+    pub spells: SpellCastQueryNode,
+    pub ordinal: i64,
+    /// `during each of your turns`: only during the caster's own turns.
+    pub own_turns_only: bool,
+}
+
+/// The spell query of a spell-population subject.
+pub(in crate::oracle::canonical) fn reduction_subject_spells(
+    subject: &CastingReductionSubject,
+) -> Option<&SpellCastQueryNode> {
+    match subject {
+        CastingReductionSubject::CurrentSpell => None,
+        CastingReductionSubject::SpellSet(query) => Some(query),
+        CastingReductionSubject::OrdinalSpell(ordinal) => Some(&ordinal.spells),
+        CastingReductionSubject::TargetingSpells { spells, .. } => Some(spells),
+    }
+}
+
+/// `the ORDINAL SPELL you cast [from ZONE] (each turn | during each of your
+/// turns)`; the caster must be the ability controller, whose cast history
+/// the ordinal reads.
+fn recognize_ordinal_spell_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<OrdinalSpellSubjectNode> {
+    cursor.enter("casting-reduction.ordinal.head");
+    cursor.consume("the")?;
+    let ordinal = recognize_ordinal_atom(cursor)?;
+    cursor.enter("casting-reduction.ordinal.spells");
+    let spells = recognize_spell_cast_collection_with_origin(cursor)?;
+    cursor.enter("casting-reduction.ordinal.caster");
+    cursor.require(
+        spells.caster == Some(SpellCasterScope::AbilityController),
+        "the ability controller as the caster whose turn history the ordinal counts",
+    )?;
+    cursor.enter("casting-reduction.ordinal.period");
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let own_turns_only = if word(cursor, 0, "during") {
+        cursor.consume_phrase(&["during", "each", "of", "your", "turns"])?;
+        true
+    } else {
+        cursor.consume_phrase(&["each", "turn"])?;
+        false
+    };
+    Ok(OrdinalSpellSubjectNode {
+        spells,
+        ordinal,
+        own_turns_only,
+    })
+}
+
 pub(in crate::oracle::canonical) enum CastingReductionReadAttempt {
     NotClaimed,
     Parsed(CastingCostReductionNode),
@@ -35,6 +96,14 @@ fn read_reduction(
     {
         cursor.consume_phrase(&["this", "spell"])?;
         (CastingReductionSubject::CurrentSpell, true)
+    } else if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+    {
+        (
+            CastingReductionSubject::OrdinalSpell(recognize_ordinal_spell_subject(cursor)?),
+            true,
+        )
     } else {
         let each = cursor
             .peek()
@@ -45,12 +114,25 @@ fn read_reduction(
         // `spells you cast from your graveyard`: the reduction records the
         // zone a spell is cast from (CR 601.2a, 601.2f).
         let query = recognize_spell_cast_collection_with_origin(cursor)?;
-        (CastingReductionSubject::SpellSet(query), each)
+        if target_relative_follows(cursor) {
+            // `Spells you cast that target this creature`: the targets are
+            // chosen before the total cost (CR 601.2c, 601.2f).
+            let target = recognize_target_relative(cursor, &[], None)?;
+            (
+                CastingReductionSubject::TargetingSpells {
+                    spells: query,
+                    target,
+                },
+                each,
+            )
+        } else {
+            (CastingReductionSubject::SpellSet(query), each)
+        }
     };
     cursor.enter("casting-reduction.cost-action");
     cursor.consume(if quantified_each { "costs" } else { "cost" })?;
     *owned = true; // The typed cost-adjustment subject/verb, never cursor distance.
-    if let CastingReductionSubject::SpellSet(query) = &subject {
+    if let Some(query) = reduction_subject_spells(&subject) {
         cursor.enter("static.spell-cost-reduction.caster-scope");
         // `Spells cost {1} less` names every caster (CR 601.2f applies to
         // each spell); `your opponents cast` names the opponents.
@@ -307,7 +389,7 @@ fn finish_reduction(
         recognize_optional_amount_reminder(cursor, &amount)?;
     } else if let Some(colored) = &colored {
         recognize_optional_colored_reduction_reminder(cursor, colored)?;
-    } else if let CastingReductionSubject::SpellSet(query) = &subject {
+    } else if let Some(query) = reduction_subject_spells(&subject) {
         recognize_optional_batch_reminder_for(cursor, &query.predicate)?;
     }
     cursor.enter("casting-reduction.complete");

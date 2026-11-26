@@ -66,8 +66,22 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
             }))
         }
     };
-    let rule = match node.subject {
-        CastingReductionSubject::CurrentSpell => {
+    // A spell population, possibly narrowed to one spell of the caster's
+    // turn history (`the second spell you cast each turn`).
+    let (population, ordinal, spell_target) = match node.subject {
+        CastingReductionSubject::CurrentSpell => (None, None, None),
+        CastingReductionSubject::SpellSet(spells) => (Some(spells), None, None),
+        CastingReductionSubject::OrdinalSpell(subject) => (
+            Some(subject.spells),
+            Some((subject.ordinal, subject.own_turns_only)),
+            None,
+        ),
+        CastingReductionSubject::TargetingSpells { spells, target } => {
+            (Some(spells), None, Some(target))
+        }
+    };
+    let rule = match population {
+        None => {
             let mut modifier = json!({"kind":"reduceOwnGenericCastingCost","amount":amount});
             if let Some(colored) = &colored {
                 modifier["coloredMana"] = colored.clone();
@@ -99,7 +113,7 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
                 "modifiers":[modifier],
             })
         }
-        CastingReductionSubject::SpellSet(spells) => {
+        Some(spells) => {
             cursor.enter("static.spell-cost-reduction.source-zone");
             cursor.require(
                 node.target_query.is_none(),
@@ -163,6 +177,17 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
                     },
                 )?;
             }
+            if let Some((ordinal, own_turns_only)) = ordinal {
+                lower_spell_ordinal(cursor, &mut modifier, ordinal, own_turns_only)?;
+            }
+            if let Some(target) = &spell_target {
+                cursor.enter("static.spell-cost-reduction.spell-target");
+                cursor.require(
+                    colored.is_none() && integer_value_of(&node.amount).is_some(),
+                    "a fixed generic reduction for spells that target an object",
+                )?;
+                modifier["spellTarget"] = lower_spell_target(cursor, target)?;
+            }
             json!({"kind":"staticAbility","source":self_ref(),"activeWhile":active_while_battlefield(),
                 "modifiers":[modifier]})
         }
@@ -176,6 +201,69 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
             "Project existing reduction and battlefield count primitives without changing their meaning",
         ],
     ))
+}
+
+/// A fixed integer amount.
+fn integer_value_of(amount: &NumericExpression) -> Option<i64> {
+    match amount {
+        NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+        _ => None,
+    }
+}
+
+/// The object a spell or ability population targets (CR 115.1): the static
+/// ability's own source, or a battlefield selector relative to it.
+pub(in crate::oracle::canonical) fn lower_spell_target(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &AbilityTargetCondition,
+) -> MachineResult<Value> {
+    match target {
+        AbilityTargetCondition::Source => Ok(self_ref()),
+        AbilityTargetCondition::Query(query) => lower_static_permanent_query(cursor, query),
+    }
+}
+
+/// `the first|second SPELL you cast each turn` (CR 601.2i): the first is the
+/// engine's `firstEachTurn` record; a later ordinal counts the caster's
+/// earlier matching casts this turn (`castOrdinal`). `during each of your
+/// turns` adds the proposition that it is the controller's turn (CR 500.1).
+fn lower_spell_ordinal(
+    cursor: &mut OracleTokenCursor<'_>,
+    modifier: &mut Value,
+    ordinal: i64,
+    own_turns_only: bool,
+) -> MachineResult<()> {
+    cursor.enter("static.spell-cost-reduction.ordinal");
+    cursor.require(
+        (1..=10).contains(&ordinal),
+        "a spell ordinal between first and tenth",
+    )?;
+    if ordinal == 1 {
+        modifier["firstEachTurn"] = json!(true);
+    } else {
+        modifier["castOrdinal"] = json!(ordinal);
+    }
+    if own_turns_only {
+        let your_turn = lower_sentence_condition(
+            cursor,
+            &BooleanConditionNode::Atom(ConditionAtom::TurnOwnership(
+                ControllerTurnPropositionNode {
+                    is_controller_turn: true,
+                },
+            )),
+            &ConditionObjectBindings {
+                permanent_targets: &[],
+                card_targets: &[],
+                card_focus: None,
+                previous_action_result: None,
+            },
+        )?;
+        modifier["condition"] = match modifier.get("condition") {
+            Some(existing) => and(vec![your_turn, existing.clone()]),
+            None => your_turn,
+        };
+    }
+    Ok(())
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_permanent_scaled_casting_reduction(
