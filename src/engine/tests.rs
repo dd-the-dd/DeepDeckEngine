@@ -430,6 +430,9 @@ mod target_collection_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/temporary_continuous_rules_runtime.rs"]
 mod temporary_continuous_rules_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/condition_duration_runtime.rs"]
+mod condition_duration_runtime;
 
 #[path = "tests/alternative_additional_cost_runtime.rs"]
 mod alternative_additional_cost_runtime;

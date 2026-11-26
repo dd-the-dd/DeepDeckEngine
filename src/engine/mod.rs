@@ -110,6 +110,7 @@ mod characteristic_observation;
 mod chosen_object_costs;
 mod city_blessing;
 mod combat_requirements;
+mod condition_durations;
 mod copy_program;
 mod cost_paid_card_properties;
 mod cost_payment;
@@ -10514,6 +10515,7 @@ impl GameEngine {
                 value_kind(modifier) == Some("temporaryKeywordUntilTurn")
                     && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
                     && modifier["keyword"].as_str() == Some(keyword)
+                    && self.watched_duration_holds(modifier)
                     && modifier["expiresBeforeTurn"]
                         .as_u64()
                         .is_some_and(|turn| turn > u64::from(self.state.turn_number))
@@ -11618,6 +11620,7 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("temporaryPowerToughnessUntilTurn")
                     && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+                    && self.watched_duration_holds(modifier)
                     && modifier["expiresBeforeTurn"]
                         .as_u64()
                         .is_some_and(|turn| turn > u64::from(self.state.turn_number))
@@ -21399,6 +21402,7 @@ impl GameEngine {
     }
 
     fn refresh_control_effects(&mut self) {
+        self.expire_watched_durations();
         let expired = self
             .state
             .rule_modifiers
@@ -35952,6 +35956,7 @@ impl GameEngine {
         mut provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<(), EngineError> {
         self.check_quantity_failure()?;
+        self.expire_watched_durations();
         let enduring_story_players = self
             .state
             .players
