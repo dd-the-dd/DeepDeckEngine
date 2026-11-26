@@ -10,13 +10,26 @@ pub(in crate::oracle::canonical) enum QuantityReplacementParseAttempt {
 
 /// Parse once, then lower the typed replacement. Envelope checks only retain
 /// parent ownership of multi-sentence or nested conditional programs.
+/// The start of a closing reminder parenthetical (CR 207.2), or the end
+/// of the tokens when the ability does not end with one. The reminder is
+/// read by the replacement's own grammar, never skipped.
+fn trailing_reminder_start(tokens: &[crate::oracle::model::RecognizedEntity]) -> usize {
+    if !tokens.last().is_some_and(|token| token.raw == ")") {
+        return tokens.len();
+    }
+    tokens
+        .iter()
+        .rposition(|token| token.raw == "(")
+        .unwrap_or(tokens.len())
+}
+
 pub(in crate::oracle::canonical) fn try_parse_promoted_quantity_replacement(
     input: &AbilityInput<'_>,
 ) -> QuantityReplacementParseAttempt {
-    if input.tokens.iter().filter(|token| token.raw == ".").count() != 1
-        || !input.tokens.last().is_some_and(|token| token.raw == ".")
-        || input
-            .tokens
+    let body = &input.tokens[..trailing_reminder_start(input.tokens)];
+    if body.iter().filter(|token| token.raw == ".").count() != 1
+        || !body.last().is_some_and(|token| token.raw == ".")
+        || body
             .iter()
             .skip(1)
             .any(|token| token.raw.eq_ignore_ascii_case("if"))
@@ -26,9 +39,16 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_quantity_replacement(
     let mut cursor = OracleTokenCursor::new("quantity-replacement", input.tokens);
     // `on this creature` / its name: the source as the counter recipient.
     cursor.replace_source_names(Some(input.name_links.into()));
+    let reminder = body.len() < input.tokens.len();
     let replacement = match try_recognize_quantity_replacement(&mut cursor) {
         QuantityReplacementRecognition::Parsed(node) => node,
         QuantityReplacementRecognition::NotClaimed => {
+            return QuantityReplacementParseAttempt::NotClaimed;
+        }
+        // A trailing reminder is claimed only by a replacement whose own
+        // grammar read it; any other reminder leaves the ability to the
+        // readers below, as before reminders were considered here.
+        QuantityReplacementRecognition::Failed(_) if reminder => {
             return QuantityReplacementParseAttempt::NotClaimed;
         }
         QuantityReplacementRecognition::Failed(failure) => {
@@ -101,6 +121,7 @@ pub(in crate::oracle::canonical) fn lower_quantity_replacement_program(
         "kind": match event.domain {
             QuantityEventDomain::TokenCreation => "tokenCreation",
             QuantityEventDomain::CounterPlacement => "counterPlacement",
+            QuantityEventDomain::Mill => "mill",
         },
         "origin": match event.origin {
             QuantityEventOrigin::Any => "any",
@@ -122,6 +143,10 @@ pub(in crate::oracle::canonical) fn lower_quantity_replacement_program(
             // A created token is matched by its definition (CR 111.4).
             QuantityEventDomain::TokenCreation => lower_card_object_predicate(object),
             QuantityEventDomain::CounterPlacement => lower_permanent_object_predicate(object),
+            // A mill event names no object (CR 701.17a).
+            QuantityEventDomain::Mill => {
+                return Err(cursor.fail("a mill event without an object predicate"));
+            }
         };
         if !predicate.is_null() {
             event_ir["where"] = predicate;

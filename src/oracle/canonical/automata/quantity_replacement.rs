@@ -1,7 +1,8 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
-    EventNumericBinding, NumericAtom, NumericExpression, QuantityEventDomain, QuantityEventNode,
-    QuantityEventRecognition, QuantityEventVoice, ReplacementObjectBinding,
+    EventNumericBinding, NumericAtom, NumericExpression, ObjectControllerScope,
+    QuantityEventDomain, QuantityEventNode, QuantityEventRecognition, QuantityEventVoice,
+    ReplacementObjectBinding, VerbAgreement, VerbLemma, consume_lemma,
     recognize_event_bound_numeric_expression, recognize_event_counter_kind, recognize_numeric_atom,
     try_recognize_quantity_event,
 };
@@ -87,10 +88,12 @@ fn recognize_preserved_subject(
         cursor.consume(match event.domain {
             QuantityEventDomain::TokenCreation => "tokens",
             QuantityEventDomain::CounterPlacement => "counters",
+            QuantityEventDomain::Mill => "cards",
         })?;
     } else {
         match event.domain {
             QuantityEventDomain::TokenCreation => cursor.consume("tokens")?,
+            QuantityEventDomain::Mill => cursor.consume("cards")?,
             QuantityEventDomain::CounterPlacement => {
                 let counter = recognize_event_counter_kind(cursor)?;
                 cursor.enter("quantity-replacement.counter-identity");
@@ -181,6 +184,58 @@ pub(in crate::oracle::canonical) fn try_recognize_quantity_replacement(
     }
 }
 
+/// The affected player restated as the subject of the replacing action:
+/// `you` for the controller, `they` or `that player` for an opponent or
+/// any player (CR 614.1a: the same player performs the modified event).
+fn recognize_restated_player(
+    cursor: &mut OracleTokenCursor<'_>,
+    affected: Option<ObjectControllerScope>,
+) -> MachineResult<VerbAgreement> {
+    cursor.enter("quantity-replacement.player-subject");
+    let controller = affected == Some(ObjectControllerScope::AbilityController);
+    if controller {
+        cursor.consume("you")?;
+        return Ok(VerbAgreement::Base);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+    {
+        cursor.consume_phrase(&["that", "player"])?;
+        return Ok(VerbAgreement::ThirdPersonSingular);
+    }
+    cursor.consume("they")?;
+    Ok(VerbAgreement::Base)
+}
+
+/// `(To mill a card, a player puts the top card of their library into their
+/// graveyard.)`: the reminder restates CR 701.17a and adds no semantics.
+fn recognize_mill_reminder(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.enter("quantity-replacement.mill-reminder");
+    cursor.consume_phrase(&[
+        "(",
+        "to",
+        "mill",
+        "a",
+        "card",
+        ",",
+        "a",
+        "player",
+        "puts",
+        "the",
+        "top",
+        "card",
+        "of",
+        "their",
+        "library",
+        "into",
+        "their",
+        "graveyard",
+        ".",
+        ")",
+    ])
+}
+
 fn recognize_quantity_replacement_body(
     cursor: &mut OracleTokenCursor<'_>,
     event: QuantityEventNode,
@@ -192,8 +247,14 @@ fn recognize_quantity_replacement_body(
         cursor.consume("it")?;
         cursor.consume(match event.domain {
             QuantityEventDomain::TokenCreation => "creates",
-            QuantityEventDomain::CounterPlacement => "puts",
+            QuantityEventDomain::CounterPlacement | QuantityEventDomain::Mill => "puts",
         })?;
+    }
+    if event.voice == QuantityEventVoice::Player {
+        // The same player performs the replacing action.
+        let agreement = recognize_restated_player(cursor, event.affected_controller)?;
+        cursor.enter("quantity-replacement.player-action");
+        consume_lemma(cursor, VerbLemma::Mill, agreement)?;
     }
     let quantity = recognize_event_bound_numeric_expression(cursor, event.quantity_binding)?;
     cursor.enter("quantity-replacement.numeric-binding");
@@ -218,6 +279,9 @@ fn recognize_quantity_replacement_body(
     cursor.enter("quantity-replacement.instead");
     cursor.consume("instead")?;
     cursor.consume(".")?;
+    if event.domain == QuantityEventDomain::Mill && cursor.peek().is_some_and(|raw| raw == "(") {
+        recognize_mill_reminder(cursor)?;
+    }
     cursor.enter("quantity-replacement.full-consumption");
     cursor.finish()?;
     Ok(QuantityReplacementNode { event, quantity })

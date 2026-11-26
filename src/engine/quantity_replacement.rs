@@ -62,6 +62,9 @@ pub(super) enum QuantityRecipient<'a> {
         controller: &'a str,
         definition: &'a CardDefinition,
     },
+    /// A player performing a quantity action on their own cards: the
+    /// player who mills (CR 701.17a).
+    Mill { player: &'a str },
 }
 
 impl<'a> QuantityRecipient<'a> {
@@ -69,6 +72,7 @@ impl<'a> QuantityRecipient<'a> {
         match self {
             Self::Permanent { permanent, .. } => &permanent.controller,
             Self::Token { controller, .. } => controller,
+            Self::Mill { player } => player,
         }
     }
 }
@@ -146,6 +150,7 @@ impl QuantityExpression {
 enum EventKind {
     CounterPlacement,
     TokenCreation,
+    Mill,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -218,6 +223,8 @@ fn parse_program(modifier: &Value) -> Option<Program> {
             let supported = match program.event.kind {
                 EventKind::CounterPlacement => permanent_filter_supported(filter),
                 EventKind::TokenCreation => card_filter_supported(filter),
+                // A mill event names no object.
+                EventKind::Mill => false,
             };
             !supported || !no_external_numeric_bindings(filter)
         })
@@ -248,6 +255,16 @@ fn parse_program(modifier: &Value) -> Option<Program> {
         }
         EventKind::TokenCreation => {
             if program.event.recipient_kind.is_some() || program.event.counter.is_some() {
+                return None;
+            }
+        }
+        // CR 701.17a: the milling player is the event's only party; the
+        // mill a cost or an effect performs is the same event.
+        EventKind::Mill => {
+            if program.event.recipient_kind.is_some()
+                || program.event.counter.is_some()
+                || !matches!(program.event.origin, OriginFilter::Any)
+            {
                 return None;
             }
         }
@@ -528,8 +545,32 @@ impl GameEngine {
                 .predicate
                 .as_ref()
                 .is_none_or(|filter| matches_card_filter(definition, filter)),
+            (EventKind::Mill, QuantityRecipient::Mill { .. }) => true,
             _ => false,
         }
+    }
+
+    /// The number of cards `player_id` mills once every applicable mill
+    /// quantity replacement has modified the event (CR 614.1a, 616.1: the
+    /// milling player orders them). A mill of no cards is not an event.
+    pub(super) fn replaced_mill_count(
+        &self,
+        player_id: &str,
+        count: usize,
+        provider: Option<&mut dyn DecisionProvider>,
+    ) -> Result<usize, EngineError> {
+        let amount = i32::try_from(count).map_err(|_| {
+            EngineError::new("a mill quantity exceeds the replacement integer bound")
+        })?;
+        let resolution = self.resolve_quantity_event(
+            QuantityEvent {
+                amount,
+                origin: QuantityOrigin::Effect,
+                recipient: QuantityRecipient::Mill { player: player_id },
+            },
+            &mut OptionalQuantityProvider(provider),
+        )?;
+        Ok(usize::try_from(resolution.amount).unwrap_or(0))
     }
 
     /// Resolve the affected controller's order before the actual producer mutates.

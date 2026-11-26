@@ -8052,6 +8052,13 @@ impl GameEngine {
     ) -> Result<Vec<String>, EngineError> {
         let player_index = self.player_index(player_id)?;
         let count = count.saturating_mul(self.mill_factor(player_id).max(1) as usize);
+        let count = self.replaced_mill_count(
+            player_id,
+            count,
+            provider
+                .as_mut()
+                .map(|provider| &mut **provider as &mut dyn DecisionProvider),
+        )?;
         let mut milled = Vec::new();
         let mut milled_cards = Vec::new();
         for _ in 0..count {
