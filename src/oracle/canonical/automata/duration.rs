@@ -158,20 +158,14 @@ pub(in crate::oracle::canonical) fn recognize_trailing_or_supplied_duration(
     }
 }
 
-/// Whether the cursor stands on a duration introducer this module reads:
-/// `until`, `this turn` or `for as long as`. Lexical only; it commits
-/// nothing and says nothing about the window being supported.
+/// Whether the cursor stands on a written duration introducer that excludes
+/// a second, sentence-level one: `until` or `for as long as`. Lexical only;
+/// it commits nothing and says nothing about the window being supported.
 pub(in crate::oracle::canonical) fn effect_duration_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("until"))
         || source_control_duration_starts(cursor)
-        || (cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
-            && cursor
-                .peek_ahead(1)
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("turn")))
 }
 
 /// `for as long as STATE` as an effect duration (CR 611.2b). The state is
