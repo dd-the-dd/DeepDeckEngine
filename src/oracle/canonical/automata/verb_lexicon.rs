@@ -177,6 +177,9 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Unlock,
     /// `lock an unlocked door of ROOM` (CR 709.5g).
     Lock,
+    /// `copy a SPELL` (CR 707.10): an event-only row; a player copies a
+    /// spell when an effect puts a copy of it onto the stack.
+    Copy,
 }
 
 /// One inflected form of a lemma.
@@ -1343,6 +1346,18 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "descending",
         },
         frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Copy,
+        forms: VerbForms {
+            base: "copy",
+            third_person_singular: "copies",
+            past: "copied",
+            past_participle: "copied",
+            present_participle: "copying",
+        },
+        frames: &[ArgumentFrame::SpellObject],
         voices: &[Voice::Active],
     },
 ];

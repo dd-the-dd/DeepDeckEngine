@@ -90,6 +90,14 @@ pub(in crate::oracle::canonical) struct AttackDeclarationNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum AttackedRecipientNode {
     Player(EventActorScope),
+    /// `a player who controls eight or more lands` (CR 506.2): a player in
+    /// the relation, restricted by the shared player relative predicate
+    /// (`player_set.rs`), evaluated on the attacked player when the attack
+    /// is declared.
+    PlayerWhere {
+        actor: EventActorScope,
+        query: super::PlayerPopulationQueryNode,
+    },
     Permanent(ObjectQueryNode),
 }
 
@@ -153,6 +161,17 @@ pub(in crate::oracle::canonical) enum PlayerEventAction {
     /// acting player countered a spell; the countered spell is the event's
     /// card object and the countering object its cause.
     CounterSpell,
+    /// `become(s) the monarch` (CR 724.1): the player became the monarch.
+    BecomeMonarch,
+    /// `search(es) their library` (CR 701.23): the player searched their own
+    /// library.
+    SearchLibrary,
+    /// `copy|copies a SPELL` (CR 707.10): the player put a copy of a spell
+    /// onto the stack; the copied spell is the event's card object.
+    CopySpell,
+    /// `get(s) one or more {E}` (CR 107.14, 122.1): one instruction gave the
+    /// player at least one energy counter.
+    GetEnergy,
 }
 
 /// The die results a roll event observes (CR 706.2). Both bounds inclusive;
@@ -216,6 +235,9 @@ impl PlayerEventAction {
                 | Self::Exert
                 | Self::ActivateAbility(_)
                 | Self::BeDealtDamage(_)
+                | Self::BecomeMonarch
+                | Self::SearchLibrary
+                | Self::GetEnergy
         )
     }
 
@@ -497,6 +519,14 @@ pub(in crate::oracle::canonical) fn recognize_player_event_predicate(
     // permanent tapped for mana, a crime. Each is a lexicon lemma in the
     // actor's agreement.
     if let Some(event) = recognize_player_action_frame(cursor, actor, life_agreement, one_or_more)?
+    {
+        return Ok(event);
+    }
+    // Lexicon lemmas whose complement selects the observed player action
+    // (`become the monarch`, `search their library`, `copy a SPELL`, `get
+    // one or more {E}`).
+    if let Some(event) =
+        recognize_lexicon_player_action(cursor, actor, life_agreement, one_or_more)?
     {
         return Ok(event);
     }
@@ -883,6 +913,130 @@ fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
     cursor
         .peek_ahead(offset)
         .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+/// The lexicon lemmas a player event reads with a lemma-selected
+/// complement (CR 603.2). The verb is any of their forms agreeing with the
+/// actor; the complement is typed per lemma.
+const LEXICON_PLAYER_ACTION_LEMMAS: [VerbLemma; 4] = [
+    VerbLemma::Become,
+    VerbLemma::Search,
+    VerbLemma::Copy,
+    VerbLemma::Get,
+];
+
+/// `ACTOR VERB COMPLEMENT` for a lexicon lemma whose complement names the
+/// player action an event observes:
+///
+/// ```text
+/// "become(s)" "the" "monarch"                          -- CR 724.1
+/// "search(es)" ("your" | "their") "library"            -- CR 701.23
+/// ("copy" | "copies") ("a" | "an") SPELL-QUERY         -- CR 707.10
+/// "get(s)" "one" "or" "more" "{E}" [energy reminder]   -- CR 107.14
+/// ```
+///
+/// `None` (nothing consumed) when no such lemma agrees with the actor or
+/// when the complement that claims the lemma does not start (`become the
+/// target of` belongs to the targeting frame). Once claimed, an unsupported
+/// complement fails at its own state.
+fn recognize_lexicon_player_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+    agreement: VerbAgreement,
+    one_or_more: bool,
+) -> MachineResult<Option<LocalTriggerEventNode>> {
+    let Some(lemma) = LEXICON_PLAYER_ACTION_LEMMAS
+        .into_iter()
+        .find(|lemma| lemma_form_at(cursor, *lemma, agreement))
+    else {
+        return Ok(None);
+    };
+    let event = |action: PlayerEventAction, card: Option<PlayerEventCardObject>| {
+        LocalTriggerEventNode::PlayerEvent {
+            actor,
+            actions: vec![action],
+            one_or_more,
+            card,
+            permanent: None,
+            first_time_each_turn: false,
+        }
+    };
+    match lemma {
+        VerbLemma::Become => {
+            if !(word_at(cursor, 1, "the") && word_at(cursor, 2, "monarch")) {
+                return Ok(None);
+            }
+            cursor.enter("event.player.become-monarch");
+            consume_verb_word(cursor)?;
+            cursor.consume_phrase(&["the", "monarch"])?;
+            cursor.enter("event.player.complete");
+            Ok(Some(event(PlayerEventAction::BecomeMonarch, None)))
+        }
+        VerbLemma::Search => {
+            cursor.enter("event.player.search");
+            consume_verb_word(cursor)?;
+            // The searched library is the searching player's own: `you
+            // search your library`, `an opponent searches their library`.
+            cursor.enter("event.player.search.library-owner");
+            let owner = if actor == EventActorScope::Controller && !one_or_more {
+                "your"
+            } else {
+                "their"
+            };
+            cursor.require(
+                word_at(cursor, 0, owner) && word_at(cursor, 1, "library"),
+                "the searching player's own library (`your library`, `their library`)",
+            )?;
+            cursor.consume_phrase(&[owner, "library"])?;
+            cursor.enter("event.player.complete");
+            Ok(Some(event(PlayerEventAction::SearchLibrary, None)))
+        }
+        VerbLemma::Copy => {
+            cursor.enter("event.player.copy");
+            consume_verb_word(cursor)?;
+            cursor.enter("event.player.copy.article");
+            let article = cursor
+                .peek()
+                .map(str::to_ascii_lowercase)
+                .filter(|raw| raw == "a" || raw == "an")
+                .ok_or_else(|| cursor.fail("`a` or `an` before the copied spell"))?;
+            cursor.consume(&article)?;
+            cursor.enter("event.player.copy.spell");
+            let query = recognize_object_query(cursor)?;
+            cursor.require(
+                query.predicate.is_in_domain(ObjectKind::Spell) && query.controller.is_none(),
+                "a copied spell query without a controller relation",
+            )?;
+            cursor.enter("event.player.complete");
+            Ok(Some(event(
+                PlayerEventAction::CopySpell,
+                Some(PlayerEventCardObject {
+                    query,
+                    exclude_source: false,
+                    selection: PlayerEventCardSelection::One,
+                    cause: None,
+                }),
+            )))
+        }
+        VerbLemma::Get => {
+            if !(word_at(cursor, 1, "one")
+                && word_at(cursor, 2, "or")
+                && word_at(cursor, 3, "more"))
+            {
+                return Ok(None);
+            }
+            cursor.enter("event.player.get-energy");
+            consume_verb_word(cursor)?;
+            cursor.consume_phrase(&["one", "or", "more"])?;
+            // The shared player-counter symbol reader: only `{E}` names a
+            // player counter (CR 107.14), with its optional reminder.
+            super::recognize_written_amount_symbol(cursor)?;
+            super::recognize_uncounted_energy_reminder(cursor)?;
+            cursor.enter("event.player.complete");
+            Ok(Some(event(PlayerEventAction::GetEnergy, None)))
+        }
+        _ => unreachable!("every lexicon player-action lemma has a complement frame"),
+    }
 }
 
 /// The surface of a keyword action without a lexicon lemma, in `agreement`.
@@ -1291,6 +1445,45 @@ fn consume_partitive_opponent(cursor: &mut OracleTokenCursor<'_>) -> MachineResu
     Ok(true)
 }
 
+/// `a player who VERB ...` / `an opponent who VERB ...` after the attacked
+/// player (CR 506.2): the shared player relative predicate of player
+/// populations, about the one attacked player. A superlative compares the
+/// player with the whole population and an exclusion names a second player;
+/// neither is a predicate of the attacked player alone. A relative clause
+/// the shared grammar does not type fails at its own state, never dropped.
+fn recognize_attacked_player_relative(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+) -> MachineResult<AttackedRecipientNode> {
+    cursor.enter("event.attacked-recipient.player-relative");
+    let players = match actor {
+        EventActorScope::AnyPlayer => super::PlayerSetReferenceNode::EachPlayer,
+        EventActorScope::Opponent => super::PlayerSetReferenceNode::OpponentsOfAbilityController,
+        EventActorScope::Controller => {
+            return Err(cursor.fail("a third-person attacked player before `who`"));
+        }
+    };
+    let query = super::recognize_player_population_restriction(
+        cursor,
+        players,
+        false,
+        &super::PlayerRelativeContext::default(),
+    )?;
+    cursor.enter("event.attacked-recipient.player-relative.member-predicate");
+    cursor.require(
+        query.except.is_none()
+            && matches!(
+                query.predicate,
+                Some(
+                    super::PlayerRelativePredicate::State { .. }
+                        | super::PlayerRelativePredicate::History(_)
+                )
+            ),
+        "a predicate of the attacked player alone (no superlative or exclusion)",
+    )?;
+    Ok(AttackedRecipientNode::PlayerWhere { actor, query })
+}
+
 /// Reads `RECIPIENT [or RECIPIENT]...` after `attack(s)` (CR 506.2, 508.1b):
 /// a player relative to the ability controller (`you`, `an opponent`, `one
 /// of your opponents`, `a player`) or a planeswalker or battle (`a
@@ -1319,7 +1512,13 @@ pub(in crate::oracle::canonical) fn recognize_attacked_recipients(
                 "a supported attacked-player relation (no superlative player predicate is typed)",
             ));
         } else if let Some(actor) = try_recognize_event_actor_scope(cursor)? {
-            recipients.push(AttackedRecipientNode::Player(actor));
+            // `with` after the recipient is the attackers' clause (`attacks
+            // you with two or more creatures`); `who` restricts the player.
+            if word_at(cursor, 0, "who") {
+                recipients.push(recognize_attacked_player_relative(cursor, actor)?);
+            } else {
+                recipients.push(AttackedRecipientNode::Player(actor));
+            }
         } else {
             let article = cursor
                 .peek()

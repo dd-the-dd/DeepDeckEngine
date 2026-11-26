@@ -22059,7 +22059,11 @@ impl GameEngine {
                                 .iter()
                                 .any(|event| {
                                     value_kind(event) == Some("spellCopied")
-                                        && source.controller == original.controller
+                                        && self.event_player_reference_matches(
+                                            &event["player"],
+                                            source,
+                                            &original.controller,
+                                        )
                                         && matches_card_filter(&copied_definition, &event["where"])
                                 })
                     })
@@ -35265,6 +35269,7 @@ impl GameEngine {
             None,
             json!({}),
         );
+        self.publish_became_monarch(player_id);
     }
 
     fn draw_monarch_card<P: DecisionProvider>(

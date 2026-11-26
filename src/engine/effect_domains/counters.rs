@@ -879,10 +879,11 @@ impl GameEngine {
                         .or_default() += count;
                     self.record_event(
                         "playerCountersAdded",
-                        Some(player_id),
+                        Some(player_id.clone()),
                         Some(stack_object.card.instance_id.clone()),
                         json!({ "count": count, "counter": counter }),
                     );
+                    self.publish_player_counters_added(&player_id, &counter);
                 }
             }
             Some("removePlayerCounters") => {

@@ -493,7 +493,7 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
         // `a creature an opponent controls becomes the target of ...`: the
         // targeted permanent the record binds (CR 115.1). A spell branch has
         // no permanent to name.
-        GenericTriggerEventNode::BecameTarget(node) => {
+        GenericTriggerEventNode::BecameTarget(node) if node.players.is_empty() => {
             let predicates = node
                 .objects
                 .iter()

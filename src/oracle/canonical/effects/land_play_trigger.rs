@@ -43,6 +43,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_land_play_trigger(
     let LocalTriggerEventNode::LandPlayed {
         player,
         exclude_source,
+        from_exile: false,
     } = event
     else {
         return Err(cursor.fail("a populated land-play event"));
