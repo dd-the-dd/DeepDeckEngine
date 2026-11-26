@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch12/trigger-zone-attachment-look-back",
+  "cases": [
+    {
+      "id": "exact-screams-from-within-returns-from-graveyard-on-the-battlefield-trigger",
+      "request": {
+        "cardName": "Screams from Within",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Enchant creature\nEnchanted creature gets -1/-1.\nWhen enchanted creature dies, return Screams from Within from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentDied"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-equipped-creature-dies-return-this-card-to-hand",
+      "request": {
+        "cardName": "Attachment Recursion Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature gets +1/+1.\nWhenever equipped creature dies, return this card from your graveyard to your hand.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentDied"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-generic-death-observer-still-functions-from-the-graveyard",
+      "request": {
+        "cardName": "Bridge from Below",
+        "typeLine": "Enchantment",
+        "manaCost": "{B}{B}{B}",
+        "oracleText": "Whenever a nontoken creature is put into your graveyard from the battlefield, if this card is in your graveyard, create a 2/2 black Zombie creature token.\nWhen a creature is put into an opponent's graveyard from the battlefield, if this card is in your graveyard, exile this card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/triggerZone",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

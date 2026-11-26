@@ -331,14 +331,17 @@ impl GameEngine {
 
     /// Death observers in graveyards (`Whenever a creature you control
     /// dies, if this card is in your graveyard`), matched on the death
-    /// record. The dead card is not an observer of its own death from the
-    /// graveyard it arrives in.
+    /// record. Only a card already in a graveyard before the death batch
+    /// observes it (CR 603.10a): neither the dead card nor another member
+    /// of the same batch sees it from the graveyard it arrives in.
     pub(super) fn graveyard_death_triggers(
         &self,
         record: &zone_change_events::ZoneChangeRecord<'_>,
+        batch: &super::death_trigger_batch::DeathTriggerSourceSnapshot,
     ) -> Vec<(CardInstance, Value)> {
         self.card_zone_triggered_rules(|source, rule| {
             source.instance_id != record.object.instance_id
+                && batch.graveyard_observer_present(&source.instance_id)
                 && self.rule_matches_zone_change(
                     rule,
                     zone_change_events::ZoneChangeGroup::Death,
@@ -351,7 +354,8 @@ impl GameEngine {
     /// Graveyard-arrival observers in graveyards (`Whenever a nontoken
     /// creature is put into your graveyard from the battlefield, if this
     /// card is in your graveyard`), with the arriving cards each observes.
-    /// A card of the arriving batch is not yet an observer of that batch.
+    /// A card of the arriving batch, or of the enclosing simultaneous
+    /// departure event, is not yet an observer of that batch.
     pub(super) fn graveyard_arrival_observers(
         &self,
         cards: &[CardInstance],
@@ -359,9 +363,10 @@ impl GameEngine {
     ) -> Vec<(CardInstance, Value, Vec<Value>)> {
         let mut observers = Vec::new();
         for (source, rule) in self.card_zone_triggered_rules(|source, _| {
-            !cards
-                .iter()
-                .any(|card| card.instance_id == source.instance_id)
+            self.graveyard_observer_in_frame(&source.instance_id)
+                && !cards
+                    .iter()
+                    .any(|card| card.instance_id == source.instance_id)
         }) {
             let matching = cards
                 .iter()

@@ -122,6 +122,11 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// a possessive `its` in its arguments names it. Installed by the clause
     /// parent around its arguments only.
     pub subject: Option<PermanentEffectReference>,
+    /// `subject` is the member of a distributive plural subject the parent
+    /// iterates (`Up to two target creatures each deal damage equal to
+    /// their power`, CR 608.2c): the plural possessive `their` names that
+    /// member. Installed only by [`with_distributive_member_subject`].
+    pub distributive_subject: bool,
     /// The index of the action being read in the enclosing program; a
     /// target declared by this action binds to it.
     pub effect_index: Option<usize>,
@@ -1227,6 +1232,7 @@ impl BindingEnvironment {
             }),
             player: None,
             subject: None,
+            distributive_subject: false,
             effect_index: context.current_effect_index,
             action_result: None,
             number: None,
@@ -3717,6 +3723,20 @@ pub(in crate::oracle::canonical) fn participle_card_target_conflict(
 
 /// Reads a clause's arguments with `subject` as the clause subject of the
 /// installed environment, then restores the enclosing environment.
+/// Reads a predicate of one member of a distributive plural subject: the
+/// member is the clause subject, and a plural `their` names it as `its`
+/// would a singular subject (CR 608.2c). The parent owns the iteration.
+pub(in crate::oracle::canonical) fn with_distributive_member_subject<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    member: PermanentEffectReference,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.subject = Some(member);
+    environment.distributive_subject = true;
+    with_installed_environment(cursor, environment, read)
+}
+
 pub(in crate::oracle::canonical) fn with_clause_subject<T>(
     cursor: &mut OracleTokenCursor<'_>,
     subject: Option<PermanentEffectReference>,

@@ -1391,6 +1391,10 @@ pub struct GameEngine {
     event_batches: event_batch::EventBatchState,
     /// Effective characteristics of departed objects, per incarnation (LKI).
     departure_characteristics: BTreeMap<String, object_snapshot::EffectiveCharacteristics>,
+    /// While a simultaneous battlefield-departure event publishes, the cards
+    /// that were in graveyards before it began (CR 603.10a look-back). A card
+    /// put there by the same event is not yet an observer of that event.
+    graveyard_observer_frame: Option<BTreeSet<String>>,
 }
 
 fn default_opening_hand_size() -> usize {
@@ -6421,6 +6425,7 @@ impl GameEngine {
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
             departure_characteristics: BTreeMap::new(),
+            graveyard_observer_frame: None,
         };
         engine.admit_initial_object_identities()?;
         Ok(engine)
@@ -6450,6 +6455,7 @@ impl GameEngine {
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
             departure_characteristics: BTreeMap::new(),
+            graveyard_observer_frame: None,
         };
 
         evaluator
@@ -23007,7 +23013,7 @@ impl GameEngine {
                 }
             }
         }
-        triggers.extend(self.graveyard_death_triggers(&death_record));
+        triggers.extend(self.graveyard_death_triggers(&death_record, trigger_sources));
         let decisions = BTreeMap::from([
             (
                 "triggeringPermanentId".to_string(),
@@ -23664,6 +23670,10 @@ impl GameEngine {
             .collect::<Vec<_>>();
         triggers.extend(cards.iter().flat_map(|source| {
             // The card's own `put into a graveyard from anywhere` abilities.
+            // Leaving the battlefield looks back (CR 603.10a): the card's
+            // graveyard abilities did not function there, so only a rule
+            // about the card itself sees that arrival, never a generic
+            // observer pattern the card happens to match.
             let arrival = zone_change_events::ZoneChangeRecord {
                 object: source,
                 from,
@@ -23674,6 +23684,8 @@ impl GameEngine {
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
+                        && (from != Some("battlefield")
+                            || zone_change_events::rule_subject_is_source(rule))
                         && self.rule_matches_zone_change(
                             rule,
                             zone_change_events::ZoneChangeGroup::GraveyardArrival,
@@ -36165,13 +36177,16 @@ impl GameEngine {
             .collect::<Vec<_>>();
         if !lethal.is_empty() {
             let lethal_trigger_sources = self.capture_death_trigger_source_snapshot();
-            for instance_id in lethal {
+            let previous_frame = self.enter_graveyard_observer_frame(&lethal_trigger_sources);
+            let moved = lethal.into_iter().try_for_each(|instance_id| {
                 self.move_permanent_to_graveyard_internal_with_death_sources(
                     &instance_id,
                     "lethalDamage",
                     &lethal_trigger_sources,
-                )?;
-            }
+                )
+            });
+            self.leave_graveyard_observer_frame(previous_frame);
+            moved?;
         }
         let zero_loyalty = self
             .state

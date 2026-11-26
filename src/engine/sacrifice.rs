@@ -163,63 +163,70 @@ impl GameEngine {
             return Ok(Vec::new());
         }
         let observers = self.capture_battlefield_departure_trigger_sources();
-        let death_sources = Self::death_trigger_snapshot_from_sources(observers.clone());
+        let death_sources = self.death_trigger_snapshot_from_sources(observers.clone());
         for entry in &prepared {
             self.capture_pending_source_lki(&entry.permanent.instance_id);
         }
         let mut installed = Vec::new();
-        for entry in prepared {
-            let movement = self.install_planned_graveyard_departure(
-                &entry.permanent,
-                &entry.destination,
-                "sacrificed",
-            )?;
-            if movement.movement.is_some() {
-                installed.push((entry, movement));
+        // Graveyard observers look back to before the whole event: a card
+        // sacrificed by this batch does not see another member arrive.
+        let previous_frame = self.enter_graveyard_observer_frame(&death_sources);
+        let published = (|| -> Result<(), EngineError> {
+            for entry in prepared {
+                let movement = self.install_planned_graveyard_departure(
+                    &entry.permanent,
+                    &entry.destination,
+                    "sacrificed",
+                )?;
+                if movement.movement.is_some() {
+                    installed.push((entry, movement));
+                }
             }
-        }
-        // Log the complete simultaneous event before any trigger condition can
-        // inspect counts. Every selected object has already changed zones.
-        for (entry, installed) in &installed {
-            let movement = installed
-                .movement
-                .as_ref()
-                .ok_or_else(|| EngineError::new("sacrifice batch lost its installed movement"))?;
-            self.record_installed_battlefield_departure(movement, "sacrificed");
-            self.publish_graveyard_departure_replacement_event(installed, "sacrificed");
-            self.record_permanent_sacrificed_event(
-                &entry.permanent,
-                &SacrificeEventContext {
-                    player_id: &entry.permanent.controller,
-                    source_id: Some(&source.card.instance_id),
-                    was_creature: Some(entry.was_creature),
-                    trigger_sources: &observers,
-                },
-            );
-        }
-        let mut graveyard_groups = BTreeMap::<String, Vec<CardInstance>>::new();
-        for (_, installed) in &installed {
-            if let Some(died) = installed.died() {
-                graveyard_groups
-                    .entry(died.owner.clone())
-                    .or_default()
-                    .push(died);
+            // Log the complete simultaneous event before any trigger condition can
+            // inspect counts. Every selected object has already changed zones.
+            for (entry, installed) in &installed {
+                let movement = installed.movement.as_ref().ok_or_else(|| {
+                    EngineError::new("sacrifice batch lost its installed movement")
+                })?;
+                self.record_installed_battlefield_departure(movement, "sacrificed");
+                self.publish_graveyard_departure_replacement_event(installed, "sacrificed");
+                self.record_permanent_sacrificed_event(
+                    &entry.permanent,
+                    &SacrificeEventContext {
+                        player_id: &entry.permanent.controller,
+                        source_id: Some(&source.card.instance_id),
+                        was_creature: Some(entry.was_creature),
+                        trigger_sources: &observers,
+                    },
+                );
             }
-        }
-        for (owner, cards) in &graveyard_groups {
-            self.record_cards_entered_graveyard_event(owner, cards, Some("battlefield"));
-        }
-        // Source-linked copy/control effects expire in the completed event's
-        // resulting state. Frozen look-back observers remain independent.
-        for (entry, _) in &installed {
-            self.restore_departure_linked_copies(&entry.permanent.instance_id);
-        }
-        self.refresh_control_effects();
-        // A one-or-more GY observer sees one complete list for this owner,
-        // while conditions can already inspect every owner's recorded event.
-        for (owner, cards) in &graveyard_groups {
-            self.enqueue_recorded_cards_entered_graveyard_triggers(owner, cards);
-        }
+            let mut graveyard_groups = BTreeMap::<String, Vec<CardInstance>>::new();
+            for (_, installed) in &installed {
+                if let Some(died) = installed.died() {
+                    graveyard_groups
+                        .entry(died.owner.clone())
+                        .or_default()
+                        .push(died);
+                }
+            }
+            for (owner, cards) in &graveyard_groups {
+                self.record_cards_entered_graveyard_event(owner, cards, Some("battlefield"));
+            }
+            // Source-linked copy/control effects expire in the completed event's
+            // resulting state. Frozen look-back observers remain independent.
+            for (entry, _) in &installed {
+                self.restore_departure_linked_copies(&entry.permanent.instance_id);
+            }
+            self.refresh_control_effects();
+            // A one-or-more GY observer sees one complete list for this owner,
+            // while conditions can already inspect every owner's recorded event.
+            for (owner, cards) in &graveyard_groups {
+                self.enqueue_recorded_cards_entered_graveyard_triggers(owner, cards);
+            }
+            Ok(())
+        })();
+        self.leave_graveyard_observer_frame(previous_frame);
+        published?;
 
         for (entry, installed) in &installed {
             let movement = installed

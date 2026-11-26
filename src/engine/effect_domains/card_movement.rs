@@ -366,8 +366,28 @@ impl GameEngine {
                                     .clone(),
                             );
                         }
+                        let last_known_definition =
+                            self.permanent_position(object)
+                                .map(|(player_index, card_index)| {
+                                    self.state.players[player_index].battlefield[card_index]
+                                        .definition
+                                        .clone()
+                                });
                         self.exile_permanent(object)?;
                         self.place_exile_counters(object, &resolved_to);
+                        // CR 607.2a: the exiled permanent is linked to the
+                        // source like a card exiled from another zone.
+                        if Self::exile_links_to_source(effect)
+                            && self.card_zone_owner_id(object, "exile").is_some()
+                            && let Some(last_known_definition) = &last_known_definition
+                        {
+                            self.register_linked_exiled_permanent(
+                                &stack_object.card,
+                                object,
+                                false,
+                                last_known_definition,
+                            )?;
+                        }
                         moved_ids.push(object.clone());
                         continue;
                     }

@@ -370,6 +370,24 @@ fn event_names_source(event: &GenericTriggerEventNode) -> bool {
     }
 }
 
+/// Whether the event reads the object the ability's source is attached to
+/// (`enchanted creature`, `equipped creature`, CR 301.5, 303.4).
+fn event_reads_source_attachment(event: &GenericTriggerEventNode) -> bool {
+    match event {
+        GenericTriggerEventNode::Local(local) => matches!(
+            local,
+            LocalTriggerEventNode::AttachedObjectEvent { .. }
+                | LocalTriggerEventNode::AttachedObjectBlock { .. }
+                | LocalTriggerEventNode::AttachedObjectDeparture { .. }
+        ),
+        GenericTriggerEventNode::Conditioned { event, .. } => event_reads_source_attachment(event),
+        GenericTriggerEventNode::Compound(members) => {
+            members.iter().any(event_reads_source_attachment)
+        }
+        _ => false,
+    }
+}
+
 /// The card zone a lowered program moves the ability's own source out of
 /// (`return this card from your graveyard to your hand`): the `this card`
 /// operand of the move is the card in that zone. Moving another card out of
@@ -442,7 +460,12 @@ fn declared_trigger_zone(
     if event.functions_on_the_stack() {
         return Ok(TriggerZone::Stack);
     }
-    if event_names_source(event) {
+    // `When enchanted creature dies, return this card from your graveyard`
+    // (CR 603.10a): the event reads what the source is attached to, which
+    // only a permanent source has (CR 303.4); the ability looks back to the
+    // source on the battlefield, so moving it from the graveyard declares
+    // no other zone of function.
+    if event_names_source(event) || event_reads_source_attachment(event) {
         return Ok(TriggerZone::Battlefield);
     }
     Ok(effects

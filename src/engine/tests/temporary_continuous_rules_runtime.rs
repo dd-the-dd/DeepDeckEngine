@@ -524,6 +524,30 @@ fn spell_definition(id: &str, type_line: &str, mana_cost: &str) -> CardDefinitio
     definition
 }
 
+/// The created-effect primitive applying a static body's modifiers while it
+/// lasts (CR 611.2a, 611.2c). The temporary-rule parser frame is refused
+/// until the static families read the body with a typed lifetime, so the
+/// runtime proof composes the primitive from the parsed static body.
+fn temporary_static_rule(name: &str, static_body: &str) -> (Vec<Value>, Value) {
+    let rules = parsed_rules(name, "Enchantment", static_body);
+    let modifiers = rules
+        .iter()
+        .find(|rule| rule["kind"] == "staticAbility")
+        .map(|rule| rule["modifiers"].clone())
+        .expect("the static body is a static ability");
+    let rule = json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [{
+            "kind": "installTemporaryStaticModifiers",
+            "modifiers": modifiers,
+            "duration": { "kind": "untilEndOfCurrentTurn" },
+        }],
+    });
+    assert!(rule_is_executable(&rule), "{rule:#}");
+    (vec![rule.clone()], rule)
+}
+
 fn spell_ability(rules: &[Value]) -> Value {
     rules
         .iter()
@@ -551,15 +575,13 @@ fn stack_spell(id: &str, definition: CardDefinition, controller: &str) -> StackO
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn a_temporary_spell_cost_reduction_expires_with_the_turn() {
-    // Armor Wars II's body: `Artifact spells you cast this turn cost {1}
-    // less to cast.` The lifetime is the subject's cast period; the body is
-    // the static reduction of the controller's artifact spells.
-    let rules = parsed_rules(
+    // Armor Wars II's body (`Artifact spells you cast this turn cost {1}
+    // less to cast`): the static reduction of the controller's artifact
+    // spells, applied until the end of the turn.
+    let (rules, rule) = temporary_static_rule(
         "Test Armory",
-        "Instant",
-        "Artifact spells you cast this turn cost {1} less to cast.",
+        "Artifact spells you cast cost {1} less to cast.",
     );
-    let rule = spell_ability(&rules);
     assert_eq!(
         rule["effects"][0]["kind"],
         "installTemporaryStaticModifiers"
@@ -603,12 +625,10 @@ fn a_temporary_uncounterable_marker_protects_only_its_spells() {
     // Domri, Anarch of Bolas's +1 body: `Creature spells you cast this turn
     // can't be countered.` A counterspell checks the prohibition as it
     // would counter (CR 701.6).
-    let rules = parsed_rules(
+    let (rules, rule) = temporary_static_rule(
         "Test Shield",
-        "Instant",
-        "Creature spells you cast this turn can't be countered.",
+        "Creature spells you cast can't be countered.",
     );
-    let rule = spell_ability(&rules);
     let mut engine = test_engine(2);
     let source = permanent("shield", "Instant", "player-0", rules.clone());
     let stack = stack_object(&source, &rule);

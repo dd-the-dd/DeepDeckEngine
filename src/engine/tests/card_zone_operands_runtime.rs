@@ -249,6 +249,75 @@ fn a_linked_card_exile_records_its_source_and_an_unlinked_one_does_not() {
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
+fn a_linked_exile_of_a_permanent_records_its_source_like_a_card() {
+    // CR 607.2a: `moveCards` that exiles a battlefield permanent with
+    // `linkToSource` links it exactly as a card exiled from another zone.
+    let mut engine = test_engine(2);
+    let source = test_instance("vault", test_definition("vault", "Artifact"), "player-0");
+    let linked_permanent = test_instance(
+        "linked-permanent",
+        test_definition("linked-permanent", "Artifact"),
+        "player-1",
+    );
+    let unlinked_permanent = test_instance(
+        "unlinked-permanent",
+        test_definition("unlinked-permanent", "Artifact"),
+        "player-1",
+    );
+    engine.state.players[0].battlefield.push(source.clone());
+    engine.state.players[1]
+        .battlefield
+        .extend([linked_permanent, unlinked_permanent]);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let exile = |binding: &str, link: bool| {
+        let mut effect = json!({
+            "kind": "moveCards",
+            "cards": { "kind": "boundObjects", "binding": binding },
+            "to": { "kind": "exile",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "faceDown": false },
+        });
+        if link {
+            effect["linkToSource"] = json!(true);
+        }
+        effect
+    };
+    let effects = json!([exile("linkedPick", true), exile("unlinkedPick", false)]);
+    let mut bindings = BTreeMap::from([
+        (
+            "linkedPick".to_string(),
+            RuntimeBinding::Objects(vec!["linked-permanent".to_string()]),
+        ),
+        (
+            "unlinkedPick".to_string(),
+            RuntimeBinding::Objects(vec!["unlinked-permanent".to_string()]),
+        ),
+    ]);
+    let rule = json!({ "kind": "activatedAbility", "effects": effects });
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &effects,
+        &stack_for(&source, &rule),
+        &mut bindings,
+        &mut BTreeMap::new(),
+        &mut AcceptAndCast,
+    )
+    .expect("both permanents are exiled");
+    assert!(engine.state.players[1].battlefield.is_empty());
+    let linked = engine
+        .state
+        .rule_modifiers
+        .iter()
+        .filter(|modifier| modifier["kind"] == "exiledWithSource")
+        .filter_map(|modifier| modifier["cardInstanceId"].as_str().map(str::to_string))
+        .collect::<Vec<_>>();
+    assert_eq!(linked, vec!["linked-permanent".to_string()]);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
 fn a_selection_from_the_milled_cards_puts_exactly_one_matching_card_into_hand() {
     // Seed of Hope: `the milled cards` restate the mill (CR 608.2c); only
     // a permanent card among them is put into hand, then the life is gained.

@@ -154,6 +154,16 @@ fn self_object(value: &Value) -> bool {
     matches!(value_kind(value), Some("self" | "abilitySource"))
 }
 
+/// Whether every zone-change variant of `rule`'s event is about the source
+/// itself (`this card is put into ...`), not a generic subject pattern.
+pub(super) fn rule_subject_is_source(rule: &Value) -> bool {
+    let variants = super::triggered_event_variants(&rule["event"]);
+    !variants.is_empty()
+        && variants
+            .into_iter()
+            .all(|event| self_object(&event["object"]) || self_object(&event["subject"]["object"]))
+}
+
 fn died_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
     if !known_fields(
         event,

@@ -270,12 +270,15 @@ impl GameEngine {
         if self.permanent_position(instance_id).is_some() {
             return Some("battlefield");
         }
-        if self
-            .state
-            .stack
-            .iter()
-            .any(|object| object.card.instance_id == instance_id)
-        {
+        // A card is on the stack as a spell; an ability on the stack whose
+        // source is the card leaves the card where it is (CR 113.7a, 405.1).
+        if self.state.stack.iter().any(|object| {
+            object.card.instance_id == instance_id
+                && !matches!(
+                    object.ability_kind.as_deref(),
+                    Some("triggeredAbility" | "activatedAbility" | "manaAbility")
+                )
+        }) {
             return Some("stack");
         }
         self.card_outside_battlefield_zone(instance_id)

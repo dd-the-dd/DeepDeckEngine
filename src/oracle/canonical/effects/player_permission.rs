@@ -78,13 +78,6 @@ fn lower_temporary_rule_modifiers(
                 json!({"kind": "permanentsEnterTapped", "objects": objects}),
             ])
         }
-        // CR 611.2a, 611.2c: the static body's own modifiers, compiled by the
-        // static families and admitted only when they change game rules.
-        TemporaryRuleNode::Static(body) => body.rule["modifiers"]
-            .as_array()
-            .filter(|modifiers| !modifiers.is_empty())
-            .cloned()
-            .ok_or(TargetlessLoweringError::UnsupportedEffect),
         // CR 601.3: the allowance's actor holds it while the rule lasts.
         TemporaryRuleNode::Casting(node) => lower_casting_permission_modifiers(node)
             .map_err(|_| TargetlessLoweringError::UnsupportedEffect),

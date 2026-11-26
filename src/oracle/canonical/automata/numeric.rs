@@ -224,8 +224,9 @@ pub(in crate::oracle::canonical) fn recognize_numeric_primary_expression(
                         &environment,
                     )?);
                     NumericExpressionState::Complete
-                } else if antecedent.is_none()
-                    && super::environment_possessive_property_starts(cursor)
+                } else if (antecedent.is_none()
+                    && super::environment_possessive_property_starts(cursor))
+                    || super::distributive_member_possessive_starts(cursor)
                 {
                     // `its power` without a parent target: the binding
                     // environment's possessive antecedent.

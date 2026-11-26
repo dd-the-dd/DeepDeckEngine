@@ -211,80 +211,90 @@ impl GameEngine {
                 self.capture_pending_source_lki(&entry.permanent.instance_id);
             }
         }
-        for planned_destruction in planned {
-            let instance_id = planned_destruction.permanent.instance_id.clone();
-            if self.permanent_position(&instance_id).is_none() {
-                continue;
-            }
-            if planned_destruction.remove_regeneration_shield {
-                self.state.rule_modifiers.retain(|modifier| {
-                    !(value_kind(modifier) == Some("regenerationShield")
-                        && modifier["cardInstanceId"].as_str() == Some(instance_id.as_str()))
+        // Graveyard observers look back to before the whole event: a card
+        // destroyed by this batch does not see a later member arrive.
+        let previous_frame = self.enter_graveyard_observer_frame(&death_trigger_sources);
+        let moved = (|| -> Result<(), EngineError> {
+            for planned_destruction in planned {
+                let instance_id = planned_destruction.permanent.instance_id.clone();
+                if self.permanent_position(&instance_id).is_none() {
+                    continue;
+                }
+                if planned_destruction.remove_regeneration_shield {
+                    self.state.rule_modifiers.retain(|modifier| {
+                        !(value_kind(modifier) == Some("regenerationShield")
+                            && modifier["cardInstanceId"].as_str() == Some(instance_id.as_str()))
+                    });
+                }
+
+                let mut died = None;
+                let mut on_replaced_publication = None;
+                match &planned_destruction.outcome {
+                    PlannedDestructionOutcome::UmbraArmor { aura_id } => {
+                        if let Some((player_index, card_index)) =
+                            self.permanent_position(&instance_id)
+                        {
+                            self.state.players[player_index].battlefield[card_index]
+                                .damage_marked = 0;
+                        }
+                        self.move_permanent_to_graveyard(aura_id, "destroyed")?;
+                        self.record_event(
+                            "destructionReplacedByUmbraArmor",
+                            None,
+                            Some(instance_id.clone()),
+                            json!({ "auraInstanceId": aura_id }),
+                        );
+                    }
+                    PlannedDestructionOutcome::Regenerated => {
+                        self.consume_regeneration_shield(&instance_id, "destroyed");
+                    }
+                    PlannedDestructionOutcome::Indestructible => {}
+                    PlannedDestructionOutcome::ShieldCounter => {
+                        self.remove_counters_from_permanent(
+                            &instance_id,
+                            "shield",
+                            1,
+                            "wouldBeDestroyed",
+                        );
+                        self.record_event(
+                            "destructionPrevented",
+                            None,
+                            Some(instance_id.clone()),
+                            json!({ "reason": "shieldCounter" }),
+                        );
+                    }
+                    PlannedDestructionOutcome::ZoneChange(plan) => {
+                        let installed = self.install_planned_graveyard_departure(
+                            &planned_destruction.permanent,
+                            plan,
+                            "destroyed",
+                        )?;
+                        self.publish_installed_graveyard_departure_with_sources(
+                            &installed,
+                            "destroyed",
+                            Some(death_trigger_sources.sources()),
+                        )?;
+                        died = installed.died();
+                        on_replaced_publication = installed.on_replaced;
+                    }
+                }
+
+                let destroyed = planned_destruction.outcome.counts_as_destroyed()
+                    && self.permanent_position(&instance_id).is_none();
+                if destroyed {
+                    destroyed_ids.push(instance_id);
+                }
+                publications.push(BatchPublication {
+                    permanent: planned_destruction.permanent,
+                    died,
+                    destroyed,
+                    on_replaced: on_replaced_publication,
                 });
             }
-
-            let mut died = None;
-            let mut on_replaced_publication = None;
-            match &planned_destruction.outcome {
-                PlannedDestructionOutcome::UmbraArmor { aura_id } => {
-                    if let Some((player_index, card_index)) = self.permanent_position(&instance_id)
-                    {
-                        self.state.players[player_index].battlefield[card_index].damage_marked = 0;
-                    }
-                    self.move_permanent_to_graveyard(aura_id, "destroyed")?;
-                    self.record_event(
-                        "destructionReplacedByUmbraArmor",
-                        None,
-                        Some(instance_id.clone()),
-                        json!({ "auraInstanceId": aura_id }),
-                    );
-                }
-                PlannedDestructionOutcome::Regenerated => {
-                    self.consume_regeneration_shield(&instance_id, "destroyed");
-                }
-                PlannedDestructionOutcome::Indestructible => {}
-                PlannedDestructionOutcome::ShieldCounter => {
-                    self.remove_counters_from_permanent(
-                        &instance_id,
-                        "shield",
-                        1,
-                        "wouldBeDestroyed",
-                    );
-                    self.record_event(
-                        "destructionPrevented",
-                        None,
-                        Some(instance_id.clone()),
-                        json!({ "reason": "shieldCounter" }),
-                    );
-                }
-                PlannedDestructionOutcome::ZoneChange(plan) => {
-                    let installed = self.install_planned_graveyard_departure(
-                        &planned_destruction.permanent,
-                        plan,
-                        "destroyed",
-                    )?;
-                    self.publish_installed_graveyard_departure_with_sources(
-                        &installed,
-                        "destroyed",
-                        Some(death_trigger_sources.sources()),
-                    )?;
-                    died = installed.died();
-                    on_replaced_publication = installed.on_replaced;
-                }
-            }
-
-            let destroyed = planned_destruction.outcome.counts_as_destroyed()
-                && self.permanent_position(&instance_id).is_none();
-            if destroyed {
-                destroyed_ids.push(instance_id);
-            }
-            publications.push(BatchPublication {
-                permanent: planned_destruction.permanent,
-                died,
-                destroyed,
-                on_replaced: on_replaced_publication,
-            });
-        }
+            Ok(())
+        })();
+        self.leave_graveyard_observer_frame(previous_frame);
+        moved?;
 
         for publication in publications {
             if let Some((source, on_replaced)) = publication.on_replaced {

@@ -971,8 +971,10 @@ fn recognize_effect_sequence_attempt_scoped(
                                 super::recognize_distributive_member_damage(cursor, *member)?,
                             );
                         }
-                        // Several singular slots: one damage action per slot,
-                        // each to the recipient the first one declared.
+                        // Several singular slots: the one predicate is read
+                        // once per slot with that slot as its subject, each
+                        // to the recipient the first one declared.
+                        let predicate_start = cursor.clone();
                         let first =
                             super::recognize_distributive_member_damage(cursor, members[0])?;
                         cursor.enter("sequence.distributive-damage.shared-recipient");
@@ -998,13 +1000,18 @@ fn recognize_effect_sequence_attempt_scoped(
                         };
                         memory.distributed_performer = None;
                         for member in members[1..].iter().rev() {
+                            let mut reread = predicate_start.clone();
+                            let damage =
+                                super::recognize_distributive_member_damage(&mut reread, *member)?;
+                            cursor.enter("sequence.distributive-damage.member-predicate");
+                            cursor.require(
+                                reread.position() == cursor.position(),
+                                "the same distributive predicate for every member",
+                            )?;
                             memory.distributed.push(LocalEffectNode::DealDamage(
                                 super::DamageEffectNode {
-                                    source: super::PermanentOperandNode::BoundReference(
-                                        super::PermanentEffectReference::Target(*member),
-                                    ),
-                                    amount: super::NumericExpression::PowerOf(*member),
                                     recipient: recipient.clone(),
+                                    ..damage
                                 },
                             ));
                         }

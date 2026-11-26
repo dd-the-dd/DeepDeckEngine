@@ -13,8 +13,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "selector.controller-qualifier.relation-or-negation",
+            "found": "cast"
+          }
+        ]
       }
     },
     {
@@ -28,8 +34,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "selector.controller-qualifier.relation-or-negation",
+            "found": "cast"
+          }
+        ]
       }
     },
     {
@@ -43,30 +55,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "installTemporaryStaticModifiers"
-              },
-              {
-                "pointer": "/effects/0/modifiers/0/kind",
-                "equals": "cantBeCountered"
-              },
-              {
-                "pointer": "/effects/0/modifiers/0/objects/controller/kind",
-                "equals": "controllerOf"
-              },
-              {
-                "pointer": "/effects/0/duration/kind",
-                "equals": "untilEndOfCurrentTurn"
-              }
-            ]
+            "state": "counter-prohibition.negation",
+            "found": "this"
           }
         ]
       }
@@ -82,30 +76,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "installTemporaryStaticModifiers"
-              },
-              {
-                "pointer": "/effects/0/modifiers/0/kind",
-                "equals": "additionalCastingCost"
-              },
-              {
-                "pointer": "/effects/0/modifiers/0/players/kind",
-                "equals": "opponentsOf"
-              },
-              {
-                "pointer": "/effects/0/duration/kind",
-                "equals": "untilNextTurn"
-              }
-            ]
+            "state": "selector.controller-qualifier.relation-or-negation",
+            "found": "cast"
           }
         ]
       }
@@ -121,26 +97,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/modifiers/0/kind",
-                "equals": "reduceCastingCost"
-              },
-              {
-                "pointer": "/effects/0/modifiers/0/amount/value",
-                "equals": 1
-              },
-              {
-                "pointer": "/effects/0/duration/kind",
-                "equals": "untilNextTurn"
-              }
-            ]
+            "state": "selector.controller-qualifier.relation-or-negation",
+            "found": "cast"
           }
         ]
       }
@@ -156,26 +118,12 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/modifiers/0/kind",
-                "equals": "modifyActivationCost"
-              },
-              {
-                "pointer": "/effects/0/modifiers/0/abilities/class",
-                "equals": "equip"
-              },
-              {
-                "pointer": "/effects/0/duration/kind",
-                "equals": "untilEndOfCurrentTurn"
-              }
-            ]
+            "state": "effect.start",
+            "found": "Equip"
           }
         ]
       }
@@ -195,8 +143,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0,
-            "traceContainsState": "temporary-rule.duration"
+            "state": "object-set.complete",
+            "found": "cost"
           }
         ]
       }
@@ -216,8 +164,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0,
-            "state": "temporary-rule.static-body.lifetime"
+            "state": "selector.controller-qualifier.relation-or-negation",
+            "found": "cast"
           }
         ]
       }

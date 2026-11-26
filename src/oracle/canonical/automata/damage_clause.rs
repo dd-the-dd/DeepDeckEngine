@@ -421,13 +421,14 @@ pub(in crate::oracle::canonical) fn damage_recipient_names_player(
     }
 }
 
-/// `each deal damage equal to their power to RECIPIENT` after a plural
-/// subject the parent iterates member by member (CR 608.2c): each member
-/// deals damage equal to its own power, once per member. The parent opens
-/// the iteration over `member`, the declared plural slot whose singular
-/// binding names the member being iterated; this child only reads the
-/// distributive predicate and builds the ordinary damage action of one
-/// member. The recipient is the shared recipient group.
+/// `each deal DAMAGE-ARGUMENTS` after a plural subject the parent iterates
+/// member by member (CR 608.2c): each member deals the damage the ordinary
+/// damage arguments describe, once per member. The parent opens the
+/// iteration over `member`, the declared slot whose singular binding names
+/// the member being iterated; this child reads the bare verb and hands the
+/// arguments to the shared damage frame with that member as the clause
+/// subject, so `their power`, `their toughness` or a literal amount are
+/// the ordinary numeric grammar's.
 pub(in crate::oracle::canonical) fn distributive_member_damage_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
@@ -435,9 +436,14 @@ pub(in crate::oracle::canonical) fn distributive_member_damage_starts(
         && cursor
             .peek_ahead(1)
             .is_some_and(|raw| super::is_verb_form(raw, VerbLemma::Deal, super::VerbForm::Base))
-        && cursor
-            .peek_ahead(2)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("damage"))
+        && damage_arguments_claim(
+            &{
+                let mut after = cursor.clone();
+                let _ = after.advance_to(after.position() + 2);
+                after
+            },
+            DamageArguments::Effect,
+        )
 }
 
 pub(in crate::oracle::canonical) fn recognize_distributive_member_damage(
@@ -448,20 +454,15 @@ pub(in crate::oracle::canonical) fn recognize_distributive_member_damage(
     cursor.consume("each")?;
     cursor.enter("effect.distributive-damage.verb");
     super::consume_lemma(cursor, VerbLemma::Deal, VerbAgreement::Base)?;
-    cursor.enter("effect.distributive-damage.amount");
-    cursor.consume("damage")?;
-    // `their power`: each member's own power, the member the iteration
-    // binds to the slot in turn.
-    cursor.consume_phrase(&["equal", "to", "their", "power"])?;
-    cursor.enter("effect.distributive-damage.recipient");
-    cursor.consume("to")?;
-    let recipient = super::recognize_damage_recipient_group(cursor)?;
+    cursor.enter("effect.distributive-damage.arguments");
+    let reference = super::PermanentEffectReference::Target(member);
+    let arguments = super::with_distributive_member_subject(cursor, reference, |cursor| {
+        super::recognize_damage_effect_arguments(cursor)
+    })?;
     Ok(super::DamageEffectNode {
-        source: super::PermanentOperandNode::BoundReference(
-            super::PermanentEffectReference::Target(member),
-        ),
-        amount: NumericExpression::PowerOf(member),
-        recipient,
+        source: super::PermanentOperandNode::BoundReference(reference),
+        amount: arguments.amount,
+        recipient: arguments.recipient,
     })
 }
 
