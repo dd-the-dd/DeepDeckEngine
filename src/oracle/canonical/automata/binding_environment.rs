@@ -222,6 +222,14 @@ pub(in crate::oracle::canonical) enum ObjectProducer {
     /// publishes no antecedent; a pronoun without another one reports the
     /// competition (`COMPETING_CONDITION_ANTECEDENTS`).
     CompetingConditionSubjects,
+    /// `If this spell was kicked, it deals 2 damage ...`: a preposed cast
+    /// fact or cast choice names the resolving spell, the nearest
+    /// antecedent of a bare pronoun of the clause it gates (CR 608.2c), and
+    /// the spell is what deals the damage (CR 120.3). A nominal anaphor
+    /// (`that creature`, `that card`) still names the program's earlier
+    /// object of that noun: the spell satisfies no such nominal, so this
+    /// producer never replaces the singular object antecedent.
+    CastFactSpell(super::LocalObjectReference),
 }
 
 /// The payer of an `unless` frame as a later reference to that player: the
@@ -728,6 +736,12 @@ pub(in crate::oracle::canonical) fn inherit_installed_action_result(
     if environment.result_object.is_none() {
         environment.result_object = installed.result_object;
     }
+    // The spell a cast fact names answers only a bare pronoun; the context's
+    // own object stays the antecedent of a nominal anaphor.
+    if let Some(producer @ ObjectProducer::CastFactSpell(_)) = installed.object_producer {
+        environment.object_producer = Some(producer);
+        return;
+    }
     if let Some(producer) = installed
         .object_producer
         .filter(|producer| *producer != ObjectProducer::CompetingConditionSubjects)
@@ -886,11 +900,20 @@ pub(in crate::oracle::canonical) fn publish_preposed_condition_antecedent(
         return;
     };
     let installed = installed_binding_environment(cursor);
-    // A cast fact or cast choice is about the resolving spell, which no
-    // object action of its own program acts on: a pronoun or nominal anaphor
-    // after it (`If this spell was kicked, that creature gets -2/-0
-    // instead`) keeps the program's own earlier object antecedent.
-    if installed.object.is_some() && preposed_condition_is_cast_fact(condition) {
+    // A cast fact or cast choice is about the resolving spell: a bare
+    // pronoun of the gated clause names it (`If this spell was kicked, it
+    // deals 2 damage ...`, CR 120.3, 608.2c), while a nominal anaphor (`If
+    // this spell was kicked, that creature gets -2/-0 instead`, `instead
+    // put that card onto the battlefield`) keeps the program's own earlier
+    // object or card antecedent, which the spell is not. The singular
+    // object antecedent is therefore left as it is.
+    if preposed_condition_is_cast_fact(condition) {
+        let PermanentEffectReference::Source(source) = reference else {
+            return;
+        };
+        let mut environment = installed;
+        environment.object_producer = Some(ObjectProducer::CastFactSpell(source));
+        cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
         return;
     }
     let selector = match reference {
@@ -2579,12 +2602,35 @@ fn singular_reference(reference: PermanentEffectReference) -> bool {
 const PLURAL_SET_FOR_SINGULAR: &str =
     "a singular antecedent; the preceding action declared or produced several objects";
 
+/// The environment a singular nominal anaphor (`that card`, `that
+/// creature`) resolves in: the resolving spell a preposed cast fact names
+/// answers only a bare pronoun (`it deals`), never a noun the program's
+/// earlier object carries (`If this spell was kicked, instead put that card
+/// onto the battlefield`, CR 608.2c).
+pub(in crate::oracle::canonical) fn nominal_anaphor_environment(
+    environment: &BindingEnvironment,
+) -> BindingEnvironment {
+    let mut nominal = environment.clone();
+    if matches!(
+        nominal.object_producer,
+        Some(ObjectProducer::CastFactSpell(_))
+    ) {
+        nominal.object_producer = None;
+    }
+    nominal
+}
+
 /// The one resolver of a singular object pronoun (`it`, `he`, `she`): the
 /// proven lexical antecedent of the position being read. A preceding plural
 /// set is a number mismatch, not an antecedent.
 pub(in crate::oracle::canonical) fn resolve_pronoun_antecedent(
     environment: &BindingEnvironment,
 ) -> Result<PermanentEffectReference, &'static str> {
+    // The resolving spell a preposed cast fact just named is the nearest
+    // antecedent of a bare pronoun (`If this spell was kicked, it deals`).
+    if let Some(ObjectProducer::CastFactSpell(source)) = environment.object_producer {
+        return Ok(PermanentEffectReference::Source(source));
+    }
     if let Some(object) = environment.object.as_ref() {
         return Ok(object.reference);
     }

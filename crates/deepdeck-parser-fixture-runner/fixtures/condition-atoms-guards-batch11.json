@@ -539,6 +539,528 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-jilt-kicked-pronoun-damage-source-is-the-spell",
+      "request": {
+        "cardName": "Jilt",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Kicker {1}{R} (You may pay an additional {1}{R} as you cast this spell.)\nReturn target creature to its owner's hand. If this spell was kicked, it deals 2 damage to another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "kind": "returnToOwnersHand",
+                    "object": {
+                      "id": "targetPermanent1",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  {
+                    "condition": {
+                      "kind": "wasKicked",
+                      "spell": {
+                        "kind": "self"
+                      }
+                    },
+                    "else": [],
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "amount": {
+                          "kind": "integer",
+                          "value": 2
+                        },
+                        "kind": "dealDamage",
+                        "recipient": {
+                          "id": "targetPermanent2",
+                          "kind": "chosenTarget"
+                        },
+                        "source": {
+                          "kind": "self"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "pointer": "/declaration",
+                "equals": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "id": "targetPermanent1",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    },
+                    {
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "condition": {
+                        "kind": "wasKicked",
+                        "spell": {
+                          "kind": "self"
+                        }
+                      },
+                      "distinctFrom": [
+                        "targetPermanent1"
+                      ],
+                      "id": "targetPermanent2",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-orims-thunder-kicked-spell-deals-damage-equal-to-destroyed-mana-value",
+      "request": {
+        "cardName": "Orim's Thunder",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Kicker {R} (You may pay an additional {R} as you cast this spell.)\nDestroy target artifact or enchantment. If this spell was kicked, it deals damage equal to that permanent's mana value to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "id": "targetPermanent1",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  {
+                    "condition": {
+                      "kind": "wasKicked",
+                      "spell": {
+                        "kind": "self"
+                      }
+                    },
+                    "else": [],
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "amount": {
+                          "kind": "manaValueOf",
+                          "object": {
+                            "id": "targetPermanent1",
+                            "kind": "chosenTarget"
+                          }
+                        },
+                        "kind": "dealDamage",
+                        "recipient": {
+                          "id": "targetPermanent2",
+                          "kind": "chosenTarget"
+                        },
+                        "source": {
+                          "kind": "self"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zukos-conviction-kicked-that-card-keeps-the-card-target",
+      "request": {
+        "cardName": "Zuko's Conviction",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Kicker {4} (You may pay an additional {4} as you cast this spell.)\nReturn target creature card from your graveyard to your hand. If this spell was kicked, instead put that card onto the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "condition": {
+                      "kind": "wasKicked",
+                      "spell": {
+                        "kind": "self"
+                      }
+                    },
+                    "else": [
+                      {
+                        "cards": {
+                          "id": "targetCard",
+                          "kind": "chosenTargets"
+                        },
+                        "from": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "kind": "moveCards",
+                        "to": {
+                          "kind": "hand",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "bind": "movedOntoBattlefield",
+                        "cards": {
+                          "kind": "referencedObject",
+                          "object": {
+                            "id": "targetCard",
+                            "kind": "chosenTarget"
+                          }
+                        },
+                        "kind": "moveCards",
+                        "to": {
+                          "kind": "battlefield",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "tapped": true
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "pointer": "/declaration",
+                "equals": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "cards",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      },
+                      "id": "targetCard",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-kicked-nominal-anaphor-keeps-the-earlier-target",
+      "request": {
+        "cardName": "Kicked Nominal Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Kicker {2} (You may pay an additional {2} as you cast this spell.)\nTarget creature gets -1/-0 until end of turn. If this spell was kicked, that creature gets -2/-0 until end of turn instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "condition": {
+                      "kind": "wasKicked",
+                      "spell": {
+                        "kind": "self"
+                      }
+                    },
+                    "else": [
+                      {
+                        "duration": {
+                          "kind": "untilEndOfCurrentTurn"
+                        },
+                        "kind": "modifyPowerToughness",
+                        "object": {
+                          "id": "targetPermanent",
+                          "kind": "chosenTarget"
+                        },
+                        "power": {
+                          "kind": "integer",
+                          "value": -1
+                        },
+                        "toughness": {
+                          "kind": "integer",
+                          "value": 0
+                        }
+                      }
+                    ],
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "duration": {
+                          "kind": "untilEndOfCurrentTurn"
+                        },
+                        "kind": "modifyPowerToughness",
+                        "object": {
+                          "id": "targetPermanent",
+                          "kind": "chosenTarget"
+                        },
+                        "power": {
+                          "kind": "integer",
+                          "value": -2
+                        },
+                        "toughness": {
+                          "kind": "integer",
+                          "value": 0
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-kicked-nominal-then-later-pronoun-keep-the-target",
+      "request": {
+        "cardName": "Kicked Haste Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Kicker {2} (You may pay an additional {2} as you cast this spell.)\nGain control of target creature until end of turn. If this spell was kicked, untap that creature and it gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "gainControlPermanent",
+                    "permanent": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  {
+                    "condition": {
+                      "kind": "wasKicked",
+                      "spell": {
+                        "kind": "self"
+                      }
+                    },
+                    "else": [],
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "kind": "untapPermanent",
+                        "permanent": {
+                          "id": "targetPermanent",
+                          "kind": "chosenTarget"
+                        }
+                      },
+                      {
+                        "duration": {
+                          "kind": "untilEndOfCurrentTurn"
+                        },
+                        "keyword": "haste",
+                        "kind": "grantKeyword",
+                        "object": {
+                          "id": "targetPermanent",
+                          "kind": "chosenTarget"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-kicked-spell-damages-the-earlier-target-controller",
+      "request": {
+        "cardName": "Kicked Controller Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Kicker {2} (You may pay an additional {2} as you cast this spell.)\nTap target creature. If this spell was kicked, it deals 2 damage to that creature's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "kind": "tapPermanent",
+                    "permanent": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  {
+                    "condition": {
+                      "kind": "wasKicked",
+                      "spell": {
+                        "kind": "self"
+                      }
+                    },
+                    "else": [],
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "amount": {
+                          "kind": "integer",
+                          "value": 2
+                        },
+                        "kind": "dealDamage",
+                        "recipient": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "id": "targetPermanent",
+                            "kind": "chosenTarget"
+                          }
+                        },
+                        "source": {
+                          "kind": "self"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-kicked-nominal-noun-the-card-target-cannot-satisfy",
+      "request": {
+        "cardName": "Kicked Card Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Kicker {2} (You may pay an additional {2} as you cast this spell.)\nReturn target creature card from your graveyard to your hand. If this spell was kicked, that creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
     }
   ]
 }

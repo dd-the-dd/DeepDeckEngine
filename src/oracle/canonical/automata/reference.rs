@@ -252,6 +252,20 @@ pub(in crate::oracle::canonical) fn recognize_source_reference_with_typed_antece
     if current_source_link(cursor.position(), name_links).is_some() {
         return recognize_source_reference(cursor, name_links, name_failure);
     }
+    // `If this spell was kicked, it deals ...`: the preposed cast fact named
+    // the resolving spell, the pronoun's nearest antecedent (CR 608.2c); the
+    // caller's program antecedent remains a nominal anaphor's only.
+    let antecedent = match cursor
+        .binding_environment()
+        .and_then(|environment| environment.object_producer)
+    {
+        Some(super::ObjectProducer::CastFactSpell(source))
+            if cursor.peek().is_some_and(is_source_anaphor) =>
+        {
+            Some(super::PermanentEffectReference::Source(source))
+        }
+        _ => antecedent,
+    };
     let source = match antecedent {
         Some(super::PermanentEffectReference::Source(source)) => Some(source),
         Some(_) if cursor.peek().is_some_and(is_source_anaphor) => {

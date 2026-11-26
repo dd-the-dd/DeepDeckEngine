@@ -359,6 +359,12 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
     if let Some(selection) = try_recognize_definite_this_way_cards(cursor)? {
         return Ok(CardOperandNode::Selection(selection));
     }
+    // `that card` is a nominal anaphor, `it` a bare pronoun: both read the
+    // selected card, but only the pronoun may name the spell a preposed
+    // cast fact just named (CR 608.2c).
+    let nominal = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"));
     match try_recognize_card_collection_reference(cursor) {
         CardCollectionReferenceAttempt::Recognized(fragment) => {
             // `the exiled cards not cast this way`: every member of the
@@ -377,7 +383,7 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
                     via: None,
                 }));
             }
-            if let Some(object) = card_pronoun_object_antecedent(cursor, fragment.node) {
+            if let Some(object) = card_pronoun_object_antecedent(cursor, fragment.node, nominal) {
                 return Ok(CardOperandNode::ObjectAntecedent {
                     reference: fragment.node,
                     object,
@@ -584,8 +590,16 @@ fn demonstrative_permanent_set_antecedent(
 fn card_pronoun_object_antecedent(
     cursor: &OracleTokenCursor<'_>,
     reference: CardCollectionReferenceNode,
+    nominal: bool,
 ) -> Option<PermanentEffectReference> {
-    let environment = cursor.binding_environment()?;
+    let installed = cursor.binding_environment()?;
+    let nominal_environment;
+    let environment = if nominal {
+        nominal_environment = super::nominal_anaphor_environment(installed);
+        &nominal_environment
+    } else {
+        installed
+    };
     if environment.frame.event_card.is_some() {
         return None;
     }
@@ -610,6 +624,25 @@ fn card_pronoun_object_antecedent(
                                 && result.verb == Some(ActionResultVerb::Sacrificed)
                         })
                         .map(ActionResultObject::permanent_reference)
+                })
+                // `Return target creature card from your graveyard to your
+                // hand. If this spell was kicked, instead put that card onto
+                // the battlefield`: without a later selected or moved object
+                // (the target's own move is the replaced instruction), `that
+                // card` names the program's one declared card target (CR
+                // 115.1, 608.2c); once moved, that card is a new object the
+                // runtime no longer finds (CR 400.7). A bare pronoun does not.
+                .or_else(|| {
+                    environment
+                        .card_target
+                        .as_ref()
+                        .filter(|target| {
+                            nominal
+                                && environment.result_object.as_ref().is_none_or(|result| {
+                                    result.reference.effect_index <= target.binding.effect_index
+                                })
+                        })
+                        .map(|target| PermanentEffectReference::Target(target.binding))
                 })
         }
         CardCollectionReferenceNode::Antecedent => environment
@@ -739,7 +772,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
             cursor.enter("card-action.shuffle.object");
             let cards = operand(cursor)?;
             let destination = super::recognize_shuffle_library_destination(cursor)?;
-            return Ok(Some(moved_cards(cards, destination)));
+            return Ok(Some(moved_cards(cursor, cards, destination)));
         }
         if cursor
             .peek()
@@ -788,7 +821,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
         }
         let cards = operand(cursor)?;
         let destination = recognize_card_action_destination(cursor, "exile")?;
-        return Ok(Some(moved_cards(cards, destination)));
+        return Ok(Some(moved_cards(cursor, cards, destination)));
     }
     let explicit_move = is_verb_form(&head, VerbLemma::Put, VerbForm::Base)
         || is_verb_form(&head, VerbLemma::Return, VerbForm::Base);
@@ -802,12 +835,12 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
         // follows its destination (the same two children, reversed).
         if let Some(destination) = super::try_recognize_preposed_card_move_destination(cursor)? {
             let cards = operand(cursor)?;
-            return Ok(Some(moved_cards(cards, destination)));
+            return Ok(Some(moved_cards(cursor, cards, destination)));
         }
     }
     let cards = operand(cursor)?;
     let destination = recognize_card_action_destination(cursor, "move")?;
-    Ok(Some(moved_cards(cards, destination)))
+    Ok(Some(moved_cards(cursor, cards, destination)))
 }
 
 /// The transactional outcome of the card-action child (S0, `ChildOutcome`
@@ -854,13 +887,27 @@ pub(in crate::oracle::canonical) fn try_recognize_card_action_outcome(
 /// (`exile target creature, then return that card to the battlefield`) is
 /// the card an earlier action of the program moved out of play: a declared
 /// permanent never re-enters the battlefield itself (CR 400.7). The pronoun
-/// then names the program's observed card, as a collection reference.
-fn moved_cards(cards: CardOperandNode, destination: CardMoveDestinationNode) -> CardActionNode {
+/// then names the program's observed card, as a collection reference. A
+/// declared card target (`target creature card from your graveyard`, CR
+/// 115.1) is no permanent: the card itself enters and keeps its typed
+/// reference.
+fn moved_cards(
+    cursor: &OracleTokenCursor<'_>,
+    cards: CardOperandNode,
+    destination: CardMoveDestinationNode,
+) -> CardActionNode {
+    let card_target = cursor
+        .binding_environment()
+        .and_then(|environment| environment.card_target.as_ref())
+        .map(|target| PermanentEffectReference::Target(target.binding));
     let cards = match cards {
         CardOperandNode::ObjectAntecedent {
             reference,
-            object: PermanentEffectReference::Target(_) | PermanentEffectReference::TargetSet(_),
-        } if destination.zone == CardZoneName::Battlefield => CardOperandNode::Reference(reference),
+            object:
+                object @ (PermanentEffectReference::Target(_) | PermanentEffectReference::TargetSet(_)),
+        } if destination.zone == CardZoneName::Battlefield && Some(object) != card_target => {
+            CardOperandNode::Reference(reference)
+        }
         cards => cards,
     };
     CardActionNode::Move { cards, destination }
