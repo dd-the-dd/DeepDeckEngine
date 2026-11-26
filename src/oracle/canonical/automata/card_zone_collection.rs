@@ -35,6 +35,8 @@ fn chosen_zone_cards_start(cursor: &OracleTokenCursor<'_>) -> bool {
         || head.eq_ignore_ascii_case("an")
         || head.parse::<i64>().is_ok()
         || super::super::parse_number_word(head).is_some()
+        // `X cards from their hand` (CR 107.3): the variable count.
+        || head == "X"
         || (head.eq_ignore_ascii_case("up")
             && cursor
                 .peek_ahead(1)
@@ -261,6 +263,26 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
             ]))
         } else {
             predicate
+        };
+        // `a creature card in your hand without blitz`: the shared
+        // postnominal list of the cards continues after their zone.
+        let predicate = match predicate {
+            Some(head) => {
+                trial.enter("collection.zone.postnominal");
+                let plural = !matches!(
+                    quantity,
+                    Some(CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                        NumericAtom::Integer(1)
+                    )))
+                );
+                Some(continue_unrelated_predicate(
+                    &mut trial,
+                    ObjectQueryContext::ORDINARY,
+                    head,
+                    plural,
+                )?)
+            }
+            None => None,
         };
         if matches!(owner, CardZoneOwnerNode::Players(_)) {
             // Another player's hidden zone is not an open collection to

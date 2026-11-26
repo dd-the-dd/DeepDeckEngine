@@ -37,6 +37,10 @@ mod linked_duration_runtime;
 mod antecedent_producers_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/antecedent_producers_batch11_runtime.rs"]
+mod antecedent_producers_batch11_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/rebound_runtime.rs"]
 mod rebound_runtime;
 
@@ -62,6 +66,9 @@ mod antecedent_continuation_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/binding_environment_runtime.rs"]
 mod binding_environment_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/condition_guards_runtime.rs"]
+mod condition_guards_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/measured_instruction_runtime.rs"]
 mod measured_instruction_runtime;
@@ -128,6 +135,9 @@ mod once_each_turn_runtime;
 
 #[path = "tests/reflexive_guard_runtime.rs"]
 mod reflexive_guard_runtime;
+
+#[path = "tests/program_iteration_runtime.rs"]
+mod program_iteration_runtime;
 
 #[path = "tests/local_damage_life_fsm_runtime.rs"]
 mod local_damage_life_fsm_runtime;
@@ -298,6 +308,9 @@ mod saga_chapter_program_runtime;
 #[path = "tests/aggregate_numeric_runtime.rs"]
 mod aggregate_numeric_runtime;
 
+#[path = "tests/numeric_aggregate_runtime.rs"]
+mod numeric_aggregate_runtime;
+
 #[path = "tests/barrowgoyf_runtime.rs"]
 mod barrowgoyf_runtime;
 
@@ -330,6 +343,10 @@ mod sages_row_denizen_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/optional_cost_outcome_runtime.rs"]
 mod optional_cost_outcome_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/payment_instruction_runtime.rs"]
+mod payment_instruction_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/optional_action_outcome_runtime.rs"]
@@ -438,6 +455,9 @@ mod disturb_runtime;
 
 #[path = "tests/casualty_runtime.rs"]
 mod casualty_runtime;
+
+#[path = "tests/stack_copy_casting_keywords_runtime.rs"]
+mod stack_copy_casting_keywords_runtime;
 
 #[path = "tests/reconfigure_runtime.rs"]
 mod reconfigure_runtime;
@@ -1862,10 +1882,6 @@ fn parsed_object_history_filters_target_runtime_candidates() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Avengers Tower; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_singular_cast_or_activation_mana_restriction_executes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -33282,6 +33298,12 @@ mod clause_subject_cells_runtime;
 mod combat_restriction_family_runtime;
 #[path = "tests/damage_prevention_runtime.rs"]
 mod damage_prevention_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/described_object_anchor_runtime.rs"]
+mod described_object_anchor_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/engine_gaps_lane_runtime.rs"]
+mod engine_gaps_lane_runtime;
 #[path = "tests/equal_amount_reflexive_runtime.rs"]
 mod equal_amount_reflexive_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

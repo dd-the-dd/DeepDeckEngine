@@ -639,6 +639,7 @@ pub(in crate::oracle::canonical) fn enter_created_rule_body(
         if frame.event_spell {
             environment.object = None;
         }
+        super::bind_created_rule_subject(&mut environment, &frame);
         environment.frame = frame;
         cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
     }

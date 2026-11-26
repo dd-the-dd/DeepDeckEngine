@@ -209,8 +209,17 @@ fn unsupported_neighbours_fail_explicitly() {
     );
     assert_eq!(kinds(&effects), ["bind", "moveCards", "grantPermission"]);
     assert_eq!(effects[2]["duration"]["kind"], "untilNextTurn");
-    // Another zone is not this operand.
-    assert_not_canonical("Exile the top card of your graveyard. You may play that card this turn.");
+    // Another zone is not this operand: the top of a graveyard is the
+    // graveyard-position operand (CR 404.2), not a library-top binding.
+    let graveyard = parse(
+        "Sorcery",
+        "{1}{R}",
+        "Exile the top card of your graveyard. You may play that card this turn.",
+    );
+    let effects = effects_of(&graveyard, 0);
+    assert_eq!(effects[0]["value"]["kind"], "graveyardEndCards");
+    // Near miss: the top card of each graveyard is a set, not `that card`.
+    assert_not_canonical("Exile the top card of each graveyard. You may play that card this turn.");
     // `revealed this way` must restate the verb that produced the collection.
     assert_not_canonical(
         "Exile the top three cards of your library. Put all cards revealed this way into your graveyard.",

@@ -104,6 +104,16 @@ pub(in crate::oracle::canonical) fn recognize_zone_holder_query(
         .is_some_and(|raw| raw.eq_ignore_ascii_case("all"))
     {
         cursor.consume("all")?;
+        // `all players' hands`: the same population named by its holders.
+        if let Some(players) = cursor
+            .peek()
+            .filter(|raw| {
+                raw.eq_ignore_ascii_case("players'") || raw.eq_ignore_ascii_case("players\u{2019}")
+            })
+            .map(str::to_owned)
+        {
+            cursor.consume(&players)?;
+        }
         Ok(ZoneHolderQueryNode::Players(
             PlayerSetReferenceNode::EachPlayer,
         ))

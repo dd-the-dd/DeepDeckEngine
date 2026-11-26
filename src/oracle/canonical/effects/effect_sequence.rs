@@ -282,7 +282,11 @@ pub(super) fn reads_card_collection_reference(following: &[LocalEffectNode]) -> 
             | CardActionNode::Permit(CardPermissionNode { cards, .. }),
         ) => Some(matches!(
             cards,
-            CardOperandNode::Reference(_) | CardOperandNode::ObjectAntecedent { .. }
+            CardOperandNode::Reference(_)
+                | CardOperandNode::ObjectAntecedent { .. }
+                // `from among those cards`: a selection reads the observed
+                // collection it chooses from.
+                | CardOperandNode::Selection(_)
         )),
         LocalEffectNode::CardAction(_) => Some(false),
         _ => None,
@@ -514,6 +518,11 @@ fn lower_local_effect_sequence_with_collections(
     let mut pending_choice_remainder = Vec::<Value>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
+        program_iteration_lowering::bind_iteration_members(
+            &sequence.iterations,
+            effect_index,
+            &mut target_bindings,
+        );
         declare_query_possessor_targets(
             cursor,
             &mut effects,
@@ -796,6 +805,36 @@ fn lower_local_effect_sequence_with_collections(
                         }
                         continue;
                     }
+                    // `[PLAYER] pay(s) RESOURCE` (CR 608.2c): `cost.rs`.
+                    SingularPlayerAction::Pay(payment) => {
+                        cursor.enter("lower.player-action.pay");
+                        let amount = match payment.amount_expression() {
+                            Some(expression) => Some(lower_sequence_bound_amount(
+                                cursor,
+                                expression,
+                                sequence,
+                                &target_bindings,
+                                context,
+                            )?),
+                            None => None,
+                        };
+                        let payment = lower_payment_instruction(
+                            payment,
+                            lowered.player,
+                            amount,
+                            &super::resolution_object_choice::chosen_number_decision(effect_index),
+                        )
+                        .map_err(|expected| cursor.fail(expected))?;
+                        if !collections.claim_instruction_ids(&payment) {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(
+                                    "a program-unique decision for the chosen payment amount",
+                                ),
+                            ));
+                        }
+                        effects.extend(payment);
+                        continue;
+                    }
                     // CR 500.7: the acting player takes the next turn.
                     SingularPlayerAction::ExtraTurn => {
                         cursor.enter("lower.player-action.extra-turn");
@@ -986,8 +1025,11 @@ fn lower_local_effect_sequence_with_collections(
                     }
                 };
                 let first_decision = decisions.len();
-                // A card pronoun may name a target an earlier action declared.
-                collections.bind_object_references(&target_bindings);
+                // A card pronoun may name a target an earlier action declared:
+                // a permanent, or a card a targeted card move declared.
+                collections.bind_object_references(
+                    &[target_bindings.as_slice(), card_target_bindings.as_slice()].concat(),
+                );
                 let mut lowered = collections
                     .lower_action(cursor, action, declarations, &mut decisions)
                     .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
@@ -1000,7 +1042,6 @@ fn lower_local_effect_sequence_with_collections(
                     destination,
                 } = action
                     && destination.zone == CardZoneName::Exile
-                    && query.quantity.is_none()
                     && (reads_card_collection_reference(&sequence.effects[effect_index + 1..])
                         || collections
                             .continuation_reads_cards_after(effect_index, sequence.effects.len()))
@@ -1010,7 +1051,17 @@ fn lower_local_effect_sequence_with_collections(
                         .find(|value| value["kind"] == "moveCards")
                     && movement.get("bind").is_none()
                 {
-                    movement["bind"] = json!(collections.observe_exiled_objects(None));
+                    // `exiles a card from their hand. You may play that
+                    // card`: a chosen literal count keeps its number.
+                    movement["bind"] = json!(match &query.quantity {
+                        Some(CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                            NumericAtom::Integer(1),
+                        ))) => collections.observe_exiled_object(),
+                        Some(CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                            NumericAtom::Integer(count),
+                        ))) => collections.observe_exiled_objects(Some(*count)),
+                        _ => collections.observe_exiled_objects(None),
+                    });
                 }
                 effects.extend(lowered);
                 // `look at target player's hand`: the declared zone owner is
@@ -1126,7 +1177,12 @@ fn lower_local_effect_sequence_with_collections(
                     &before,
                     &mut lowered.effects,
                 )?);
-                effects.push(json!({"kind":"optionalEffects", "player":controller(), "effects":lowered.effects}));
+                // `you may pay any amount of R`: no separate decision (`cost.rs`).
+                if optional_payment_admits_zero(body) {
+                    effects.extend(lowered.effects);
+                } else {
+                    effects.push(json!({"kind":"optionalEffects", "player":controller(), "effects":lowered.effects}));
+                }
             }
             LocalEffectNode::CounterSpell(counter) if counter.event_spell => {
                 // The spell the triggering cast record binds (CR 701.6a).
@@ -1171,6 +1227,12 @@ fn lower_local_effect_sequence_with_collections(
             // CR 500.8: phases added to this turn after a named phase.
             LocalEffectNode::AdditionalPhases(node) => {
                 effects.push(lower_additional_phases(node));
+            }
+            // CR 608.2c: the rule drafter resolves the repeated process.
+            LocalEffectNode::RepeatProcess(node) => {
+                effects.push(program_iteration_lowering::lower_repeat_process(
+                    cursor, node,
+                )?);
             }
             LocalEffectNode::Retarget(node) => {
                 let id = format!("retargetObject{effect_index}");
@@ -1984,23 +2046,23 @@ fn lower_local_effect_sequence_with_collections(
                     }
                 }
             }
-            LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
-                // The spell the triggering cast record binds (CR 707.10);
-                // `twice` is two ordinary copies of it.
+            LocalEffectNode::CopyStackObject(copy) if copy.event_spell || copy.resolving_spell => {
+                // The spell the triggering cast record binds, or the
+                // resolving spell itself (CR 707.10); `twice` is two ordinary
+                // copies of it, `for each ...` a count read at resolution.
                 let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
                     .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
-                for _ in 0..copy.count {
-                    let mut action = json!({
-                        "kind": "copyStackItem",
-                        "object": {"kind": "triggeringStackObject"},
-                        "controller": controller(),
-                        "mayChooseNewTargets": copy.may_choose_new_targets,
-                    });
-                    if let Some(except) = &except {
-                        action["except"] = except.clone();
-                    }
-                    effects.push(action);
-                }
+                cursor.enter("lower.copy-stack-object.actions");
+                let actions = lower_stack_copy_actions(
+                    copy,
+                    json!({"kind": "triggeringStackObject"}),
+                    controller(),
+                    except.as_ref(),
+                )
+                .map_err(|expected| {
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+                })?;
+                effects.extend(actions);
             }
             LocalEffectNode::CopyStackObject(copy) => {
                 cursor.enter("lower.copy-stack-object.target");
@@ -2031,18 +2093,17 @@ fn lower_local_effect_sequence_with_collections(
                 ));
                 let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
                     .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
-                for _ in 0..copy.count {
-                    let mut action = json!({
-                        "kind": "copyStackItem",
-                        "object": chosen_target(target_id),
-                        "controller": controller(),
-                        "mayChooseNewTargets": copy.may_choose_new_targets,
-                    });
-                    if let Some(except) = &except {
-                        action["except"] = except.clone();
-                    }
-                    effects.push(action);
-                }
+                cursor.enter("lower.copy-stack-object.actions");
+                let actions = lower_stack_copy_actions(
+                    copy,
+                    chosen_target(target_id),
+                    controller(),
+                    except.as_ref(),
+                )
+                .map_err(|expected| {
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+                })?;
+                effects.extend(actions);
                 // The singular copied stack object is the antecedent a later
                 // condition reads (`copy target spell. If it's ...`).
                 if slot.cardinality == TargetCardinality::EXACTLY_ONE {
@@ -2686,8 +2747,24 @@ fn lower_local_effect_sequence_with_collections(
                     .count();
                 let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
                 used_target_base_ids.push(base_id);
-                let lowered = lower_targeted_damage_effect(damage, &target_id)
-                    .ok_or_else(|| cursor.fail("a targeted damage effect"))?;
+                // An amount read from an earlier target of the program
+                // (`damage equal to that permanent's mana value`) is lowered
+                // against the sequence's bindings.
+                let lowered = if damage.amount.requires_target_binding() {
+                    let amount = lower_sequence_bound_amount(
+                        cursor,
+                        &damage.amount,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?;
+                    super::damage::lower_targeted_damage_effect_with_amount(
+                        damage, &target_id, amount,
+                    )
+                } else {
+                    lower_targeted_damage_effect(damage, &target_id)
+                }
+                .ok_or_else(|| cursor.fail("a targeted damage effect"))?;
                 decisions.push(lowered.decision);
                 effects.push(lowered.effect);
                 // A singular damage target is the antecedent a later reference
@@ -3154,7 +3231,23 @@ fn lower_local_effect_sequence_with_collections(
         &declared_player_targets,
         &mut effects,
     )?;
-    conditional_scopes.wrap(cursor, sequence, &action_starts, &decisions, &mut effects)?;
+    program_iteration_lowering::apply_iteration_frames(
+        cursor,
+        &sequence.iterations,
+        &mut target_bindings,
+        &mut action_starts,
+        &mut decisions,
+        &mut effects,
+    )?;
+    conditional_scopes.wrap(
+        cursor,
+        sequence,
+        &action_starts,
+        &mut decisions,
+        context == EffectSequenceLoweringContext::ValidateXAfterCardComposition,
+        &mut effects,
+    )?;
+    resolve_optional_outcomes(cursor, &mut effects)?;
     apply_where_x_bindings(
         cursor,
         &sequence.where_x,
@@ -3301,6 +3394,12 @@ impl ConditionalScopes {
                     cursor.enter("lower.action-result.condition");
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
                 })?;
+                bind_condition_action_result_quantities(
+                    cursor,
+                    previous.action_starts,
+                    previous.effects.as_mut_slice(),
+                    &mut condition,
+                )?;
                 self.conditions[index] = Some(condition);
             }
         }
@@ -3389,6 +3488,12 @@ impl ConditionalScopes {
                     cursor.enter("lower.action-result.condition");
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
                 })?;
+                bind_condition_action_result_quantities(
+                    cursor,
+                    previous.action_starts,
+                    previous.effects.as_mut_slice(),
+                    &mut condition,
+                )?;
                 self.conditions[index] = Some(condition);
                 if conditional.replaced_first().is_none() {
                     self.before[index] = Some(collections.clone());
@@ -3409,7 +3514,8 @@ impl ConditionalScopes {
         cursor: &mut OracleTokenCursor<'_>,
         sequence: &EffectSequenceNode,
         action_starts: &[(usize, usize)],
-        decisions: &[Value],
+        decisions: &mut [Value],
+        spell_declarations: bool,
         effects: &mut Vec<Value>,
     ) -> Result<(), EffectSequenceLoweringFailure> {
         for (index, conditional) in sequence.conditionals.iter().enumerate().rev() {
@@ -3431,19 +3537,18 @@ impl ConditionalScopes {
                 (then, otherwise)
             };
             cursor.enter("lower.sentence-conditional.cast-choice-targets");
-            let governed = decisions.get(decisions_from..decisions_to).unwrap_or(&[]);
-            if sentence_condition_depends_on_cast_choice(&conditional.condition)
-                && !governed.iter().all(|decision| {
-                    decision["id"].as_str().is_some_and(|id| {
-                        mentions_identifier(&then, id) && mentions_identifier(&otherwise, id)
-                    })
-                })
-            {
-                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                    cursor.fail(
-                        "a cast-choice conditional branch without target declarations of its own",
-                    ),
-                ));
+            if sentence_condition_depends_on_cast_choice(&conditional.condition) {
+                let governed = decisions
+                    .get_mut(decisions_from..decisions_to)
+                    .unwrap_or(&mut []);
+                gate_cast_choice_targets(
+                    cursor,
+                    spell_declarations,
+                    &condition,
+                    governed,
+                    &then,
+                    &otherwise,
+                )?;
             }
             effects.insert(
                 start_from,
@@ -3457,6 +3562,80 @@ impl ConditionalScopes {
         }
         Ok(())
     }
+}
+
+/// Whether a lowered condition is decided by the choices made as the spell
+/// was cast (CR 601.2b-f), which the casting declarations already hold when
+/// its targets are chosen (CR 601.2c): kicker, alone or composed.
+fn condition_decided_at_casting(condition: &Value) -> bool {
+    match condition["kind"].as_str() {
+        Some("wasKicked") => condition["spell"]["kind"].as_str() == Some("self"),
+        Some("kickerCostWasPaid") => condition["cost"].is_string(),
+        // A promised gift, a paid teamwork or escape cost: each is a
+        // decision of the casting declaration (CR 601.2b-f).
+        Some("castChoiceMade") => {
+            condition["spell"]["kind"].as_str() == Some("self")
+                && matches!(
+                    condition["choice"].as_str(),
+                    Some("gift" | "teamwork" | "escape")
+                )
+        }
+        Some("not") => condition_decided_at_casting(&condition["operand"]),
+        Some("and" | "or") => condition["operands"].as_array().is_some_and(|operands| {
+            !operands.is_empty() && operands.iter().all(condition_decided_at_casting)
+        }),
+        _ => false,
+    }
+}
+
+/// Target declarations governed by a cast-choice conditional (CR 601.2c:
+/// `If this spell was kicked, destroy another target land`). A target both
+/// branches act on is declared whichever branch is taken; a target only one
+/// branch acts on is declared only when the cast choices select that branch,
+/// the declaration's `condition` gating it. Only a spell's own casting
+/// declarations hold the choices; any other declaration, a condition not
+/// decided at casting, or a governed declaration that is not a target
+/// fails explicitly.
+fn gate_cast_choice_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    spell_declarations: bool,
+    condition: &Value,
+    governed: &mut [Value],
+    then: &[Value],
+    otherwise: &[Value],
+) -> Result<(), EffectSequenceLoweringFailure> {
+    fn unsupported(cursor: &mut OracleTokenCursor<'_>) -> EffectSequenceLoweringFailure {
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("a cast-choice conditional branch without target declarations of its own"),
+        )
+    }
+    for decision in governed.iter_mut() {
+        let Some(id) = decision["id"].as_str().map(str::to_owned) else {
+            return Err(unsupported(cursor));
+        };
+        let in_then = mentions_identifier(then, &id);
+        let in_otherwise = mentions_identifier(otherwise, &id);
+        if in_then && in_otherwise {
+            continue;
+        }
+        if !(spell_declarations
+            && condition_decided_at_casting(condition)
+            && decision["kind"].as_str() == Some("chooseTargets")
+            && in_then != in_otherwise)
+        {
+            return Err(unsupported(cursor));
+        }
+        let gate = if in_then {
+            condition.clone()
+        } else {
+            negation(condition.clone())
+        };
+        decision["condition"] = match decision.get("condition") {
+            Some(existing) => and(vec![existing.clone(), gate]),
+            None => gate,
+        };
+    }
+    Ok(())
 }
 
 /// Whether a lowered program names the declaration `id` anywhere.
@@ -3718,6 +3897,72 @@ fn install_action_result_quantities(
         effects
             .iter_mut()
             .for_each(|effect| bind_action_result_quantity(effect, reader, &quantity, &bound));
+    }
+    Ok(())
+}
+
+/// Binds each action-result quantity a sentence condition reads (`If excess
+/// damage was dealt this way`, CR 120.4a, 608.2c) to the nearest earlier
+/// action of the program lowered so far that records it in one top-level
+/// runtime action, as `install_action_result_quantities` does for the
+/// actions' own arguments. The condition is lowered where its sentence
+/// begins, so its producers precede it; none, or several candidates in the
+/// nearest producer, fail explicitly.
+fn bind_condition_action_result_quantities(
+    cursor: &mut OracleTokenCursor<'_>,
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+    condition: &mut Value,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let mut pending = Vec::new();
+    collect_action_result_quantities(condition, &mut pending);
+    for (reader, quantity) in pending {
+        cursor.enter("lower.action-result.condition-quantity");
+        let kind = ActionResultQuantity::from_ir_name(&quantity)
+            .ok_or_else(|| cursor.fail("a known action-result quantity"))?;
+        let earliest = if kind.is_anaphor() {
+            reader.saturating_sub(1)
+        } else {
+            0
+        };
+        let producer = (earliest..reader).rev().find_map(|index| {
+            let (from, _) = *action_starts.get(index)?;
+            // The last lowered action ends with the program lowered so far.
+            let to = action_starts
+                .get(index + 1)
+                .map_or(effects.len(), |(to, _)| *to);
+            let producers = (from..to)
+                .filter_map(|position| {
+                    let field = kind.produced_by(effects[position]["kind"].as_str()?)?;
+                    super::resolution_object_choice::number_choice_produces(&effects[position])
+                        .then_some((position, field))
+                })
+                .collect::<Vec<_>>();
+            (!producers.is_empty()).then_some((index, producers))
+        });
+        let Some((producer_index, producers)) = producer else {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor
+                    .fail("an earlier action of this program that produces the restated quantity"),
+            ));
+        };
+        let [(position, field)] = producers.as_slice() else {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("one top-level runtime action recording the restated quantity"),
+            ));
+        };
+        let binding = match effects[*position]
+            .get(field.ir_field())
+            .and_then(Value::as_str)
+        {
+            Some(existing) => existing.to_owned(),
+            None => {
+                let binding = action_result_binding(producer_index);
+                effects[*position][field.ir_field()] = json!(binding);
+                binding
+            }
+        };
+        bind_action_result_quantity(condition, reader, &quantity, &field.reader(&binding));
     }
     Ok(())
 }
@@ -4052,9 +4297,19 @@ mod preposed_duration_tests;
 #[path = "delayed_frame_lowering.rs"]
 mod delayed_frame_lowering;
 
+#[path = "program_iteration_lowering.rs"]
+mod program_iteration_lowering;
+pub(in crate::oracle::canonical) use program_iteration_lowering::wrap_repeated_processes;
+
 #[path = "effect_alternatives.rs"]
 mod effect_alternatives;
 use delayed_frame_lowering::apply_delayed_frames;
+
+#[path = "optional_outcome.rs"]
+mod optional_outcome;
+pub(in crate::oracle::canonical) use optional_outcome::OPTIONAL_OUTCOME_CONDITION;
+use optional_outcome::resolve_optional_outcomes;
+pub(in crate::oracle::canonical) use optional_outcome::resolve_program_optional_outcomes;
 
 #[cfg(test)]
 #[path = "where_x_tests.rs"]

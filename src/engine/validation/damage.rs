@@ -23,6 +23,8 @@ pub(in super::super) fn damage_effect_supported(effect: &Value) -> Option<bool> 
                         &effect["recipient"],
                     )
                     || player_reference_supported(&effect["recipient"])
+                    // The source itself, while it is the same permanent.
+                    || value_kind(&effect["recipient"]) == Some("self")
                     || (value_kind(&effect["recipient"]) == Some("eachPermanent")
                         && (object_expression_supported(&effect["recipient"])
                             || super::super::object_relation_eval::related_collection_supported(

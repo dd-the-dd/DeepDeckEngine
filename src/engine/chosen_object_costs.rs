@@ -48,6 +48,12 @@ pub(super) fn chosen_object_cost_supported(cost: &Value) -> Option<bool> {
         ),
         // CR 301.5a, 303.4a: the permanent the source is attached to.
         Some(ATTACHED_TAP_COST | ATTACHED_SACRIFICE_COST) => Some(true),
+        // CR 401.4: the source card, from the graveyard it is activated in,
+        // put on top of or on the bottom of its owner's library.
+        Some(SOURCE_LIBRARY_COST) => Some(
+            cost["zone"].as_str() == Some("graveyard")
+                && matches!(cost["position"].as_str(), Some("top" | "bottom")),
+        ),
         _ => None,
     }
 }
@@ -56,13 +62,17 @@ pub(super) fn chosen_object_cost_supported(cost: &Value) -> Option<bool> {
 const ATTACHED_TAP_COST: &str = "tapAttachedPermanent";
 /// `sacrifice enchanted|equipped NOUN` as a cost.
 const ATTACHED_SACRIFICE_COST: &str = "sacrificeAttachedPermanent";
+/// `put this card from your graveyard on top of|on the bottom of your
+/// library` as a cost.
+const SOURCE_LIBRARY_COST: &str = "putSourceInLibrary";
 
 /// The designated-object costs this module pays without a declaration.
-const DESIGNATED_COSTS: [&str; 4] = [
+const DESIGNATED_COSTS: [&str; 5] = [
     "discardHand",
     "exileTopLibraryCards",
     ATTACHED_TAP_COST,
     ATTACHED_SACRIFICE_COST,
+    SOURCE_LIBRARY_COST,
 ];
 
 fn designated_library_cards(rule: &Value) -> i64 {
@@ -108,14 +118,26 @@ pub(super) fn declared_chosen_quantity(
 }
 
 /// The actions a `chosenObjectsCost` performs on each object of its choice.
-const CHOSEN_OBJECTS_ACTIONS: [&str; 6] = [
+const CHOSEN_OBJECTS_ACTIONS: [&str; 8] = [
     "sacrifice",
     "tap",
     "returnToOwnersHand",
     "discard",
     "exile",
     "reveal",
+    // CR 401.4: chosen cards put on top of or on the bottom of a library.
+    "putOnLibraryTop",
+    "putOnLibraryBottom",
 ];
+
+/// The library end a chosen-objects or source cost puts its cards at.
+fn library_destination(top: bool) -> super::card_movement::PrivateZoneDestination {
+    if top {
+        super::card_movement::PrivateZoneDestination::LibraryTop
+    } else {
+        super::card_movement::PrivateZoneDestination::LibraryBottom
+    }
+}
 
 /// The casting cost kinds whose objects are chosen while casting and paid by
 /// this module.
@@ -460,6 +482,13 @@ impl GameEngine {
                         self.put_owned_card_into_exile(player_index, card)?;
                     }
                 }
+                Some(SOURCE_LIBRARY_COST) => {
+                    self.put_cost_card_in_library(
+                        &action.player_id,
+                        source_id,
+                        library_destination(cost["position"].as_str() == Some("top")),
+                    )?;
+                }
                 Some(kind @ (ATTACHED_TAP_COST | ATTACHED_SACRIFICE_COST)) => {
                     let attached = self.cost_source_attachment(source_id).ok_or_else(|| {
                         EngineError::new("the cost source is attached to no permanent")
@@ -485,6 +514,48 @@ impl GameEngine {
                 }
                 _ => {}
             }
+        }
+        Ok(())
+    }
+
+    /// Puts a card from the payer's hand or graveyard on top of or on the
+    /// bottom of its owner's library as a cost (CR 401.4, 118.3). A card
+    /// that left those zones can no longer pay the cost.
+    fn put_cost_card_in_library(
+        &mut self,
+        player_id: &str,
+        instance_id: &str,
+        destination: super::card_movement::PrivateZoneDestination,
+    ) -> Result<(), EngineError> {
+        let player_index = self.player_index(player_id)?;
+        let player = &self.state.players[player_index];
+        let (zone, card_index) = if let Some(index) = player
+            .hand
+            .iter()
+            .position(|card| card.instance_id == instance_id)
+        {
+            ("hand", index)
+        } else if let Some(index) = player
+            .graveyard
+            .iter()
+            .position(|card| card.instance_id == instance_id)
+        {
+            ("graveyard", index)
+        } else {
+            return Err(EngineError::new(
+                "a library cost card is no longer in the payer's hand or graveyard",
+            ));
+        };
+        let moved = self.take_zone_card_for_movement(player_index, zone, card_index)?;
+        self.put_owned_cards_in_owners_private_zones(vec![moved], destination)?;
+        self.record_event(
+            "cardPutIntoLibrary",
+            Some(player_id.to_string()),
+            Some(instance_id.to_string()),
+            json!({ "from": zone, "reason": "cost" }),
+        );
+        if zone == "graveyard" {
+            self.enqueue_cards_left_graveyard_triggers(player_id, &[instance_id.to_string()]);
         }
         Ok(())
     }
@@ -536,7 +607,10 @@ impl GameEngine {
                     }
                     permanents.push(instance_id.clone());
                 }
-                ("discard" | "exile" | "reveal", TargetRef::Card { instance_id }) => {
+                (
+                    "discard" | "exile" | "reveal" | "putOnLibraryTop" | "putOnLibraryBottom",
+                    TargetRef::Card { instance_id },
+                ) => {
                     cards.push(instance_id.clone());
                 }
                 _ => return Err(EngineError::new("a chosen cost object has the wrong kind")),
@@ -558,6 +632,11 @@ impl GameEngine {
             match kind {
                 "discard" => self.discard_card_as_cost(&action.player_id, &instance_id)?,
                 "exile" => self.exile_chosen_card_as_cost(&action.player_id, &instance_id)?,
+                "putOnLibraryTop" | "putOnLibraryBottom" => self.put_cost_card_in_library(
+                    &action.player_id,
+                    &instance_id,
+                    library_destination(kind == "putOnLibraryTop"),
+                )?,
                 _ => {
                     let player_index = self.player_index(&action.player_id)?;
                     if !self.state.players[player_index]
@@ -686,3 +765,10 @@ impl GameEngine {
 ))]
 #[path = "chosen_object_costs_designated_tests.rs"]
 mod designated_tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "chosen_object_library_cost_tests.rs"]
+mod library_cost_tests;

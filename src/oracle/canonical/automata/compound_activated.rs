@@ -18,10 +18,11 @@ use super::{
     ChosenAmountBounds, CollectionSelectionMethod, CostAmountVerb, CostChosenAmountSlot,
     CostConnector, CostListGrammar, CostQuantity, CounterHolderNode, DesignatedPaymentObjects,
     DiscardSelfCostNode, ExileSelfCostNode, ExileSelfSourceZone, ManaCostNode, NumericAtom,
-    ObjectPredicate, ObjectQueryNode, PayLifeCostNode, PaymentActionNode, PaymentObjectFilter,
-    PaymentObjectsNode, PaymentOriginZone, PaymentSourceNoun, PlayerCounterPaymentNode,
-    RemoveCountersPaymentNode, ResourcePaymentNode, SacrificeSelfCostNode, TapObjectsCostNode,
-    TapSelfCostNode, literal_quantity, object_predicate_uses_x, recognize_cost_sequence,
+    ObjectPredicate, ObjectQueryNode, PayLifeCostNode, PaymentActionNode, PaymentLibraryEnd,
+    PaymentObjectFilter, PaymentObjectsNode, PaymentOriginZone, PaymentSourceNoun,
+    PlayerCounterPaymentNode, RemoveCountersPaymentNode, ResourcePaymentNode,
+    SacrificeSelfCostNode, TapObjectsCostNode, TapSelfCostNode, literal_quantity,
+    object_predicate_uses_x, recognize_cost_sequence,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -70,6 +71,23 @@ pub(in crate::oracle::canonical) enum LocalActivationCostNode {
     Blight(BlightActivationCostNode),
     /// An action on objects the cost names by place, never chosen.
     Designated(DesignatedActivationCost),
+    /// `put N CARDS from your hand|graveyard on top of|on the bottom of
+    /// your library` (CR 401.4): cards chosen while paying.
+    PutCardsInLibrary(ChosenLibraryCostNode),
+    /// `put this card from your graveyard on top of|on the bottom of your
+    /// library`: the source card, activated from its owner's graveyard.
+    PutSourceInLibrary(PaymentLibraryEnd),
+}
+
+/// N cards chosen from the payer's hand or graveyard and put on top of or on
+/// the bottom of their owner's library as a cost (CR 401.4, 118.3).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ChosenLibraryCostNode {
+    pub count: i64,
+    pub filter: ObjectPredicate,
+    pub zone: PaymentOriginZone,
+    pub position: PaymentLibraryEnd,
+    pub cost_index: usize,
 }
 
 /// A cost whose objects the text fixes by place (CR 118.3: all of them must
@@ -380,6 +398,7 @@ impl ActivationCostSequenceNode {
                     ExileSelfSourceZone::Graveyard => requirements.graveyard = true,
                     ExileSelfSourceZone::Battlefield => requirements.battlefield = true,
                 },
+                LocalActivationCostNode::PutSourceInLibrary(_) => requirements.graveyard = true,
                 LocalActivationCostNode::TapSelf(_)
                 | LocalActivationCostNode::ExertSelf
                 | LocalActivationCostNode::SacrificeSelf(_)
@@ -411,6 +430,7 @@ impl ActivationCostSequenceNode {
                 | LocalActivationCostNode::RevealCards(_)
                 | LocalActivationCostNode::ChosenX(_)
                 | LocalActivationCostNode::Mill { .. }
+                | LocalActivationCostNode::PutCardsInLibrary(_)
                 | LocalActivationCostNode::Blight(_)
                 | LocalActivationCostNode::Designated(
                     DesignatedActivationCost::DiscardHand
@@ -941,6 +961,62 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
             }))
         }
         PaymentActionNode::Mill { count } => Ok(LocalActivationCostNode::Mill { count }),
+        // `put this card from your graveyard on the bottom of your library`:
+        // the source card leaves the graveyard the ability is activated
+        // from. A source permanent put into a library has no activation
+        // cost program (its `{T}` would be paid after it left).
+        PaymentActionNode::PutInLibrary {
+            objects: PaymentObjectsNode::Source(noun),
+            origin,
+            position,
+        } => {
+            cursor.enter("activation.put-self.origin");
+            if noun == PaymentSourceNoun::Card && origin == Some(PaymentOriginZone::Graveyard) {
+                return Ok(LocalActivationCostNode::PutSourceInLibrary(position));
+            }
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
+                "an activation cost the engine can pay (only `this card from your graveyard` is put into a library as a cost)",
+            ))
+        }
+        PaymentActionNode::PutInLibrary {
+            objects: PaymentObjectsNode::Chosen(chosen),
+            origin,
+            position,
+        } => {
+            cursor.enter("activation.put-cards.origin");
+            let zone = cursor.require_value(origin, "`from your hand` or `from your graveyard`")?;
+            let PaymentObjectFilter::Cards(filter) = chosen.filter else {
+                return Err(cursor.fail("a card operand"));
+            };
+            cursor.enter("activation.put-cards.selection");
+            cursor.require(
+                !chosen.exclude_source && chosen.method == CollectionSelectionMethod::Choice,
+                "cards of the payer's choice, without `another`, put into a library",
+            )?;
+            cursor.enter("activation.put-cards.numeric-context");
+            cursor.require(
+                !object_predicate_uses_x(&filter),
+                "no {X} in the predicate of the cards put into a library",
+            )?;
+            let count = declared_object_count(cursor, chosen.count, "activation.put-cards")?;
+            Ok(LocalActivationCostNode::PutCardsInLibrary(
+                ChosenLibraryCostNode {
+                    count,
+                    filter,
+                    zone,
+                    position,
+                    cost_index,
+                },
+            ))
+        }
+        PaymentActionNode::PutInLibrary {
+            objects: PaymentObjectsNode::Designated(_),
+            ..
+        } => {
+            cursor.enter("activation.put-cards.designated");
+            Err(cursor.fail("chosen cards or this card put into a library"))
+        }
         PaymentActionNode::Exert(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("activation.exert-self.source-type");
             cursor.require(

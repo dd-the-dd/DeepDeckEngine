@@ -49,6 +49,19 @@ const MOST_COMMON_COLOR: &str = "colorIsMostCommon";
 const CAST_CHOICE: &str = "castChoiceMade";
 const SPELL_CAST_ORDINAL: &str = "spellCastOrdinal";
 
+/// A cast choice as the casting declaration records it, before the spell
+/// keeps it as a flag (CR 601.2b-c: a target a branch of the chosen gift or
+/// cost acts on is declared only when that choice was made). Only choices a
+/// declaration decision names; any other choice is not made yet.
+fn declared_cast_choice(condition: &Value, decisions: &BTreeMap<String, Value>) -> bool {
+    match condition["choice"].as_str() {
+        Some("gift") => decisions.get("giftRecipient").is_some_and(Value::is_string),
+        Some("teamwork") => decisions.get("teamworkPaid").and_then(Value::as_bool) == Some(true),
+        Some("escape") => decisions.get("useEscape").and_then(Value::as_bool) == Some(true),
+        _ => false,
+    }
+}
+
 /// The colors a color rank compares (CR 105.1).
 const COLORS: [&str; 5] = ["White", "Blue", "Black", "Red", "Green"];
 
@@ -412,9 +425,11 @@ impl GameEngine {
             )
             .is_some_and(|player_id| self.top_card_matches(condition, player_id)),
             Some(MOST_COMMON_COLOR) => self.color_is_most_common(condition),
-            Some(CAST_CHOICE) => {
-                source.is_some_and(|source| self.source_cast_choice_recorded(condition, source))
-            }
+            Some(CAST_CHOICE) => match source {
+                Some(source) => self.source_cast_choice_recorded(condition, source),
+                // A casting declaration reads the choices it already made.
+                None => declared_cast_choice(condition, decisions),
+            },
             Some(SPELL_CAST_ORDINAL) => self.spell_cast_ordinal_holds(condition, decisions),
             Some(OBJECT_IN_ZONE) => {
                 matches!(

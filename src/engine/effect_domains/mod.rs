@@ -113,7 +113,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "optionalAction" | "performAction" | "bind" | "conditional" | "conditionalEffect"
             | "ifTargetWasChosen" | "chooseUnusedMode",
         ) => Some(Domain::Control),
-        Some("optionalPayLife") => Some(Domain::Payments),
+        Some("optionalPayLife" | "payCost") => Some(Domain::Payments),
 
         Some("optionalPayCostPerformEffects" | "tryPayCost") => Some(Domain::CostTransactions),
         Some("optionalPayCostCreateReflexiveTrigger") => Some(Domain::ReflexiveCostTransactions),
@@ -146,7 +146,9 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "discardHand"
             | "lookAtRandomCardInHand"
             | "revealHand"
-            | "lookAtHand",
+            | "lookAtHand"
+            | "lookAtFaceDownPermanents"
+            | "grantCardVisibility",
         ) => Some(Domain::Hand),
         Some(
             "moveTriggeringCardFromGraveyard"
@@ -315,7 +317,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "ventureDungeon"
             | "restrictPlayerActions",
         ) => Some(Domain::PlayerStatus),
-        Some("becomeMonarch" | "temptWithRing" | "skipTurnPart") => {
+        Some("becomeMonarch" | "takeInitiative" | "temptWithRing" | "skipTurnPart") => {
             Some(Domain::PlayerDesignations)
         }
         Some("removeFromCombat") => Some(Domain::CombatRemoval),

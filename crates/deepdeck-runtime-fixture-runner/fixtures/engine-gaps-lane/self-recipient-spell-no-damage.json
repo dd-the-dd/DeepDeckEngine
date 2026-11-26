@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "engine-gaps-lane/a-spell-is-not-dealt-damage-as-its-own-recipient",
+  "seed": 214,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "dealDamage",
+        "recipient": {
+          "kind": "self"
+        },
+        "source": {
+          "kind": "self"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "self-burn",
+            "name": "Self Burn",
+            "typeLine": "Instant",
+            "manaCost": ""
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "self-burn"
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "damageDealt",
+      "equals": 0
+    }
+  ]
+}

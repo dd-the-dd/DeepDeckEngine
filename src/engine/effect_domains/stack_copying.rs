@@ -8,6 +8,17 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
 }
 
 fn supports_known_effect(effect: &Value) -> bool {
+    // CR 707.10: a variable number of copies (`for each ...`, `X times`)
+    // is one copy instruction repeated by the count read as it resolves.
+    if effect.get("times").is_some_and(|times| {
+        !numeric_expression_supported(times)
+            || !matches!(
+                value_kind(effect),
+                Some("copyStackItem" | "copyResolvingStackObject")
+            )
+    }) {
+        return false;
+    }
     match value_kind(effect) {
         Some("copyResolvingSpellIfCastFromZone") => {
             effect["zone"].is_string()
@@ -112,6 +123,29 @@ impl GameEngine {
         provider: &mut P,
     ) -> Result<(), EngineError> {
         self.check_quantity_failure()?;
+        if let Some(times) = effect.get("times") {
+            let count = self
+                .runtime_numeric_expression(times, stack_object, bindings, decisions)
+                .unwrap_or(0)
+                .max(0);
+            let mut once = effect.clone();
+            if let Some(fields) = once.as_object_mut() {
+                fields.remove("times");
+            }
+            for _ in 0..count {
+                self.execute_stack_copying_domain_known(
+                    &once,
+                    stack_object,
+                    bindings,
+                    decisions,
+                    provider,
+                )?;
+                if self.state.outcome.is_some() {
+                    break;
+                }
+            }
+            return Ok(());
+        }
         match value_kind(effect) {
             Some("copyResolvingSpellIfCastFromZone") => {
                 if is_spell_copy(&stack_object.card)

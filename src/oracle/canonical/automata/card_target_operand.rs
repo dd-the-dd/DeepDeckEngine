@@ -272,6 +272,21 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
         } else {
             query.predicate
         };
+        // `target artifact card in your graveyard with lesser mana value`:
+        // the shared postnominal list continues after the zone the operand
+        // read; the declaration still evaluates only closed predicates.
+        let plural = unbounded || cardinality.maximum != NumericAtom::Integer(1);
+        let predicate = super::continue_unrelated_predicate(
+            &mut trial,
+            ObjectQueryContext::ORDINARY,
+            predicate,
+            plural,
+        )?;
+        trial.enter("card-target.postnominal-capability");
+        trial.require(
+            declaration_predicate_is_closed(&predicate),
+            "a proved card-declaration predicate (no AnyZone P/T, color or resolution numeric context)",
+        )?;
         trial.enter("card-target.tail");
         super::refuse_unread_relative_tail(&mut trial)?;
         Ok(CardTargetOperandNode {

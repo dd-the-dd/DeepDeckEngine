@@ -673,14 +673,116 @@ pub(in crate::oracle::canonical) fn recognize_object_query(
     recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)?.into_object_query(cursor)
 }
 
+/// The postnominal list of an object query continued after an item its
+/// parent reads itself (CR 400.1 zone location `in your graveyard`, the
+/// collection `from it`, a chooser `of their choice`): `a card from it with
+/// mana value 4 or greater`, `target artifact card in your graveyard with
+/// lesser mana value`. `head` is the predicate the parent read before that
+/// item, `plural_head` the number of its noun. Each further item is read by
+/// the same postnominal readers, in any order, until none starts; the
+/// returned query is the head composed with them, with every relation they
+/// state for the parent to type-check. `None` when no item follows, with the
+/// cursor unchanged.
+pub(in crate::oracle::canonical) fn recognize_postnominal_continuation(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: ObjectQueryContext,
+    head: SelectorPredicate,
+    plural_head: bool,
+) -> MachineResult<Option<RecognizedObjectQuery>> {
+    let start = cursor.position();
+    let continued =
+        recognize_object_query_frame_from(cursor, context, false, Some((head, plural_head)))?;
+    Ok((cursor.position() != start).then_some(continued))
+}
+
+/// The continuation of a parent's object predicate (see
+/// [`recognize_postnominal_continuation`]) when the parent represents no
+/// player relation: the composed predicate, or the head unchanged when no
+/// item follows. A player relation read after the parent's own item (`in
+/// your graveyard you control`) fails at its verb: a zone holder is not a
+/// controller (CR 108.4, 404.2).
+pub(in crate::oracle::canonical) fn continue_unrelated_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: ObjectQueryContext,
+    head: SelectorPredicate,
+    plural_head: bool,
+) -> MachineResult<SelectorPredicate> {
+    match recognize_postnominal_continuation(cursor, context, head.clone(), plural_head)? {
+        None => Ok(head),
+        Some(continued) => {
+            continued.refuse_unprojected(cursor)?;
+            if let Some(relation) = continued
+                .relations
+                .controller
+                .as_ref()
+                .or(continued.relations.owner.as_ref())
+                .or(continued.relations.caster.as_ref())
+            {
+                cursor.enter("selector.postnominal-continuation.relation");
+                let site = &relation.site;
+                return Err(cursor.fail_with_span(
+                    "a postnominal qualifier after the parent's own item, not a player relation",
+                    site.token_index,
+                    site.span_start,
+                    site.span_end,
+                    site.raw.clone(),
+                ));
+            }
+            Ok(continued.excluding(continued.predicate.clone()))
+        }
+    }
+}
+
+/// Whether `predicate` coordinates branches that each name their own head
+/// (`artifact or creature`, `Equipment or Aura`), at its top or under the
+/// shared trailing domain.
+fn coordinates_headed_branches(predicate: &SelectorPredicate) -> bool {
+    let headed_union = |operand: &SelectorPredicate| {
+        matches!(operand, SelectorPredicate::Union(branches)
+            if branches.len() > 1 && branches.iter().all(SelectorPredicate::has_nominal_head))
+    };
+    match predicate {
+        SelectorPredicate::Intersection(operands) => operands.iter().any(headed_union),
+        other => headed_union(other),
+    }
+}
+
 fn recognize_object_query_frame(
     cursor: &mut OracleTokenCursor<'_>,
     context: ObjectQueryContext,
     logical_properties: bool,
 ) -> MachineResult<RecognizedObjectQuery> {
+    recognize_object_query_frame_from(cursor, context, logical_properties, None)
+}
+
+fn recognize_object_query_frame_from(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: ObjectQueryContext,
+    logical_properties: bool,
+    continued_head: Option<(SelectorPredicate, bool)>,
+) -> MachineResult<RecognizedObjectQuery> {
     let query_source_available = context.source_available;
     let mut state = ObjectQueryState::Start;
     let mut frame = ObjectQueryFrame::default();
+    // A continued head that coordinates separately headed branches (`an
+    // artifact or creature of their choice`) gives a head-local qualifier no
+    // branch to attach to: it is refused rather than hoisted over every
+    // branch (the coordinated-head scope rule).
+    let continued_coordinated = continued_head
+        .as_ref()
+        .is_some_and(|(head, _)| coordinates_headed_branches(head));
+    if let Some((head, plural)) = continued_head {
+        // A continued list: the head was read before the parent's own item,
+        // so only postnominal items remain to be read.
+        frame.union_branches.push(head);
+        frame.branch_has_plural_surface.push(plural);
+        frame.branch_number.push(if plural {
+            super::GrammaticalNumber::Plural
+        } else {
+            super::GrammaticalNumber::Singular
+        });
+        state = ObjectQueryState::ReadPostnominalQualifier;
+    }
 
     loop {
         state = match state {
@@ -1039,6 +1141,17 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if negated_named_qualifier_starts(cursor) {
+                    // `target permanent not named Clever Conjurer` (CR
+                    // 201.2): the negation of the same name qualifier.
+                    cursor.enter("selector.named-qualifier.negated");
+                    cursor.consume("not")?;
+                    let predicate = recognize_named_qualifier(cursor)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::Not(Box::new(predicate)),
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if let Some(clause) = super::departure_clause_at(cursor) {
                     // `that died this turn`, `put into your graveyard from
                     // the battlefield this turn`: the objects are departures
@@ -1167,6 +1280,38 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some((width, opponent)) = super::same_controller_set_at(cursor) {
+                    // `two target creatures controlled by the same player`
+                    // (CR 108.4, 601.2c): every chosen permanent has one
+                    // controller, a constraint over the chosen set that only
+                    // a plural head states. `the same opponent` also relates
+                    // each candidate to an opponent of the ability
+                    // controller, the ordinary control relation.
+                    cursor.enter("selector.relative-clause.same-controller.plural-head");
+                    cursor.require(
+                        frame.branch_has_plural_surface.last() == Some(&true),
+                        "a plural set whose members share their controller",
+                    )?;
+                    let site = relation_site_at(cursor, 0)?;
+                    cursor.advance_to(cursor.position() + width)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::Qualifier(
+                            super::ObjectQualifier::SameController,
+                        ),
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    if opponent {
+                        retain_player_relation(
+                            cursor,
+                            &mut frame,
+                            RelationVerb::Control,
+                            ReadRelation {
+                                scope: QuerySubjectScope::OpponentOfAbilityController,
+                                site,
+                            },
+                        )?;
+                    }
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if super::relative_clause_starts_in(cursor, context.stack_targets) {
                     // `that was dealt damage this turn`, `that has a counter
                     // on it`, `that aren't enchanted`: the relative slot.
@@ -1242,6 +1387,17 @@ fn recognize_object_query_frame(
                 }
             }
             ObjectQueryState::Complete => {
+                if continued_coordinated
+                    && frame
+                        .postnominal_qualifiers
+                        .iter()
+                        .any(|node| node.scope == PostnominalQualifierScope::LastCoordinatedHead)
+                {
+                    cursor.enter("selector.postnominal-continuation.coordinated-head");
+                    return Err(cursor.fail(
+                        "a qualifier of one head before the parent's item, not after coordinated heads",
+                    ));
+                }
                 cursor.enter("selector.predicate.complete");
                 if let QueryQuota::ParentOwnedShared { exactly_one } = context.quota {
                     cursor.require(!frame.has_repeated_head_article || (exactly_one
@@ -2030,10 +2186,24 @@ enum PlayerRelationState {
 /// opponent controls`). Dispatch hint only; the relation reader validates
 /// the clause.
 fn player_relation_subject_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    // `your` before a card zone noun (`your hand`, `your graveyard`) is a
+    // zone possessive the parent reads, never a relation subject.
+    let zone_possessive = cursor.peek_ahead(1).is_some_and(|raw| {
+        [
+            "hand",
+            "graveyard",
+            "library",
+            "hands",
+            "graveyards",
+            "libraries",
+        ]
+        .iter()
+        .any(|zone| raw.eq_ignore_ascii_case(zone))
+    });
     cursor.peek().is_some_and(|token| {
         token.eq_ignore_ascii_case("you")
             || token.eq_ignore_ascii_case("an")
-            || token.eq_ignore_ascii_case("your")
+            || (token.eq_ignore_ascii_case("your") && !zone_possessive)
     }) || bound_player_relation_starts(cursor)
         || declared_player_relation_starts(cursor)
         || they_relation_scope(cursor).is_some()
@@ -3965,6 +4135,18 @@ fn card_name_width_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<u
         }
     }
     Some(end - offset)
+}
+
+/// `not named NAME` at the cursor: the negated name qualifier. Pure
+/// lookahead over the same name form.
+fn negated_named_qualifier_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("not"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("named"))
+        && card_name_width_at(cursor, 2).is_some()
 }
 
 /// `named NAME [or NAME]*` (CR 201.2): the object's name is one of the

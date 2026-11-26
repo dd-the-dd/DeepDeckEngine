@@ -1,0 +1,246 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "engine-gaps-lane/executable-ir-shapes",
+  "cases": [
+    {
+      "id": "exact-oblivion-stone-member-fate-count",
+      "request": {
+        "cardName": "Oblivion Stone",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{4}, {T}: Put a fate counter on target permanent.\n{5}, {T}, Sacrifice this artifact: Destroy each nonland permanent without a fate counter on it, then remove all fate counters from all permanents.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/effects/1/count/kind",
+                "equals": "counterCountOf"
+              },
+              {
+                "pointer": "/effects/1/count/object/kind",
+                "equals": "eachPermanent"
+              },
+              {
+                "pointer": "/effects/1/permanent/kind",
+                "equals": "eachPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-aurification-member-gold-count",
+      "request": {
+        "cardName": "Aurification",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Whenever a creature deals damage to you, put a gold counter on it.\nEach creature with a gold counter on it is a Wall in addition to its other creature types and has defender. (Those creatures can't attack.)\nWhen this enchantment leaves the battlefield, remove all gold counters from all creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/effects/0/count/kind",
+                "equals": "counterCountOf"
+              },
+              {
+                "pointer": "/effects/0/count/counter",
+                "equals": "gold"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-champion-of-lambholt-source-power-operand",
+      "request": {
+        "cardName": "Champion of Lambholt",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "Creatures with power less than this creature's power can't block creatures you control.\nWhenever another creature you control enters, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "blockRestriction"
+              },
+              {
+                "pointer": "/modifiers/0/blockers/where/operands/1/right/kind",
+                "equals": "powerOf"
+              },
+              {
+                "pointer": "/modifiers/0/blockers/where/operands/1/right/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-aarakocra-sneak-initiative",
+      "request": {
+        "cardName": "Aarakocra Sneak",
+        "typeLine": "Creature — Bird Rogue",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWhen this creature enters, you take the initiative.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "takeInitiative"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-topple-extremum-target",
+      "request": {
+        "cardName": "Topple",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Exile target creature with the greatest power among creatures on the battlefield. (If two or more creatures are tied for greatest power, target any one of them.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/kind",
+                "equals": "extremumAmong"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/population",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-homeward-path-owned-by-performer",
+      "request": {
+        "cardName": "Homeward Path",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{T}: Each player gains control of all creatures they own.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/effects/0/permanent/where/operands/1/kind",
+                "equals": "ownedBy"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-green-dragon-recipient-only-created-damage-stays-refused",
+      "request": {
+        "cardName": "Green Dragon",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{4}{G}{G}",
+        "oracleText": "Flying\nPoison Breath — When this creature enters, until end of turn, whenever a creature an opponent controls is dealt damage, destroy it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installCreatedTrigger"
+              },
+              {
+                "pointer": "/effects/0/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/effects/0/event/lemma",
+                "equals": "dealDamage"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

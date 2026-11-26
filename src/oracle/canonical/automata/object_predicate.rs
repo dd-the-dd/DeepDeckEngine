@@ -413,6 +413,9 @@ pub(in crate::oracle::canonical) enum ObjectQualifier {
     /// `controlled by different players` after a plural chosen set: no two
     /// chosen permanents have the same controller (CR 108.4).
     DistinctControllers,
+    /// `controlled by the same player` after a plural chosen set: every
+    /// chosen permanent has one controller (CR 108.4).
+    SameController,
     /// `with the greatest power among creatures they control`.
     Extremum {
         property: SelectorNumericProperty,
@@ -456,6 +459,7 @@ impl ObjectQualifier {
             Self::DamagedBySourceThisTurn
             | Self::Extremum { .. }
             | Self::DistinctControllers
+            | Self::SameController
             | Self::EnteredUnderControlThisTurn(_)
             | Self::AttackingPlayer { .. } => domain == ObjectKind::Permanent,
         }
@@ -469,6 +473,7 @@ impl ObjectQualifier {
                 | Self::TotalAtMost { .. }
                 | Self::SharedValue(_)
                 | Self::DistinctControllers
+                | Self::SameController
         )
     }
 

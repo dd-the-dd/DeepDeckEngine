@@ -199,13 +199,32 @@ impl GameEngine {
             match value["kind"].as_str() {
                 Some("compare") => {
                     for key in ["left", "right"] {
-                        prepared[key] = Value::from(engine.checked_runtime_numeric_expression(
+                        let evaluated = engine.checked_runtime_numeric_expression(
                             &value[key],
                             stack,
                             bindings,
                             decisions,
                             "numeric condition",
-                        )?);
+                        );
+                        // An aggregate that requires members is undefined
+                        // over an empty set (`you control the creature with
+                        // the greatest power` when you control none): the
+                        // comparison reading it is false, never an error.
+                        let evaluated = match evaluated {
+                            Err(_)
+                                if value[key]["kind"].as_str() == Some("aggregateObjects")
+                                    && value[key]["requireMembers"].as_bool() == Some(true) =>
+                            {
+                                return Ok(serde_json::json!({
+                                    "kind": "compare",
+                                    "left": 0,
+                                    "operator": "<",
+                                    "right": 0,
+                                }));
+                            }
+                            other => other?,
+                        };
+                        prepared[key] = Value::from(evaluated);
                     }
                 }
                 Some("objectMatchesFilter") => {

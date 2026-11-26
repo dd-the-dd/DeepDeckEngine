@@ -135,6 +135,28 @@
         "faces": []
       },
       "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-second-creature-spell-on-the-battlefield",
+      "request": {
+        "cardName": "Second Spell Witness",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Haste\nWhenever you cast a spell, if it's the second creature spell you cast this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
         "abilities": [

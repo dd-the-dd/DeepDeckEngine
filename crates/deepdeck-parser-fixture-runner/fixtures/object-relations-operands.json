@@ -401,7 +401,7 @@
       }
     },
     {
-      "id": "near-miss-sacrificed-anchor-has-no-binding",
+      "id": "exact-endemic-plague-sacrificed-anchor-is-the-cost-record",
       "request": {
         "cardName": "Endemic Plague",
         "typeLine": "Sorcery",
@@ -411,11 +411,28 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-sacrificed-anchor-without-a-sacrifice-cost",
+      "request": {
+        "cardName": "Endemic Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy all creatures that share a creature type with the sacrificed creature. They can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "code": "oracle_machine_failure"
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "state": "binding.sacrificed-cost-object.source"
           }
         ]
       }

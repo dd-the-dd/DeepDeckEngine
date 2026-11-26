@@ -73,7 +73,6 @@ fn unavailable_roles_and_partial_envelopes_are_explicit_failures() {
         "This spell costs {1} less to cast for each artifact card in two graveyards of your choice.",
         "This spell costs {1} less to cast for each artifact card you own in your graveyard.",
         "This spell costs {1} less to cast for each artifact card in your library.",
-        "This spell costs {1} less to cast for each creature card with power 2 or less in your graveyard.",
         "This spell costs {1} less to cast for each artifact card in your graveyard. Draw a card.",
         "Artifact spells you cast that's red and green, cost {1} less to cast.",
         "Artifact cards you own and creature cards in your graveyard cost {1} less to cast.",

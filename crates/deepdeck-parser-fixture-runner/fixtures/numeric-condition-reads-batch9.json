@@ -354,7 +354,7 @@
       }
     },
     {
-      "id": "known-gap-exact-cinderclasm-it-was-kicked",
+      "id": "exact-cinderclasm-it-was-kicked",
       "request": {
         "cardName": "Cinderclasm",
         "typeLine": "Instant",
@@ -364,12 +364,30 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "reference.source-or-anaphor.start"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/condition/where/designation",
+                "equals": "kicked"
+              },
+              {
+                "pointer": "/effects/0/then/0/amount/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/0/else/0/amount/value",
+                "equals": 1
+              }
+            ]
           }
         ]
       }

@@ -170,6 +170,24 @@ pub(in crate::oracle::canonical) fn lower_targeted_damage_effect(
     let DamageRecipientNode::Targets(targets) = &effect.recipient else {
         return None;
     };
+    lower_targeted_damage_effect_with_amount(
+        effect,
+        decision_id,
+        lower_numeric_expression(&effect.amount)?,
+    )
+}
+
+/// The same targeted damage effect with an amount its sequence parent
+/// already lowered (`damage equal to that permanent's mana value`, read
+/// from an earlier target binding of the program).
+pub(in crate::oracle::canonical) fn lower_targeted_damage_effect_with_amount(
+    effect: &DamageEffectNode,
+    decision_id: &str,
+    amount: Value,
+) -> Option<LoweredTargetedDamageEffect> {
+    let DamageRecipientNode::Targets(targets) = &effect.recipient else {
+        return None;
+    };
     let (_, candidates, minimum, maximum) = lower_single_target(targets);
     let source = match effect.fixed_source()? {
         LocalObjectReference::SourceSelf => self_ref(),
@@ -179,7 +197,7 @@ pub(in crate::oracle::canonical) fn lower_targeted_damage_effect(
         effect: json!({
             "kind": "dealDamage",
             "source": source,
-            "amount": lower_numeric_expression(&effect.amount)?,
+            "amount": amount,
             "recipient": damage_target_recipient(decision_id, maximum),
         }),
     })
@@ -314,6 +332,7 @@ fn lower_local_effect_sequence(
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::AdditionalPhases(_)
+        | LocalEffectNode::RepeatProcess(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -352,6 +371,7 @@ fn lower_local_effect_sequence(
             | LocalEffectNode::ControlChange(_)
             | LocalEffectNode::CopyStackObject(_)
             | LocalEffectNode::AdditionalPhases(_)
+            | LocalEffectNode::RepeatProcess(_)
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_) => {
@@ -579,6 +599,7 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
                     | LocalEffectNode::ControlChange(_)
                     | LocalEffectNode::CopyStackObject(_)
                     | LocalEffectNode::AdditionalPhases(_)
+                    | LocalEffectNode::RepeatProcess(_)
                     | LocalEffectNode::PreventDamage(_)
                     | LocalEffectNode::Attach(_)
                     | LocalEffectNode::Choose(_)
@@ -663,6 +684,7 @@ fn lower_conditional_damage_effect(
             | LocalEffectNode::ControlChange(_)
             | LocalEffectNode::CopyStackObject(_)
             | LocalEffectNode::AdditionalPhases(_)
+            | LocalEffectNode::RepeatProcess(_)
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_)
@@ -691,6 +713,7 @@ fn lower_conditional_damage_effect(
                 | LocalEffectNode::ControlChange(_)
                 | LocalEffectNode::CopyStackObject(_)
                 | LocalEffectNode::AdditionalPhases(_)
+                | LocalEffectNode::RepeatProcess(_)
                 | LocalEffectNode::PreventDamage(_)
                 | LocalEffectNode::Attach(_)
                 | LocalEffectNode::Fight(_)

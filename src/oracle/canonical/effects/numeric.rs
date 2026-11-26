@@ -226,6 +226,12 @@ fn bind_pending_action_result_objects(
             };
             let bound = action_result_objects(&mut effects[*position], previous)?;
             let filter = map.get("where").cloned().unwrap_or(Value::Null);
+            // `the greatest mana value among cards discarded this way`: the
+            // shared aggregate over the bound objects (`object_predicate.rs`).
+            if let Some(aggregate) = map.get(ACTION_RESULT_AGGREGATE_FIELD).cloned() {
+                *value = bound_action_result_aggregate(&aggregate, bound, filter);
+                return Ok(());
+            }
             // `the total PROPERTY of OBJECTS VERBed this way`: the sum over
             // the bound objects, each read as last known information once
             // it left the battlefield (CR 608.2h).
@@ -545,6 +551,14 @@ fn lower_numeric_expression_in_context(
                     ))
                     .collect::<Option<Vec<_>>>()?,
             })),
+            // The shared aggregate over an object set (`numeric_aggregate`
+            // of the engine); a declared target it reads resolves here.
+            NumericQuantity::Aggregate(node) => lower_object_aggregate(node, target_binding),
+            NumericQuantity::Difference(left, right) => Some(json!({
+                "kind": "absoluteDifference",
+                "left": lower_numeric_expression_in_context(left, event_binding, target_binding, query_support)?,
+                "right": lower_numeric_expression_in_context(right, event_binding, target_binding, query_support)?,
+            })),
             other => lower_numeric_quantity(other),
         },
         NumericExpression::CountDistinctCardTypes { zone, predicate } => {
@@ -790,7 +804,10 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
             "kind": "countPlayers",
             "players": lower_player_population_query(query, None).ok()?,
         })),
-        NumericQuantity::Greatest(_) => None,
+        // Lowered in their expression context (`lower_numeric_expression_in_context`).
+        NumericQuantity::Greatest(_)
+        | NumericQuantity::Aggregate(_)
+        | NumericQuantity::Difference(..) => None,
         // CR 102.1-102.3: the members whose measure compares with the
         // controller's; each member is the measure's `quantifiedPlayer`.
         NumericQuantity::PlayersComparedWithController {

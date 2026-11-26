@@ -346,7 +346,7 @@
       }
     },
     {
-      "id": "known-gap-and-joined-sacrifice-costs",
+      "id": "sibling-and-joined-sacrifice-costs",
       "request": {
         "cardName": "Generic Joined Sacrifice",
         "typeLine": "Creature — Zombie",
@@ -356,14 +356,54 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/value",
+                "equals": "Swamp"
+              },
+              {
+                "pointer": "/declaration/decisions/1/candidates/where/value",
+                "equals": "Forest"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-joined-cost-with-an-effect-verb",
+      "request": {
+        "cardName": "Generic Joined Sacrifice",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{2}{B}",
+        "oracleText": "Sacrifice a Swamp and draw a card: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
-        "abilityCount": 1,
         "diagnostics": [
           {
+            "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "state": "cost.payment.verb",
-            "found": "a"
+            "found": "draw"
           }
         ]
       }
@@ -620,14 +660,31 @@
             "index": 0,
             "status": "canonical",
             "ruleAssertions": [
-              { "pointer": "/declaration/decisions/0", "equals": { "id": "xValue", "kind": "chooseNumber", "minimum": 0 } },
+              {
+                "pointer": "/declaration/decisions/0",
+                "equals": {
+                  "id": "xValue",
+                  "kind": "chooseNumber",
+                  "minimum": 0
+                }
+              },
               {
                 "pointer": "/declaration/decisions/1/quantity",
-                "equals": { "kind": "exactly", "value": { "kind": "decisionResult", "decisionId": "xValue" } }
+                "equals": {
+                  "kind": "exactly",
+                  "value": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
               },
               {
                 "pointer": "/costs/2",
-                "equals": { "kind": "chosenObjectsCost", "action": "sacrifice", "choice": "activationCostChoiceX2" }
+                "equals": {
+                  "kind": "chosenObjectsCost",
+                  "action": "sacrifice",
+                  "choice": "activationCostChoiceX2"
+                }
               }
             ]
           }

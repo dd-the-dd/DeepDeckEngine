@@ -630,19 +630,7 @@ pub(in crate::oracle::canonical) fn recognize_add_mana_effect(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<AddManaEffectNode> {
     let production = recognize_add_mana_output(cursor)?;
-    let mut trial = cursor.clone();
-    if trial.peek() == Some(".") {
-        trial.consume(".")?;
-    }
-    if !super::mana_spending_policy_starts(&trial) {
-        return Ok(production);
-    }
-    let policy = super::recognize_mana_spending_policy(&mut trial)?;
-    *cursor = trial;
-    Ok(AddManaEffectNode::Qualified {
-        production: Box::new(production),
-        policy,
-    })
+    super::recognize_mana_result_riders(cursor, production)
 }
 
 #[cfg(test)]

@@ -19,7 +19,8 @@ use super::*;
 /// The stack values a paying cost records for an object condition
 /// (`bindObjectAs`, CR 601.2h, 602.2b, 608.2h): the sacrificed permanent as
 /// it last existed on the battlefield, and the one discarded card.
-const COST_PAID_OBJECT_DECISIONS: [&str; 2] = ["sacrificedPermanentObject", "discardedCardObject"];
+pub(super) const COST_PAID_OBJECT_DECISIONS: [&str; 2] =
+    ["sacrificedPermanentObject", "discardedCardObject"];
 
 /// `{ "kind": "decisionResult", "decisionId": <cost-paid object> }`.
 fn cost_paid_object_reference(reference: &Value) -> Option<&str> {

@@ -1,0 +1,914 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch11/payments-and-causative",
+  "cases": [
+    {
+      "id": "exact-jarad-gapped-sacrifice-list",
+      "request": {
+        "cardName": "Jarad, Golgari Lich Lord",
+        "typeLine": "Legendary Creature — Zombie Elf",
+        "manaCost": "{B}{B}{G}{G}",
+        "oracleText": "Jarad gets +1/+1 for each creature card in your graveyard.\n{1}{B}{G}, Sacrifice another creature: Each opponent loses life equal to the sacrificed creature's power.\nSacrifice a Swamp and a Forest: Return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-viscerid-drone-gapped-sacrifice-after-tap",
+      "request": {
+        "cardName": "Viscerid Drone",
+        "typeLine": "Creature — Homarid Drone",
+        "manaCost": "{1}{U}",
+        "oracleText": "{T}, Sacrifice a creature and a Swamp: Destroy target nonartifact creature. It can't be regenerated.\n{T}, Sacrifice a creature and a snow Swamp: Destroy target creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/costs/2/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/2/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sandstone-deadfall-gapped-source-conjunct",
+      "request": {
+        "cardName": "Sandstone Deadfall",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}, Sacrifice two lands and this artifact: Destroy target attacking creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zombie-assassin-gapped-source-conjunct",
+      "request": {
+        "cardName": "Zombie Assassin",
+        "typeLine": "Creature — Zombie Assassin",
+        "manaCost": "{4}{B}",
+        "oracleText": "{T}, Exile two cards from your graveyard and this creature: Destroy target nonblack creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-glass-cast-heart-gapped-cost",
+      "request": {
+        "cardName": "Glass-Cast Heart",
+        "typeLine": "Artifact",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever one or more Vampires you control attack, create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")\n{B}, {T}, Pay 1 life: Create a 1/1 white and black Vampire creature token with lifelink.\n{B}{B}, {T}, Sacrifice this artifact and thirteen Blood tokens: Each opponent loses 13 life and you gain 13 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-great-hall-of-starnheim-gapped-cost",
+      "request": {
+        "cardName": "Great Hall of Starnheim",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Add {B}.\n{W}{W}{B}, {T}, Sacrifice this land and a creature you control: Create a 4/4 white Angel Warrior creature token with flying and vigilance. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-magus-of-the-order-gapped-cost",
+      "request": {
+        "cardName": "Magus of the Order",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "{G}, {T}, Sacrifice this creature and another green creature: Search your library for a green creature card, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-mount-doom-gapped-cost",
+      "request": {
+        "cardName": "Mount Doom",
+        "typeLine": "Legendary Land",
+        "manaCost": "",
+        "oracleText": "{T}, Pay 1 life: Add {B} or {R}.\n{1}{B}{R}, {T}: Mount Doom deals 1 damage to each opponent.\n{5}{B}{R}, {T}, Sacrifice Mount Doom and a legendary artifact: Choose up to two creatures, then destroy the rest. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-miara-pay-mana-and-gapped-life",
+      "request": {
+        "cardName": "Miara, Thorn of the Glade",
+        "typeLine": "Legendary Creature — Elf Scout",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever Miara or another Elf you control dies, you may pay {1} and 1 life. If you do, draw a card.\nPartner (You can have two commanders if both have partner.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/cost/kind",
+                "equals": "costSequence"
+              },
+              {
+                "pointer": "/effects/0/cost/costs/0/kind",
+                "equals": "payMana"
+              },
+              {
+                "pointer": "/effects/0/cost/costs/1/kind",
+                "equals": "payLife"
+              },
+              {
+                "pointer": "/effects/0/cost/costs/1/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zoraline-pay-mana-and-life-reflexive",
+      "request": {
+        "cardName": "Zoraline, Cosmos Caller",
+        "typeLine": "Legendary Creature — Bat Cleric",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "Flying, vigilance\nWhenever a Bat you control attacks, you gain 1 life.\nWhenever Zoraline enters or attacks, you may pay {W}{B} and 2 life. When you do, return target nonland permanent card with mana value 3 or less from your graveyard to the battlefield with a finality counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-mundungu-unless-pays-mana-and-life",
+      "request": {
+        "cardName": "Mundungu",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "{T}: Counter target spell unless its controller pays {1} and 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-serial-comma-sacrifice-list",
+      "request": {
+        "cardName": "Probe Altar",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Sacrifice a creature, an artifact, and a land: Draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/costs/2/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/costs/3/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gapped-exile-hand-and-graveyard-resolution",
+      "request": {
+        "cardName": "Probe Hermit",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}{B}",
+        "oracleText": "At the beginning of your upkeep, you may exile a card from your hand and a card from your graveyard. If you do, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cost/kind",
+                "equals": "costSequence"
+              },
+              {
+                "pointer": "/effects/0/cost/costs/0/kind",
+                "equals": "exileCard"
+              },
+              {
+                "pointer": "/effects/0/cost/costs/1/kind",
+                "equals": "exileCard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-pay-life-and-gapped-energy",
+      "request": {
+        "cardName": "Probe Conduit",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever this creature attacks, you may pay 2 life and {E}{E}. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cost/costs/0/kind",
+                "equals": "payLife"
+              },
+              {
+                "pointer": "/effects/0/cost/costs/1/kind",
+                "equals": "payPlayerCounters"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-and-followed-by-another-verb-is-not-gapped",
+      "request": {
+        "cardName": "Probe Miss",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Sacrifice a creature and draw a card: You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "cost.payment.verb"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-leashling-put-hand-card-on-library-top",
+      "request": {
+        "cardName": "Leashling",
+        "typeLine": "Artifact Creature — Dog",
+        "manaCost": "{6}",
+        "oracleText": "Put a card from your hand on top of your library: Return this creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "chosenObjectsCost"
+              },
+              {
+                "pointer": "/costs/0/action",
+                "equals": "putOnLibraryTop"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-penance-put-hand-card-on-library-top",
+      "request": {
+        "cardName": "Penance",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Put a card from your hand on top of your library: The next time a black or red source of your choice would deal damage this turn, prevent that damage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-battlefield-scrounger-put-graveyard-cards-on-library-bottom",
+      "request": {
+        "cardName": "Battlefield Scrounger",
+        "typeLine": "Creature — Centaur",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Threshold — Put three cards from your graveyard on the bottom of your library: This creature gets +3/+3 until end of turn. Activate only once each turn and only if there are seven or more cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-daniels-put-source-from-graveyard-on-library-bottom",
+      "request": {
+        "cardName": "Daniels, Temporal Agent",
+        "typeLine": "Legendary Creature — Human Advisor",
+        "manaCost": "{2}{B/G}{B/G}",
+        "oracleText": "When Daniels enters, return target creature card from your graveyard to your hand.\n{2}, Put this card from your graveyard on the bottom of your library: You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-timestream-navigator-source-permanent-into-library",
+      "request": {
+        "cardName": "Timestream Navigator",
+        "typeLine": "Creature — Human Pirate Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\n{2}{U}{U}, {T}, Put this creature on the bottom of its owner's library: Take an extra turn after this one. Activate only if you have the city's blessing.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "engine.gap.activation-cost-action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-put-cards-without-their-zone",
+      "request": {
+        "cardName": "Probe Shelf",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}, Put a card on top of your library: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "cost.payment.put.origin"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-pearl-shard-alternative-activation-costs",
+      "request": {
+        "cardName": "Pearl Shard",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{3}, {T} or {W}, {T}: Prevent the next 2 damage that would be dealt to any target this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "activation.effect-sequence.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-harnessed-lightning-chosen-energy-amount",
+      "request": {
+        "cardName": "Harnessed Lightning",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Choose target creature. You get {E}{E}{E} (three energy counters), then you may pay any amount of {E}. Harnessed Lightning deals that much damage to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-galvanic-discharge-chosen-energy-amount",
+      "request": {
+        "cardName": "Galvanic Discharge",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Choose target creature or planeswalker. You get {E}{E}{E} (three energy counters), then you may pay any amount of {E}. Galvanic Discharge deals that much damage to that permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-mtenda-lion-defending-player-pays",
+      "request": {
+        "cardName": "Mtenda Lion",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{G}",
+        "oracleText": "Whenever this creature attacks, defending player may pay {U}. If that player does, prevent all combat damage that would be dealt by this creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/effects/0/cost/kind",
+                "equals": "payMana"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-shrouded-serpent-payment-instruction",
+      "request": {
+        "cardName": "Shrouded Serpent",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{4}{U}{U}{U}",
+        "oracleText": "Whenever this creature attacks, defending player may pay {4}. If that player doesn't, this creature can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/effects/0/cost/manaCost",
+                "equals": "{4}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-horn-of-plenty-payment-instruction",
+      "request": {
+        "cardName": "Horn of Plenty",
+        "typeLine": "Artifact",
+        "manaCost": "{6}",
+        "oracleText": "Whenever a player casts a spell, they may pay {1}. If the player does, they draw a card at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-niv-mizzet-ghost-counsel-payment-instruction",
+      "request": {
+        "cardName": "Niv-Mizzet, Ghost Counsel",
+        "typeLine": "Legendary Creature — Spirit Dragon",
+        "manaCost": "{2}{W}{W}{B}{B}",
+        "oracleText": "Flying\nWhenever you gain life, you may pay that much life. If you do, draw that many cards.\n{T}: Each opponent loses 1 life and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-rhystic-circle-offered-payment",
+      "request": {
+        "cardName": "Rhystic Circle",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "{1}: Any player may pay {1}. If no one does, the next time a source of your choice would deal damage to you this turn, prevent that damage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "offerAction"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "payCost"
+              },
+              {
+                "pointer": "/effects/0/action/cost",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{1}"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-offered-life-payment-in-a-spell",
+      "request": {
+        "cardName": "Probe Toll",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Any opponent may pay 4 life. If no one does, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "offerAction"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "payCost"
+              },
+              {
+                "pointer": "/effects/0/action/cost/kind",
+                "equals": "payLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-defending-player-pays-life-declined-outcome",
+      "request": {
+        "cardName": "Probe Wager",
+        "typeLine": "Creature — Human",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever this creature attacks, defending player may pay 3 life. If that player doesn't, this creature gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/effects/0/cost/kind",
+                "equals": "payLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-otherwise-optional-cost-branch",
+      "request": {
+        "cardName": "Probe Choice",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}{G}",
+        "oracleText": "When this creature enters, you may discard a card. If you do, draw a card. Otherwise, you may pay {1}. If you do, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/declineEffects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/declineEffects/0/cost",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{1}"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-pay-x-without-a-producer",
+      "request": {
+        "cardName": "Probe Void",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card, then pay {X}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-wand-of-denial-sentence-condition",
+      "request": {
+        "cardName": "Wand of Denial",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Look at the top card of target player's library. If it's a nonland card, you may pay 2 life. If you do, put it into that player's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-die-young-definite-creature-subject",
+      "request": {
+        "cardName": "Die Young",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Choose target creature. You get {E}{E} (two energy counters), then you may pay any amount of {E}. The creature gets -1/-1 until end of turn for each {E} paid this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-intrepid-adversary-repeated-payment",
+      "request": {
+        "cardName": "Intrepid Adversary",
+        "typeLine": "Creature — Human Scout",
+        "manaCost": "{1}{W}",
+        "oracleText": "Lifelink\nWhen this creature enters, you may pay {1}{W} any number of times. When you pay this cost one or more times, put that many valor counters on this creature.\nCreatures you control get +1/+1 for each valor counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-browbeat-offered-causative-damage",
+      "request": {
+        "cardName": "Browbeat",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Any player may have Browbeat deal 5 damage to them. If no one does, target player draws three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "effect.damage.recipient.event-player"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-lazav-copy-of-exiled-card",
+      "request": {
+        "cardName": "Lazav, Familiar Stranger",
+        "typeLine": "Legendary Creature — Shapeshifter",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "Whenever you commit a crime, put a +1/+1 counter on Lazav. Then you may exile a card from a graveyard. If a creature card was exiled this way, you may have Lazav become a copy of that card until end of turn. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

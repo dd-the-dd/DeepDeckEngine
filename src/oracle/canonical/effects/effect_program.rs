@@ -176,12 +176,16 @@ fn lower_unlimited_program_step<E>(
                     &mut CardCollectionMemory::default(),
                 )?;
                 // A declined branch written as its own permission keeps its
-                // optional wrapper (`Otherwise, you may ...`).
+                // optional wrapper (`Otherwise, you may ...`), and one written
+                // as an optional cost keeps its cost block (`Otherwise, you
+                // may pay {1}. If you do, ...`).
                 Some(match otherwise.as_ref() {
-                    EffectProgramNode::Optional { .. } => {
-                        wrap_lowered_effect_program(cursor, otherwise, lowered)
-                            .map_err(&program_failure)?
-                    }
+                    EffectProgramNode::Optional { .. }
+                    | EffectProgramNode::Outcome {
+                        producer: OutcomeProducer::Cost(_),
+                        ..
+                    } => wrap_lowered_effect_program(cursor, otherwise, lowered)
+                        .map_err(&program_failure)?,
                     _ => lowered,
                 })
             }
@@ -213,7 +217,17 @@ fn lower_unlimited_program_step<E>(
     } = step
     {
         let body = lower(cursor, body.inner_sequence())?;
-        let otherwise = lower(cursor, otherwise.inner_sequence())?;
+        let lowered_otherwise = lower(cursor, otherwise.inner_sequence())?;
+        // The declined branch keeps its own permission or cost block.
+        let otherwise = match otherwise.as_ref() {
+            EffectProgramNode::Optional { .. }
+            | EffectProgramNode::Outcome {
+                producer: OutcomeProducer::Cost(_),
+                ..
+            } => wrap_lowered_effect_program(cursor, otherwise, lowered_otherwise)
+                .map_err(&program_failure)?,
+            _ => lowered_otherwise,
+        };
         return lower_optional_cost_outcome(
             cursor,
             permission.as_ref(),
@@ -594,14 +608,22 @@ fn lower_gated_outcome(
                 body,
             );
         }
-        return lower_optional_action(
-            cursor,
-            optional["player"].clone(),
-            inner.clone(),
-            outcome,
-            body,
-            otherwise,
-        );
+        // Another player's permission (`defending player may pay {U}. If
+        // that player does, ...`): the performer decides and performs. Its
+        // instruction was read in the performer's person, so the controller
+        // it names is the performer (CR 608.2c, 608.2d); the outcomes stay
+        // the ability controller's instructions.
+        let (player, inner) = match optional.get("performer") {
+            Some(performer) => (
+                performer.clone(),
+                inner
+                    .iter()
+                    .map(|effect| performer_as_controller(effect, performer))
+                    .collect(),
+            ),
+            None => (optional["player"].clone(), inner.clone()),
+        };
+        return lower_optional_action(cursor, player, inner, outcome, body, otherwise);
     }
     if let Some(result) = result {
         return lower_reflexive_result(cursor, player, effects, result, body);
@@ -609,6 +631,29 @@ fn lower_gated_outcome(
     match player {
         Some(player) => lower_optional_action(cursor, player, effects, outcome, body, otherwise),
         None => lower_performed_action(cursor, effects, outcome, body, otherwise),
+    }
+}
+
+/// `effect` with every reference to the ability controller replaced by the
+/// performer whose person the instruction was read in.
+fn performer_as_controller(effect: &Value, performer: &Value) -> Value {
+    if *effect == controller() {
+        return performer.clone();
+    }
+    match effect {
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| performer_as_controller(item, performer))
+                .collect(),
+        ),
+        Value::Object(fields) => Value::Object(
+            fields
+                .iter()
+                .map(|(key, value)| (key.clone(), performer_as_controller(value, performer)))
+                .collect(),
+        ),
+        other => other.clone(),
     }
 }
 
@@ -859,6 +904,8 @@ fn optional_action_measured(instruction: &Value) -> bool {
         Some("gainControlPermanent") => {
             instruction["permanent"].is_object() && instruction["controller"].is_object()
         }
+        // The payer actually paid the resolution cost (`cost.rs`).
+        Some("payCost") => single_player(&instruction["player"]) && instruction["cost"].is_object(),
         // The attachment became attached to the recipient (CR 701.3b).
         Some("attachPermanent") => {
             instruction["attachment"].is_object() && instruction["to"].is_object()
@@ -881,6 +928,45 @@ fn lower_optional_action(
     otherwise: Option<LoweredEffectSequence>,
 ) -> MachineResult<LoweredEffectSequence> {
     cursor.enter("lower.program.optional-action.action");
+    // A permission whose one instruction is the player's own fixed payment
+    // (`that player may pay {2}. If the player doesn't, ...`) is the shared
+    // optional resolution cost program: one concept, one primitive, whether
+    // the payment was read as a cost block or as a payment instruction.
+    if let [payment] = action.as_slice()
+        && payment["kind"] == "payCost"
+        && payment["player"] == player
+        && payment["cost"].is_object()
+    {
+        let mut decisions = Vec::new();
+        let (effects, decline) = match outcome {
+            PerformanceOutcome::Performed | PerformanceOutcome::Declined => {
+                decisions.extend(body.decisions);
+                let otherwise = otherwise.map(|otherwise| {
+                    decisions.extend(otherwise.decisions);
+                    otherwise.effects
+                });
+                let (effects, decline) = complementary_effects(outcome, body.effects, otherwise);
+                (effects, decline.unwrap_or_default())
+            }
+            PerformanceOutcome::Reflexive => (vec![reflexive_trigger(&player, body)], vec![]),
+        };
+        cursor.enter("lower.program.optional-cost.declarations");
+        require_distinct_declarations(
+            cursor,
+            &decisions,
+            "distinct declaration ids across the outcome and its complement",
+        )?;
+        return Ok(LoweredEffectSequence {
+            decisions,
+            effects: vec![json!({
+                "kind": "optionalPayCostPerformEffects",
+                "player": player,
+                "cost": payment["cost"].clone(),
+                "effects": effects,
+                "declineEffects": decline,
+            })],
+        });
+    }
     // Both sentences were lowered independently; a runtime binding or
     // decision produced by the instruction must not be shadowed by its outcome.
     let instruction =
@@ -1167,6 +1253,9 @@ pub(in crate::oracle::canonical) fn concatenate_program_steps(
         program.decisions.extend(step.decisions);
         program.effects.extend(step.effects);
     }
+    // `You may VERB. If you do or ...`: an outcome whose producer is the
+    // previous step's instruction (`optional_outcome.rs`).
+    resolve_program_optional_outcomes(cursor, &mut program.effects)?;
     Ok(program)
 }
 

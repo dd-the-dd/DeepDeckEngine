@@ -51,14 +51,14 @@ fn compile_recognized_trigger_program(
 ) -> MachineResult<CanonicalRuleDraft> {
     // The zone the ability functions from (CR 113.6) follows from the typed
     // event: the spell's own cast functions on the stack for any spell, a
-    // battlefield observer needs a permanent face.
+    // battlefield observer needs a permanent face. A card zone the guard or
+    // the program declares replaces the battlefield; the face is checked
+    // once that zone is known.
     cursor.enter("trigger.program.permanent-face");
-    cursor.require(
-        !envelope.event.requires_permanent_face()
-            || envelope.event.functions_on_the_stack()
-            || type_line_has_permanent_card_type(input.face_type_line),
-        "a permanent source face for this battlefield triggered ability",
-    )?;
+    let face_cursor = cursor.clone();
+    let battlefield_face = !envelope.event.requires_permanent_face()
+        || envelope.event.functions_on_the_stack()
+        || type_line_has_permanent_card_type(input.face_type_line);
     // CR 701.28: `transforms into FACE` is observed by the abilities of the
     // face the permanent turned to, so FACE must print this ability.
     cursor.enter("trigger.program.transformed-face");
@@ -186,7 +186,36 @@ fn compile_recognized_trigger_program(
             "a checked mana discovery for a triggered mana ability of the enchanted permanent",
         ));
     }
+    let trigger_zone = declared_trigger_zone(
+        cursor,
+        node.guard.as_ref().map(|guard| &guard.value),
+        &lowered.effects,
+        &node.event.value,
+    )?;
+    if trigger_zone.is_none() && !battlefield_face {
+        return Err(
+            face_cursor.fail("a permanent source face for this battlefield triggered ability")
+        );
+    }
+    if let Some(zone) = trigger_zone {
+        cursor.enter("trigger.program.zone-of-function.event");
+        let event_kind = event["kind"].as_str().unwrap_or_default();
+        let observed = ZONE_OF_FUNCTION_EVENTS
+            .iter()
+            .any(|(observed_zone, observed_kind)| {
+                *observed_zone == zone && *observed_kind == event_kind
+            });
+        if !observed {
+            return Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
+                "a runtime observer of this event for a source in its zone of function (CR 113.6)",
+            ));
+        }
+    }
     let mut rule = json!({"kind":"triggeredAbility", "source":self_ref(), "event":event, "effects":lowered.effects});
+    if let Some(zone) = trigger_zone {
+        rule["triggerZone"] = json!(zone);
+    }
     if let Some(condition) = condition {
         rule["condition"] = condition;
     }
@@ -213,6 +242,154 @@ fn compile_recognized_trigger_program(
     );
     result.construction = construction;
     Ok(result)
+}
+
+/// The (zone of function, lowered event kind) pairs whose runtime observer
+/// scans sources in that zone: an observed permanent's entry is matched for
+/// cards in a graveyard as well as for permanents. Any other pair is an
+/// explicit engine gap, never a rule that silently cannot trigger.
+const ZONE_OF_FUNCTION_EVENTS: &[(&str, &str)] = &[("graveyard", "permanentEntered")];
+
+/// The engine zone a guard's zone-of-function atom names, when it is a card
+/// zone outside the battlefield.
+fn card_zone_of_function(zone: ConditionZone) -> Option<&'static str> {
+    match zone {
+        ConditionZone::Graveyard => Some("graveyard"),
+        ConditionZone::Exile => Some("exile"),
+        ConditionZone::Hand => Some("hand"),
+        _ => None,
+    }
+}
+
+/// The card zone a source atom of the guard names (`if this card is in your
+/// graveyard`), or `None`.
+fn guard_zone_atom(atom: &ConditionAtom) -> Option<&'static str> {
+    match atom {
+        ConditionAtom::ObjectZone(ObjectZoneConditionNode {
+            object,
+            zones,
+            negated: false,
+        }) if *object == ConditionObjectReference::SOURCE => match zones.as_slice() {
+            [zone] => card_zone_of_function(*zone),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Whether the event's trigger condition names the ability's own source,
+/// which then says where it is (CR 113.6k: `When this creature dies, return
+/// this card from your graveyard` functions on the battlefield).
+fn event_names_source(event: &GenericTriggerEventNode) -> bool {
+    match event {
+        GenericTriggerEventNode::SourceTransition(_) | GenericTriggerEventNode::SourceEvent(_) => {
+            true
+        }
+        GenericTriggerEventNode::Local(local) => matches!(
+            local,
+            LocalTriggerEventNode::SourceEntered { .. }
+                | LocalTriggerEventNode::SourceAttacked { .. }
+                | LocalTriggerEventNode::SourceCycled { .. }
+                | LocalTriggerEventNode::LastCounterRemoved { .. }
+                | LocalTriggerEventNode::SourceDealtDamage { .. }
+        ),
+        GenericTriggerEventNode::Conditioned { event, .. } => event_names_source(event),
+        GenericTriggerEventNode::Compound(members) => members.iter().any(event_names_source),
+        _ => false,
+    }
+}
+
+/// The card zone a lowered program moves the ability's own source out of
+/// (`return this card from your graveyard to your hand`).
+fn program_source_origin(value: &Value) -> Option<&'static str> {
+    match value {
+        Value::Object(map) => {
+            let moves_source = matches!(
+                map.get("kind").and_then(Value::as_str),
+                Some("moveCards" | "returnToOwnersHand")
+            ) && [map.get("cards"), map.get("object")]
+                .into_iter()
+                .flatten()
+                .any(|moved| *moved == self_ref());
+            let origin = if moves_source {
+                match map
+                    .get("from")
+                    .and_then(|from| from.get("kind"))
+                    .and_then(Value::as_str)
+                {
+                    Some("graveyard") => Some("graveyard"),
+                    Some("hand") => Some("hand"),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            origin.or_else(|| map.values().find_map(program_source_origin))
+        }
+        Value::Array(items) => items.iter().find_map(program_source_origin),
+        _ => None,
+    }
+}
+
+/// The zone of function a triggered ability declares (CR 113.6): a guard
+/// conjunct `if this card is in your graveyard` (kept as the intervening
+/// `if`, rechecked on resolution, CR 603.4), else a program that moves the
+/// ability's own source out of a card zone (CR 113.6k) when the event does
+/// not name the source. A source zone atom anywhere else in the guard, or two
+/// different zones, fail explicitly.
+fn declared_trigger_zone(
+    cursor: &mut OracleTokenCursor<'_>,
+    guard: Option<&SentenceConditionNode>,
+    effects: &[Value],
+    event: &GenericTriggerEventNode,
+) -> MachineResult<Option<&'static str>> {
+    cursor.enter("trigger.program.zone-of-function");
+    let conjuncts: Vec<&SentenceConditionNode> = match guard {
+        None => Vec::new(),
+        Some(BooleanConditionNode::And(operands)) => operands.iter().collect(),
+        Some(other) => vec![other],
+    };
+    let mut zones = conjuncts
+        .iter()
+        .filter_map(|conjunct| match conjunct {
+            BooleanConditionNode::Atom(atom) => guard_zone_atom(atom),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    zones.dedup();
+    let total = guard.map_or(0, count_guard_zone_atoms);
+    cursor.require(
+        zones.len() <= 1 && total == conjuncts_with_zone(&conjuncts),
+        "one zone of function stated by a conjunct of the intervening `if`",
+    )?;
+    if let Some(zone) = zones.first() {
+        return Ok(Some(*zone));
+    }
+    if event_names_source(event) {
+        return Ok(None);
+    }
+    Ok(effects.iter().find_map(program_source_origin))
+}
+
+/// Every source zone atom of the guard, wherever it is.
+fn count_guard_zone_atoms(condition: &SentenceConditionNode) -> usize {
+    match condition {
+        BooleanConditionNode::Atom(atom) => usize::from(guard_zone_atom(atom).is_some()),
+        BooleanConditionNode::And(operands) | BooleanConditionNode::Or(operands) => {
+            operands.iter().map(count_guard_zone_atoms).sum()
+        }
+        BooleanConditionNode::Not(operand) => count_guard_zone_atoms(operand),
+    }
+}
+
+/// The source zone atoms that are direct conjuncts of the guard.
+fn conjuncts_with_zone(conjuncts: &[&SentenceConditionNode]) -> usize {
+    conjuncts
+        .iter()
+        .filter(|conjunct| {
+            matches!(conjunct, BooleanConditionNode::Atom(atom) if guard_zone_atom(atom).is_some())
+        })
+        .count()
 }
 
 /// Whether a lowered effect adds mana anywhere in its nested programs.

@@ -1,0 +1,465 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "antecedent-producers-batch11",
+  "cases": [
+    {
+      "id": "resounding-thunder-exact-cycled-source-deals-damage",
+      "request": {
+        "cardName": "Resounding Thunder",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "Resounding Thunder deals 3 damage to any target.\nCycling {5}{B}{R}{G} ({5}{B}{R}{G}, Discard this card: Draw a card.)\nWhen you cycle this card, it deals 6 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "slice-and-dice-exact-causative-cycled-source",
+      "request": {
+        "cardName": "Slice and Dice",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Slice and Dice deals 4 damage to each creature.\nCycling {2}{R} ({2}{R}, Discard this card: Draw a card.)\nWhen you cycle this card, you may have it deal 1 damage to each creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "ordeal-of-purphoros-exact-sacrificed-aura-deals-damage",
+      "request": {
+        "cardName": "Ordeal of Purphoros",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{R}",
+        "oracleText": "Enchant creature\nWhenever enchanted creature attacks, put a +1/+1 counter on it. Then if it has three or more +1/+1 counters on it, sacrifice this Aura.\nWhen you sacrifice this Aura, it deals 3 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "guerrilla-tactics-exact-caused-discard-source",
+      "request": {
+        "cardName": "Guerrilla Tactics",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Guerrilla Tactics deals 2 damage to any target.\nWhen a spell or ability an opponent controls causes you to discard this card, it deals 4 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "knighted-myr-exact-counters-put-on-source",
+      "request": {
+        "cardName": "Knighted Myr",
+        "typeLine": "Artifact Creature — Myr Knight",
+        "manaCost": "{2}{W}",
+        "oracleText": "{2}{W}: Adapt 1. (If this creature has no +1/+1 counters on it, put a +1/+1 counter on it.)\nWhenever one or more +1/+1 counters are put on this creature, it gains double strike until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "jund-sojourners-exact-cycle-or-dies-list",
+      "request": {
+        "cardName": "Jund Sojourners",
+        "typeLine": "Creature — Lizard Shaman",
+        "manaCost": "{B}{R}{G}",
+        "oracleText": "When you cycle this card and when this creature dies, you may have it deal 1 damage to any target.\nCycling {2}{R} ({2}{R}, Discard this card: Draw a card.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-cycled-source-damages-each-creature",
+      "request": {
+        "cardName": "Probe Cycler",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Cycling {2}\nWhen you cycle this card, it deals 2 damage to each creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "figure-of-destiny-exact-condition-subject",
+      "request": {
+        "cardName": "Figure of Destiny",
+        "typeLine": "Creature — Kithkin",
+        "manaCost": "{R/W}",
+        "oracleText": "{R/W}: This creature becomes a Kithkin Spirit with base power and toughness 2/2.\n{R/W}{R/W}{R/W}: If this creature is a Spirit, it becomes a Kithkin Spirit Warrior with base power and toughness 4/4.\n{R/W}{R/W}{R/W}{R/W}{R/W}{R/W}: If this creature is a Warrior, it becomes a Kithkin Spirit Warrior Avatar with base power and toughness 8/8, flying, and first strike.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "aggressive-sabotage-exact-kicked-spell-deals",
+      "request": {
+        "cardName": "Aggressive Sabotage",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Kicker {R} (You may pay an additional {R} as you cast this spell.)\nTarget player discards two cards. If this spell was kicked, it deals 3 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "durkwood-tracker-exact-zone-condition-subject",
+      "request": {
+        "cardName": "Durkwood Tracker",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{4}{G}",
+        "oracleText": "{1}{G}, {T}: If this creature is on the battlefield, it deals damage equal to its power to target attacking creature. That creature deals damage equal to its power to this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "great-hall-exact-negated-type-condition-subject",
+      "request": {
+        "cardName": "Great Hall of the Biblioplex",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast an instant or sorcery spell.\n{5}: If this land isn't a creature, it becomes a 2/4 Wizard creature with \"Whenever you cast an instant or sorcery spell, this creature gets +1/+0 until end of turn.\" It's still a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-artifact-condition-subject-becomes",
+      "request": {
+        "cardName": "Probe Golem",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}: If this artifact isn't a creature, it becomes a 3/3 Golem artifact creature until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-competing-condition-keeps-program-target",
+      "request": {
+        "cardName": "Probe Kick",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Kicker {1}\nTap target creature. If this spell was kicked and that creature is a Warrior, it gets -2/-0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "ondu-rising-exact-created-trigger-subject",
+      "request": {
+        "cardName": "Ondu Rising",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever a creature attacks this turn, it gains lifelink until end of turn.\nAwaken 4—{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "touch-of-the-horned-god-exact-created-trigger-subject",
+      "request": {
+        "cardName": "Touch of the Horned God",
+        "typeLine": "Sorcery",
+        "manaCost": "",
+        "oracleText": "Whenever a Minotaur attacks this turn, it gains deathtouch until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-created-block-trigger-subject",
+      "request": {
+        "cardName": "Probe Cry",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Untap all white creatures you control.\nWhenever a creature blocks this turn, it gets +0/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "cerulean-sphinx-exact-possessive-owner-shuffles-it",
+      "request": {
+        "cardName": "Cerulean Sphinx",
+        "typeLine": "Creature — Sphinx",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Flying\n{U}: This creature's owner shuffles it into their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "lightning-shrieker-exact-possessive-owner-each-end-step",
+      "request": {
+        "cardName": "Lightning Shrieker",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{4}{R}",
+        "oracleText": "Flying, trample, haste\nAt the beginning of the end step, this creature's owner shuffles it into their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-artifact-possessive-owner-shuffles-it",
+      "request": {
+        "cardName": "Probe Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}{U}: This artifact's owner shuffles it into their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "natures-will-exact-batch-damaged-player",
+      "request": {
+        "cardName": "Nature's Will",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Whenever one or more creatures you control deal combat damage to a player, tap all lands that player controls and untap all lands you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "calculating-lich-exact-attacked-player",
+      "request": {
+        "cardName": "Calculating Lich",
+        "typeLine": "Creature — Zombie Wizard",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Menace\nWhenever a creature attacks one of your opponents, that player loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-batch-damaged-player-discards",
+      "request": {
+        "cardName": "Probe Raider",
+        "typeLine": "Creature — Human Rogue",
+        "manaCost": "{2}",
+        "oracleText": "Whenever one or more creatures you control deal combat damage to a player, that player discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "funeral-march-exact-departed-enchanted-controller",
+      "request": {
+        "cardName": "Funeral March",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Enchant creature\nWhen enchanted creature leaves the battlefield, its controller sacrifices a creature of their choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-departed-enchanted-controller-loses-life",
+      "request": {
+        "cardName": "Probe Curse",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nWhen enchanted creature leaves the battlefield, its controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "combination-discarded-source-damage-and-possessive-owner",
+      "request": {
+        "cardName": "Probe Ember",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "When you discard this card, it deals 3 damage to target player. This card's owner draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-competing-condition-antecedents",
+      "request": {
+        "cardName": "Probe Blade",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature gets +1/+1.\n{1}: If this Equipment is a creature and equipped creature is a Warrior, it gains first strike until end of turn.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "reference.source-or-anaphor.competing-antecedents"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-sentinel-possessive-base-toughness",
+      "request": {
+        "cardName": "Sentinel",
+        "typeLine": "Artifact Creature — Shapeshifter",
+        "manaCost": "{4}",
+        "oracleText": "{0}: This creature's base toughness becomes equal to 1 plus the power of target creature blocking or blocked by this creature. (This effect lasts indefinitely.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "reference.source.possessive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-without-player-producer",
+      "request": {
+        "cardName": "Probe Tap",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Tap all creatures. That player loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-subject.bound.resolve"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-pronoun-without-condition-object",
+      "request": {
+        "cardName": "Probe Wizard",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{2}",
+        "oracleText": "{1}: If you control a Wizard, it gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "reference.source-or-anaphor.start"
+          }
+        ]
+      }
+    }
+  ]
+}

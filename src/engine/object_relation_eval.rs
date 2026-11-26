@@ -70,6 +70,8 @@ pub(super) fn is_relation_kind(kind: &str) -> bool {
             | BLOCKED_BY_ANCHOR_THIS_TURN
             | DEALT_DAMAGE_TO_ANCHOR_THIS_TURN
             | DEALT_COMBAT_DAMAGE_TO_ANCHOR_THIS_TURN
+            | super::object_predicate_eval::OWNED_BY
+            | super::object_predicate_eval::EXTREMUM_AMONG
     )
 }
 
@@ -132,13 +134,19 @@ fn anchor_supported(anchor: &Value) -> bool {
                     filter_supported_with_relations(filter, permanent_filter_supported)
                 })
         }
-        _ => false,
+        _ => super::described_object_anchor::described_anchor_supported(anchor),
     }
 }
 
 /// One unprepared relation atom: a known relation and characteristic, and
 /// an anchor this module resolves.
 pub(super) fn relation_atom_supported(atom: &Value) -> bool {
+    if value_kind(atom) == Some(super::object_predicate_eval::OWNED_BY) {
+        return super::object_predicate_eval::owned_by_relation_supported(atom);
+    }
+    if value_kind(atom) == Some(super::object_predicate_eval::EXTREMUM_AMONG) {
+        return super::object_predicate_eval::extremum_among_supported(atom);
+    }
     if value_kind(atom) == Some(ENTERED_UNDER_CONTROL) {
         return entry_player_role_supported(&atom["player"]);
     }
@@ -282,7 +290,9 @@ pub(super) fn target_filter_supported_with_relations(filter: &Value) -> bool {
     match value_kind(filter) {
         Some(kind) if is_relation_kind(kind) => {
             relation_atom_supported(filter)
-                && (player_role_relation(Some(kind)) || source_bindable_anchor(&filter["object"]))
+                && (player_role_relation(Some(kind))
+                    || kind == super::object_predicate_eval::EXTREMUM_AMONG
+                    || source_bindable_anchor(&filter["object"]))
         }
         Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
             !operands.is_empty() && operands.iter().all(target_filter_supported_with_relations)
@@ -471,6 +481,32 @@ impl GameEngine {
         )
     }
 
+    /// A relation anchored on recorded or linked cards
+    /// (`described_object_anchor.rs`): their ids and, for a share, the
+    /// union of their values of the characteristic, read from the cards
+    /// themselves (a cost record is the object as it was paid, CR 608.2h).
+    fn prepare_relation_on_cards(atom: &Value, cards: &[CardInstance]) -> Value {
+        let mut prepared = atom.clone();
+        if value_kind(atom) == Some("sharesCharacteristic") {
+            let characteristic = atom["characteristic"].as_str().unwrap_or_default();
+            let mut shared = CharacteristicValues::default();
+            for card in cards {
+                let values = Self::card_values(card, characteristic);
+                shared.values.extend(values.values);
+                shared.all_creature_types |= values.all_creature_types;
+            }
+            prepared["anchorValues"] = json!(shared.values);
+            prepared["anchorAllCreatureTypes"] = json!(shared.all_creature_types);
+        }
+        prepared["anchorIds"] = json!(
+            cards
+                .iter()
+                .map(|card| card.instance_id.clone())
+                .collect::<Vec<_>>()
+        );
+        prepared
+    }
+
     /// The values of an anchor object: on the battlefield, else the card it
     /// is in another zone. `None` when no such object exists.
     fn object_values(
@@ -589,7 +625,18 @@ impl GameEngine {
                 .prepare_entry_controller_relation(atom, &source.controller)
                 .ok_or_else(|| EngineError::new("unsupported relation player role"));
         }
+        if value_kind(atom) == Some(super::object_predicate_eval::OWNED_BY) {
+            return self.prepare_owned_by_relation(atom, source, bindings);
+        }
+        if value_kind(atom) == Some(super::object_predicate_eval::EXTREMUM_AMONG) {
+            return self
+                .prepare_extremum_among(atom, &source.controller)
+                .ok_or_else(|| EngineError::new("unsupported extremum ranking"));
+        }
         let anchor = &atom["object"];
+        if let Some(cards) = self.described_anchor_cards_for_stack(anchor, source) {
+            return Ok(Self::prepare_relation_on_cards(atom, &cards?));
+        }
         let anchor_ids = self.relation_anchor_ids(anchor, source, bindings, decisions)?;
         let mut prepared = atom.clone();
         if value_kind(atom) == Some("sharesCharacteristic") {
@@ -688,14 +735,22 @@ impl GameEngine {
         atom: &Value,
         source: Option<&CardInstance>,
     ) -> Option<Value> {
-        if !relation_atom_supported(atom) {
+        if !relation_atom_supported(atom)
+            || value_kind(atom) == Some(super::object_predicate_eval::OWNED_BY)
+        {
             return None;
         }
         let source = source?;
         if player_role_relation(value_kind(atom)) {
             return self.prepare_entry_controller_relation(atom, &source.controller);
         }
+        if value_kind(atom) == Some(super::object_predicate_eval::EXTREMUM_AMONG) {
+            return self.prepare_extremum_among(atom, &source.controller);
+        }
         let anchor = &atom["object"];
+        if let Some(cards) = self.described_anchor_cards_for_source(anchor, source) {
+            return Some(Self::prepare_relation_on_cards(atom, &cards));
+        }
         let anchor_ids = match value_kind(anchor) {
             Some("self" | "abilitySource") => vec![source.instance_id.clone()],
             Some("attachedPermanent") => source.attached_to.clone().into_iter().collect(),
@@ -938,6 +993,22 @@ impl GameEngine {
         relation: &Value,
         candidate: ObjectFilterView<'_>,
     ) -> bool {
+        if value_kind(relation) == Some(super::object_predicate_eval::EXTREMUM_AMONG) {
+            return match candidate {
+                ObjectFilterView::Permanent(permanent) => {
+                    self.permanent_holds_extremum(relation, permanent)
+                }
+                _ => false,
+            };
+        }
+        if value_kind(relation) == Some(super::object_predicate_eval::OWNED_BY) {
+            return match candidate {
+                ObjectFilterView::Permanent(permanent) => {
+                    self.permanent_owned_by_relation(relation, permanent)
+                }
+                _ => false,
+            };
+        }
         if value_kind(relation) == Some(ENTERED_UNDER_CONTROL) {
             return match (relation["playerIds"].as_array(), candidate) {
                 (Some(player_ids), ObjectFilterView::Permanent(permanent)) => {
@@ -1055,7 +1126,7 @@ impl GameEngine {
     }
 
     /// Prepares every relation leaf of `filter` for a static source.
-    fn prepare_relations_for_source(
+    pub(super) fn prepare_relations_for_source(
         &self,
         filter: &Value,
         source: Option<&CardInstance>,

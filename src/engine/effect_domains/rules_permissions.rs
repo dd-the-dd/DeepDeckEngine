@@ -69,7 +69,11 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("ignoreLegendRuleUntilEndOfTurn") => player_reference_supported(&effect["player"]),
         Some("gainControlPermanent") => {
             (target_reference_supported(&effect["permanent"])
-                || object_expression_supported(&effect["permanent"]))
+                || object_expression_supported(&effect["permanent"])
+                // A relation-filtered collection (`all creatures blocking
+                // it`, `all permanents they own`) resolved and prepared by
+                // the shared runtime collection.
+                || object_relation_eval::related_collection_supported(&effect["permanent"]))
                 && player_reference_supported(&effect["controller"])
                 && effect.get("duration").is_none_or(|duration| {
                     matches!(

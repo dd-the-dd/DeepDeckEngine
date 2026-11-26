@@ -75,7 +75,8 @@ impl CostObjectAction {
             super::ActionResultVerb::Revealed => Some(Self::RevealedCard),
             super::ActionResultVerb::Destroyed
             | super::ActionResultVerb::Milled
-            | super::ActionResultVerb::Returned => None,
+            | super::ActionResultVerb::Returned
+            | super::ActionResultVerb::DealtDamage => None,
         }
     }
 

@@ -43,8 +43,7 @@ pub(super) fn mana_pool_entry_can_pay(
     spending_source_zone: Option<&str>,
 ) -> bool {
     mana.spend_restriction.as_ref().is_none_or(|restriction| {
-        restriction["producedBySnowSource"].as_bool() == Some(true)
-            && restriction.get("kind").is_none()
+        super::mana_retention::unit_attributes_only(restriction)
             || value_kind(restriction) == Some("firebendingMana")
             || spending_card.is_some_and(|card| {
                 value_kind(restriction) == Some("castSpell")
@@ -56,6 +55,12 @@ pub(super) fn mana_pool_entry_can_pay(
                     .is_some_and(|card| matches_card_filter(card, &restriction["where"]))
             || value_kind(restriction) == Some("castSpellFromZone")
                 && spending_source_zone == restriction["zone"].as_str()
+            || super::mana_spending_policy::is_use_union(restriction)
+                && super::mana_spending_policy::use_union_permits(
+                    restriction,
+                    spending_card,
+                    ability_source,
+                )
             || super::mana_spend_prohibition::is_cast_spell_prohibition(restriction)
                 && super::mana_spend_prohibition::prohibition_permits(restriction, spending_card)
     })

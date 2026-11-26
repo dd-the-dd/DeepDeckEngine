@@ -99,28 +99,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
+        "outcome": "failure",
+        "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": [
-              {
-                "pointer": "/kind",
-                "equals": "triggeredAbility"
-              },
-              {
-                "pointer": "/effects/0/to/kind",
-                "equals": "battlefield"
-              },
-              {
-                "pointer": "/effects/0/to/tapped",
-                "equals": false
-              }
-            ]
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
           }
         ]
       }

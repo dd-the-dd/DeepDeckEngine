@@ -473,3 +473,43 @@ do` (abaissé séparément), carte exilée par une capacité liée comme objet
 copié ou propriétaire (`Prototype Portal`, `Skyclave Apparition`), ensembles
 déplacés en masse (`Return all … They gain haste`), génitif numérique d'une
 carte ciblée (`that card's power`), itération `For each NOUN, … that NOUN`.
+
+## Producteurs structurels d'antécédent (lot 11)
+
+Un producteur structurel publie l'objet singulier de la proposition qu'il
+gouverne sur l'environnement installé (`object_producer`) ; les lecteurs de
+contexte (`for_permanent_context`) l'héritent par
+`inherit_installed_action_result`, avant l'antécédent dérivé des actions.
+
+- Événement nommant la source comme objet d'une action (`When you cycle|discard
+  this card`, `When you sacrifice this Aura`, marqueurs posés sur la source) :
+  `bind_source_event_object` lie la source comme sujet d'événement, lue par
+  ses dernières informations connues (CR 113.7a, 608.2h). Une liste de
+  conditions (`When you cycle this card and when this creature dies`) la lie
+  si chaque membre nomme la source.
+- Condition préposée (`If this creature is a Spirit, it becomes ...`, `If this
+  spell was kicked, it deals ...`) : `publish_preposed_condition_antecedent`
+  publie l'unique objet (source, permanent attaché, cible déclarée de
+  permanent) dont parlent les atomes ; un fait ou choix de lancement de la
+  source nomme la source. Deux objets concurrents ne publient rien et un
+  pronom sans autre antécédent échoue avec
+  `reference.source-or-anaphor.competing-antecedents`.
+- Déclencheur créé par un effet (`Whenever a creature attacks this turn, it
+  gains ...`) : `bind_created_rule_subject` publie le sujet de son propre
+  événement, avec son cadre (CR 603.7c-e).
+- Sujet exécutant possessif (`its owner shuffles it`, `this creature's owner
+  shuffles it`) : `publish_performer_possessor` publie le possesseur pour le
+  prédicat.
+- Génitif de la source (`this creature's owner|controller`) : tête de joueur
+  lié à la source ; le lecteur de source non possessif échoue sur
+  `reference.source.possessive`.
+- Joueur d'événement : lot de dégâts de combat à un joueur (`one or more ...
+  deal combat damage to a player`) et attaquant d'un joueur écrit (`attacks one
+  of your opponents`) ; objet d'un départ du permanent attaché (`When
+  enchanted creature leaves the battlefield`, dernier contrôleur connu).
+
+Restes : fenêtres temporelles préposées (`This turn,`, `During your next
+turn,`) et fenêtre à début différé (pas de durée ni d'exécution) ; liaison
+inter-étapes d'une cible ou d'un joueur du producteur dans un corps `If you
+do` / `Otherwise` (abaissement séparé) ; `it` d'un sort lancé auquel un
+déclencheur donne une capacité.

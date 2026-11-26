@@ -80,6 +80,18 @@ fn recognize_attacked_player(
         && cursor
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("opponent"));
+    // `For each opponent, ... attacking that opponent|player`: the member
+    // of the population being iterated (CR 608.2c) is the attacked player.
+    if that
+        && environment.acting_player
+        && environment.player_target.is_none()
+        && !environment.frame.event_player
+        && !environment.frame.defending_player
+    {
+        let noun = if opponent { "opponent" } else { "player" };
+        cursor.consume_phrase(&["that", noun])?;
+        return Ok(super::BoundPlayerReference::ActingPlayer);
+    }
     let event_attacked = environment.player_target.is_none()
         && environment.player.is_none()
         && (environment.frame.defending_player || environment.frame.event_player);
@@ -630,7 +642,9 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
                 trial.consume("that")?;
                 origin_library = true;
                 CardMoveOwnerNode::EachCardOwner
-            } else if super::try_recognize_bound_possessive_player(&mut trial)?.is_some() {
+            } else if !its_owner_possessive(&trial)
+                && super::try_recognize_bound_possessive_player(&mut trial)?.is_some()
+            {
                 // `on top of that player's library`, `into that player's
                 // graveyard`: the shared bound-player resolver proves the
                 // possessive names a player of this program (an unbound one
@@ -805,3 +819,15 @@ pub(in crate::oracle::canonical) fn try_recognize_preposed_card_move_destination
 #[cfg(test)]
 #[path = "card_move_destination_tests.rs"]
 mod tests;
+
+/// `its owner's` before a destination zone names each moved card's own owner
+/// (CR 400.3), not a player related to an antecedent in the binding
+/// environment; the bound-possessive resolver must not claim it here.
+fn its_owner_possessive(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("owner's") || raw.eq_ignore_ascii_case("owner\u{2019}s")
+        })
+}

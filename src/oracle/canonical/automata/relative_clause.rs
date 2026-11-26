@@ -412,11 +412,240 @@ fn distinct_controllers_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Opt
         .then_some(phrase.len())
 }
 
+/// `controlled by the same player|opponent` at the cursor (CR 108.4): a
+/// reduced relative over a plural chosen set whose members all have one
+/// controller. Returns the phrase width and whether that controller is an
+/// opponent of the ability controller. Like `controlled by different
+/// players`, it constrains the set, not one candidate. Pure lookahead.
+pub(in crate::oracle::canonical) fn same_controller_set_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<(usize, bool)> {
+    if !(word_at(cursor, 0, "controlled")
+        && word_at(cursor, 1, "by")
+        && word_at(cursor, 2, "the")
+        && word_at(cursor, 3, "same"))
+    {
+        return None;
+    }
+    if word_at(cursor, 4, "player") {
+        Some((5, false))
+    } else if word_at(cursor, 4, "opponent") {
+        Some((5, true))
+    } else {
+        None
+    }
+}
+
+/// The anchor of a combat relation whose subject is the anchor itself
+/// (`creature it's blocking`, `creature this creature is blocking`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CombatSubjectAnchor {
+    /// `it's`: the pronoun and the copula in one token.
+    ContractedPronoun,
+    /// `it`, `this creature`, the source's name: the shared anchor reader.
+    Definite,
+}
+
+/// A combat relation whose grammatical subject is the anchor (CR 509.1):
+///
+/// ```text
+/// SubjectRelative := ["that"] ANCHOR ("is" | "'s") "blocking"   current block
+///                  | ["that"] ANCHOR "blocked" "this" "turn"    block history
+/// ANCHOR          := "it" | "this" NOUN | NAME
+/// ```
+///
+/// The candidate is the attacking creature the anchor blocks: the
+/// `blockedBy` relation (or its this-turn history) with the anchor as the
+/// blocker. `it blocked this combat` names one combat, which no relation
+/// records, and is not claimed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CombatSubjectRelative {
+    pronoun: usize,
+    anchor: CombatSubjectAnchor,
+    kind: ObjectRelationKind,
+    verb: &'static [&'static str],
+}
+
+const IS_BLOCKING: &[&str] = &["is", "blocking"];
+const CONTRACTED_BLOCKING: &[&str] = &["blocking"];
+const BLOCKED_THIS_TURN_VERB: &[&str] = &["blocked", "this", "turn"];
+
+/// The subject-relative combat clause at the cursor. A pure lookahead; the
+/// anchor's binding is proved by the reader.
+fn combat_subject_relative_at(cursor: &OracleTokenCursor<'_>) -> Option<CombatSubjectRelative> {
+    let pronoun = usize::from(word_at(cursor, 0, "that") || word_at(cursor, 0, "which"));
+    // The verb closes a short subject: no lookahead reads a name otherwise.
+    if !(pronoun..pronoun + 8)
+        .any(|at| word_at(cursor, at, "blocking") || word_at(cursor, at, "blocked"))
+    {
+        return None;
+    }
+    if word_at(cursor, pronoun, "it's") || word_at(cursor, pronoun, "it\u{2019}s") {
+        return word_at(cursor, pronoun + 1, "blocking").then_some(CombatSubjectRelative {
+            pronoun,
+            anchor: CombatSubjectAnchor::ContractedPronoun,
+            kind: ObjectRelationKind::BlockedBy,
+            verb: CONTRACTED_BLOCKING,
+        });
+    }
+    let anchor_width = if cursor
+        .peek_ahead(pronoun)
+        .is_some_and(super::is_source_anaphor)
+    {
+        1
+    } else if word_at(cursor, pronoun, "this") || pronoun == 0 {
+        // `this creature`, or the source's name right after the noun.
+        let mut trial = cursor_after(cursor, pronoun)?;
+        let start = trial.position();
+        let names = trial.source_names().to_vec();
+        super::recognize_source_reference(&mut trial, &names, None).ok()?;
+        trial.position() - start
+    } else {
+        return None;
+    };
+    let verb_at = pronoun + anchor_width;
+    let (kind, verb) = if word_at(cursor, verb_at, "is") && word_at(cursor, verb_at + 1, "blocking")
+    {
+        (ObjectRelationKind::BlockedBy, IS_BLOCKING)
+    } else if word_at(cursor, verb_at, "blocked")
+        && word_at(cursor, verb_at + 1, "this")
+        && word_at(cursor, verb_at + 2, "turn")
+    {
+        (
+            ObjectRelationKind::BlockedByThisTurn,
+            BLOCKED_THIS_TURN_VERB,
+        )
+    } else {
+        return None;
+    };
+    Some(CombatSubjectRelative {
+        pronoun,
+        anchor: CombatSubjectAnchor::Definite,
+        kind,
+        verb,
+    })
+}
+
+/// Reads `ANCHOR is blocking` / `it's blocking` / `ANCHOR blocked this
+/// turn` after a noun (`target creature it's blocking`, `each creature this
+/// creature is blocking`, `all creatures it blocked this turn`): the
+/// candidate is an attacking creature the anchor blocks now (CR 509.1), or
+/// blocked this turn. The engine reads the block of a departed anchor from
+/// its last known block pairs (CR 608.2h).
+fn recognize_combat_subject_relative(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relative-clause.combat-subject");
+    let shape = cursor.require_value(
+        combat_subject_relative_at(cursor),
+        "`it's blocking`, `ANCHOR is blocking` or `ANCHOR blocked this turn`",
+    )?;
+    consume_words(cursor, shape.pronoun)?;
+    let anchor = match shape.anchor {
+        CombatSubjectAnchor::ContractedPronoun => recognize_contracted_pronoun_anchor(cursor)?,
+        CombatSubjectAnchor::Definite => recognize_relation_anchor(cursor, true)?,
+    };
+    cursor.enter("selector.relative-clause.combat-subject.verb");
+    for word in shape.verb {
+        cursor.consume(word)?;
+    }
+    Ok(ObjectPredicate::Relation(ObjectRelation::Related(
+        RelatedObject {
+            kind: shape.kind,
+            anchor,
+        },
+    )))
+}
+
+/// The anchor `it's` names: the pronoun of the contraction resolved as
+/// `it` is by `recognize_relation_anchor` (the clause subject, else the
+/// pronoun's antecedent), consuming the one contracted token.
+fn recognize_contracted_pronoun_anchor(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<RelationAnchor> {
+    cursor.enter("selector.relation.anchor.contracted-pronoun");
+    let environment = super::installed_binding_environment(cursor);
+    let reference = match environment.subject {
+        Some(subject) if environment.object.is_none() && anchor_reference_lowerable(subject) => {
+            subject
+        }
+        _ => super::resolve_pronoun_antecedent(&environment)
+            .map_err(|expected| cursor.fail(expected))?,
+    };
+    cursor.enter("selector.relation.anchor.binding");
+    cursor.require(
+        anchor_reference_lowerable(reference),
+        "a bound anchor object the relation can name at resolution",
+    )?;
+    consume_words(cursor, 1)?;
+    Ok(RelationAnchor::Object(reference))
+}
+
+/// `doesn't|don't have COUNTER-QUALIFIER` at `offset` (`that doesn't have a
+/// +1/+1 counter on it`): the negated possession, with the width of the
+/// negated verb. Pure lookahead.
+fn negated_counter_possession_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    (["doesn't", "don't", "doesn\u{2019}t", "don\u{2019}t"]
+        .iter()
+        .any(|form| word_at(cursor, offset, form))
+        && word_at(cursor, offset + 1, "have")
+        && super::counter_qualifier_starts(cursor, offset + 2))
+    .then_some(2)
+}
+
+/// `whose power and toughness are|aren't equal` at the cursor (CR 208.1):
+/// one property of the candidate compared with another of the same
+/// candidate, with the phrase width and whether it is negated. Pure
+/// lookahead; any other `whose` clause is not claimed.
+fn whose_power_toughness_equality_at(cursor: &OracleTokenCursor<'_>) -> Option<(usize, bool)> {
+    if !(word_at(cursor, 0, "whose")
+        && word_at(cursor, 1, "power")
+        && word_at(cursor, 2, "and")
+        && word_at(cursor, 3, "toughness"))
+    {
+        return None;
+    }
+    let negated = if word_at(cursor, 4, "are") {
+        false
+    } else if word_at(cursor, 4, "aren't") || word_at(cursor, 4, "aren\u{2019}t") {
+        true
+    } else {
+        return None;
+    };
+    word_at(cursor, 5, "equal").then_some((6, negated))
+}
+
+/// Reads `whose power and toughness are|aren't equal` into the comparison of
+/// the candidate's power with its own toughness.
+fn recognize_whose_power_toughness_equality(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relative-clause.whose-property-equality");
+    let (width, negated) = cursor.require_value(
+        whose_power_toughness_equality_at(cursor),
+        "`whose power and toughness are equal` or `aren't equal`",
+    )?;
+    consume_words(cursor, width)?;
+    let comparison =
+        ObjectPredicate::Qualifier(super::ObjectQualifier::CandidatePropertyComparison {
+            left: super::SelectorNumericProperty::Power,
+            operator: super::NumericComparisonOperator::Equal,
+            right: super::SelectorNumericProperty::Toughness,
+        });
+    Ok(if negated {
+        ObjectPredicate::Not(Box::new(comparison))
+    } else {
+        comparison
+    })
+}
+
 /// True when a relative clause of every query starts at the cursor.
 pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     if participial_relation_starts(cursor)
         || contracted_copular_participle(cursor)
         || distinct_controllers_at(cursor, 0).is_some()
+        || combat_subject_relative_at(cursor).is_some()
+        || whose_power_toughness_equality_at(cursor).is_some()
     {
         return true;
     }
@@ -446,7 +675,8 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
             || dealt_damage_to_player_at(cursor, 1).is_some()
             || negated_past_at(cursor, 1).is_some()
             || zone_arrival_width_at(cursor, 1).is_some()
-            || same_characteristic_possession_at(cursor, 1).is_some())
+            || same_characteristic_possession_at(cursor, 1).is_some()
+            || negated_counter_possession_at(cursor, 1).is_some())
 }
 
 /// The zone-arrival history of a card in the zone its parent named, at
@@ -719,6 +949,15 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
         // attacked player (CR 508.1b).
         return recognize_attacking_player(cursor);
     }
+    if combat_subject_relative_at(cursor).is_some() {
+        // `target creature it's blocking`: the anchor is the clause's
+        // subject (CR 509.1).
+        return recognize_combat_subject_relative(cursor);
+    }
+    if whose_power_toughness_equality_at(cursor).is_some() {
+        // `target non-Elf creature whose power and toughness aren't equal`.
+        return recognize_whose_power_toughness_equality(cursor);
+    }
     if participial_relation_at(cursor, 0).is_some() {
         // `Equipment attached to that creature`, `each creature blocking
         // it`: a reduced relative clause, the participle with no pronoun.
@@ -844,6 +1083,15 @@ pub(in crate::oracle::canonical) fn recognize_relative_predicate(
         cursor.enter("selector.relative-clause.zone-history");
         consume_words(cursor, width)?;
         return Ok(ObjectPredicate::Status(history));
+    }
+    if let Some(width) = negated_counter_possession_at(cursor, 0) {
+        // `that doesn't have a +1/+1 counter on it`: the negation of the
+        // same counter qualifier (CR 122.1).
+        cursor.enter("selector.relative-clause.negated-possession");
+        consume_words(cursor, width)?;
+        return Ok(ObjectPredicate::Not(Box::new(
+            super::recognize_counter_qualifier(cursor)?,
+        )));
     }
     if word_at(cursor, 0, "has") || word_at(cursor, 0, "have") {
         cursor.enter("selector.relative-clause.possession");
@@ -1179,6 +1427,9 @@ pub(in crate::oracle::canonical) enum RelationAnchor {
     /// Some battlefield permanent of a query (`attached to a creature you
     /// control`): the relation holds with at least one of them.
     Query(Box<ObjectQueryNode>),
+    /// A definite description's recorded or linked object (`the sacrificed
+    /// creature`, `the exiled card`): `definite_object_description.rs`.
+    Described(super::DescribedObject),
 }
 
 /// The characteristic a `share` clause compares (CR 105.1, 205.2, 205.3).
@@ -1275,8 +1526,12 @@ impl RelatedObject {
             | ObjectRelationKind::BlockedByThisTurn
             | ObjectRelationKind::DealtDamageToThisTurn
             | ObjectRelationKind::DealtCombatDamageToThisTurn => domain == ObjectKind::Permanent,
+            // A spell has the characteristics of its card (CR 112.1).
             ObjectRelationKind::Shares(_) => {
-                matches!(domain, ObjectKind::Permanent | ObjectKind::Card)
+                matches!(
+                    domain,
+                    ObjectKind::Permanent | ObjectKind::Card | ObjectKind::Spell
+                )
             }
         }
     }
@@ -1613,6 +1868,9 @@ pub(in crate::oracle::canonical) fn recognize_relation_anchor(
     definite_only: bool,
 ) -> MachineResult<RelationAnchor> {
     cursor.enter("selector.relation.anchor");
+    if let Some(anchor) = super::recognize_described_relation_anchor(cursor)? {
+        return Ok(anchor);
+    }
     if super::bound_object_reference_starts(cursor) {
         let environment = super::installed_binding_environment(cursor);
         // `X gets +1/+1 for each Aura attached to it`: without a lexical

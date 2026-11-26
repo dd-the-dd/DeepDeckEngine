@@ -20,7 +20,8 @@ use std::borrow::Cow;
 use serde_json::Value;
 
 use super::numeric_evaluation::evaluate_checked_numeric_tree;
-use super::{GameEngine, integer_value, value_kind};
+use super::source_bound_operands::{bind_candidates, contains_source_operand};
+use super::{CardInstance, GameEngine, integer_value, value_kind};
 
 /// A player reference that denotes the player whose candidates are
 /// enumerated: absent, the controller, or the controller of the source.
@@ -177,6 +178,29 @@ impl GameEngine {
         }
         if let Some(filter) = candidates.get_mut("where") {
             self.bind_candidate_filter(filter, controller_id);
+        }
+    }
+
+    /// A static object selector whose comparison reads its own source
+    /// (`creatures with power less than this creature's power`), bound to
+    /// that source as it is now: a static ability's effect is applied
+    /// continuously with the current values (CR 611.3a). A selector without
+    /// such an operand is borrowed unchanged; an operand that cannot be read
+    /// leaves the selector unbound, which then matches nothing.
+    pub(super) fn bind_static_source_selector<'a>(
+        &self,
+        selector: &'a Value,
+        source: &CardInstance,
+    ) -> Cow<'a, Value> {
+        if !contains_source_operand(&selector["where"]) {
+            return Cow::Borrowed(selector);
+        }
+        let mut bound = selector.clone();
+        match bind_candidates(&mut bound, &mut |expression| {
+            self.source_operand_value(expression, source)
+        }) {
+            Some(()) => Cow::Owned(bound),
+            None => Cow::Borrowed(selector),
         }
     }
 

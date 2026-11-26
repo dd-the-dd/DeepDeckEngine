@@ -126,6 +126,7 @@ mod death_trigger_batch;
 mod deck_construction_keywords;
 mod declaration_result;
 mod defending_player_restriction;
+mod described_object_anchor;
 mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
@@ -163,6 +164,8 @@ mod entry_observation;
 mod evasion_exception;
 mod event_object;
 mod granted_mana_program;
+mod graveyard_position;
+mod hidden_visibility;
 mod mana_activation_actions;
 mod mana_activation_costs;
 mod mana_activation_execution;
@@ -179,10 +182,12 @@ mod static_player_permissions;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
 mod captured_binding;
+mod created_trigger_matchers;
 mod effect_created_rules;
 mod effect_performer;
 mod event_history;
 mod extra_turn;
+mod initiative;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -194,9 +199,12 @@ mod mana_projection_fixed_point;
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
 ))]
 mod mana_public_path_tests;
+mod mana_retention;
 mod mana_spend_prohibition;
+mod mana_spending_policy;
 mod mana_value_execution;
 mod nominal_choices;
+mod numeric_aggregate;
 mod numeric_evaluation;
 mod numeric_quantities;
 mod object_condition;
@@ -209,6 +217,7 @@ mod object_identity_test_setup;
 mod object_predicate;
 mod object_predicate_eval;
 mod object_relation_eval;
+mod object_set_constraints;
 mod object_snapshot;
 mod offered_action;
 mod once_per_turn;
@@ -229,6 +238,7 @@ mod player_quantifier;
 mod player_query;
 mod player_static_modifiers;
 mod previous_turn_events;
+mod program_iteration;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
@@ -242,6 +252,7 @@ mod resolution_permissions;
 mod resolution_preflight;
 mod resolution_records;
 mod riot;
+mod rule_executability;
 mod rule_execution;
 mod runtime_collections;
 mod runtime_object_filter;
@@ -2454,7 +2465,7 @@ fn permanent_filter_supported(filter: &Value) -> bool {
     match value_kind(filter) {
         Some("hasDesignation") => matches!(
             filter["designation"].as_str(),
-            Some("monstrous" | "renowned" | "suspected" | "kicked" | "faceDown")
+            Some("monstrous" | "renowned" | "suspected" | "kicked" | "faceDown" | "prepared")
         ),
         Some("hasCounter") => {
             filter.get("counter").is_none_or(Value::is_string)
@@ -2667,6 +2678,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = numeric_quantities::numeric_quantity_supported(expression) {
+        return supported;
+    }
+    if let Some(supported) = numeric_aggregate::aggregate_objects_supported(expression) {
         return supported;
     }
     match value_kind(expression) {
@@ -2950,6 +2964,7 @@ fn object_expression_supported(expression: &Value) -> bool {
         Some("cardsExiledWithSource" | "triggeringCard") => true,
         Some("referencedObject") => referenced_object::referenced_object_supported(expression),
         Some("libraryTopCards") => card_selection::library_top_cards_supported(expression),
+        Some("graveyardEndCards") => graveyard_position::graveyard_end_cards_supported(expression),
         Some("boundObjects") => expression["binding"].is_string(),
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("setDifference") => {
@@ -3015,6 +3030,7 @@ fn library_zone_supported(zone: &Value) -> bool {
 }
 
 fn card_choice_candidates_supported(candidates: &Value) -> bool {
+    let candidates = &source_bound_operands::with_placeholder_bindings(candidates);
     if value_kind(candidates) != Some("cards") {
         return false;
     }
@@ -4198,14 +4214,21 @@ fn mana_value_supported(value: &Value) -> bool {
 }
 
 fn mana_spend_restriction_supported(restriction: &Value) -> bool {
-    (matches!(
-        value_kind(restriction),
-        Some(
-            "castSpell"
-                | "castSpellOrActivateAbility"
-                | mana_spend_prohibition::CAST_SPELL_PROHIBITED
-        )
-    ) && card_filter_supported(&restriction["where"]))
+    mana_retention::unit_attributes_supported(restriction)
+        && (mana_retention::unit_attributes_only(restriction)
+            || mana_spend_use_supported(restriction))
+}
+
+fn mana_spend_use_supported(restriction: &Value) -> bool {
+    mana_spending_policy::use_union_supported(restriction)
+        || (matches!(
+            value_kind(restriction),
+            Some(
+                "castSpell"
+                    | "castSpellOrActivateAbility"
+                    | mana_spend_prohibition::CAST_SPELL_PROHIBITED
+            )
+        ) && card_filter_supported(&restriction["where"]))
         || (value_kind(restriction) == Some("castSpellFromZone")
             && matches!(
                 restriction["zone"].as_str(),
@@ -4656,6 +4679,9 @@ pub fn effect_supported(effect: &Value) -> bool {
     if let Some(supported) = player_iteration::player_iteration_supported(effect) {
         return supported;
     }
+    if let Some(supported) = program_iteration::program_iteration_supported(effect) {
+        return supported;
+    }
     if let Some(supported) = myriad::myriad_effect_supported(effect) {
         return supported;
     }
@@ -4707,6 +4733,7 @@ fn target_selection_constraint_supported(constraint: &Value) -> bool {
         }
         Some("targetControllerMatchesTargetPlayer") => constraint["targetId"].is_string(),
         Some("distinctPermanentControllers") => true,
+        kind if object_set_constraints::object_set_constraint_supported(kind) => true,
         Some("distinctCardNames") => true,
         Some("shareCardType") => true,
         Some("allOf") => object_predicate_eval::all_of_supported(
@@ -5763,8 +5790,11 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && integer_value(&modifier["factor"]).is_some_and(|factor| factor > 1)
         }
         Some("blockRestriction") => {
-            static_object_selector_supported(&modifier["attackers"])
-                && static_object_selector_supported(&modifier["blockers"])
+            static_object_selector_supported(&source_bound_operands::with_placeholder_bindings(
+                &modifier["attackers"],
+            )) && static_object_selector_supported(
+                &source_bound_operands::with_placeholder_bindings(&modifier["blockers"]),
+            )
         }
         Some("multiplyTriggeredAbility") => {
             static_object_selector_supported(&modifier["sources"])
@@ -6029,6 +6059,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
             static_object_prohibitions::static_object_prohibition_supported(modifier)
                 .unwrap_or(false)
         }
+        Some("lookAtFaceDownAnyTime") => {
+            hidden_visibility::face_down_look_modifier_supported(modifier)
+        }
         _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }
@@ -6073,89 +6106,11 @@ fn eminence_static_rule_supported(rule: &Value) -> bool {
 }
 
 fn rule_supported(rule: &Value) -> bool {
-    if !entry_observation::reference_scope_supported(rule) || !band_gate::band_gate_supported(rule)
-    {
-        return false;
-    }
-    match value_kind(rule) {
-        Some("spellAbility") => spell_rule_supported(rule),
-        Some("prepareSpell") => prepare_spell_rule_supported(rule),
-        Some("adventureSpell") => adventure::adventure_spell_rule_supported(rule),
-        Some("manaAbility") => mana_rule_supported(rule),
-        Some("replacementEffect") => replacement_rule_supported(rule),
-        Some("activatedAbility") => activated_rule_supported(rule),
-        Some("triggeredAbility") => triggered_rule_supported(rule),
-        Some("dungeonRoom") => {
-            rule["room"].is_string()
-                && rule["nextRooms"]
-                    .as_array()
-                    .is_some_and(|rooms| rooms.iter().all(Value::is_string))
-                && rule["effects"].as_array().is_some_and(|effects| {
-                    !effects.is_empty() && effects.iter().all(effect_supported)
-                })
-                && declaration_shape_supported(rule)
-        }
-        Some("keywordAbility" | "keywordAbilityGroup") => keyword_rule_supported(rule),
-        Some("rulesMarker") => {
-            let legacy_text_marker = rule["text"].is_string()
-                && rule["splitFaces"].as_array().is_none_or(|faces| {
-                    !faces.is_empty()
-                        && faces.iter().all(|face| {
-                            face["name"].is_string()
-                                && face["typeLine"].is_string()
-                                && face["manaCost"].is_string()
-                                && face["rules"]
-                                    .as_array()
-                                    .is_some_and(|rules| rules.iter().all(rule_supported))
-                        })
-                });
-            let typed_saga_progression = rule["marker"].as_str() == Some("sagaProgression")
-                && value_kind(&rule["source"]) == Some("self")
-                && numeric_expression_supported(&rule["finalChapter"]);
-            rule.get("morbidSearchDestination").is_none()
-                && (legacy_text_marker || typed_saga_progression)
-        }
-        Some("staticAbility") => {
-            battlefield_static_rule_supported(rule)
-                || casting_static_rule_supported(rule)
-                || activated_rule_execution::cast_restriction_rule_supported(rule)
-                || eminence_static_rule_supported(rule)
-                // CR 604.3: statics that say they function from a graveyard,
-                // hand or exile join the continuous-effect collector there.
-                || zone_of_function::card_zone_static_rule_supported(rule)
-                // CR 309.2: a Dungeon stays in the command zone; its entry
-                // restriction is read there by the venture procedure.
-                || (zone_of_function::static_zone_of_function(rule)
-                    == Some(ZoneOfFunction::Command)
-                    && rule["modifiers"].as_array().is_some_and(|modifiers| {
-                        !modifiers.is_empty()
-                            && modifiers.iter().all(|modifier| {
-                                value_kind(modifier) == Some("dungeonEntryRestriction")
-                                    && modifier["procedure"].is_string()
-                            })
-                    }))
-                || (zone_of_function::static_zone_of_function(rule)
-                    == Some(ZoneOfFunction::Stack)
-                    && rule["modifiers"].as_array().is_some_and(|modifiers| {
-                        !modifiers.is_empty()
-                            && modifiers.iter().all(|modifier| {
-                                value_kind(modifier) == Some("cantBeCountered")
-                                    && value_kind(&modifier["object"]) == Some("self")
-                            })
-                    }))
-        }
-        Some(
-            "cantBlock" | "deathtouch" | "defender" | "doubleStrike" | "firstStrike" | "flying"
-            | "haste" | "hexproof" | "lifelink" | "menace" | "prowess" | "reach" | "trample"
-            | "shroud" | "vigilance",
-        ) => true,
-        Some("firebending") => keyword_kind_supported(rule),
-        _ => false,
-    }
+    rule_executability::rule_supported(rule)
 }
 
 pub fn rule_is_executable(rule: &Value) -> bool {
-    rule_supported(rule)
+    rule_executability::rule_supported(rule)
 }
 
 fn spell_cant_be_countered(card: &CardDefinition) -> bool {
@@ -8281,6 +8236,9 @@ impl GameEngine {
                     )
                 })
             }
+            Some(object_set_constraints::SAME_PERMANENT_CONTROLLER) => {
+                self.selection_has_same_permanent_controller(selection)
+            }
             Some("distinctPermanentControllers") => {
                 let mut controllers = BTreeSet::new();
                 selection.iter().all(|target| {
@@ -9428,6 +9386,9 @@ impl GameEngine {
         if let Some(value) = self.numeric_quantity(expression, controller_id) {
             return value;
         }
+        if let Some(value) = self.source_numeric_aggregate(expression, controller_id, None) {
+            return value;
+        }
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
@@ -9947,6 +9908,9 @@ impl GameEngine {
         controller_id: &str,
         source: Option<&CardInstance>,
     ) -> Option<i32> {
+        if let Some(value) = self.source_numeric_aggregate(expression, controller_id, source) {
+            return value;
+        }
         if let Some(count) =
             self.related_permanent_count_with_source(expression, controller_id, source)
         {
@@ -10328,6 +10292,8 @@ impl GameEngine {
         selector: &Value,
         permanent: &CardInstance,
     ) -> bool {
+        let bound = self.bind_static_source_selector(selector, source);
+        let selector = bound.as_ref();
         if value_kind(selector) != Some("permanents") {
             return Self::static_selector_matches(source, selector, permanent);
         }
@@ -19242,6 +19208,7 @@ impl GameEngine {
                     let is_mana_ability = mana_rule_supported(rule);
                     if !(activated_rule_supported(rule) || is_mana_ability)
                         || !activated_rule_usable_from_zone(rule, zone_name)
+                        || self.activation_limit_reached(card, rule, rule_index)
                         || rule.get("activationCondition").is_some_and(|condition| {
                             !self.condition_value_with_source(
                                 condition,
@@ -22650,6 +22617,7 @@ impl GameEngine {
                 return;
             }
         }
+        self.publish_created_entry_triggers(source, entry_observation, &decisions);
     }
 
     fn enqueue_card_plotted_triggers(&mut self, source: &CardInstance) {
@@ -23118,6 +23086,7 @@ impl GameEngine {
     }
 
     fn enqueue_life_gained_triggers(&mut self, player_id: &str, amount: i32) {
+        self.publish_created_life_gained_triggers(player_id, amount);
         let sources = self
             .state
             .players
@@ -24783,6 +24752,11 @@ impl GameEngine {
             &record,
             &decisions,
         );
+        self.publish_created_controlled_combat_damage_triggers(
+            &damage_source,
+            player_id,
+            &decisions,
+        );
         for source in sources {
             let rules = self
                 .effective_rules(&source)
@@ -24888,6 +24862,7 @@ impl GameEngine {
         if amount > 0 && defender_is_monarch && damage_source.controller != player_id {
             self.become_monarch(&damage_source.controller);
         }
+        self.enqueue_initiative_combat_damage(player_id, &damage_source.controller, amount);
     }
 
     fn enqueue_spell_cast_triggers(
@@ -25359,6 +25334,7 @@ impl GameEngine {
     fn enqueue_step_triggers(&mut self, step: &str) {
         if step == "upkeep" {
             self.open_echo_upkeep_window();
+            self.enqueue_initiative_upkeep_venture();
         }
         let active_player_id = self.state.players[self.state.active_player].id.clone();
         let mut sources = self
@@ -27038,6 +27014,13 @@ impl GameEngine {
                         engine.apply_activated_chosen_object_costs(action, &rule)?;
                         let tapped_sources = engine.apply_payment(player_index, action)?;
                         engine.pay_activated_counter_costs(action, &rule, provider)?;
+                        engine.record_hand_activation_use(
+                            player_index,
+                            zone_name,
+                            instance_id,
+                            &rule,
+                            rule_index,
+                        );
                         let pending_cost_triggers = engine.state.stack.split_off(cost_stack_start);
                         let committed_cost_payment =
                             engine.commit_activated_cost_payment(&prepared_cost_payment)?;
@@ -31410,6 +31393,11 @@ impl GameEngine {
             return Some(value);
         }
         if let Some(value) =
+            self.runtime_numeric_aggregate(expression, stack_object, bindings, decisions)
+        {
+            return value;
+        }
+        if let Some(value) =
             self.resolution_record_numeric(expression, stack_object, bindings, decisions)
         {
             return value;
@@ -32392,6 +32380,9 @@ impl GameEngine {
             Some("libraryTopCards") => {
                 self.library_top_card_ids(expression, stack_object, bindings, decisions)
             }
+            Some("graveyardEndCards") => {
+                self.graveyard_end_card_ids(expression, stack_object, bindings, decisions)
+            }
             Some("attachedObject") if value_kind(&expression["attachment"]) == Some("self") => {
                 stack_object
                     .card
@@ -32747,8 +32738,20 @@ impl GameEngine {
                 player
                     .battlefield
                     .iter()
+                    // CR 708.5: a face-down permanent's front face only for
+                    // its controller or a player who looked at it.
+                    .filter(|card| {
+                        self.face_down_permanent_visible_to(player_id, &card.instance_id)
+                    })
                     .chain(&player.graveyard)
-                    .chain(&player.exile)
+                    // CR 406.3: a face-down exiled card only for a viewer
+                    // an effect lets look at it.
+                    .chain(
+                        player
+                            .exile
+                            .iter()
+                            .filter(|card| self.exiled_card_visible_to(player_id, card)),
+                    )
                     .chain(&player.command_zone)
                     .chain(player.hand.iter().filter(|card| {
                         player.id == player_id
@@ -33687,6 +33690,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_player_iteration(effect, stack_object, bindings, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_program_iteration(effect, stack_object, bindings, decisions, provider)? {
             return Ok(());
         }
         if self.execute_offered_action(effect, stack_object, bindings, decisions, provider)? {
@@ -36245,121 +36251,7 @@ impl GameEngine {
                     permission["expiresAtEndStepOf"].as_str() != Some(active_player_id.as_str())
                 });
             }
-            let mana_conversions = self
-                .state
-                .players
-                .iter()
-                .flat_map(|player| player.battlefield.iter())
-                .flat_map(|source| {
-                    source
-                        .definition
-                        .printed_rules()
-                        .iter()
-                        .flat_map(move |rule| {
-                            rule["modifiers"]
-                                .as_array()
-                                .into_iter()
-                                .flatten()
-                                .filter(|modifier| {
-                                    value_kind(rule) == Some("staticAbility")
-                                        && value_kind(modifier) == Some("convertUnspentMana")
-                                        && value_kind(&modifier["player"]) == Some("controllerOf")
-                                })
-                                .filter_map(move |modifier| {
-                                    modifier["to"].as_str().map(|symbol| {
-                                        (source.controller.clone(), symbol.to_string())
-                                    })
-                                })
-                        })
-                })
-                .collect::<BTreeMap<_, _>>();
-            let mut mana_retentions = self
-                .state
-                .players
-                .iter()
-                .flat_map(|player| player.battlefield.iter())
-                .flat_map(|source| {
-                    source
-                        .definition
-                        .printed_rules()
-                        .iter()
-                        .flat_map(move |rule| {
-                            rule["modifiers"]
-                                .as_array()
-                                .into_iter()
-                                .flatten()
-                                .filter(|modifier| {
-                                    value_kind(rule) == Some("staticAbility")
-                                        && value_kind(modifier) == Some("retainUnspentMana")
-                                        && value_kind(&modifier["player"]) == Some("controllerOf")
-                                })
-                                .flat_map(move |modifier| {
-                                    modifier["symbols"]
-                                        .as_array()
-                                        .into_iter()
-                                        .flatten()
-                                        .filter_map(Value::as_str)
-                                        .map(move |symbol| {
-                                            (source.controller.clone(), symbol.to_string())
-                                        })
-                                })
-                        })
-                })
-                .fold(
-                    BTreeMap::<String, BTreeSet<String>>::new(),
-                    |mut map, (player, symbol)| {
-                        map.entry(player).or_default().insert(symbol);
-                        map
-                    },
-                );
-            for modifier in &self.state.rule_modifiers {
-                if value_kind(modifier) != Some("retainUnspentMana")
-                    || modifier["expiresAfterTurn"]
-                        .as_u64()
-                        .is_some_and(|turn| turn < u64::from(self.state.turn_number))
-                {
-                    continue;
-                }
-                let Some(player_id) = modifier["playerId"].as_str() else {
-                    continue;
-                };
-                for symbol in modifier["symbols"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                {
-                    mana_retentions
-                        .entry(player_id.to_string())
-                        .or_default()
-                        .insert(symbol.to_string());
-                }
-            }
-            for player in &mut self.state.players {
-                let conversion = mana_conversions.get(&player.id);
-                let retained_symbols = mana_retentions.get(&player.id);
-                let mut retained_mana = Vec::new();
-                for mut mana in std::mem::take(&mut player.mana_pool) {
-                    let independently_retained =
-                        mana.spend_restriction.as_ref().is_some_and(|restriction| {
-                            value_kind(restriction) == Some("firebendingMana")
-                                && restriction["expiresAfterTurn"]
-                                    .as_u64()
-                                    .is_some_and(|turn| turn >= u64::from(self.state.turn_number))
-                        });
-                    if independently_retained {
-                        retained_mana.push(mana);
-                    } else if retained_symbols.is_some_and(|symbols| symbols.contains(&mana.symbol))
-                    {
-                        retained_mana.push(mana);
-                    } else if let Some(symbol) = conversion {
-                        mana.symbol = symbol.clone();
-                        mana.spend_restriction = None;
-                        retained_mana.push(mana);
-                    }
-                }
-                player.mana_pool = retained_mana;
-            }
+            self.empty_mana_pools_as_step_ends();
             self.state.step = step;
         }
     }

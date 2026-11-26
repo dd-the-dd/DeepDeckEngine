@@ -101,6 +101,8 @@ fn simple_operand(operand: &CardOperandNode) -> bool {
         CardOperandNode::ZoneCollection(_)
         | CardOperandNode::Targets(_)
         | CardOperandNode::LibraryTop(_)
+        | CardOperandNode::GraveyardPosition(_)
+        | CardOperandNode::PermanentTargets(_)
         | CardOperandNode::CardCopies { .. }
         | CardOperandNode::HiddenChoice(_)
         | CardOperandNode::CommandZone { .. }
@@ -147,6 +149,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             | SingularPlayerAction::Skip(_)
             | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::Status(_)
+            | SingularPlayerAction::Pay(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::TargetPlayerLife(node) => independent_number(&node.amount),
@@ -245,6 +248,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::AdditionalPhases(_)
+        | LocalEffectNode::RepeatProcess(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -364,6 +368,8 @@ impl CollectionScope {
             CardOperandNode::ZoneCollection(_)
             | CardOperandNode::Targets(_)
             | CardOperandNode::LibraryTop(_)
+            | CardOperandNode::GraveyardPosition(_)
+            | CardOperandNode::PermanentTargets(_)
             | CardOperandNode::CardCopies { .. }
             | CardOperandNode::HiddenChoice(_)
             | CardOperandNode::CommandZone { .. }
@@ -520,6 +526,7 @@ fn resolve_sequence(
             | LocalEffectNode::ControlChange(_)
             | LocalEffectNode::CopyStackObject(_)
             | LocalEffectNode::AdditionalPhases(_)
+            | LocalEffectNode::RepeatProcess(_)
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_)

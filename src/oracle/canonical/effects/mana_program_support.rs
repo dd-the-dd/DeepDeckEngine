@@ -65,6 +65,7 @@ pub(in crate::oracle::canonical) fn produces_mana_while_resolving(
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::AdditionalPhases(_)
+        | LocalEffectNode::RepeatProcess(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -100,6 +101,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::Status(_)
             | SingularPlayerAction::SetLifeTotal(_)
+            | SingularPlayerAction::Pay(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::OptionalSequence(body) => {
@@ -233,6 +235,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::AdditionalPhases(_)
+        | LocalEffectNode::RepeatProcess(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -269,6 +272,9 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         | LocalActivationCostNode::Blight(_) => false,
         // A mill cost moves the payer's top library cards (CR 701.13a).
         LocalActivationCostNode::Mill { .. } => true,
+        // Cards put on top of or on the bottom of a library (CR 401.4).
+        LocalActivationCostNode::PutCardsInLibrary(_)
+        | LocalActivationCostNode::PutSourceInLibrary(_) => true,
         LocalActivationCostNode::Designated(designated) => {
             matches!(designated, DesignatedActivationCost::ExileLibraryTop { .. })
         }

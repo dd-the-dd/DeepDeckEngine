@@ -200,6 +200,18 @@ pub(in crate::oracle::canonical) fn recognize_additional_land_allowance_header(
     cursor.enter("modifier.additional-land-play.action");
     cursor.consume("play")?;
     cursor.enter("modifier.additional-land-play.quantity");
+    // `play up to two additional lands` (CR 305.2): each additional land
+    // play is a permission the player may leave unused, so `up to N` grants
+    // the same N plays as `N`.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("up"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("to"))
+    {
+        cursor.consume_phrase(&["up", "to"])?;
+    }
     let count = recognize_numeric_expression(cursor, None)?;
     cursor.enter("modifier.additional-land-play.additional");
     cursor.consume("additional")?;

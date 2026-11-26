@@ -37,5 +37,6 @@ impl GameEngine {
             batch: self.current_damage_batch(),
         };
         self.publish_damage_source_observers(&record);
+        self.publish_created_source_damage_triggers(&record);
     }
 }

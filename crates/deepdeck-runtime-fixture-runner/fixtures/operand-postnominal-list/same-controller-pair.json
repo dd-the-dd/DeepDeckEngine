@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "operand-postnominal-list/same-controller-pair",
+  "seed": 110801,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 2,
+          "maximum": 2,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "selectionConstraint": {
+            "kind": "samePermanentController"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "returnToOwnersHand",
+        "object": {
+          "kind": "chosenTargets",
+          "id": "targetPermanent"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Activating player",
+        "battlefield": [
+          {
+            "id": "same-controller-bouncer",
+            "name": "Same Controller Bouncer",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 2,
+                      "maximum": 2,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "selectionConstraint": {
+                        "kind": "samePermanentController"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "returnToOwnersHand",
+                    "object": {
+                      "kind": "chosenTargets",
+                      "id": "targetPermanent"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "own-creature",
+            "name": "Own Creature",
+            "typeLine": "Creature - Test",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "first-opposing",
+            "name": "First Opposing",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "second-opposing",
+            "name": "Second Opposing",
+            "typeLine": "Creature - Test",
+            "power": "3",
+            "toughness": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "same-controller-bouncer",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent:0": {
+          "kind": "permanentDefinition",
+          "definitionId": "own-creature"
+        },
+        "targetPermanent:1": {
+          "kind": "permanentDefinition",
+          "definitionId": "first-opposing"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "same-controller-bouncer",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent:0": {
+          "kind": "permanentDefinition",
+          "definitionId": "first-opposing"
+        },
+        "targetPermanent:1": {
+          "kind": "permanentDefinition",
+          "definitionId": "second-opposing"
+        }
+      },
+      "equals": true
+    }
+  ]
+}

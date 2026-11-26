@@ -869,7 +869,7 @@
       }
     },
     {
-      "id": "near-miss-spending-on-any-ability-has-no-runtime-restriction",
+      "id": "sibling-spending-on-a-spell-or-any-ability",
       "request": {
         "cardName": "Probe Battery",
         "typeLine": "Artifact",
@@ -879,12 +879,48 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpellOrActivateAbilityOf"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction/abilitySources",
+                "equals": "any"
+              },
+              {
+                "pointer": "/effects/0/spendRestriction/spells/value",
+                "equals": "Artifact"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-spending-on-an-ability-of-a-controller-related-source",
+      "request": {
+        "cardName": "Probe Battery",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add {C}{C}. Spend this mana only to cast an artifact spell or activate an ability of a creature you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "mana.policy.runtime-union"
+            "code": "oracle_machine_failure",
+            "state": "mana.policy.ability-source.predicate"
           }
         ]
       }

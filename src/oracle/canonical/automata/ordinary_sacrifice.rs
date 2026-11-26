@@ -157,8 +157,16 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
     // admits a chosen exact count. `another` has no lowered source exclusion
     // here, so it is refused at the determiner instead of failing inside a
     // number.
+    // `half the QUERY [of their choice], rounded up|down` (CR 107.1a): the
+    // shared partitive quantity over this operand (`quantity_slot.rs`).
+    let partitive = range.is_none() && partitive_half_starts(cursor);
     let count = match range {
         Some(range) => SelectionCount::Range(range),
+        // A plural quota until the operand the count halves is read.
+        None if partitive => {
+            recognize_partitive_half(cursor)?;
+            SelectionCount::Exactly(NumericExpression::from(2))
+        }
         None => match recognize_object_determiner(cursor)? {
             Some(ObjectDeterminer::Chosen {
                 quantity: ChosenObjectQuantity::Exactly(count),
@@ -177,8 +185,16 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
         },
     };
     cursor.enter("effect.sacrifice.object-query");
-    let mut query =
-        recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count.quota()))?;
+    let context = ObjectQueryContext::shared_quota(&count.quota());
+    // `that player sacrifices half the creatures they control`: the
+    // restated `they` is the acting player whose permanents are halved.
+    let mut query = if partitive && owner == SacrificeOperandOwner::ActingPlayer {
+        super::read_with_acting_player(cursor, |cursor| {
+            recognize_object_noun_query(cursor, context)
+        })?
+    } else {
+        recognize_object_noun_query(cursor, context)?
+    };
     // `a creature other than this creature`: the source is not a candidate.
     let exclude_source = query.take_source_exclusion();
     cursor.require(
@@ -187,6 +203,17 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
     )?;
     let mut object = query.into_object_query(cursor)?;
     object.exclude_source = exclude_source;
+    // The acting player restated (`half the creatures they control`) is the
+    // acting player's own permanents, the ones its count halves.
+    let acting_player = Some(ObjectControllerScope::Player(RelatedPlayer::Bound(
+        BoundPlayerReference::ActingPlayer,
+    )));
+    if partitive
+        && owner == SacrificeOperandOwner::ActingPlayer
+        && object.controller == acting_player
+    {
+        object.controller = None;
+    }
     cursor.require(
         match owner {
             SacrificeOperandOwner::AbilityController => matches!(
@@ -209,6 +236,36 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
             && object.predicate.has_nominal_head(),
         "a permanent query with a nominal head",
     )?;
+    if partitive {
+        cursor.enter("effect.sacrifice.partitive");
+        // `of their choice`: the acting player chooses, as it always does.
+        if ["of", "their", "choice"]
+            .iter()
+            .enumerate()
+            .all(|(offset, word)| {
+                cursor
+                    .peek_ahead(offset)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+            })
+        {
+            cursor.consume_phrase(&["of", "their", "choice"])?;
+        }
+        let rounding = recognize_partitive_rounding(cursor)?;
+        let counted_controller = match owner {
+            SacrificeOperandOwner::AbilityController => {
+                Some(ObjectControllerScope::AbilityController)
+            }
+            SacrificeOperandOwner::ActingPlayer => acting_player,
+        };
+        let half = cursor.require_value(
+            partitive_half_count(&object, counted_controller, rounding),
+            "half the permanents of the sacrificing player",
+        )?;
+        return Ok(SacrificeEffectNode::Selected {
+            object,
+            count: SelectionCount::Exactly(half),
+        });
+    }
     Ok(SacrificeEffectNode::Selected { object, count })
 }
 

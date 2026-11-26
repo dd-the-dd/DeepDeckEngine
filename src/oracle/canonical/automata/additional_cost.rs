@@ -405,6 +405,7 @@ fn project_payment_action(
         | PaymentActionNode::Untap(_)
         | PaymentActionNode::Exert(_)
         | PaymentActionNode::Mill { .. }
+        | PaymentActionNode::PutInLibrary { .. }
         | PaymentActionNode::RemoveCounters(_) => {
             cursor.enter("additional-cost.action.unsupported");
             Err(cursor.engine_gap(

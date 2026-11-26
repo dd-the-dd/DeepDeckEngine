@@ -81,6 +81,9 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::PutSourceCounters(_)
                 | Cost::PutChosenCounters(_)
                 | Cost::RevealCards(_)
+                // Cards put from a hand or graveyard are never the
+                // battlefield source.
+                | Cost::PutCardsInLibrary(_)
                 | Cost::Mill { .. }
                 | Cost::ExertSelf
                 | Cost::Blight(_)
@@ -114,6 +117,7 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::SacrificeSelf(_)
                 | Cost::DiscardSelf(_)
                 | Cost::RevealSelf
+                | Cost::PutSourceInLibrary(_)
                 | Cost::ExileSelf(_) => return Self::Unproved,
             }
         }

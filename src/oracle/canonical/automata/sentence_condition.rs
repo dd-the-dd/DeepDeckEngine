@@ -290,6 +290,64 @@ fn impossible_outcome_subject_width(cursor: &OracleTokenCursor<'_>) -> Option<us
     (contraction_is(cursor, width, "can", "t") || word_is(cursor, width, "cannot")).then_some(width)
 }
 
+/// `you do` / `you don't` closing a condition atom (before its comma or a
+/// coordinated atom): whether the outcome is the performed one. Lexical
+/// lookahead only; `you don't control ...` and `you do so` are not outcomes.
+fn optional_outcome_atom(cursor: &OracleTokenCursor<'_>) -> Option<bool> {
+    if !word_is(cursor, 0, "you") {
+        return None;
+    }
+    let performed = if word_is(cursor, 1, "do") {
+        true
+    } else if contraction_is(cursor, 1, "don", "t") {
+        false
+    } else {
+        return None;
+    };
+    // A bare `If you do,` after an unguarded `you may ...` sentence is the
+    // outcome connector the effect-program parent reads with its producer
+    // (`binding_environment.rs`); this atom claims only the forms that parent
+    // does not: a disjunction (`If you do or if you control ...`) and an
+    // outcome of an optional instruction a sentence conditional guards.
+    match cursor.peek_ahead(2) {
+        Some("or") => performed.then_some(true),
+        // A guarded `If you don't` stays with the effect-program parent,
+        // whose gated producer runs the declined branch where the guard
+        // fails too (CR 608.2c); only `If you do` is claimed here.
+        Some(",") => (performed && previous_sentence_guards_an_option(cursor)).then_some(true),
+        _ => None,
+    }
+}
+
+/// Whether the sentence before the current one (the cursor stands after
+/// its opening `if`) is a sentence conditional whose branch grants an
+/// option: `If it shares a creature type with this creature, you may reveal
+/// it.` Lexical lookback only; the program lowering proves the instruction.
+fn previous_sentence_guards_an_option(cursor: &OracleTokenCursor<'_>) -> bool {
+    let position = cursor.position();
+    let Some(period) = position.checked_sub(2) else {
+        return false;
+    };
+    let tokens = cursor.token_slice(0, period + 1);
+    if tokens.get(period).is_none_or(|token| token.raw != ".") {
+        return false;
+    }
+    let start = tokens[..period]
+        .iter()
+        .rposition(|token| token.raw == ".")
+        .map_or(0, |index| index + 1);
+    let sentence = &tokens[start..period];
+    let is = |index: usize, expected: &str| {
+        sentence
+            .get(index)
+            .is_some_and(|token| token.raw.eq_ignore_ascii_case(expected))
+    };
+    let Some(comma) = sentence.iter().position(|token| token.raw == ",") else {
+        return false;
+    };
+    is(0, "if") && is(comma + 1, "you") && is(comma + 2, "may")
+}
+
 /// True at a sentence-initial `if` whose condition this child may read, or
 /// at the head of a die-result row (`1-9 |`, CR 706.3).
 pub(in crate::oracle::canonical) fn sentence_condition_starts(
@@ -353,6 +411,12 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &SentenceConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
+    // A coordinated atom may restate the introducer (`If you do or if you
+    // control another Dinosaur`); the first atom's `if` is the parent's.
+    if word_is(cursor, 0, "if") {
+        cursor.enter("condition.sentence.restated-if");
+        cursor.consume("if")?;
+    }
     recognize_condition_atom(
         cursor,
         &ConditionContext::program(ConditionScope::Program, context),
@@ -376,6 +440,11 @@ fn read_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
+    // Compare: the excess damage an earlier damage action of the program
+    // dealt (`If excess damage was dealt this way`, CR 120.4a).
+    if super::excess_damage_condition_starts(cursor) {
+        return super::recognize_excess_damage_condition_atom(cursor);
+    }
     // Compare over the resolving ability's own record: `this is the third
     // time this ability has resolved this turn`, `this ability has been
     // activated four or more times this turn` (`ability_history.rs`).
@@ -414,6 +483,21 @@ fn read_condition_atom(
         && word_is(cursor, 2, "control")
     {
         return recognize_controlled_quantity_atom(cursor);
+    }
+    // ActionOutcome of the program's previous optional instruction (`If you
+    // do`, `If you don't`, CR 608.2c) when the parent bound no optional
+    // payment: the program lowering resolves the instruction, and fails
+    // explicitly when the previous instruction is not an optional one.
+    if context.payment.is_none()
+        && context.program.is_some()
+        && let Some(performed) = optional_outcome_atom(cursor)
+    {
+        cursor.enter("condition.action-outcome.optional-instruction");
+        cursor.consume("you")?;
+        consume_current(cursor)?;
+        return Ok(ConditionAtom::ActionOutcome(
+            ActionOutcomeNode::OptionalInstruction { performed },
+        ));
     }
     if word_is(cursor, 0, "you") && contraction_is(cursor, 1, "don", "t") {
         cursor.enter("condition.action-outcome.payment-omitted");
@@ -712,6 +796,10 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanents_atom(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.controlled-permanents.kind");
+    // `you control the creature with the greatest power or tied for ...`.
+    if super::superlative_holder_starts(cursor) {
+        return super::recognize_superlative_holder_atom(cursor);
+    }
     // `you control no QUERY` / `you control exactly N QUERY`: the absence or
     // exact count read by the shared threshold (CR 109.4 control).
     if word_is(cursor, 2, "no") || word_is(cursor, 2, "exactly") {
@@ -1761,10 +1849,21 @@ fn finish_object_verb_phrase(
                 context.scope,
                 ConditionScope::Static | ConditionScope::TriggerGuard | ConditionScope::Unless
             );
+            // The intervening `if` of a triggered ability states the card
+            // zone it functions from (`if this card is in your graveyard`):
+            // the triggered parent lifts it into the ability's zone of
+            // function and keeps it as the condition rechecked on resolution.
+            let declared_by_trigger = context.scope == ConditionScope::TriggerGuard
+                && !negated
+                && matches!(
+                    zones.as_slice(),
+                    [ConditionZone::Graveyard | ConditionZone::Exile | ConditionZone::Hand]
+                );
             cursor.require(
                 !(continuous
                     && object == ConditionObjectReference::SOURCE
-                    && zones != [ConditionZone::Battlefield]),
+                    && zones != [ConditionZone::Battlefield]
+                    && !declared_by_trigger),
                 "a zone of function the ability's parent declares for its source outside the battlefield (CR 113.6)",
             )?;
             cursor.enter("condition.sentence.object.zone-object");

@@ -10,14 +10,71 @@
 //! definition) refuses these atoms in its validator rather than reading
 //! them as false.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use super::{
     CardInstance, GameEngine, GameStep, StackObject, TargetRef, integer_value, mana_value,
     matches_stack_filter, permanent_filter_supported, stack_filter_supported, value_kind,
 };
+
+/// `owned by PLAYER` (CR 108.3): a relation of a permanent to the player
+/// who owns it, as in `each player gains control of all creatures they
+/// own`. Its `player` is one singular player reference, resolved against
+/// the resolving ability (so a performer's `you` is that performer) into
+/// `playerIds` when the collection is prepared; it has no object anchor and
+/// a static selector, which has no resolving ability, cannot prepare it.
+pub(super) const OWNED_BY: &str = "ownedBy";
+
+pub(super) fn owned_by_relation_supported(atom: &Value) -> bool {
+    value_kind(atom) == Some(OWNED_BY)
+        && super::singular_player_reference_supported(&atom["player"])
+        && atom.as_object().is_some_and(|object| {
+            object
+                .keys()
+                .all(|key| matches!(key.as_str(), "kind" | "player" | "playerIds" | "anchorIds"))
+        })
+}
+
+/// `with the greatest|least PROPERTY among QUERY` (CR 107.1): a superlative
+/// ranking of the candidate within a population of permanents. It reads the
+/// whole battlefield, so it is prepared once before the candidates are
+/// enumerated: `extremeIds` lists every member of the population holding the
+/// extreme value (ties are all members, as the reminder text of Topple says).
+/// The population is the query's permanents on the battlefield, those the
+/// ability's controller controls, or, per candidate, those its own
+/// controller controls. A member without the property (a noncreature's
+/// power) is not ranked; an empty population has no member.
+pub(super) const EXTREMUM_AMONG: &str = "extremumAmong";
+
+pub(super) fn extremum_among_supported(atom: &Value) -> bool {
+    value_kind(atom) == Some(EXTREMUM_AMONG)
+        && matches!(
+            atom["property"].as_str(),
+            Some("power" | "toughness" | "manaValue")
+        )
+        && matches!(atom["extreme"].as_str(), Some("greatest" | "least"))
+        && matches!(
+            atom["population"].as_str(),
+            Some("battlefield" | "abilityController" | "candidateController")
+        )
+        && (atom["where"].is_null() || permanent_filter_supported(&atom["where"]))
+        && atom.as_object().is_some_and(|object| {
+            object.keys().all(|key| {
+                matches!(
+                    key.as_str(),
+                    "kind"
+                        | "property"
+                        | "extreme"
+                        | "population"
+                        | "where"
+                        | "extremeIds"
+                        | "anchorIds"
+                )
+            })
+        })
+}
 
 /// Whether `kind` is a combat block-status atom this module evaluates.
 pub(super) fn combat_block_status_kind(kind: &str) -> bool {
@@ -129,6 +186,131 @@ impl SetProperty {
 }
 
 impl GameEngine {
+    /// Prepares an `ownedBy` relation for the resolving ability: its player
+    /// resolved now. An unresolved player is an error, never an empty owner.
+    pub(super) fn prepare_owned_by_relation(
+        &self,
+        atom: &Value,
+        source: &StackObject,
+        bindings: &BTreeMap<String, super::RuntimeBinding>,
+    ) -> Result<Value, super::EngineError> {
+        let player_id = self
+            .resolve_player(&atom["player"], source, bindings)
+            .ok_or_else(|| {
+                super::EngineError::new("the owner of an ownedBy relation is unresolved")
+            })?;
+        let mut prepared = atom.clone();
+        prepared["playerIds"] = json!([player_id]);
+        prepared["anchorIds"] = json!([]);
+        Ok(prepared)
+    }
+
+    /// A prepared `ownedBy` relation: the permanent's owner is one of its
+    /// players. An unprepared relation never matches.
+    pub(super) fn permanent_owned_by_relation(
+        &self,
+        relation: &Value,
+        permanent: &CardInstance,
+    ) -> bool {
+        relation["playerIds"].as_array().is_some_and(|players| {
+            players
+                .iter()
+                .any(|player| player.as_str() == Some(permanent.owner.as_str()))
+        })
+    }
+
+    /// One ranked property of a permanent; `None` when it has none (CR
+    /// 208.3: a noncreature permanent has no power or toughness).
+    fn extremum_property(&self, permanent: &CardInstance, property: &str) -> Option<i32> {
+        match property {
+            "manaValue" => Some(mana_value(&permanent.definition)),
+            "power" if self.permanent_is_creature(permanent) => Some(self.current_power(permanent)),
+            "toughness" if self.permanent_is_creature(permanent) => {
+                Some(self.current_toughness(permanent))
+            }
+            _ => None,
+        }
+    }
+
+    /// Prepares an `extremumAmong` atom relative to `controller_id`, the
+    /// controller of the ability reading it. `None` for an unsupported atom.
+    pub(super) fn prepare_extremum_among(
+        &self,
+        atom: &Value,
+        controller_id: &str,
+    ) -> Option<Value> {
+        if !extremum_among_supported(atom) {
+            return None;
+        }
+        let property = atom["property"].as_str()?;
+        let greatest = atom["extreme"].as_str()? == "greatest";
+        let population = atom["population"].as_str()?;
+        let members = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .flat_map(|player| player.battlefield.iter())
+            .filter(|permanent| !permanent.flags.get("phasedOut").copied().unwrap_or(false))
+            .filter(|permanent| {
+                population != "abilityController" || permanent.controller == controller_id
+            })
+            .filter(|permanent| {
+                atom["where"].is_null()
+                    || self.permanent_matches_effective_filter(permanent, &atom["where"])
+            })
+            .filter_map(|permanent| {
+                self.extremum_property(permanent, property).map(|value| {
+                    (
+                        permanent.instance_id.clone(),
+                        permanent.controller.clone(),
+                        value,
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        // Each group ranks on its own: the whole population, or each
+        // controller's permanents for `candidateController`.
+        let group_of = |controller: &str| {
+            if population == "candidateController" {
+                controller.to_string()
+            } else {
+                String::new()
+            }
+        };
+        let mut extremes = BTreeMap::<String, i32>::new();
+        for (_, controller, value) in &members {
+            let entry = extremes.entry(group_of(controller)).or_insert(*value);
+            *entry = if greatest {
+                (*entry).max(*value)
+            } else {
+                (*entry).min(*value)
+            };
+        }
+        let extreme_ids = members
+            .iter()
+            .filter(|(_, controller, value)| extremes.get(&group_of(controller)) == Some(value))
+            .map(|(id, ..)| Value::String(id.clone()))
+            .collect::<Vec<_>>();
+        let mut prepared = atom.clone();
+        prepared["extremeIds"] = Value::Array(extreme_ids);
+        prepared["anchorIds"] = json!([]);
+        Some(prepared)
+    }
+
+    /// A prepared `extremumAmong` atom: the permanent is a ranked member
+    /// holding the extreme value. An unprepared atom never matches.
+    pub(super) fn permanent_holds_extremum(
+        &self,
+        relation: &Value,
+        permanent: &CardInstance,
+    ) -> bool {
+        relation["extremeIds"].as_array().is_some_and(|ids| {
+            ids.iter()
+                .any(|id| id.as_str() == Some(permanent.instance_id.as_str()))
+        })
+    }
+
     /// The object a selection names: a permanent, or a card in another
     /// zone, with whether it is on the battlefield.
     fn selected_object(&self, instance_id: &str) -> Option<(&CardInstance, bool)> {

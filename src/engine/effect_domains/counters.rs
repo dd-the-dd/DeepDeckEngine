@@ -7,10 +7,51 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
     Some(supports_known_effect(effect))
 }
 
+/// A count read on each member of the action's own collection: `double the
+/// number of +1/+1 counters on each of those creatures` (CR 701.10e: put that
+/// many on it), `remove all fate counters from all permanents`. The count's
+/// object is structurally the action's subject, a collection (declared
+/// targets of one slot or a permanent query); each member is counted before
+/// any counter moves, and each receives or loses its own number.
+fn member_counter_count(effect: &Value) -> bool {
+    let count = &effect["count"];
+    value_kind(count) == Some("counterCountOf")
+        && count["counter"].is_string()
+        && count["object"] == effect["permanent"]
+        && matches!(
+            value_kind(&effect["permanent"]),
+            Some("chosenTargets" | "eachPermanent")
+        )
+}
+
+/// A permanent query with an explicit `where: null` is the query without a
+/// predicate.
+fn member_collection_selector(selector: &Value) -> Value {
+    let mut selector = selector.clone();
+    if let Some(object) = selector.as_object_mut()
+        && object.get("where").is_some_and(Value::is_null)
+    {
+        object.remove("where");
+    }
+    selector
+}
+
+/// `removeCounters` of each member's own count from a permanent query.
+fn member_counter_removal_supported(effect: &Value) -> bool {
+    value_kind(effect) == Some("removeCounters")
+        && member_counter_count(effect)
+        && value_kind(&effect["permanent"]) == Some("eachPermanent")
+        && effect["counter"].is_string()
+        && counter_selection::counter_collection_selector_supported(&member_collection_selector(
+            &effect["permanent"],
+        ))
+        && effect.get("bind").is_none_or(Value::is_string)
+}
+
 fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
         Some("putCounters") => {
-            let permanent = &effect["permanent"];
+            let permanent = &member_collection_selector(&effect["permanent"]);
             let supported = if value_kind(permanent) == Some("eachPermanent") {
                 counter_selection::counter_collection_selector_supported(permanent)
             } else {
@@ -21,7 +62,7 @@ fn supports_known_effect(effect: &Value) -> bool {
             };
             supported
                 && effect["counter"].is_string()
-                && numeric_expression_supported(&effect["count"])
+                && (numeric_expression_supported(&effect["count"]) || member_counter_count(effect))
                 && effect
                     .get("placedBy")
                     .is_none_or(singular_player_reference_supported)
@@ -61,7 +102,10 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["counter"].is_string()
                 && numeric_expression_supported(&effect["count"])
         }
-        Some("removeCounters") => quantity_cost_payers::counter_removal_supported(effect),
+        Some("removeCounters") => {
+            quantity_cost_payers::counter_removal_supported(effect)
+                || member_counter_removal_supported(effect)
+        }
         Some("removeUpToCounters") => {
             target_reference_supported(&effect["permanent"])
                 && player_reference_supported(&effect["player"])
@@ -231,7 +275,7 @@ impl GameEngine {
                                 )
                                 .unwrap_or_default(),
                             Some("eachPermanent") => self.counter_collection_ids(
-                                &effect["permanent"],
+                                &member_collection_selector(&effect["permanent"]),
                                 stack_object,
                                 bindings,
                                 &excluded_instance_ids,
@@ -259,26 +303,41 @@ impl GameEngine {
                         })?,
                 };
                 self.player_index(&placed_by)?;
-                let count = self
-                    .checked_runtime_numeric_expression(
-                        &effect["count"],
-                        stack_object,
-                        bindings,
-                        decisions,
-                        "putCounters.count",
-                    )?
-                    .max(0);
+                // Each member's own count is read before any placement.
+                let placements = if member_counter_count(effect) {
+                    let counted = effect["count"]["counter"].as_str().unwrap_or_default();
+                    instance_ids
+                        .into_iter()
+                        .map(|instance_id| {
+                            let count = self.member_counter_total(&instance_id, counted);
+                            (vec![instance_id], count)
+                        })
+                        .collect::<Vec<_>>()
+                } else {
+                    let count = self
+                        .checked_runtime_numeric_expression(
+                            &effect["count"],
+                            stack_object,
+                            bindings,
+                            decisions,
+                            "putCounters.count",
+                        )?
+                        .max(0);
+                    vec![(instance_ids, count)]
+                };
                 let mut changed_instance_ids = Vec::new();
-                for (instance_id, actual) in self.place_counters_batch(
-                    instance_ids,
-                    &counter,
-                    count,
-                    QuantityOrigin::Effect,
-                    Some(&placed_by),
-                    provider,
-                )? {
-                    if actual > 0 {
-                        changed_instance_ids.push(instance_id);
+                for (instance_ids, count) in placements {
+                    for (instance_id, actual) in self.place_counters_batch(
+                        instance_ids,
+                        &counter,
+                        count,
+                        QuantityOrigin::Effect,
+                        Some(&placed_by),
+                        provider,
+                    )? {
+                        if actual > 0 {
+                            changed_instance_ids.push(instance_id);
+                        }
                     }
                 }
                 if let Some(binding_id) = effect.get("bind").and_then(Value::as_str) {
@@ -489,6 +548,9 @@ impl GameEngine {
                         }
                     }
                 }
+            }
+            Some("removeCounters") if member_counter_removal_supported(effect) => {
+                self.remove_member_counters(effect, stack_object, bindings)?;
             }
             Some("removeCounters") => {
                 let Some(instance_id) =
@@ -1076,6 +1138,78 @@ impl GameEngine {
                 Some(placed_by.as_str()),
                 provider,
             )?;
+        }
+        Ok(())
+    }
+
+    /// The number of `counter` counters on a battlefield permanent; a member
+    /// that left the battlefield has none to count.
+    fn member_counter_total(&self, instance_id: &str, counter: &str) -> i32 {
+        self.permanent_position(instance_id)
+            .and_then(|(player_index, card_index)| {
+                self.state.players[player_index].battlefield[card_index]
+                    .counters
+                    .get(counter)
+                    .copied()
+            })
+            .unwrap_or(0)
+            .max(0)
+    }
+
+    /// Removal of each member's own counters (CR 122.1): every member of the
+    /// query is identified and counted first, then each loses its own number
+    /// of counters; each removal is one `counterRemoved` record.
+    fn remove_member_counters(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &mut BTreeMap<String, RuntimeBinding>,
+    ) -> Result<(), EngineError> {
+        let counter = effect["counter"]
+            .as_str()
+            .ok_or_else(|| EngineError::new("counter removal has no counter name"))?
+            .to_string();
+        let counted = effect["count"]["counter"]
+            .as_str()
+            .ok_or_else(|| EngineError::new("member counter count has no counter name"))?
+            .to_string();
+        let members = self.counter_collection_ids(
+            &member_collection_selector(&effect["permanent"]),
+            stack_object,
+            bindings,
+            &BTreeSet::new(),
+        )?;
+        let removals = members
+            .into_iter()
+            .map(|instance_id| {
+                let count = self.member_counter_total(&instance_id, &counted);
+                (instance_id, count)
+            })
+            .collect::<Vec<_>>();
+        let mut changed = Vec::new();
+        for (instance_id, count) in removals {
+            let Some((player_index, card_index)) = self.permanent_position(&instance_id) else {
+                continue;
+            };
+            let object = &mut self.state.players[player_index].battlefield[card_index];
+            let present = object.counters.get(&counter).copied().unwrap_or(0);
+            if count <= 0 || present < count {
+                continue;
+            }
+            let remaining = present - count;
+            object.counters.insert(counter.clone(), remaining);
+            let object = object.clone();
+            self.record_event(
+                "counterRemoved",
+                Some(stack_object.controller.clone()),
+                Some(instance_id.clone()),
+                json!({ "counter": counter, "count": count, "remaining": remaining }),
+            );
+            self.enqueue_counter_removed_triggers(&object, "battlefield", &counter, remaining);
+            changed.push(instance_id);
+        }
+        if let Some(binding) = effect["bind"].as_str() {
+            bindings.insert(binding.to_string(), RuntimeBinding::Objects(changed));
         }
         Ok(())
     }

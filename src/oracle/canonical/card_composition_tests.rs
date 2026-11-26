@@ -261,3 +261,31 @@ fn type_heads_are_read_from_the_candidate_itself_not_its_relations() {
     assert!(later.get("distinctFrom").is_none(), "{later}");
     assert_eq!(later["candidates"]["excludeSource"], true, "{later}");
 }
+
+#[test]
+fn a_kicked_another_is_distinct_from_the_slot_every_cast_declares() {
+    // Jilt: `Return target creature ... If this spell was kicked, it deals 2
+    // damage to another target creature` (CR 115.3): the unconditional slot
+    // is declared whenever the kicked one is.
+    let kicked = json!({ "kind": "wasKicked", "spell": { "kind": "self" } });
+    let mut gated = slot("second", "permanents", None, true);
+    gated["condition"] = kicked.clone();
+    let mut composed = rule(vec![slot("first", "permanents", None, false), gated]);
+    compose_other_target_relation(&mut composed);
+    let later = &composed["declaration"]["decisions"][1];
+    assert_eq!(later["distinctFrom"], json!(["first"]), "{later}");
+    assert!(
+        later["candidates"].get("excludeSource").is_none(),
+        "{later}"
+    );
+
+    // Near miss: a gated earlier slot is not declared on every cast, so an
+    // unconditional `another` keeps only its source exclusion.
+    let mut earlier = slot("first", "permanents", None, false);
+    earlier["condition"] = kicked;
+    let mut composed = rule(vec![earlier, slot("second", "permanents", None, true)]);
+    compose_other_target_relation(&mut composed);
+    let later = &composed["declaration"]["decisions"][1];
+    assert!(later.get("distinctFrom").is_none(), "{later}");
+    assert_eq!(later["candidates"]["excludeSource"], true, "{later}");
+}

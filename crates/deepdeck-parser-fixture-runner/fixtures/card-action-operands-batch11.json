@@ -1,0 +1,1051 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "card-action-operands-batch11",
+  "cases": [
+    {
+      "id": "exact-corpse-dance-top-creature-of-graveyard",
+      "request": {
+        "cardName": "Corpse Dance",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Buyback {2} (You may pay an additional {2} as you cast this spell. If you do, put this card into your hand as it resolves.)\nReturn the top creature card of your graveyard to the battlefield. That creature gains haste until end of turn. Exile it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-shallow-grave",
+      "request": {
+        "cardName": "Shallow Grave",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return the top creature card of your graveyard to the battlefield. That creature gains haste until end of turn. Exile it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/0/value/kind",
+                "equals": "graveyardEndCards"
+              },
+              {
+                "pointer": "/effects/0/value/end",
+                "equals": "top"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mistmoon-griffin",
+      "request": {
+        "cardName": "Mistmoon Griffin",
+        "typeLine": "Creature \u2014 Griffin",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\nWhen this creature dies, exile it, then return the top creature card of your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-phyrexian-furnace-bottom-of-target-players-graveyard",
+      "request": {
+        "cardName": "Phyrexian Furnace",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Exile the bottom card of target player's graveyard.\n{1}, Sacrifice this artifact: Exile target card from a graveyard. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/0/value/kind",
+                "equals": "graveyardEndCards"
+              },
+              {
+                "pointer": "/effects/0/value/end",
+                "equals": "bottom"
+              },
+              {
+                "pointer": "/effects/0/value/zone/player/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-soldevi-digger",
+      "request": {
+        "cardName": "Soldevi Digger",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}: Put the top card of your graveyard on the bottom of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/value/kind",
+                "equals": "graveyardEndCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/1/to/position",
+                "equals": "bottom"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-top-two-creature-cards-to-hand",
+      "request": {
+        "cardName": "Position Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Return the top two creature cards of your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/value/count/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-bottom-land-card-onto-battlefield-tapped",
+      "request": {
+        "cardName": "Position Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Put the bottom land card of your graveyard onto the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/value/end",
+                "equals": "bottom"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/1/to/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-positioned-count-disagrees-with-noun",
+      "request": {
+        "cardName": "Position Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Return the top two creature card of your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-positioned-query-of-hidden-library",
+      "request": {
+        "cardName": "Position Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Return the top creature card of your library to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-smoke-teller",
+      "request": {
+        "cardName": "Smoke Teller",
+        "typeLine": "Creature \u2014 Human Shaman",
+        "manaCost": "{1}{U}",
+        "oracleText": "{1}{U}: Look at target face-down creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtFaceDownPermanents"
+              },
+              {
+                "pointer": "/effects/0/objects/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/effects/0/viewer/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/effects/0/viewer/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-aven-soulgazer",
+      "request": {
+        "cardName": "Aven Soulgazer",
+        "typeLine": "Creature \u2014 Bird Cleric",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Flying\n{2}{W}: Look at target face-down creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-face-down-creature-an-opponent-controls",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{1}, {T}: Look at target face-down creature an opponent controls. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-look-at-face-up-target",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{1}: Look at target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lay-bare",
+      "request": {
+        "cardName": "Lay Bare",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Counter target spell. Look at its controller's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-destroy-then-look-at-its-controllers-hand",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy target creature. Look at its controller's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-blackmail",
+      "request": {
+        "cardName": "Blackmail",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Target player reveals three cards from their hand and you choose one of them. That player discards that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "revealCards"
+              },
+              {
+                "pointer": "/effects/1/performer/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thieving-sprite",
+      "request": {
+        "cardName": "Thieving Sprite",
+        "typeLine": "Creature \u2014 Faerie Rogue",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nWhen this creature enters, target player reveals X cards from their hand, where X is the number of Faeries you control. You choose one of those cards. That player discards that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-cabal-interrogator",
+      "request": {
+        "cardName": "Cabal Interrogator",
+        "typeLine": "Creature \u2014 Zombie Wizard",
+        "manaCost": "{1}{B}",
+        "oracleText": "{X}{B}, {T}: Target player reveals X cards from their hand and you choose one of them. That player discards that card. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-reveal-two-choose-one-exile",
+      "request": {
+        "cardName": "Reveal Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target player reveals two cards from their hand. You choose one of them. Exile that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-mind-funeral",
+      "request": {
+        "cardName": "Mind Funeral",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "Target opponent reveals cards from the top of their library until four land cards are revealed. That player puts all cards revealed this way into their graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "revealFromTopUntilCount"
+              },
+              {
+                "pointer": "/effects/0/count/value",
+                "equals": 4
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-passive-until-one-creature-card",
+      "request": {
+        "cardName": "Reveal Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Target player reveals cards from the top of their library until a creature card is revealed. That player puts all cards revealed this way into their graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-passive-until-agreement",
+      "request": {
+        "cardName": "Reveal Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Target player reveals cards from the top of their library until two land cards is revealed.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-release-to-the-wind",
+      "request": {
+        "cardName": "Release to the Wind",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile target nonland permanent. For as long as that card remains exiled, its owner may cast it without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-owner-may-play-exiled-creature",
+      "request": {
+        "cardName": "Owner Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Exile target creature. For as long as that card remains exiled, its owner may play it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-owner-grant-number-disagrees",
+      "request": {
+        "cardName": "Owner Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Exile target creature. For as long as that card remains exiled, its owner may play them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-discarded-card-cast-from-graveyard",
+      "request": {
+        "cardName": "Discard Probe",
+        "typeLine": "Creature \u2014 Elemental",
+        "manaCost": "{1}{B}{G}",
+        "oracleText": "Whenever you discard a nonland card, you may cast it from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.resolution-cast"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cast-battlefield-permanent-antecedent",
+      "request": {
+        "cardName": "Cast Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Tap target creature. You may cast it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-lesser-mana-value-from-cards-exiled-this-way",
+      "request": {
+        "cardName": "Cascade Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{U}{R}",
+        "oracleText": "Whenever you cast a spell, exile the top three cards of your library. You may cast a spell with lesser mana value from among cards exiled this way without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-summer-bloom",
+      "request": {
+        "cardName": "Summer Bloom",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "You may play up to three additional lands this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantAdditionalLandPlays"
+              },
+              {
+                "pointer": "/effects/0/count/value",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-journey-of-discovery",
+      "request": {
+        "cardName": "Journey of Discovery",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Choose one \u2014\n\u2022 Search your library for up to two basic land cards, reveal them, put them into your hand, then shuffle.\n\u2022 You may play up to two additional lands this turn.\nEntwine {2}{G} (Choose both if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-thought-string-analyst",
+      "request": {
+        "cardName": "Thought-String Analyst",
+        "typeLine": "Creature \u2014 Human Wizard",
+        "manaCost": "{3}{B}",
+        "oracleText": "At the beginning of your upkeep, exile the top card of target opponent's library face down. You lose life equal to its mana value. You may look at and play that card for as long as it remains exiled, and mana of any type can be spent to cast that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-look-at-and-play-this-turn",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile the top two cards of your library face down. You may look at and play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantCardVisibility"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "grantPermission"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-look-only-while-exiled",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "When this artifact enters, exile the top card of target opponent's library face down. You may look at it for as long as it remains exiled.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-look-permission-without-window",
+      "request": {
+        "cardName": "Look Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Exile the top card of your library face down. You may look at it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-play-lands-and-cast-spells-from-among-exiled",
+      "request": {
+        "cardName": "Play Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}",
+        "oracleText": "Exile the top three cards of target opponent's library. You may play lands and cast spells from among cards exiled this way without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/playLands",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/2/withoutPayingManaCost",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gix-yawgmoth-praetor",
+      "request": {
+        "cardName": "Gix, Yawgmoth Praetor",
+        "typeLine": "Legendary Creature \u2014 Phyrexian Praetor",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Whenever a creature deals combat damage to one of your opponents, its controller may pay 1 life. If they do, they draw a card.\n{4}{B}{B}{B}, Discard X cards: Exile the top X cards of target opponent's library. You may play lands and cast spells from among cards exiled this way without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-emergent-ultimatum-the-other-cards",
+      "request": {
+        "cardName": "Emergent Ultimatum",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}{B}{G}{G}{U}{U}",
+        "oracleText": "Search your library for up to three monocolored cards with different names and exile them. An opponent chooses one of those cards. Shuffle that card into your library. You may cast the other cards without paying their mana costs. Exile Emergent Ultimatum.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-keeper-of-the-lens",
+      "request": {
+        "cardName": "Keeper of the Lens",
+        "typeLine": "Artifact Creature \u2014 Golem",
+        "manaCost": "{1}",
+        "oracleText": "You may look at face-down creatures you don't control any time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "lookAtFaceDownAnyTime"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-found-footage",
+      "request": {
+        "cardName": "Found Footage",
+        "typeLine": "Artifact \u2014 Clue",
+        "manaCost": "{1}",
+        "oracleText": "You may look at face-down creatures your opponents control any time.\n{2}, Sacrifice this artifact: Surveil 2, then draw a card. (To surveil 2, look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-any-time-look-at-face-up-creatures",
+      "request": {
+        "cardName": "Lens Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "You may look at creatures you don't control any time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-shadow-of-the-enemy",
+      "request": {
+        "cardName": "Shadow of the Enemy",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{B}{B}",
+        "oracleText": "Exile all creature cards from target player's graveyard. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/1/action/spendManaAsAnyType",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fiend-of-the-shadows",
+      "request": {
+        "cardName": "Fiend of the Shadows",
+        "typeLine": "Creature \u2014 Vampire Wizard",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Flying\nWhenever this creature deals combat damage to a player, that player exiles a card from their hand. You may play that card for as long as it remains exiled.\nSacrifice a Human: Regenerate this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "sibling-exile-opponents-hand-play-this-turn",
+      "request": {
+        "cardName": "Exile Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Exile all cards from target opponent's hand. You may play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-lens-of-clarity-coordinated-look-objects",
+      "request": {
+        "cardName": "Lens of Clarity",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "You may look at the top card of your library and at face-down creatures you don't control any time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "lookAtTopLibrary"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "lookAtFaceDownAnyTime"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

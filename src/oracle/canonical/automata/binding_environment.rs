@@ -70,6 +70,9 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     pub event_object: Option<EventObjectSlot>,
     /// The event is the cast of one spell (`that spell`).
     pub event_spell: bool,
+    /// The event is the cast of the ability's own source spell (`When you
+    /// cast this spell`, CR 601.2i): `this spell` / `it` name that spell.
+    pub source_spell_cast: bool,
     /// The event moved its object into this public zone, where the ability
     /// can still find the card it became (CR 400.7, 603.6c): `it` / `that
     /// card` in a card action when the program observed no other card.
@@ -191,6 +194,42 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// operands only (`player_subject::with_acting_player`); the lowering
     /// binds it to the action's player slot.
     pub acting_player: bool,
+    /// A structural producer of the clause being read published `object`
+    /// (a preposed condition's subject, a created trigger's event subject,
+    /// the possessor of a performer subject): it is the nearest antecedent
+    /// of that clause's pronoun, whatever the program's earlier lexical
+    /// scope named (CR 608.2c). `None` for an antecedent derived from the
+    /// program's own actions. Installed only by the producers of this
+    /// module, around the clause they scope.
+    pub object_producer: Option<ObjectProducer>,
+}
+
+/// The structural producer that published the singular object antecedent
+/// of the clause being read (`BindingEnvironment::object_producer`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectProducer {
+    /// `If this creature is a Spirit, it becomes ...`: the one object every
+    /// atom of a preposed sentence condition is about.
+    PreposedCondition,
+    /// `Whenever a creature attacks this turn, it gains ...`: the subject of
+    /// the event of a trigger an effect created (CR 603.7c-e).
+    CreatedTriggerEvent,
+    /// `Its owner shuffles it into their library`: the object a performer
+    /// subject's genitive names (CR 108.3, 109.4).
+    PerformerPossessor,
+    /// `If this Equipment is a creature and equipped creature is a Warrior,
+    /// it ...`: the preposed condition names several objects, so it
+    /// publishes no antecedent; a pronoun without another one reports the
+    /// competition (`COMPETING_CONDITION_ANTECEDENTS`).
+    CompetingConditionSubjects,
+    /// `If this spell was kicked, it deals 2 damage ...`: a preposed cast
+    /// fact or cast choice names the resolving spell, the nearest
+    /// antecedent of a bare pronoun of the clause it gates (CR 608.2c), and
+    /// the spell is what deals the damage (CR 120.3). A nominal anaphor
+    /// (`that creature`, `that card`) still names the program's earlier
+    /// object of that noun: the spell satisfies no such nominal, so this
+    /// producer never replaces the singular object antecedent.
+    CastFactSpell(super::LocalObjectReference),
 }
 
 /// The payer of an `unless` frame as a later reference to that player: the
@@ -684,13 +723,343 @@ fn program_declared_target(effects: &[super::LocalEffectNode]) -> Option<Declare
 
 /// Copies the action result the program parent published on the cursor
 /// into an environment a context parent built (`for_permanent_context`),
-/// so its references see the same antecedents as the program's.
+/// so its references see the same antecedents as the program's. A singular
+/// object a structural producer published for the clause being read (a
+/// preposed condition's subject, a created trigger's event subject, a
+/// performer's possessor) is that clause's nearest antecedent: it replaces
+/// the context's, together with the frame the producer read it in.
 pub(in crate::oracle::canonical) fn inherit_installed_action_result(
     environment: &mut BindingEnvironment,
     cursor: &OracleTokenCursor<'_>,
 ) {
+    let installed = installed_binding_environment(cursor);
     if environment.result_object.is_none() {
-        environment.result_object = installed_binding_environment(cursor).result_object;
+        environment.result_object = installed.result_object;
+    }
+    // The spell a cast fact names answers only a bare pronoun; the context's
+    // own object stays the antecedent of a nominal anaphor.
+    if let Some(producer @ ObjectProducer::CastFactSpell(_)) = installed.object_producer {
+        environment.object_producer = Some(producer);
+        return;
+    }
+    if let Some(producer) = installed
+        .object_producer
+        .filter(|producer| *producer != ObjectProducer::CompetingConditionSubjects)
+        && installed.object.is_some()
+    {
+        environment.frame = installed.frame;
+        environment.object = installed.object;
+        environment.local_object_scope = true;
+        environment.object_producer = Some(producer);
+    }
+}
+
+/// Publishes `object` as the antecedent `producer` gives the clause read
+/// next on the cursor's installed environment. Every producer of this
+/// module installs its antecedent through it.
+fn publish_produced_antecedent(
+    cursor: &mut OracleTokenCursor<'_>,
+    object: ObjectSubjectAntecedent,
+    producer: ObjectProducer,
+) {
+    let mut environment = installed_binding_environment(cursor);
+    environment.object = Some(object);
+    environment.local_object_scope = true;
+    environment.object_producer = Some(producer);
+    cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+}
+
+/// The one object a preposed sentence condition is about, as the antecedent
+/// of the clause it gates (`If this creature is a Spirit, it becomes ...`,
+/// `If this spell was kicked, it deals 3 damage ...`, CR 608.2c): every atom
+/// that names an object names the same singular permanent (the source, the
+/// permanent it is attached to, or a declared permanent target), and a cast
+/// fact or cast choice of the source spell names the source. An atom about a
+/// player, the turn or the program's history names no object and does not
+/// compete; two different objects, or none, publish nothing.
+pub(in crate::oracle::canonical) fn preposed_condition_subject(
+    condition: &super::ConditionNode,
+) -> Option<PermanentEffectReference> {
+    fn subjects(
+        condition: &super::ConditionNode,
+        found: &mut Vec<Option<PermanentEffectReference>>,
+    ) {
+        match condition {
+            super::BooleanConditionNode::Atom(atom) => found.push(atom_subject(atom)),
+            super::BooleanConditionNode::Not(inner) => subjects(inner, found),
+            super::BooleanConditionNode::And(operands)
+            | super::BooleanConditionNode::Or(operands) => {
+                operands.iter().for_each(|operand| subjects(operand, found));
+            }
+        }
+    }
+    fn permanent(object: super::ConditionObjectReference) -> Option<PermanentEffectReference> {
+        match object {
+            super::ConditionObjectReference::Permanent(reference) => Some(reference),
+            _ => None,
+        }
+    }
+    fn atom_subject(atom: &super::ConditionAtom) -> Option<PermanentEffectReference> {
+        match atom {
+            super::ConditionAtom::ObjectSatisfies(node) => permanent(node.object),
+            super::ConditionAtom::ObjectZone(node) => permanent(node.object),
+            super::ConditionAtom::Compare(comparison) => compared_object(comparison),
+            super::ConditionAtom::CastFact(super::CastFactNode {
+                spell: super::CastSpellReference::Source(source),
+                ..
+            }) => Some(PermanentEffectReference::Source(*source)),
+            // A choice the caster made for the ability's own source as it
+            // was cast (`this spell was cast using teamwork`).
+            super::ConditionAtom::CastChoice(_) => Some(PermanentEffectReference::Source(
+                super::LocalObjectReference::SourceSelf,
+            )),
+            _ => None,
+        }
+    }
+    let mut found = Vec::new();
+    subjects(condition, &mut found);
+    let mut named = found.into_iter().flatten();
+    let first = named.next()?;
+    if !named.all(|reference| reference == first) {
+        return None;
+    }
+    match first {
+        PermanentEffectReference::Source(_)
+        | PermanentEffectReference::Attached(_)
+        | PermanentEffectReference::Target(_) => Some(first),
+        _ => None,
+    }
+}
+
+/// Whether a preposed condition names its object only through cast facts or
+/// cast choices of the source spell (`If this spell was kicked`).
+fn preposed_condition_is_cast_fact(condition: &super::ConditionNode) -> bool {
+    match condition {
+        super::BooleanConditionNode::Atom(atom) => matches!(
+            atom,
+            super::ConditionAtom::CastFact(_) | super::ConditionAtom::CastChoice(_)
+        ),
+        super::BooleanConditionNode::Not(inner) => preposed_condition_is_cast_fact(inner),
+        super::BooleanConditionNode::And(operands) | super::BooleanConditionNode::Or(operands) => {
+            operands.iter().all(preposed_condition_is_cast_fact)
+        }
+    }
+}
+
+/// Whether the atoms of a preposed condition name two different objects
+/// (`If this Equipment is a creature and equipped creature is a Warrior`):
+/// a following pronoun has competing antecedents and names neither.
+fn preposed_condition_names_several_objects(condition: &super::ConditionNode) -> bool {
+    fn collect(condition: &super::ConditionNode, found: &mut Vec<PermanentEffectReference>) {
+        match condition {
+            super::BooleanConditionNode::Atom(_) => {
+                if let Some(reference) = preposed_condition_subject(condition)
+                    .filter(|reference| !found.contains(reference))
+                {
+                    found.push(reference);
+                }
+            }
+            super::BooleanConditionNode::Not(inner) => collect(inner, found),
+            super::BooleanConditionNode::And(operands)
+            | super::BooleanConditionNode::Or(operands) => {
+                operands.iter().for_each(|operand| collect(operand, found));
+            }
+        }
+    }
+    let mut found = Vec::new();
+    collect(condition, &mut found);
+    found.len() > 1
+}
+
+/// The diagnostic of a pronoun after a preposed condition about several
+/// objects.
+pub(in crate::oracle::canonical) const COMPETING_CONDITION_ANTECEDENTS: &str =
+    "exactly one antecedent for the pronoun; the preceding condition names several objects";
+
+/// Publishes the subject of a preposed sentence condition the program parent
+/// just read (`preposed_condition_subject`) as the antecedent of the first
+/// clause it gates. A declared target keeps the selector that declared it,
+/// so a nominal anaphor still follows from it. A condition about no single
+/// permanent publishes nothing and the clause keeps the program's
+/// antecedents.
+///
+/// The program parent calls it once, right after the condition:
+/// `super::publish_preposed_condition_antecedent(cursor, &condition);`
+pub(in crate::oracle::canonical) fn publish_preposed_condition_antecedent(
+    cursor: &mut OracleTokenCursor<'_>,
+    condition: &super::ConditionNode,
+) {
+    let Some(reference) = preposed_condition_subject(condition) else {
+        // Two objects compete: the pronoun names neither, and a reader
+        // that finds no other antecedent reports the competition.
+        if preposed_condition_names_several_objects(condition) {
+            let mut environment = installed_binding_environment(cursor);
+            environment.object_producer = Some(ObjectProducer::CompetingConditionSubjects);
+            cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+        }
+        return;
+    };
+    let installed = installed_binding_environment(cursor);
+    // A cast fact or cast choice is about the resolving spell: a bare
+    // pronoun of the gated clause names it (`If this spell was kicked, it
+    // deals 2 damage ...`, CR 120.3, 608.2c), while a nominal anaphor (`If
+    // this spell was kicked, that creature gets -2/-0 instead`, `instead
+    // put that card onto the battlefield`) keeps the program's own earlier
+    // object or card antecedent, which the spell is not. The singular
+    // object antecedent is therefore left as it is.
+    if preposed_condition_is_cast_fact(condition) {
+        let PermanentEffectReference::Source(source) = reference else {
+            return;
+        };
+        let mut environment = installed;
+        environment.object_producer = Some(ObjectProducer::CastFactSpell(source));
+        cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+        return;
+    }
+    let selector = match reference {
+        PermanentEffectReference::Target(binding) => {
+            let declared = installed
+                .declared_objects
+                .iter()
+                .find(|declared| declared.binding == binding)
+                .map(|declared| declared.selector.clone());
+            // Only a declared battlefield permanent is a clause subject.
+            let Some(selector) = declared else {
+                return;
+            };
+            Some(selector)
+        }
+        _ => None,
+    };
+    publish_produced_antecedent(
+        cursor,
+        ObjectSubjectAntecedent {
+            reference,
+            selector,
+        },
+        ObjectProducer::PreposedCondition,
+    );
+}
+
+/// The antecedent of the actions a trigger created by an effect governs
+/// (CR 603.7c-e): the subject of its own event while it is still a
+/// permanent (`Whenever a creature attacks this turn, it gains lifelink`),
+/// with the predicate the event wrote for it. A created trigger is a new
+/// frame: the creating program's lexical antecedents are not its own. An
+/// event whose subject is no permanent (a player, a departed object, a
+/// spell) publishes no object.
+///
+/// The created-rule parent calls it while it installs the rule's frame:
+/// `super::bind_created_rule_subject(&mut environment, &frame);`
+pub(in crate::oracle::canonical) fn bind_created_rule_subject(
+    environment: &mut BindingEnvironment,
+    frame: &FrameBindings,
+) {
+    let Some(slot) = frame
+        .event_object
+        .as_ref()
+        .filter(|slot| slot.subject && !slot.departed)
+    else {
+        return;
+    };
+    environment.object = Some(ObjectSubjectAntecedent {
+        reference: slot.reference,
+        selector: Some(TargetSelector::Object(slot.predicate.clone())),
+    });
+    environment.local_object_scope = true;
+    environment.object_producer = Some(ObjectProducer::CreatedTriggerEvent);
+}
+
+/// The possessor of a performer subject (`its owner`, `this creature's
+/// owner`, `enchanted creature's controller`) as the antecedent of the
+/// performer's predicate (`... shuffles it into their library`, CR 108.3,
+/// 109.4): the source or the permanent it is attached to, which a pronoun of
+/// the predicate names. A declared target already is the program's own
+/// antecedent, and any other object publishes nothing.
+pub(in crate::oracle::canonical) fn publish_performer_possessor(
+    cursor: &mut OracleTokenCursor<'_>,
+    performer: &PlayerEffectSubject,
+) {
+    let PlayerEffectSubject::ObjectRelation { object, .. } = performer else {
+        return;
+    };
+    if !matches!(
+        object,
+        PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_)
+    ) {
+        return;
+    }
+    publish_produced_antecedent(
+        cursor,
+        ObjectSubjectAntecedent {
+            reference: *object,
+            selector: None,
+        },
+        ObjectProducer::PerformerPossessor,
+    );
+}
+
+/// Whether a trigger event names the ability's own card or permanent as the
+/// object of a player's action, wherever that action put it: `When you
+/// cycle this card` (CR 702.29), `When you discard this card` (CR 701.9),
+/// `When you sacrifice this Aura` (CR 701.21), `Whenever one or more +1/+1
+/// counters are put on this creature` (CR 122.6). A trigger condition list
+/// names it when every member names the source as its object or subject
+/// (`When you cycle this card and when this creature dies`).
+pub(in crate::oracle::canonical) fn event_names_source_object(
+    event: &super::GenericTriggerEventNode,
+) -> bool {
+    use super::{GenericTriggerEventNode as Event, LocalTriggerEventNode as Local};
+    fn source_subject(event: &Event) -> bool {
+        matches!(
+            event,
+            Event::SourceTransition(_)
+                | Event::SourceEvent(_)
+                | Event::SourceCounterState(_)
+                | Event::Local(
+                    Local::SourceEntered { .. }
+                        | Local::SourceAttacked { .. }
+                        | Local::SourceDealtDamage { .. }
+                        | Local::CombatDamageToPlayer { .. }
+                )
+        )
+    }
+    match event {
+        Event::Local(Local::SourceCycled { .. }) => true,
+        Event::Local(Local::PlayerEvent {
+            card: Some(card),
+            one_or_more: false,
+            ..
+        }) => card.is_source_card(),
+        Event::Sacrificed(node) => node.source && node.object.is_none() && !node.one_or_more,
+        Event::CounterPlacement(node) => {
+            matches!(node.recipient, super::CounterRecipient::Source(_))
+        }
+        Event::Conditioned { event, .. } => event_names_source_object(event),
+        Event::Compound(members) => {
+            members.iter().any(event_names_source_object)
+                && members
+                    .iter()
+                    .all(|member| event_names_source_object(member) || source_subject(member))
+        }
+        _ => false,
+    }
+}
+
+/// The source as the object of its trigger's event (`event_names_source_object`)
+/// is the antecedent of the body's pronoun, read by its last known
+/// information once the action moved it (CR 113.7a, 608.2h): `When you
+/// cycle this card, it deals 6 damage to any target`.
+///
+/// The trigger parent calls it while it builds the guard and body context:
+/// `super::bind_source_event_object(&mut context, event);`
+pub(in crate::oracle::canonical) fn bind_source_event_object(
+    context: &mut EffectRecognitionContext,
+    event: &super::GenericTriggerEventNode,
+) {
+    if event_names_source_object(event) {
+        context.source_anaphor_binding =
+            super::SourceAnaphorBinding::EventSubject(super::LocalObjectReference::SourceSelf);
     }
 }
 
@@ -846,6 +1215,7 @@ impl BindingEnvironment {
             unless_payer: None,
             declared_objects: Vec::new(),
             acting_player: false,
+            object_producer: None,
         }
     }
 }
@@ -1160,6 +1530,11 @@ pub(in crate::oracle::canonical) fn object_related_player_head(
     let first = raw(0)?;
     if first.eq_ignore_ascii_case("its") {
         return player_relation(raw(1)?).map(|relation| (2, relation));
+    }
+    // `this creature's owner`, `this Aura's controller`: the genitive of
+    // the source itself (CR 109.2, 205.3).
+    if first.eq_ignore_ascii_case("this") && super::reference::possessive_source_noun(raw(1)?) {
+        return player_relation(raw(2)?).map(|relation| (3, relation));
     }
     // `that land's controller`, or the definite `the land's controller`,
     // which names the same antecedent (`recognize_definite_object_reference`).
@@ -1526,6 +1901,22 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         .peek_token()
         .cloned()
         .ok_or_else(|| cursor.fail("`its` or `that NOUN's`"))?;
+    // `this creature's owner|controller`: the source's own player, never
+    // an antecedent's (CR 108.3, 109.4).
+    if first.raw.eq_ignore_ascii_case("this") {
+        let source = super::reference::recognize_possessive_source_reference(cursor)?;
+        cursor.enter("player-subject.object-relation.relation");
+        let relation = cursor
+            .peek()
+            .and_then(player_relation)
+            .ok_or_else(|| cursor.fail("`controller` or `owner`"))?;
+        cursor.advance_to(cursor.position() + 1)?;
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ObjectRelation {
+            relation,
+            object: PermanentEffectReference::Source(source),
+        });
+    }
     let nominal = if first.raw.eq_ignore_ascii_case("its") {
         cursor.consume("its")?;
         None
@@ -2211,12 +2602,35 @@ fn singular_reference(reference: PermanentEffectReference) -> bool {
 const PLURAL_SET_FOR_SINGULAR: &str =
     "a singular antecedent; the preceding action declared or produced several objects";
 
+/// The environment a singular nominal anaphor (`that card`, `that
+/// creature`) resolves in: the resolving spell a preposed cast fact names
+/// answers only a bare pronoun (`it deals`), never a noun the program's
+/// earlier object carries (`If this spell was kicked, instead put that card
+/// onto the battlefield`, CR 608.2c).
+pub(in crate::oracle::canonical) fn nominal_anaphor_environment(
+    environment: &BindingEnvironment,
+) -> BindingEnvironment {
+    let mut nominal = environment.clone();
+    if matches!(
+        nominal.object_producer,
+        Some(ObjectProducer::CastFactSpell(_))
+    ) {
+        nominal.object_producer = None;
+    }
+    nominal
+}
+
 /// The one resolver of a singular object pronoun (`it`, `he`, `she`): the
 /// proven lexical antecedent of the position being read. A preceding plural
 /// set is a number mismatch, not an antecedent.
 pub(in crate::oracle::canonical) fn resolve_pronoun_antecedent(
     environment: &BindingEnvironment,
 ) -> Result<PermanentEffectReference, &'static str> {
+    // The resolving spell a preposed cast fact just named is the nearest
+    // antecedent of a bare pronoun (`If this spell was kicked, it deals`).
+    if let Some(ObjectProducer::CastFactSpell(source)) = environment.object_producer {
+        return Ok(PermanentEffectReference::Source(source));
+    }
     if let Some(object) = environment.object.as_ref() {
         return Ok(object.reference);
     }

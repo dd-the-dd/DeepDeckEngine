@@ -286,7 +286,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                 || target_reference_supported(&effect["object"])
                 || object_expression_supported(&effect["object"])
                 || (value_kind(&effect["object"]) == Some("eachPermanent")
-                    && card_filter_supported(&effect["object"]["where"])))
+                    && card_filter_supported(&effect["object"]["where"]))
+                || object_relation_eval::related_collection_supported(&effect["object"]))
                 && supported_keyword
                 && matches!(
                     value_kind(&effect["duration"]),
@@ -681,6 +682,17 @@ impl GameEngine {
                             Some("self" | "abilitySource")
                         ) {
                             vec![stack_object.card.instance_id.clone()]
+                        } else if value_kind(&effect["object"]) == Some("eachPermanent")
+                            && object_relation_eval::filter_has_relation(&effect["object"]["where"])
+                        {
+                            // A relation (`blocking or blocked by this
+                            // creature`) is prepared by the runtime collection.
+                            self.resolve_runtime_object_ids_checked(
+                                &effect["object"],
+                                stack_object,
+                                bindings,
+                                decisions,
+                            )?
                         } else if value_kind(&effect["object"]) == Some("eachPermanent") {
                             self.state
                                 .players
